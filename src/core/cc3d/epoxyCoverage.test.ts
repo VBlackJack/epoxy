@@ -72,6 +72,7 @@ describe('epoxy coverage table', () => {
     check('clone_switch_empty');
     check('bomb_with_item');
     check('laser_shooter_covered');
+    check('gravel_with_reflector');
     expect(missing).toEqual([]);
   });
 
@@ -88,7 +89,7 @@ describe('epoxy coverage table', () => {
     }
     for (const key of [
       'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
-      'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'
+      'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector'
     ]) named.add(key);
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });
@@ -134,11 +135,13 @@ describe('classifyLevel', () => {
     expect(EPOXY_COVERAGE.laser_controller.level).toBe('approx');
   });
 
-  it('plays sand and the extra fish exactly, and gravel approximately', () => {
+  it('plays sand, the extra fish and plain gravel exactly, and gravel in a level with a reflector approximately', () => {
     expect(classifyLevel(levelOf(['######', '#@AeX#', '######']))).toEqual({ verdict: 'exact', lost: [], approx: [] });
     expect(EPOXY_COVERAGE.sand.level).toBe('exact');
     expect(EPOXY_COVERAGE.fish_extra.level).toBe('exact');
-    expect(classifyLevel(levelOf(['#####', '#@GX#', '#####']))).toEqual({ verdict: 'approx', lost: [], approx: ['gravel'] });
+    expect(classifyLevel(levelOf(['#####', '#@GX#', '#####']))).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    const withReflector = levelOf(['######', '#@GrX#', '######'], { r: { mob: { kind: 'reflector', mirror: 'LU' } } });
+    expect(classifyLevel(withReflector)).toEqual({ verdict: 'approx', lost: [], approx: ['gravel_with_reflector', 'reflector'] });
   });
 
   it('plays a red socket on plain floor exactly, and one on any other layer approximately', () => {

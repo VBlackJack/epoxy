@@ -3648,6 +3648,10 @@
       },
       "gravel": {
         "name": "Gravier",
+        "label": "Epoxy joue le gravier simple comme CC3D : le joueur et tous les blocs peuvent y entrer, pas les monstres."
+      },
+      "gravel_with_reflector": {
+        "name": "Gravier dans un niveau avec un réflecteur",
         "label": "Le gravier d'Epoxy admet les miroirs, là où celui de CC3D refuse les réflecteurs."
       },
       "socket_red_stacked": {
@@ -3660,7 +3664,7 @@
       },
       "water": {
         "name": "Eau",
-        "label": "Un bloc de couleur flotte comme une case praticable qu'on ne peut plus pousser."
+        "label": "Un bloc de terre fait de la terre, un bloc de glace de la glace et un bloc de couleur un pont, comme dans CC3D. Les monstres d'Epoxy entrent dans l'eau et se noient, là où ceux de CC3D la refusent, et Epoxy laisse pousser un second bloc sur un bloc de couleur flottant."
       },
       "force_random": {
         "name": "Tapis de force aléatoire",
@@ -3672,15 +3676,15 @@
       },
       "slime": {
         "name": "Gelée",
-        "label": "La gelée est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "La vase tue le joueur et est nettoyée par tout bloc qui y entre, comme dans CC3D. Avec l'orbe de feu et l'orbe d'eau ensemble, CC3D laisse passer le joueur, là où Epoxy le tue ; et les monstres de CC3D refusent la vase, là où ceux d'Epoxy y meurent."
       },
       "turtle": {
         "name": "Tortue",
-        "label": "Le comportement de la tortue est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "La tortue coule derrière ce qui la quitte, comme dans CC3D. Les monstres d'Epoxy refusent une tortue, là où ceux de CC3D la traversent et la font couler."
       },
       "dirt": {
         "name": "Terre",
-        "label": "La terre est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "Le joueur dégage la terre en marchant dedans, comme dans CC3D. Epoxy refuse un bloc sur la terre, là où CC3D le laisse la dégager."
       },
       "teleport_blue": {
         "name": "Téléporteur bleu",
@@ -3692,95 +3696,95 @@
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
-        "label": "Le rythme du mur apparaissant diffère de CC3D."
+        "label": "Le joueur qui se cogne à un mur apparaissant en fait un mur, comme dans CC3D. Un bloc poussé ou un monstre en fait aussi un mur dans CC3D, là où Epoxy le laisse tel quel."
       },
       "trap": {
         "name": "Piège",
-        "label": "Les règles de libération du piège diffèrent de CC3D."
+        "label": "Epoxy joue le piège comme CC3D : il retient ce qui y entre jusqu'à ce qu'une commande l'actionne, et chaque commande actionne le piège suivant dans l'ordre de lecture."
       },
       "trap_control": {
         "name": "Commande de piège",
-        "label": "Le lien des commandes de piège diffère de CC3D."
+        "label": "Epoxy joue la commande de piège comme CC3D : elle actionne le piège suivant dans l'ordre de lecture."
       },
       "clone_machine": {
         "name": "Machine à cloner",
-        "label": "Les règles de sortie de la machine à cloner diffèrent de CC3D."
+        "label": "Epoxy joue la machine à cloner comme CC3D pour un bloc ou un golem en modèle. Les autres monstres modèles gardent l'approximation de leur monstre."
       },
       "clone_switch": {
         "name": "Interrupteur de clonage",
-        "label": "Le lien de l'interrupteur de clonage diffère de CC3D."
+        "label": "Epoxy joue l'interrupteur de clonage comme CC3D : il actionne la machine la plus proche, que le joueur ou un bloc marche dessus."
       },
       "golem_control_blue": {
         "name": "Commande de golem bleu",
-        "label": "La commande de golem est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "Epoxy joue la commande de golem bleu comme CC3D : tous les golems font demi-tour quand le joueur, un bloc ou un golem marche dessus."
       },
       "bomb": {
         "name": "Bombe",
-        "label": "Les règles d'explosion de la bombe diffèrent de CC3D."
+        "label": "Epoxy joue la bombe comme CC3D : elle tue le joueur qui marche dessus et disparaît avec tout bloc ou monstre qui y entre."
       },
       "gate_tools": {
         "name": "Portail à outils",
-        "label": "Les règles du portail à outils diffèrent de CC3D."
+        "label": "La barrière prend tous les outils du joueur qui y entre, comme dans CC3D. Epoxy refuse le bloc de glace, que CC3D fait glisser sur la barrière."
       },
       "gate_keys": {
         "name": "Portail à clés",
-        "label": "Les règles du portail à clés diffèrent de CC3D."
+        "label": "La barrière prend toutes les clés du joueur qui y entre, comme dans CC3D. Epoxy refuse le bloc de glace, que CC3D fait glisser sur la barrière."
       },
       "orb_ice": {
         "name": "Orbe de glace",
-        "label": "L'effet de l'orbe est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "L'orbe fonctionne comme dans CC3D. CC3D porte au plus quatre outils et un cinquième dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes."
       },
       "orb_force": {
         "name": "Orbe de force",
-        "label": "L'effet de l'orbe est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "L'orbe fonctionne comme dans CC3D. CC3D porte au plus quatre outils et un cinquième dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes."
       },
       "orb_fire": {
         "name": "Orbe de feu",
-        "label": "L'effet de l'orbe est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "L'orbe fonctionne comme dans CC3D. CC3D porte au plus quatre outils et un cinquième dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes. Avec l'orbe de feu et l'orbe d'eau ensemble, CC3D laisse le joueur traverser la vase et la nettoie, là où Epoxy le tue."
       },
       "orb_water": {
         "name": "Orbe d'eau",
-        "label": "L'effet de l'orbe est proche de son équivalent Epoxy, sans lui être identique."
+        "label": "L'orbe fonctionne comme dans CC3D. CC3D porte au plus quatre outils et un cinquième dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes. Avec l'orbe de feu et l'orbe d'eau ensemble, CC3D laisse le joueur traverser la vase et la nettoie, là où Epoxy le tue."
       },
       "block_dirt": {
         "name": "Bloc de terre",
-        "label": "Les règles de poussée du bloc de terre diffèrent légèrement de CC3D."
+        "label": "Les plaques, la vase, les bombes, la glace et les sols de force se comportent comme dans CC3D. Epoxy laisse entrer le bloc dans le feu et sur un objet, ce que CC3D refuse, et refuse la terre et une porte bleue ouverte, que CC3D laisse le bloc dégager."
       },
       "block_ice": {
         "name": "Bloc de glace",
-        "label": "Les règles de poussée et de glissade du bloc de glace diffèrent légèrement de CC3D."
+        "label": "Le feu, l'eau, la vase, les bombes, la glace et les plaques se comportent comme dans CC3D. Epoxy refuse la terre, une chaîne de blocs, les barrières de sécurité et une porte bleue ouverte, que CC3D laisse le bloc franchir ou dégager."
       },
       "plate_red": {
         "name": "Plaque de pression (rouge)",
-        "label": "Les portes à maintien se règlent à la fin de chaque déplacement ou tic, là où CC3D réagit aussitôt. Les monstres appuient sur les plaques sauf s'ils volent ; le bébé blinky, le bébé hurleur et les jambes convertis volent dans Epoxy, donc n'appuient pas dessus comme dans CC3D."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
       },
       "plate_green": {
         "name": "Plaque de pression (verte)",
-        "label": "Les portes à maintien se règlent à la fin de chaque déplacement ou tic, là où CC3D réagit aussitôt. Les monstres appuient sur les plaques sauf s'ils volent ; le bébé blinky, le bébé hurleur et les jambes convertis volent dans Epoxy, donc n'appuient pas dessus comme dans CC3D."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
       },
       "plate_blue": {
         "name": "Plaque de pression (bleue)",
-        "label": "Les portes à maintien se règlent à la fin de chaque déplacement ou tic, là où CC3D réagit aussitôt. Les monstres appuient sur les plaques sauf s'ils volent ; le bébé blinky, le bébé hurleur et les jambes convertis volent dans Epoxy, donc n'appuient pas dessus comme dans CC3D."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
       },
       "plate_yellow": {
         "name": "Plaque de pression (jaune)",
-        "label": "Les portes à maintien se règlent à la fin de chaque déplacement ou tic, là où CC3D réagit aussitôt. Les monstres appuient sur les plaques sauf s'ils volent ; le bébé blinky, le bébé hurleur et les jambes convertis volent dans Epoxy, donc n'appuient pas dessus comme dans CC3D."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
       },
       "block_color_red": {
         "name": "Bloc de couleur (rouge)",
-        "label": "Les règles de poussée du bloc de couleur diffèrent légèrement de CC3D, et un bloc qui flotte ne peut plus être poussé."
+        "label": "Les plaques, la vase, les bombes, la glace et les sols de force se comportent comme dans CC3D. Epoxy laisse entrer le bloc dans le feu et sur un objet, ce que CC3D refuse, et refuse la terre et une porte bleue ouverte, que CC3D laisse le bloc dégager."
       },
       "block_color_green": {
         "name": "Bloc de couleur (vert)",
-        "label": "Les règles de poussée du bloc de couleur diffèrent légèrement de CC3D, et un bloc qui flotte ne peut plus être poussé."
+        "label": "Les plaques, la vase, les bombes, la glace et les sols de force se comportent comme dans CC3D. Epoxy laisse entrer le bloc dans le feu et sur un objet, ce que CC3D refuse, et refuse la terre et une porte bleue ouverte, que CC3D laisse le bloc dégager."
       },
       "block_color_blue": {
         "name": "Bloc de couleur (bleu)",
-        "label": "Les règles de poussée du bloc de couleur diffèrent légèrement de CC3D, et un bloc qui flotte ne peut plus être poussé."
+        "label": "Les plaques, la vase, les bombes, la glace et les sols de force se comportent comme dans CC3D. Epoxy laisse entrer le bloc dans le feu et sur un objet, ce que CC3D refuse, et refuse la terre et une porte bleue ouverte, que CC3D laisse le bloc dégager."
       },
       "block_color_yellow": {
         "name": "Bloc de couleur (jaune)",
-        "label": "Les règles de poussée du bloc de couleur diffèrent légèrement de CC3D, et un bloc qui flotte ne peut plus être poussé."
+        "label": "Les plaques, la vase, les bombes, la glace et les sols de force se comportent comme dans CC3D. Epoxy laisse entrer le bloc dans le feu et sur un objet, ce que CC3D refuse, et refuse la terre et une porte bleue ouverte, que CC3D laisse le bloc dégager."
       },
       "reflector": {
         "name": "Réflecteur",
@@ -3864,7 +3868,7 @@
       },
       "golem_blue": {
         "name": "Golem bleu",
-        "label": "Le déplacement du golem est proche de celui de CC3D, sans lui être identique."
+        "label": "Le trajet, les arrêts et le demi-tour à la commande correspondent à CC3D. Un golem de CC3D est plus rapide (4 tics par case contre 6), s'arrête devant l'eau et la vase là où celui d'Epoxy est perdu, entre dans une porte bleue ouverte, et s'arrête à côté du joueur au lieu de marcher sur sa case."
       },
       "laser_controller": {
         "name": "Contrôleur laser",
@@ -3876,7 +3880,7 @@
       },
       "trap_unworked": {
         "name": "Piège sans commande",
-        "label": "Aucune commande de piège n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun."
+        "label": "Aucune commande de piège n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun. Un lien de piège d'Epoxy n'a pas de forme vide, le convertisseur ne peut donc pas le garder fermé."
       },
       "clone_switch_empty": {
         "name": "Interrupteur de clonage sans modèle",
