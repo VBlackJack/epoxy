@@ -19,6 +19,8 @@ import { DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks, signalSinkOf } from '../core/signalLinks';
 import { canonicalSignalPort, formatSignalPort, parseSignalPort } from '../core/signalPorts';
 import type { SignalPortIndex } from '../core/signalPorts';
+import { gateHasPorts } from './signalPortRoles';
+import type { SignalPortSide } from './signalPortRoles';
 import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
 /** The signal links of a map, as the editor reads and rewrites them (Epoxy levels only, never CC3D). */
@@ -186,6 +188,29 @@ export function appendSignalLink(map: SignalLinkHolder, from: Cell, to: Cell): v
   }
   const port = formatSignalPort(pair);
   setSignalLinks(map, [...links, { fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, ...(port === undefined ? {} : { port }) }]);
+}
+
+/**
+ * Swaps the ports of the wires on one side of a gate: the inputs of a data latch or a counter (data and clock, count up
+ * and count down), or the outputs of a counter (overflow and underflow). Each wire moves to the other port of that side
+ * and keeps the port of its other end. Returns how many wires moved (0 when the cell holds no such gate). The map is
+ * changed in place.
+ */
+export function swapSignalPorts(map: SignalLinkHolder, cell: Cell, side: SignalPortSide): number {
+  if (!gateHasPorts(gateKindAt(map, cell), side)) return 0;
+  let moved = 0;
+  const swapped = (map.signalLinks ?? []).map((l) => {
+    const touches = side === 'input' ? l.toX === cell.x && l.toY === cell.y : l.fromX === cell.x && l.fromY === cell.y;
+    if (!touches) return l;
+    const pair = parseSignalPort(l.port);
+    const next =
+      side === 'input' ? { ...pair, in: (pair.in === 1 ? 0 : 1) as SignalPortIndex } : { ...pair, out: (pair.out === 1 ? 0 : 1) as SignalPortIndex };
+    const port = formatSignalPort(next);
+    moved++;
+    return { fromX: l.fromX, fromY: l.fromY, toX: l.toX, toY: l.toY, ...(port === undefined ? {} : { port }) };
+  });
+  if (moved > 0) setSignalLinks(map, swapped);
+  return moved;
 }
 
 /** Whether a wire from `from` to `to` would close a loop: the signal already flows from `to` back to `from`. */

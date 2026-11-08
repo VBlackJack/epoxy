@@ -25,6 +25,7 @@ import { entityHasFacing } from './entityFacing';
 import { underlayAt } from './editorUnderlays';
 import type { ToolMessage } from './editorTools';
 import type { ClonerTemplateChange } from './mapEdits';
+import { gateKindOfTile, PORT_ROLE_LABEL_KEYS, SIGNAL_PORT_KEYS, wirePortRoles } from './signalPortRoles';
 
 const COORDS_KEY = 'editor.palette.status.coords';
 const NAME_KEY = 'editor.cell_speech.name.label';
@@ -145,6 +146,25 @@ function deviceLinkParts(map: EditorMap, x: number, y: number, hidden: string | 
   return parts;
 }
 
+/**
+ * What the signal wires say about a data latch or a counter on the cell: for each wire into it, the input it enters and
+ * where the signal comes from; for each wire out of a counter, the output it leaves and where it goes.
+ */
+function signalPortParts(map: EditorMap, x: number, y: number): ToolMessage[] {
+  const parts: ToolMessage[] = [];
+  const kindAt = (cx: number, cy: number): string | undefined => gateKindOfTile(map.terrain[cy]?.[cx]);
+  for (const link of map.signalLinks ?? []) {
+    const roles = wirePortRoles(link.port, kindAt(link.fromX, link.fromY), kindAt(link.toX, link.toY));
+    if (link.toX === x && link.toY === y && roles.in !== undefined) {
+      parts.push({ key: SIGNAL_PORT_KEYS.speechInput, params: { role: t(PORT_ROLE_LABEL_KEYS[roles.in]), x: link.fromX, y: link.fromY } });
+    }
+    if (link.fromX === x && link.fromY === y && roles.out !== undefined) {
+      parts.push({ key: SIGNAL_PORT_KEYS.speechOutput, params: { role: t(PORT_ROLE_LABEL_KEYS[roles.out]), x: link.toX, y: link.toY } });
+    }
+  }
+  return parts;
+}
+
 /** The parts of a spoken cell description as locale keys; the first is always the coordinates. */
 export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
   const { map, x, y, cc3dNames } = input;
@@ -164,6 +184,7 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
     if (holdsShotTrigger(map, x, y)) parts.push({ key: FIRES_KEY, params: { count: launcherCountAt(map, x, y) } });
     if (holdsShotLauncher(map, x, y)) parts.push({ key: FIRED_BY_KEY, params: { count: triggerCountAt(map, x, y) } });
     parts.push(...deviceLinkParts(map, x, y, hidden));
+    parts.push(...signalPortParts(map, x, y));
     const item = map.items[y]?.[x];
     if (item) parts.push({ key: ITEM_KEY, params: { name: tileName(item) } });
     for (const entity of map.entities) {

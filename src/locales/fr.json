@@ -1713,6 +1713,15 @@
       "signal_gate_no_input": {
         "label": "Erreur : une porte logique en ({x}, {y}) (au total : {count}) n'a aucun lien en entrée."
       },
+      "signal_dlatch_no_clock": {
+        "label": "Attention : un verrou de données en ({x}, {y}) (au total : {count}) n'a aucun lien d'horloge, il ne mémorise donc jamais sa donnée."
+      },
+      "signal_dlatch_no_data": {
+        "label": "Attention : un verrou de données en ({x}, {y}) (au total : {count}) a un lien d'horloge mais aucun lien de donnée, il ne peut donc mémoriser que l'état éteint."
+      },
+      "signal_counter_no_up": {
+        "label": "Attention : un compteur en ({x}, {y}) (au total : {count}) ne compte qu'en descendant : sans lien de comptage +, il ne peut que passer sous zéro."
+      },
       "signal_cycle": {
         "label": "Erreur : des liens de signal bouclent sur eux-mêmes en ({x}, {y}) (au total : {count} cases). Un signal ne peut pas boucler."
       },
@@ -1927,6 +1936,12 @@
   },
   "editor": {
     "cell_speech": {
+      "port_input": {
+        "label": "entrée {role} depuis ({x}, {y})"
+      },
+      "port_output": {
+        "label": "sortie {role} vers ({x}, {y})"
+      },
       "list_separator": {
         "label": ", "
       },
@@ -1994,6 +2009,41 @@
         "w": {
           "label": "l'ouest"
         }
+      }
+    },
+    "signal_ports": {
+      "data": {
+        "label": "donnée",
+        "tag": "D"
+      },
+      "clock": {
+        "label": "horloge",
+        "tag": "H"
+      },
+      "count_up": {
+        "label": "comptage +",
+        "tag": "+"
+      },
+      "count_down": {
+        "label": "comptage -",
+        "tag": "-"
+      },
+      "overflow": {
+        "label": "dépassement haut",
+        "tag": "DH"
+      },
+      "underflow": {
+        "label": "dépassement bas",
+        "tag": "DB"
+      },
+      "both": {
+        "label": "{output} > {input}"
+      },
+      "swap": {
+        "action": "Échanger les ports",
+        "aria_input": "Échanger les ports d'entrée de {name} ({x}, {y})",
+        "aria_output": "Échanger les ports de sortie de {name} ({x}, {y})",
+        "done": "Ports échangés sur {name} ({x}, {y})."
       }
     },
     "connections": {
