@@ -3454,6 +3454,12 @@
         "player_start_desc": {
           "label": "Where the player begins the level. There is only one: placing it again moves it."
         },
+        "canopy": {
+          "label": "Canopy"
+        },
+        "canopy_desc": {
+          "label": "A roof over a cell. It blocks bugs and rovers, and a blob stays between canopies. Click or drag to add or remove it; the eraser clears it. Thin walls on the cell are kept."
+        },
         "cell_edge_desc": {
           "label": "A thin wall on one side of a cell. Click near a side to add or remove it (keyboard: the side of the direction control)."
         }

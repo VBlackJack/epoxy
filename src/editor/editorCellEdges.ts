@@ -130,6 +130,30 @@ export function setEdgesAt(map: CellEdgeHolder, x: number, y: number, sides: rea
   commit(map, sides.length > 0 || own?.canopy === true ? [...others, { x, y, sides: [...sides], ...canopy }] : others);
 }
 
+/** True when the cell carries a canopy (the roof that blocks bugs and rovers). */
+export function hasCanopyAt(map: Pick<CellEdgeHolder, 'cellEdges'>, x: number, y: number): boolean {
+  return map.cellEdges?.some((e) => e.x === x && e.y === y && e.canopy === true) === true;
+}
+
+/** What a canopy edit does to a cell: flip the flag, put it on, or take it off. */
+export type CanopyMode = 'toggle' | 'set' | 'clear';
+
+/**
+ * Edits the canopy flag of one cell, keeping its thin walls; a cell left with neither walls nor canopy loses its entry.
+ * Returns whether the flag changed. The map is changed in place; a cell outside the grid is left alone.
+ */
+export function toggleCanopyAt(map: CellEdgeHolder, x: number, y: number, mode: CanopyMode = 'toggle'): boolean {
+  const row = map.terrain[y];
+  if (!row || x < 0 || x >= row.length || y < 0) return false;
+  const had = hasCanopyAt(map, x, y);
+  const wanted = mode === 'toggle' ? !had : mode === 'set';
+  if (wanted === had) return false;
+  const others = (map.cellEdges ?? []).filter((e) => !(e.x === x && e.y === y));
+  const sides = edgesAt(map, x, y);
+  commit(map, sides.length > 0 || wanted ? [...others, { x, y, sides, ...(wanted ? { canopy: true as const } : {}) }] : others);
+  return true;
+}
+
 /** Removes the edges of every cell the predicate accepts; returns how many cells lost theirs. The map is changed in place. */
 export function removeEdgesWhere(map: CellEdgeHolder, predicate: (x: number, y: number) => boolean): number {
   const before = map.cellEdges ?? [];

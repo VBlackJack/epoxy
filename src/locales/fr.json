@@ -3454,6 +3454,12 @@
         "player_start_desc": {
           "label": "L'endroit où le joueur commence le niveau. Il n'y en a qu'un : le poser à nouveau le déplace."
         },
+        "canopy": {
+          "label": "Canopée"
+        },
+        "canopy_desc": {
+          "label": "Un toit au-dessus d'une case. Il bloque les insectes et les rovers, et une gelée reste entre deux canopées. Cliquez ou glissez pour l'ajouter ou le retirer ; la gomme l'efface. Les cloisons fines de la case sont conservées."
+        },
         "cell_edge_desc": {
           "label": "Une cloison fine sur un côté d'une case. Cliquez près d'un côté pour l'ajouter ou le retirer (clavier : le côté du contrôle de direction)."
         }
