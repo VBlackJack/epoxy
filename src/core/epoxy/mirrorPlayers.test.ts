@@ -252,6 +252,17 @@ describe('mirror players: the terrain of their character', () => {
     expect(cellOf(engine, MIRROR_CHIP)).toBe(at(3, 3));
   });
 
+  it('does not enter a fish gate while a chip is left, and clears it once none is', () => {
+    const shut = room({ terrain: [[4, 3, 'fish_gate']], items: [[9, 9, 'chip']], entities: [mirror(MIRROR_CHIP, 3, 3)] });
+    const stays = load({ ...shut, chipsRequired: 1 });
+    walk(stays, 'E');
+    expect(cellOf(stays, MIRROR_CHIP)).toBe(at(3, 3));
+    const engine = load(room({ terrain: [[4, 3, 'fish_gate']], entities: [mirror(MIRROR_CHIP, 3, 3)] }));
+    walk(engine, 'E');
+    expect(cellOf(engine, MIRROR_CHIP)).toBe(at(4, 3));
+    expect(engine.getTerrain()[3][4]).toBe('floor');
+  });
+
   it('pushes a block', () => {
     const engine = load(room({ entities: [mirror(MIRROR_CHIP, 3, 3), { type: 'dirt_block', x: 4, y: 3, dir: 'N' }] }));
     walk(engine, 'E');

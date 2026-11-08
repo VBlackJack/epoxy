@@ -343,10 +343,12 @@ describe('tiles.json mechanics', () => {
       if (tile.isTeleporter) groups.add(tile.teleportGroup);
     }
     expect(groups.has(undefined)).toBe(true);
-    // The plain group, the four colours, the pocket pads and the lit relay pads.
+    // The plain group, the four colours, the pocket pads, the lit relay pads and the two groups of the CC3D exit orders.
     expect(groups.has('pocket')).toBe(true);
     expect(groups.has('relay')).toBe(true);
-    expect(groups.size).toBe(7);
+    expect(groups.has('forward')).toBe(true);
+    expect(groups.has('turning')).toBe(true);
+    expect(groups.size).toBe(9);
   });
 
   it('declares laserTransparent on every tile', () => {

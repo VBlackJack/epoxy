@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { isCompiledLevelShape, sanitizeStoredLevels, stripInvalidTextFields } from '../../config/ConfigValidation';
-import { PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_V7 } from '../../config/constants';
+import { PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V7 } from '../../config/constants';
 import { parsePackJson, serializePack } from '../../packs/packJson';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -127,15 +127,15 @@ const TERRAIN_CASES: TerrainCase[] = [
   ...SIDES.map((dir) => terrainCase('force', `force_${dir.toLowerCase()}`, { kind: 'force', dir })),
   terrainCase('force_random', 'force_cycle'),
   terrainCase('exit', 'exit'),
-  terrainCase('socket', 'socket'),
+  terrainCase('socket', 'fish_gate'),
   terrainCase('socket_red', 'socket'),
   terrainCase('slime', 'slime'),
   terrainCase('turtle', 'turtle'),
   terrainCase('dirt', 'dirt'),
   terrainCase('gravel', 'gravel'),
   terrainCase('sand', 'gravel'),
-  terrainCase('teleport_red', 'teleport_red'),
-  terrainCase('teleport_blue', 'teleport_blue'),
+  terrainCase('teleport_red', 'teleport_turning'),
+  terrainCase('teleport_blue', 'teleport_forward'),
   terrainCase('push_up_wall', 'recessed_wall'),
   terrainCase('appearing_wall', 'appearing_wall'),
   terrainCase('false_wall', 'blue_wall_fake'),
@@ -443,15 +443,15 @@ describe('arbitration rules', () => {
     expect(lostKeys(result)).toContain('bomb_with_item');
   });
 
-  it('flattens a socket over a socket, of either colour, to one socket and loses nothing', () => {
-    for (const layers of [
-      [{ kind: 'socket' }, { kind: 'socket' }],
-      [{ kind: 'socket_red' }, { kind: 'socket' }],
-      [{ kind: 'socket' }, { kind: 'socket_red' }],
-      [{ kind: 'socket_red' }, { kind: 'socket_red' }]
-    ] as Cc3dTerrain[][]) {
+  it('flattens a socket over a socket, of either colour, to the top one and loses nothing', () => {
+    for (const [layers, expected] of [
+      [[{ kind: 'socket' }, { kind: 'socket' }], 'fish_gate'],
+      [[{ kind: 'socket_red' }, { kind: 'socket' }], 'fish_gate'],
+      [[{ kind: 'socket' }, { kind: 'socket_red' }], 'socket'],
+      [[{ kind: 'socket_red' }, { kind: 'socket_red' }], 'socket']
+    ] as Array<[Cc3dTerrain[], string]>) {
       const { result } = convertCell({ stack: [{ kind: 'floor' }, ...layers] });
-      expect(terrainAtCell(result)).toBe('socket');
+      expect(terrainAtCell(result)).toBe(expected);
       expect(result.level.underlays).toBeUndefined();
       expect(lostKeys(result)).toEqual([]);
     }
@@ -819,11 +819,11 @@ describe('properties of a conversion', () => {
     expect(sanitizeStoredLevels([level], bounds, ConfigRegistry.getLevelTextLimits())).toEqual([level]);
   });
 
-  it('round trips through a pack file of version 4', () => {
+  it('round trips through a pack file of the version of the newest id it uses', () => {
     const { level } = convertCc3dLevel(richLevel());
     expect(level.launcherLinks?.length).toBeGreaterThan(0);
     const text = serializePack('Pack', [level]);
-    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_LAUNCHERS);
+    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V13);
     const parsed = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), Date.now, undefined, ConfigRegistry.getLevelTextLimits());
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.levels).toEqual([level]);
@@ -907,7 +907,7 @@ describe('properties of a conversion', () => {
     const source = richLevel();
     const cc3d = source.cc3d as NonNullable<CompiledLevel['cc3d']>;
     const { level } = convertCc3dLevel(source);
-    for (const id of ['teleport_red', 'teleport_blue']) {
+    for (const id of ['teleport_turning', 'teleport_forward']) {
       const cells: number[] = [];
       level.terrain.forEach((row, y) => row.forEach((cell, x) => cell === id && cells.push(y * cc3d.width + x)));
       const expected = cc3dLinks(cc3d).teleports.filter((l) => cells.includes(l.from));

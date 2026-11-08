@@ -120,9 +120,11 @@ const LASER_SHOOTER_REASON =
 const NIBBLE_REASON =
   'Epoxy plays a nibble as a skitter: it steps away from the player on the axis of the greater distance, with its rest folded into a fixed step interval [unverified].';
 const TELEPORT_RED_REASON =
-  'The target (the previous red teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D tries forward, right, left, back; Epoxy blocks and monsters leave forward only.';
+  'Epoxy plays the red teleporter as its turning teleporter: the target is the previous red teleporter in reading order, and the exit of the player, a block or a monster is forward, then right, then left, then back, as in CC3D (cc3dEvidenceMovers.test.ts).';
 const TELEPORT_BLUE_REASON =
-  'The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only.';
+  'Epoxy plays the blue teleporter as its forward teleporter: the target is the previous blue teleporter in reading order, and the exit of the player, a block or a monster is forward only, as in CC3D (cc3dEvidenceMovers.test.ts).';
+const FISH_GATE_REASON =
+  'Epoxy plays the blue socket as its fish gate: shut while a chip is left, then open to the player, a block or a monster, and the first to enter turns it into floor, as in CC3D (cc3dEvidenceMovers.test.ts).';
 const LEGS_GREEN_REASON =
   'Epoxy plays the green legs as a fireball, which is immune to fire where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].' + FLYER_PLATE_GAP;
 const LEGS_RED_REASON =
@@ -157,11 +159,11 @@ const GOLEM_CONTROL_BLUE_REASON =
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
-  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'sand', 'fish_extra', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
+  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'sand', 'fish_extra', 'socket', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
-  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue',
+  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'teleport_blue', 'teleport_red',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR,
   // A stack Epoxy holds exactly: see classifyStack.
@@ -174,6 +176,9 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
     'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force (blinky, screamer, yellow golem) are not turned; the same monster gap exists on plain force floors, so this entry is kept exact for the floor itself [unverified for monsters].',
   sand: SAND_REASON,
   fish_extra: FISH_EXTRA_REASON,
+  socket: FISH_GATE_REASON,
+  teleport_blue: TELEPORT_BLUE_REASON,
+  teleport_red: TELEPORT_RED_REASON,
   [KEY_SOCKET_RED]: SOCKET_RED_REASON,
   gravel: GRAVEL_PLAIN_REASON,
   bomb: BOMB_REASON,
@@ -189,12 +194,9 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   water: WATER_REASON,
-  socket: 'Epoxy sockets only react to the player.',
   slime: SLIME_REASON,
   turtle: TURTLE_REASON,
   dirt: DIRT_REASON,
-  teleport_blue: TELEPORT_BLUE_REASON,
-  teleport_red: TELEPORT_RED_REASON,
   appearing_wall: APPEARING_WALL_REASON,
   gate_tools: GATE_TOOLS_REASON,
   gate_keys: GATE_KEYS_REASON,
