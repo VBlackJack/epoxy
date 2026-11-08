@@ -34,7 +34,7 @@ import { Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../t
 import { attemptPushBlock } from './epoxyBlocks';
 import { resolveMonsterArrival } from './epoxyMonsters';
 import { leaveSwivel } from './epoxySwivels';
-import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
 
 /** Extra ticks a mirror waits between two steps of a force floor, on top of the shared slide delay. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
@@ -152,7 +152,7 @@ function stepMirror(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   if (occupant) {
     if (occupant.kind !== 'block' || def.pushesBlocks !== true) return 'stayed';
     // The cell behind the block: the live player is never pushed onto.
-    if (w.player.alive && w.player.x === nx + vec.dx && w.player.y === ny + vec.dy) return 'stayed';
+    if (playerAtCell(w, nx + vec.dx, ny + vec.dy) !== undefined) return 'stayed';
     if (!attemptPushBlock(ctx, occupant, dir, false)) return 'stayed';
     if (!w.player.alive) return 'killed';
     // The pushed block may have sunk, burned or slid on, but it never stays in the cell.

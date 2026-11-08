@@ -48,12 +48,14 @@ import {
   isEdgeBlocked,
   isInBounds,
   isOpenFishGate,
-  killPlayer,
   mapWidth,
   monsterSlowdown,
   notePulseArrival,
   playerCharacterOf,
-  removeEntity
+  removeEntity,
+  playerAtCell,
+  withPlayer,
+  killPlayerAt
 } from './epoxyWorld';
 
 export function updateEntities(ctx: EpoxyContext): void {
@@ -136,9 +138,10 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
  */
 function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
-  if (w.player.x === entity.x && w.player.y === entity.y && w.player.alive) {
-    if (absorbMonsterContact(w, entity.uid)) return true;
-    killPlayer(ctx, 'hud.messages.death_monster', 'death');
+  const touched = playerAtCell(w, entity.x, entity.y);
+  if (touched !== undefined) {
+    if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
+    killPlayerAt(ctx, touched, 'hud.messages.death_monster', 'death');
     return false;
   }
   if (w.shots.length > 0 && consumeShotAt(w, entity.x, entity.y)) {
@@ -165,10 +168,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     followRail(w, entity);
   }
 
-  if (w.player.x === nx && w.player.y === ny && w.player.alive) {
+  const touched = playerAtCell(w, nx, ny);
+  if (touched !== undefined) {
     // A ward destroys the monster that touches the player; the player lives.
-    if (absorbMonsterContact(w, entity.uid)) return true;
-    killPlayer(ctx, 'hud.messages.death_monster', 'death');
+    if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
+    killPlayerAt(ctx, touched, 'hud.messages.death_monster', 'death');
     return false;
   }
 

@@ -27,8 +27,8 @@ import {
   DYNAMITE_WATER_TILE_ID,
   FLOOR_TILE_ID
 } from '../coreConstants';
-import { LitCharge } from '../types';
-import { EpoxyContext, EpoxyWorld, isInBounds, killPlayer, mapWidth, rebuildDeviceLookups, removeEntity } from './epoxyWorld';
+import { LitCharge, PlayerState } from '../types';
+import { EpoxyContext, EpoxyWorld, isInBounds, mapWidth, rebuildDeviceLookups, removeEntity, playerAtCell, playersOf, killPlayerAt } from './epoxyWorld';
 
 /**
  * Chip's Challenge 2 dynamite, after the rules of the Lexy's Labyrinth engine (tiletypes.js `dynamite`, `dynamite_lit`):
@@ -60,7 +60,7 @@ export function lightDepartedDynamite(w: EpoxyWorld, tick: number): void {
   if (!w.litCharges.some((charge) => charge.awaitingDeparture === true)) return;
   const kept: LitCharge[] = [];
   for (const charge of w.litCharges) {
-    if (charge.awaitingDeparture !== true || (w.player.x === charge.x && w.player.y === charge.y)) {
+    if (charge.awaitingDeparture !== true || playersOf(w).some((p) => p.x === charge.x && p.y === charge.y)) {
       kept.push(charge);
       continue;
     }
@@ -101,7 +101,7 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
   AudioManager.playSfx(CHARGE_BLAST_SFX);
   const width = mapWidth(w);
   let terrainChanged = false;
-  let playerKilled = false;
+  const playersKilled: PlayerState[] = [];
   for (let dx = -DYNAMITE_BLAST_RADIUS; dx <= DYNAMITE_BLAST_RADIUS; dx++) {
     for (let dy = -DYNAMITE_BLAST_RADIUS; dy <= DYNAMITE_BLAST_RADIUS; dy++) {
       if (!inDynamiteBlast(dx, dy)) continue;
@@ -113,12 +113,12 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       // What stands in the cell: creatures, the player, or a lit dynamite (the exploding one included). The template
       // held by a clone machine is a creature like any other: it dies and the machine stays, protected by it.
       const creatures = w.entities.filter((e) => e.x === x && e.y === y);
-      const playerHere = w.player.alive && w.player.x === x && w.player.y === y;
+      const playerHere = playerAtCell(w, x, y);
       const litHere = [...w.litCharges, ...pending].filter(
         (other) => other.x === x && other.y === y && other.dynamite === true && other.awaitingDeparture !== true
       );
       const centre = dx === 0 && dy === 0;
-      const actorHere = creatures.length > 0 || playerHere || litHere.length > 0 || centre;
+      const actorHere = creatures.length > 0 || playerHere !== undefined || litHere.length > 0 || centre;
 
       // Every item goes, and the fuse of any lit charge on it with it.
       w.items[y][x] = null;
@@ -141,11 +141,12 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       }
 
       for (const entity of creatures) removeEntity(w, entity.uid);
-      if (playerHere) playerKilled = true;
+      if (playerHere !== undefined) playersKilled.push(playerHere);
     }
   }
   if (terrainChanged) rebuildDeviceLookups(w);
   // A blast changes what stands on a beam path.
   w.beamDirty = true;
-  if (playerKilled) killPlayer(ctx, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+  // One death loses the level, as for the laser: the other players in the blast are not looked at.
+  if (playersKilled.length > 0) killPlayerAt(ctx, playersKilled[0], CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
 }

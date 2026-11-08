@@ -112,7 +112,7 @@ describe('monsters on colour plates', () => {
 
   it('leaves a brown button pressed by any occupant, flying or not', () => {
     const worldWith = (type: string): EpoxyWorld =>
-      ({ player: { x: 0, y: 0 }, entities: [{ type, x: PLATE_X, y: ROW_Y }] }) as unknown as EpoxyWorld;
+      ({ player: { x: 0, y: 0 }, parked: [], entities: [{ type, x: PLATE_X, y: ROW_Y }] }) as unknown as EpoxyWorld;
     for (const type of [...PRESSING_MONSTERS, ...FLYING_MONSTERS]) {
       expect(isButtonPressed(worldWith(type), PLATE_X, ROW_Y)).toBe(true);
     }

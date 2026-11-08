@@ -26,6 +26,7 @@ import {
   MIRROR_FRONT_AXIS,
   SIGNAL_COUNTER_MAX,
   SIGNAL_LINKS_PER_CELL_MAX,
+  EXTRA_PLAYERS_MAX,
   PHASE_LINE_PATTERN,
   STATIONARY_PATTERN,
   STEER_MONSTERS_ACTION,
@@ -42,6 +43,7 @@ import {
   CampaignConfig,
   Cc2LevelData,
   CellEdge,
+  ExtraPlayerStart,
   RailTrackCell,
   CellUnderlay,
   CompiledLevel,
@@ -502,6 +504,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     isRecordList(value.entities, size, strict, (entity) => typeof entity.type === 'string') &&
     isRecordList(value.trapLinks, size, strict) &&
     isRecordList(value.cloneLinks, size, strict) &&
+    // The other players hold a handful of entries at most, by the same rule.
+    (!strict || !Array.isArray(value.extraPlayers) || value.extraPlayers.length <= EXTRA_PLAYERS_MAX) &&
     // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
     (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
     // Track cells hold one entry per cell at most, by the same rule.
@@ -515,6 +519,32 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     // A cc3d level carries its data, and no other level does: the cc3d engine reads nothing else.
     (value.ruleset === 'cc3d' ? isCc3dLevelShape(value.cc3d, bounds, strict) : value.cc3d === undefined)
   );
+}
+
+/**
+ * The other players of a level with several, in canonical form: each one inside the grid, with a known direction and
+ * character, on a cell no earlier player holds (the start included), at most EXTRA_PLAYERS_MAX of them. An entry that
+ * breaks a rule is dropped. Null when nothing remains, so a level with one player carries no field at all.
+ */
+export function normalizeExtraPlayers(
+  value: unknown,
+  start: { x: number; y: number },
+  width: number,
+  height: number
+): ExtraPlayerStart[] | null {
+  if (!Array.isArray(value)) return null;
+  const taken = new Set<string>([`${start.x},${start.y}`]);
+  const kept: ExtraPlayerStart[] = [];
+  for (const entry of value) {
+    if (kept.length >= EXTRA_PLAYERS_MAX) break;
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height)) continue;
+    if (!isDirection(entry.dir) || !isPlayerCharacter(entry.character)) continue;
+    const key = `${entry.x},${entry.y}`;
+    if (taken.has(key)) continue;
+    taken.add(key);
+    kept.push({ x: entry.x as number, y: entry.y as number, dir: entry.dir, character: entry.character });
+  }
+  return kept.length > 0 ? kept : null;
 }
 
 /** Optional text fields of a level; each one is kept only when it is a string. */
@@ -853,6 +883,11 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
     if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
   }
+  let others: ExtraPlayerStart[] | null = null;
+  if ('extraPlayers' in record) {
+    others = normalizeExtraPlayers(record.extraPlayers, level.playerStart, level.terrain[0]?.length ?? 0, level.terrain.length);
+    if (others === null || JSON.stringify(others) !== JSON.stringify(record.extraPlayers)) bad.push('extraPlayers');
+  }
   let rails: RailTrackCell[] | null = null;
   if ('railTracks' in record) {
     rails = normalizeRailTracks(record.railTracks, level.terrain, record.ruleset);
@@ -887,6 +922,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
+  if (others !== null && bad.includes('extraPlayers')) copy.extraPlayers = others;
   if (rails !== null && bad.includes('railTracks')) copy.railTracks = rails;
   if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
   if (links !== null && bad.includes('launcherLinks')) copy.launcherLinks = links;

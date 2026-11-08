@@ -20,7 +20,7 @@ import { CHARGE_BLAST_RADIUS, CHARGE_BLAST_SFX, CHARGE_DEATH_REASON_KEY } from '
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { LitCharge } from '../types';
 import { blastDynamite, lightDepartedDynamite } from './epoxyDynamite';
-import { EpoxyContext, EpoxyWorld, killPlayer, removeEntity } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, removeEntity, killPlayerAt, playersOf } from './epoxyWorld';
 
 /** True when the item id is a lit blast charge, which blocks nothing and cannot be picked up. */
 export function isLitChargeItem(itemId: string | null | undefined): boolean {
@@ -89,8 +89,12 @@ function blast(ctx: EpoxyContext, charge: LitCharge): void {
   }
   // A blast changes what stands on a beam path.
   w.beamDirty = true;
-  if (w.player.alive && inBlast(charge.x, charge.y, w.player.x, w.player.y)) {
-    killPlayer(ctx, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+  // Every player in the blast dies; a parked one that dies takes the controlled slot, so the loop reads a copy.
+  for (const p of [...playersOf(w)]) {
+    if (!p.alive || !inBlast(charge.x, charge.y, p.x, p.y)) continue;
+    killPlayerAt(ctx, p, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+    // One death loses the level, as for the laser: the others are not looked at.
+    break;
   }
 }
 

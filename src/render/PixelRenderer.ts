@@ -1683,6 +1683,27 @@ export class PixelRenderer {
       hop,
       this.usesRunewardCharacters() ? this.playerPoseExtras(engine) : undefined
     );
+    // The players not controlled stand where they are, each with its own character.
+    const parked = engine.getParkedPlayers?.();
+    if (parked !== undefined) {
+      for (const other of parked) {
+        const parkedPx = lowRes ? originX + Math.round((other.x - region.x0) * unit) : (other.x - camX) * tilePixelSize;
+        const parkedPy = lowRes ? originY + Math.round((other.y - region.y0) * unit) : (other.y - camY) * tilePixelSize;
+        this.playerCharacter = other.character ?? engine.getLevel().character ?? DEFAULT_PLAYER_CHARACTER;
+        this.drawPlayer(
+          sceneCtx,
+          parkedPx,
+          parkedPy,
+          unit,
+          other.dir,
+          other.inWater,
+          other.alive,
+          0,
+          0,
+          this.usesRunewardCharacters() ? poseExtrasOf(other, null) : undefined
+        );
+      }
+    }
 
     this.drawCanopies(sceneCtx, engine, mapWidth, startTileX, endTileX, startTileY, endTileY, originX, originY, region, unit, drawSize);
 

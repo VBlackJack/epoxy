@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { BeamCell, Direction, RuntimeEntity, TurretBeamDefinition } from '../types';
-import { EpoxyWorld, NO_PLAY_START_TICK, getEntityAt, isEdgeBlocked, isInBounds, mapWidth } from './epoxyWorld';
+import { EpoxyWorld, NO_PLAY_START_TICK, getEntityAt, isEdgeBlocked, isInBounds, mapWidth, playerAtCell } from './epoxyWorld';
 
 /** Whether a push turns a turret toward the push when the definition does not say. */
 const DEFAULT_FACE_ON_PUSH = true;
@@ -127,7 +127,7 @@ function blocksTurretBeam(w: EpoxyWorld, def: TurretBeamDefinition, x: number, y
 }
 
 function isPlayerOrMonsterAt(w: EpoxyWorld, x: number, y: number): boolean {
-  if (w.player.alive && w.player.x === x && w.player.y === y) return true;
+  if (playerAtCell(w, x, y) !== undefined) return true;
   return w.entities.some((e) => e.kind === 'monster' && e.x === x && e.y === y);
 }
 

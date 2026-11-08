@@ -27,6 +27,7 @@ import {
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   PLAYER_CHARACTER_KEY_PREFIX,
+  PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
@@ -56,7 +57,8 @@ import {
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
   executePlayerMove,
   isCarriedByForceFloor,
-  processPlayerSlideStep
+  processPlayerSlideStep,
+  tickParkedPlayers
 } from './epoxy/epoxyPlayer';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
@@ -68,6 +70,8 @@ import {
   EpoxyVisualKind,
   EpoxyWorld,
   NO_PLAY_START_TICK,
+  playerCharacterOf,
+  rotatePlayers,
   revealedTerrain,
   canPlayerEnter,
   createEpoxyWorld,
@@ -98,6 +102,7 @@ import {
   TileDefinition,
   TimedMove,
   TrapLink,
+  PlayerSnapshot,
   UndoSnapshot
 } from './types';
 
@@ -325,7 +330,25 @@ export class GameEngine {
 
   /** The character the player is now (the level's character until a transmogrifier switches it). */
   public getPlayerCharacter(): PlayerCharacter {
-    return this.w.playerCharacter;
+    return playerCharacterOf(this.w);
+  }
+
+  /** True when the level has several players, so that the state of the others is part of snapshots, hashes and search keys. */
+  private hasSeveralPlayers(): boolean {
+    return (this.w.level.extraPlayers?.length ?? 0) > 0;
+  }
+
+  /**
+   * The players not controlled now, in swap order; undefined on a level with one player, so nothing about them reaches
+   * a native level, its hash or its search keys. The list is shared: do not mutate it.
+   */
+  public getParkedPlayers(): readonly PlayerState[] | undefined {
+    return this.hasSeveralPlayers() ? this.w.parked : undefined;
+  }
+
+  /** How many players already left through an exit; undefined on a level with one player. */
+  public getExitedPlayers(): number | undefined {
+    return this.hasSeveralPlayers() ? this.w.exitedPlayers : undefined;
   }
 
   /**
@@ -333,7 +356,9 @@ export class GameEngine {
    * reaches a level whose player never crossed one, its hash or its search keys.
    */
   public getPlayerCharacterSwitch(): PlayerCharacter | undefined {
-    return this.w.playerCharacter !== (this.w.level.character ?? DEFAULT_PLAYER_CHARACTER) ? this.w.playerCharacter : undefined;
+    if (this.hasSeveralPlayers()) return undefined;
+    const character = playerCharacterOf(this.w);
+    return character !== (this.w.level.character ?? DEFAULT_PLAYER_CHARACTER) ? character : undefined;
   }
 
   /** Arrivals counted on turning force floors; undefined on a level without one, so nothing about it reaches a level without one. */
@@ -383,6 +408,7 @@ export class GameEngine {
     if (forceCycleTurn !== undefined) parts.push(`${FORCE_CYCLE_KEY_PREFIX}${forceCycleTurn % FORCE_CYCLE_ORDER.length}`);
     const switched = this.getPlayerCharacterSwitch();
     if (switched !== undefined) parts.push(`${PLAYER_CHARACTER_KEY_PREFIX}${switched}`);
+    if (this.hasSeveralPlayers()) parts.push(`${PLAYERS_KEY_PREFIX}${this.playersStateKey()}`);
     if (this.w.hasToggleClock) parts.push(`${TIMER_PAUSE_KEY_PREFIX}${this.w.timerPaused ? 1 : 0}`);
     if (this.w.litCharges.length > 0) parts.push(`${LIT_CHARGE_KEY_PREFIX}${litChargesStateKey(this.w, this.ticksElapsed)}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
@@ -392,6 +418,27 @@ export class GameEngine {
     }
     if (this.w.railCells.size > 0) parts.push(`${RAIL_STATE_KEY_PREFIX}${railStateKey(this.w)}`);
     return parts.join('|');
+  }
+
+  /** Search state of the other players: the exit count, then each parked player's cell, facing, motion, inventory and character. */
+  private playersStateKey(): string {
+    const one = (p: PlayerState): string =>
+      [
+        p.x,
+        p.y,
+        p.dir,
+        p.isSliding ? p.slideDir : '-',
+        p.moveCooldown,
+        p.slideCooldown,
+        p.character ?? DEFAULT_PLAYER_CHARACTER,
+        Object.entries(p.keys)
+          .filter(([, count]) => count > 0)
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+          .map(([id, count]) => `${id}x${count}`)
+          .join('+'),
+        [...p.boots].sort().join('+')
+      ].join(',');
+    return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
 
   /**
@@ -647,18 +694,11 @@ export class GameEngine {
       terrain: this.w.terrain.map((r) => [...r]),
       items: this.w.items.map((r) => [...r]),
       entities: this.w.entities.map((e) => ({ ...e })),
-      player: {
-        x: this.w.player.x,
-        y: this.w.player.y,
-        dir: this.w.player.dir,
-        isSliding: this.w.player.isSliding,
-        slideDir: this.w.player.slideDir,
-        moveCooldown: this.w.player.moveCooldown,
-        slideCooldown: this.w.player.slideCooldown,
-        inWater: this.w.player.inWater,
-        keys: { ...this.w.player.keys },
-        boots: Array.from(this.w.player.boots)
-      },
+      player: this.snapshotPlayer(this.w.player),
+      // Only a level with several players saves the others and the count of those who left.
+      ...(this.hasSeveralPlayers()
+        ? { parked: this.w.parked.map((p) => this.snapshotPlayer(p)), exitedPlayers: this.w.exitedPlayers }
+        : {}),
       chipsRemaining: this.w.chipsRemaining,
       ticksElapsed: this.ticksElapsed,
       stepsCount: this.stepsCount,
@@ -679,7 +719,7 @@ export class GameEngine {
       // Only a level with a turning force floor counts arrivals on it.
       ...(this.w.hasForceCycle ? { forceCycleTurn: this.w.forceCycleTurn } : {}),
       // Only a player a transmogrifier switched has a character to put back.
-      ...(this.getPlayerCharacterSwitch() !== undefined ? { playerCharacter: this.w.playerCharacter } : {}),
+      ...(this.getPlayerCharacterSwitch() !== undefined ? { playerCharacter: playerCharacterOf(this.w) } : {}),
       // Only a level with a toggle clock can hold its timer.
       ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -697,6 +737,42 @@ export class GameEngine {
     };
   }
 
+  /** Copies one player for a snapshot; a level with several players keeps each player's own character. */
+  private snapshotPlayer(p: PlayerState): PlayerSnapshot {
+    return {
+      x: p.x,
+      y: p.y,
+      dir: p.dir,
+      isSliding: p.isSliding,
+      slideDir: p.slideDir,
+      moveCooldown: p.moveCooldown,
+      slideCooldown: p.slideCooldown,
+      inWater: p.inWater,
+      keys: { ...p.keys },
+      boots: Array.from(p.boots),
+      ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
+    };
+  }
+
+  /** Builds a live player from a snapshot of one; `character` is the one the snapshot kept, if any. */
+  private restorePlayer(snap: PlayerSnapshot, character: PlayerCharacter | undefined): PlayerState {
+    return {
+      x: snap.x,
+      y: snap.y,
+      dir: snap.dir,
+      alive: true,
+      deathReasonKey: null,
+      isSliding: snap.isSliding,
+      slideDir: snap.slideDir,
+      moveCooldown: snap.moveCooldown,
+      slideCooldown: snap.slideCooldown,
+      inWater: snap.inWater,
+      keys: { ...snap.keys },
+      boots: new Set(snap.boots),
+      ...(character !== undefined ? { character } : {})
+    };
+  }
+
   public undo(): boolean {
     if (this.w.levelCompleted) return false;
     const snap = this.undoStack.pop();
@@ -711,20 +787,10 @@ export class GameEngine {
     this.w.terrain = snap.terrain.map((r) => [...r]);
     this.w.items = snap.items.map((r) => [...r]);
     this.w.entities = snap.entities.map((e) => ({ ...e }));
-    this.w.player = {
-      x: snap.player.x,
-      y: snap.player.y,
-      dir: snap.player.dir,
-      alive: true,
-      deathReasonKey: null,
-      isSliding: snap.player.isSliding,
-      slideDir: snap.player.slideDir,
-      moveCooldown: snap.player.moveCooldown,
-      slideCooldown: snap.player.slideCooldown,
-      inWater: snap.player.inWater,
-      keys: { ...snap.player.keys },
-      boots: new Set(snap.player.boots)
-    };
+    this.w.player = this.restorePlayer(snap.player, snap.player.character ?? snap.playerCharacter);
+    this.w.parked = (snap.parked ?? []).map((p) => this.restorePlayer(p, p.character));
+    this.w.exitedPlayers = snap.exitedPlayers ?? 0;
+    this.w.swappedIn = null;
     this.w.chipsRemaining = snap.chipsRemaining;
     this.ticksElapsed = snap.ticksElapsed;
     this.stepsCount = snap.stepsCount;
@@ -740,7 +806,6 @@ export class GameEngine {
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
     this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
-    this.w.playerCharacter = snap.playerCharacter ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER;
     this.w.timerPaused = snap.timerPaused ?? false;
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
@@ -788,6 +853,8 @@ export class GameEngine {
         processPlayerSlideStep(this.ctx);
       }
     }
+    // The players not controlled finish their forced moves (slides, force floors); they take no voluntary move.
+    if (this.w.parked.length > 0) tickParkedPlayers(this.ctx);
 
     // A charge whose fuse ran out blasts first, before any creature or block moves.
     // Not once the level is won: a player who reached the exit this tick is out of the blast.
@@ -851,6 +918,8 @@ export class GameEngine {
     this.saveUndoSnapshot();
     this.w.gridMutatedByMove = false;
     this.w.rejectedPushMovedBlocks = false;
+    // The mover may leave through an exit during the move, which hands control to the next player.
+    const mover = this.w.player;
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
@@ -867,11 +936,13 @@ export class GameEngine {
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
-      const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
-      // Boots cancel the push, so a booted player keeps the walking cadence.
-      this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
-        ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
-        : Math.max(MIN_WALK_COOLDOWN_TICKS, Math.ceil(ConfigRegistry.getGame().timing.playerMoveCooldownTicks / playerHaste(this.w)));
+      if (mover.exited !== true) {
+        const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
+        // Boots cancel the push, so a booted player keeps the walking cadence.
+        this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
+          ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
+          : Math.max(MIN_WALK_COOLDOWN_TICKS, Math.ceil(ConfigRegistry.getGame().timing.playerMoveCooldownTicks / playerHaste(this.w)));
+      }
       resolveLasers(this.ctx);
       this.checkTargetsWin();
     } else {
@@ -884,6 +955,20 @@ export class GameEngine {
       }
     }
     return moved;
+  }
+
+  /**
+   * The swap key (Lexy's Labyrinth `swap_players`): control passes to the next player of the level. Refused when nobody
+   * else is on the map, while paused or once the level ended. The swap is one undo step and is recorded so that a
+   * recorded solution replays it.
+   */
+  public swapPlayer(): boolean {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
+    this.saveUndoSnapshot();
+    rotatePlayers(this.w);
+    this.w.beamDirty = true;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
+    return true;
   }
 
   public isCellClosedTrap(tx: number, ty: number): boolean {

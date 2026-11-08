@@ -31,9 +31,12 @@ import { buildPlaytestExport, PlaytestExport, PlaytestStore } from './PlaytestSt
 const DROP_OPEN = '[';
 const DROP_CLOSE = ']';
 
-/** One move per letter (N, E, S, W); an item drop is written `[item_id]`. */
+/** Writes the swap key in a compact trace. */
+const SWAP_MARK = '~';
+
+/** One move per letter (N, E, S, W); an item drop is written `[item_id]` and the swap key `~`. */
 export function compactTrace(moves: readonly TimedMove[]): string {
-  return moves.map((m) => (m.drop ? `${DROP_OPEN}${m.drop}${DROP_CLOSE}` : m.dir)).join('');
+  return moves.map((m) => (m.drop ? `${DROP_OPEN}${m.drop}${DROP_CLOSE}` : m.swap === true ? SWAP_MARK : m.dir)).join('');
 }
 
 /** The play aids a level offers, as the page would show them. */
