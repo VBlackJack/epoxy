@@ -61,7 +61,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),
       // A rover starts on the first behaviour of its list; no other entity has these fields.
-      ...initialEmulationState(def)
+      ...initialEmulationState(def),
+      // A monster with a trail that starts on slime has stood on it already.
+      ...(def?.trailTile !== undefined && def.immuneToSlime === true && ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).hazard === 'slime' ? { slimed: true } : {})
     };
   });
 

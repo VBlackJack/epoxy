@@ -273,12 +273,11 @@ describe('blue golem control', () => {
 /** Monsters that press a plate they stand on in CC3D and in Epoxy alike. */
 const PRESSING_BOTH: Cc3dMobKind[] = [
   'walker', 'limpa', 'limpy', 'bouncer', 'omni', 'snappy', 'nibble', 'golem_blue', 'golem_yellow',
+  'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red',
   'bot_static', 'bot_cw', 'bot_ccw', 'bot_multi', 'block_dirt', 'block_ice', 'block_color'
 ];
 /** Monsters that press in neither: the adult blinky and the adult screamer. */
 const PRESSING_NEITHER: Cc3dMobKind[] = ['blinky', 'screamer'];
-/** Monsters that press in CC3D and fly over the plate in Epoxy. */
-const PRESSING_CC3D_ONLY: Cc3dMobKind[] = ['baby_blinky', 'baby_screamer', 'legs_green', 'legs_red'];
 
 describe.each(CC3D_COLORS)('%s plate', (color) => {
   const glyph = PLATE_GLYPH[color];
@@ -339,12 +338,6 @@ describe.each(CC3D_COLORS)('%s plate', (color) => {
     });
   });
 
-  it.each(PRESSING_CC3D_ONLY)('differs for a resting %s: CC3D presses the plate, the Epoxy flyer it becomes does not', (kind) => {
-    const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, M: withMob(plate(color), { kind }), [door]: holdDoor(color) };
-    expectDisagree({ rows: room('@.' + door + '.', '####', '#M#'), moves: 'EEW', glyphs }, 'cells', (pair) => {
-      expect(pair.rig.terrainAt(3, 1)).toBe(doorOpen(color));
-    });
-  });
 });
 
 describe('coverage verdicts that rest on this evidence', () => {

@@ -301,7 +301,7 @@
         "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter."
       },
       "refused_epoxy_only_monsters": {
-        "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard, un Transmogrificateur, une Plaque tournante, un Tapis Tournant, un Guetteur, un Feu follet, un Mimétique du sol, des Dents timides, un Fantôme ou un Rôdeur, que le format .DAT ne peut pas porter."
+        "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard, un Transmogrificateur, une Plaque tournante, un Tapis Tournant, un Guetteur, un Feu follet, un Mimétique du sol, des Dents timides, un Fantôme, un Rôdeur ou un monstre de Chuck's Challenge 3D (Marcheur, Rebondisseur, Snappy, Nibble, Blinky, Bébé Blinky, Limpy, Limpa, Omni, Jambes, Hurleur, Bébé hurleur), que le format .DAT ne peut pas porter."
       },
       "refused_cell_underlays": {
         "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter."
@@ -3784,7 +3784,7 @@
       },
       "water": {
         "name": "Eau",
-        "label": "Un bloc de terre fait de la terre, un bloc de glace de la glace et un bloc de couleur un pont, comme dans CC3D. Les monstres d'Epoxy entrent dans l'eau et se noient, là où ceux de CC3D la refusent, et Epoxy laisse pousser un second bloc sur un bloc de couleur flottant."
+        "label": "Un bloc de terre fait de la terre, un bloc de glace de la glace et un bloc de couleur un pont, comme dans CC3D. Le marcheur et les golems d'Epoxy entrent dans l'eau et se noient, là où ceux de CC3D la refusent, et Epoxy laisse pousser un second bloc sur un bloc de couleur flottant."
       },
       "force_random": {
         "name": "Tapis de force aléatoire",
@@ -3796,11 +3796,11 @@
       },
       "slime": {
         "name": "Gelée",
-        "label": "La vase tue le joueur et est nettoyée par tout bloc qui y entre, comme dans CC3D. Avec l'orbe de feu et l'orbe d'eau ensemble, CC3D laisse passer le joueur, là où Epoxy le tue ; et les monstres de CC3D refusent la vase, là où ceux d'Epoxy y meurent."
+        "label": "La vase tue le joueur et est nettoyée par tout bloc qui y entre, comme dans CC3D. Avec l'orbe de feu et l'orbe d'eau ensemble, CC3D laisse passer le joueur là où Epoxy le tue ; et un marcheur ou un golem de CC3D refuse la vase, là où celui d'Epoxy y meurt."
       },
       "turtle": {
         "name": "Tortue",
-        "label": "La tortue coule derrière ce qui la quitte, comme dans CC3D. Les monstres d'Epoxy refusent une tortue, là où ceux de CC3D la traversent et la font couler."
+        "label": "La tortue coule derrière celui qui la quitte, comme dans CC3D. Le marcheur et les golems d'Epoxy refusent une tortue, là où ceux de CC3D la traversent et la coulent."
       },
       "dirt": {
         "name": "Terre",
@@ -3876,19 +3876,19 @@
       },
       "plate_red": {
         "name": "Plaque de pression (rouge)",
-        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le blinky et le hurleur, qui n'appuient sur rien dans les deux."
       },
       "plate_green": {
         "name": "Plaque de pression (verte)",
-        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le blinky et le hurleur, qui n'appuient sur rien dans les deux."
       },
       "plate_blue": {
         "name": "Plaque de pression (bleue)",
-        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le blinky et le hurleur, qui n'appuient sur rien dans les deux."
       },
       "plate_yellow": {
         "name": "Plaque de pression (jaune)",
-        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le bébé blinky, le bébé hurleur et les jambes, qui volent dans Epoxy et n'appuient pas."
+        "label": "Les plaques et les portes à maintien concordent avec CC3D pour le joueur et tous les blocs, et les monstres appuient dessus comme dans CC3D, sauf le blinky et le hurleur, qui n'appuient sur rien dans les deux."
       },
       "block_color_red": {
         "name": "Bloc de couleur (rouge)",
@@ -3912,51 +3912,51 @@
       },
       "walker": {
         "name": "Marcheur",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le marcheur comme un monstre à part entière : tout droit, un tirage au hasard quand il est bloqué, un pas de quatre tics, il refuse l'eau, le feu et la vase. Ses tirages ne peuvent pas être alignés pas à pas sur ceux de CC3D."
       },
       "legs_green": {
         "name": "Jambes vertes",
-        "label": "Epoxy joue les jambes vertes comme une boule de feu, immunisée contre le feu alors que les jambes ne le sont pas. Le changement de motif des jambes n'est pas reproduit. Contrairement aux jambes de CC3D, il n'appuie pas sur les plaques."
+        "label": "Epoxy joue les jambes vertes comme un monstre à part entière, avec l'ordre de virage de CC3D (tout droit, droite, gauche, demi-tour) et son rythme. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D. Le vrai jeu change le motif des jambes avec les plaques ; ni CC3D ni Epoxy ne le reproduisent."
       },
       "legs_red": {
         "name": "Jambes rouges",
-        "label": "Epoxy joue les jambes rouges comme un planeur, immunisé contre l'eau alors que les jambes ne le sont pas. Le changement de motif des jambes n'est pas reproduit. Contrairement aux jambes de CC3D, il n'appuie pas sur les plaques."
+        "label": "Epoxy joue les jambes rouges comme un monstre à part entière, avec l'ordre de virage de CC3D (tout droit, gauche, droite, demi-tour) et son rythme. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D. Le vrai jeu change le motif des jambes avec les plaques ; ni CC3D ni Epoxy ne le reproduisent."
       },
       "blinky": {
         "name": "Blinky",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le blinky comme un monstre à part entière : même ordre de virage et même rythme, insensible à l'eau, non entraîné par la glace ni les tapis de force, il traverse les tortues sans les couler et n'appuie sur aucune plaque. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "baby_blinky": {
         "name": "Bébé blinky",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique. Contrairement à celui de CC3D, il n'appuie pas sur les plaques."
+        "label": "Epoxy joue le bébé blinky comme un monstre à part entière : même ordre de virage et même rythme, insensible à l'eau seulement, il traverse les tortues sans les couler et appuie sur les plaques. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "limpa": {
         "name": "Limpa",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le limpa comme un monstre à part entière : même ordre de virage et même rythme que dans CC3D, il refuse l'eau, le feu et la vase. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "limpy": {
         "name": "Limpy",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le limpy comme un monstre à part entière : même ordre de virage et même rythme que dans CC3D, il refuse l'eau, le feu et la vase. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "bouncer": {
         "name": "Rebondisseur",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le rebondisseur comme un monstre à part entière : même trajet et même rythme que dans CC3D, il refuse l'eau, le feu et la vase. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "omni": {
         "name": "Omni",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue l'omni comme un monstre à part entière : un tirage au hasard par pas, une attente quand il est bloqué, un pas de huit tics, insensible à la vase, il en laisse derrière lui une fois qu'il en a traversé. Ses tirages ne peuvent pas être alignés pas à pas sur ceux de CC3D."
       },
       "screamer": {
         "name": "Hurleur",
-        "label": "Epoxy joue le hurleur comme une boule de feu, immunisée contre le feu mais pas contre la glace ni les tapis de force, que le hurleur ignore. La fonte des blocs de glace par le hurleur n'est pas reproduite."
+        "label": "Epoxy joue le hurleur comme un monstre à part entière : insensible au feu, non entraîné par la glace ni les tapis de force, il fait fondre les blocs de glace sur son chemin et n'appuie sur aucune plaque. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "baby_screamer": {
         "name": "Bébé hurleur",
-        "label": "Epoxy joue le bébé hurleur comme une boule de feu : l'immunité contre le feu correspond, mais il ne fait pas fondre les blocs de glace et, contrairement à celui de CC3D, il n'appuie pas sur les plaques."
+        "label": "Epoxy joue le bébé hurleur comme un monstre à part entière : insensible au feu seulement, il fait fondre les blocs de glace sur son chemin et appuie sur les plaques. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "snappy": {
         "name": "Snappy",
-        "label": "Le déplacement du monstre est proche de celui de CC3D, sans lui être identique."
+        "label": "Epoxy joue le snappy comme un monstre à part entière : il poursuit le joueur sur l'axe de la plus grande distance, son repos replié dans un pas de huit tics. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "bot_static": {
         "name": "Robot fixe",
@@ -3984,7 +3984,7 @@
       },
       "nibble": {
         "name": "Grignoteur",
-        "label": "Epoxy joue un grignoteur comme un fuyard : il s'éloigne du joueur sur l'axe de la plus grande distance, à intervalle de pas fixe."
+        "label": "Epoxy joue le nibble comme un monstre à part entière : il fuit le joueur sur l'axe de la plus grande distance, son repos replié dans un pas de huit tics. Entrer sur la glace ou un tapis de force est un pas normal dans Epoxy et un pas rapide dans CC3D, et un monstre qui atteint le joueur se tient sur sa case dans Epoxy et à côté de lui dans CC3D."
       },
       "golem_blue": {
         "name": "Golem bleu",
@@ -5606,6 +5606,84 @@
       "name": "Rôdeur (Imite les Monstres)",
       "desc": {
         "label": "Se déplace tour à tour comme les dents, le planeur, le scarabée, la balle rose, les dents timides, la boule de feu, la paramécie et le marcheur, en changeant après 32 pas décidés. Il tue au contact."
+      }
+    },
+    "bouncer": {
+      "name": "Rebondisseur",
+      "desc": {
+        "label": "Va tout droit et fait demi-tour quand il est bloqué. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "snappy": {
+      "name": "Snappy",
+      "desc": {
+        "label": "Poursuit le joueur sur l'axe où la distance est la plus grande, essaie l'autre axe seulement s'il n'est pas aligné avec le joueur, et se repose un pas après chaque pas. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "nibble": {
+      "name": "Nibble",
+      "desc": {
+        "label": "Fuit le joueur sur l'axe où la distance est la plus grande, essaie l'autre axe seulement s'il n'est pas aligné avec le joueur, et se repose un pas après chaque pas. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "blinky": {
+      "name": "Blinky",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à gauche, à droite ou fait demi-tour. L'eau ne l'arrête pas, la glace et les tapis de force ne l'entraînent pas, et il traverse les tortues sans les couler. Il n'appuie sur aucune plaque et n'actionne aucun interrupteur. Il refuse d'entrer dans le feu ou la bave. Il tue au contact."
+      }
+    },
+    "baby_blinky": {
+      "name": "Bébé Blinky",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à gauche, à droite ou fait demi-tour. L'eau ne l'arrête pas et il traverse les tortues sans les couler, mais la glace et les tapis de force l'entraînent. Il actionne les plaques et les interrupteurs. Il refuse d'entrer dans le feu ou la bave. Il tue au contact."
+      }
+    },
+    "limpy": {
+      "name": "Limpy",
+      "desc": {
+        "label": "Préfère tourner à droite, sinon va tout droit, sinon à gauche, sinon fait demi-tour : il longe donc le mur à sa droite. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "limpa": {
+      "name": "Limpa",
+      "desc": {
+        "label": "Préfère tourner à gauche, sinon va tout droit, sinon à droite, sinon fait demi-tour : il longe donc le mur à sa gauche. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "omni": {
+      "name": "Omni",
+      "desc": {
+        "label": "Se déplace lentement : il tire une direction au hasard et attend quand ce chemin est bloqué. La bave ne lui fait aucun mal, et une fois qu'il a marché dans la bave il laisse de la bave sur le sol nu qu'il quitte. Il refuse d'entrer dans l'eau ou le feu. Il actionne les plaques et les interrupteurs et tue au contact."
+      }
+    },
+    "legs_green": {
+      "name": "Jambes vertes",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à droite, à gauche ou fait demi-tour. Elles refusent d'entrer dans l'eau, le feu ou la bave. Elles actionnent les plaques et les interrupteurs et tuent au contact."
+      }
+    },
+    "legs_red": {
+      "name": "Jambes rouges",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à gauche, à droite ou fait demi-tour. Elles refusent d'entrer dans l'eau, le feu ou la bave. Elles actionnent les plaques et les interrupteurs et tuent au contact."
+      }
+    },
+    "screamer": {
+      "name": "Hurleur",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à droite, à gauche ou fait demi-tour. Le feu ne l'arrête pas et la glace et les tapis de force ne l'entraînent pas. Il fait fondre le bloc de glace sur son chemin, et le sol sous le bloc devient de l'eau. Il n'appuie sur aucune plaque et n'actionne aucun interrupteur. Il refuse d'entrer dans l'eau ou la bave. Il tue au contact."
+      }
+    },
+    "baby_screamer": {
+      "name": "Bébé hurleur",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à droite, à gauche ou fait demi-tour. Le feu ne l'arrête pas et il fait fondre le bloc de glace sur son chemin (le sol sous le bloc devient de l'eau), mais la glace et les tapis de force l'entraînent. Il actionne les plaques et les interrupteurs. Il refuse d'entrer dans l'eau ou la bave. Il tue au contact."
+      }
+    },
+    "walker_3d": {
+      "name": "Marcheur (CC3D)",
+      "desc": {
+        "label": "Va tout droit ; quand il est bloqué, il tire une direction au hasard et attend si ce chemin est bloqué aussi. Il avance en quatre tics. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
       }
     },
     "mirror_chip": {

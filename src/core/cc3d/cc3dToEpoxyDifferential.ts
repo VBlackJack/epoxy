@@ -67,10 +67,18 @@ export function epoxyIdOf(displayId: string): string {
 /** CC3D display ids of mobs that name another Epoxy entity type. */
 export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   cc3d_golem_yellow: 'puppet',
-  cc3d_legs_green: 'fireball',
-  cc3d_legs_red: 'glider',
-  cc3d_baby_blinky: 'glider',
-  cc3d_baby_screamer: 'fireball',
+  cc3d_legs_green: 'legs_green',
+  cc3d_legs_red: 'legs_red',
+  cc3d_baby_blinky: 'baby_blinky',
+  cc3d_baby_screamer: 'baby_screamer',
+  // The CC3D engine draws its monsters as the Epoxy monsters they resemble; each one is its own Epoxy monster.
+  walker: 'walker_3d',
+  glider: 'blinky',
+  bug: 'limpa',
+  paramecium: 'limpy',
+  pink_ball: 'bouncer',
+  blob: 'omni',
+  fireball: 'screamer',
   cc3d_reflector_lu: 'one_sided_mirror_sw',
   cc3d_reflector_dl: 'one_sided_mirror_nw',
   cc3d_reflector_ur: 'one_sided_mirror_se',
@@ -88,6 +96,12 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
 const ITEM_ID_MAP: Readonly<Record<string, string>> = { stopwatch_bonus: 'slow_time', cc3d_fish_extra: 'chip' };
 const BOMB_ID = 'bomb';
 
+/** The CC3D display id both snappy and nibble are drawn with, and the Epoxy monster of each. */
+const SNAPPY_NIBBLE_DISPLAY_ID = 'teeth';
+const NIBBLE_KIND = 'nibble';
+const SNAPPY_EPOXY_TYPE = 'snappy';
+const NIBBLE_EPOXY_TYPE = 'nibble';
+
 /** What stands where, as sorted `type@x,y` strings. */
 function entityLines(entities: ReadonlyArray<{ type: string; x: number; y: number }>, map: (type: string) => string): string[] {
   return entities.map((e) => `${map(e.type)}@${e.x},${e.y}`).sort();
@@ -95,6 +109,12 @@ function entityLines(entities: ReadonlyArray<{ type: string; x: number; y: numbe
 
 /** Epoxy shows a floating colour block as a terrain tile of this prefix, where CC3D keeps the block as a mob on water. */
 const FLOATING_BLOCK_PREFIX = 'floating_block_';
+
+interface MobProbe {
+  x: number;
+  y: number;
+  kind: string;
+}
 
 interface FloatingProbe {
   x: number;
@@ -169,6 +189,20 @@ export class DifferentialPair {
     );
   }
 
+  /** The kind of each CC3D mob by cell (read from the simulation): the display id alone does not tell snappy from nibble. */
+  private mobKinds(): ReadonlyMap<string, string> {
+    const sim = (this.rig.engine as unknown as { sim: { world: { mobs: MobProbe[] } } | null }).sim;
+    return new Map((sim?.world.mobs ?? []).map((mob) => [`${mob.x},${mob.y}`, mob.kind] as const));
+  }
+
+  /** The Epoxy entity type of a CC3D engine entity. */
+  public epoxyTypeOf(entity: { type: string; x: number; y: number }, kinds: ReadonlyMap<string, string> = this.mobKinds()): string {
+    if (entity.type === SNAPPY_NIBBLE_DISPLAY_ID) {
+      return kinds.get(`${entity.x},${entity.y}`) === NIBBLE_KIND ? NIBBLE_EPOXY_TYPE : SNAPPY_EPOXY_TYPE;
+    }
+    return ENTITY_ID_MAP[entity.type] ?? entity.type;
+  }
+
   /** The CC3D colour blocks that float on water now, by cell (read from the simulation, which the engine keeps private). */
   private floatingBlocks(): ReadonlyMap<string, string> {
     const sim = (this.rig.engine as unknown as { sim: { world: { mobs: FloatingProbe[] } } | null }).sim;
@@ -225,7 +259,8 @@ export class DifferentialPair {
     }
     if (options.entities) {
       const resting = this.rig.entities.filter((e) => !(e.type in ENTITY_ID_MAP && floating.has(`${e.x},${e.y}`)));
-      const linesA = entityLines(resting, (type) => ENTITY_ID_MAP[type] ?? type);
+      const kinds = this.mobKinds();
+      const linesA = resting.map((e) => `${this.epoxyTypeOf(e, kinds)}@${e.x},${e.y}`).sort();
       const linesB = entityLines(this.epoxy.getEntities(), (type) => type);
       if (linesA.join(';') !== linesB.join(';')) return at('entities', `cc3d ${linesA.join(' ')} epoxy ${linesB.join(' ')}`);
     }

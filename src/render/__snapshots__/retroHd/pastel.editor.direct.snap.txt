@@ -561,3 +561,16 @@ editor entity over floor rover 44ebe6ce938c1408
 editor entity over floor arrow_block_none d21742c54c2056b7
 editor entity over floor mirror_chip c2f22ff2cb3e90d9
 editor entity over floor mirror_melinda 6daab77b570a119c
+editor entity over floor bouncer e636d5165cb890a0
+editor entity over floor snappy 6427f02101d43bbd
+editor entity over floor nibble ca35369b105167e5
+editor entity over floor blinky fc743fb03c667d11
+editor entity over floor baby_blinky dfee83b6fcb640b1
+editor entity over floor limpy d010800e8c275779
+editor entity over floor limpa c00491a33d085722
+editor entity over floor omni e14c3d70cee389aa
+editor entity over floor legs_green 2a01f6454a460f82
+editor entity over floor legs_red ebeac41cbe4afe9f
+editor entity over floor screamer 455896e2b22a4c9c
+editor entity over floor baby_screamer 49139d6ec54ade5a
+editor entity over floor walker_3d 7cc7a30856c2d2e3
