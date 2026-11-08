@@ -237,6 +237,8 @@ export class PieceSolver {
     maxStates: number = DEFAULT_MAX_SOLVER_STATES,
     towards: 'exit' | 'entry' = 'exit'
   ): PieceSolveResult {
+    // The search follows one player: a level with several is refused, as undecided.
+    if ((engine.getLevel().extraPlayers?.length ?? 0) > 0) return { solvable: false, moves: null, statesExplored: 0, truncated: true };
     const start = engine.captureState();
     try {
       // Monsters never leave their walled piece, so the piece is searched alone

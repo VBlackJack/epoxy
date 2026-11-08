@@ -61,6 +61,11 @@ function padsAvailable(engine: GameEngine): boolean {
   );
 }
 
+/** True when the level places several players: the searches follow a single player and refuse such a level. */
+function hasSeveralPlayers(engine: GameEngine): boolean {
+  return (engine.getLevel().extraPlayers?.length ?? 0) > 0;
+}
+
 /** True when a hurl stone is held or lies on the map: a throw destroys monsters and melts ice blocks, which the search does not model. */
 function stoneAvailable(engine: GameEngine): boolean {
   if (Object.entries(engine.getPlayer().keys).some(([id, count]) => count > 0 && isStoneTileId(id))) return true;
@@ -292,6 +297,8 @@ export class BlockPuzzleSolver {
   public static isStuck(engine: GameEngine, budget: number = watchSearchBudget()): boolean {
     // The search reads the grid as it is now; terrain hidden under a removable top is not modelled.
     if (engine.getUnderlays() !== undefined) return false;
+    // The search follows one player; a level with several is never judged.
+    if (hasSeveralPlayers(engine)) return false;
     // Signals open and close doors the search does not model: it never reports a wired level stuck.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return false;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return false;
@@ -330,6 +337,8 @@ export class BlockPuzzleSolver {
     work?: SearchWork
   ): BlockPuzzleVerdict {
     if (engine.getLevel().winRule !== 'targets' || engine.getUnderlays() !== undefined) return { kind: 'none' };
+    // The search follows one player; a level with several is never judged.
+    if (hasSeveralPlayers(engine)) return { kind: 'not_checked' };
     const playable = BlockPuzzleSolver.modelledCellCount(engine);
     if (playable === null || playable > ConfigRegistry.getGame().blockPuzzle.watchMaxCells) {
       return { kind: 'not_checked' };
@@ -480,6 +489,8 @@ export class BlockPuzzleSolver {
    */
   public static hint(engine: GameEngine, budget: number = requestedSearchBudget()): Dir[] | null {
     if (engine.getUnderlays() !== undefined) return null;
+    // The search follows one player; a level with several gets no hint.
+    if (hasSeveralPlayers(engine)) return null;
     // Signals open and close doors the search does not model: it offers no hint on a wired level.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;

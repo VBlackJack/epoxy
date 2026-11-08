@@ -54,7 +54,9 @@ export function sanitizeTimedMoves(value: unknown): TimedMove[] | undefined {
     result.push(
       typeof entry.drop === 'string'
         ? { tick: entry.tick, dir: entry.dir, drop: entry.drop }
-        : { tick: entry.tick, dir: entry.dir }
+        : entry.swap === true
+          ? { tick: entry.tick, dir: entry.dir, swap: true }
+          : { tick: entry.tick, dir: entry.dir }
     );
   }
   return result;

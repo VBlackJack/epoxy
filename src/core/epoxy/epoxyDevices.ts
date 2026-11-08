@@ -50,7 +50,9 @@ import {
   killPlayer,
   mapWidth,
   removeEntity,
-  signalSinkOn
+  signalSinkOn,
+  killPlayerAt,
+  playersOf
 } from './epoxyWorld';
 
 /** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
@@ -257,7 +259,7 @@ export function setHoldDoors(ctx: EpoxyContext, playSound: boolean = true): bool
     if (tile.holdDoorColor === undefined || !tile.holdDoorTogglesTo) continue;
     const wantsOpen = platesOpen.get(tile.holdDoorColor) === true;
     if (tile.holdDoorOpen === wantsOpen) continue;
-    const occupied = (w.player.x === x && w.player.y === y) || getEntityAt(w, x, y) !== undefined;
+    const occupied = playersOf(w).some((p) => p.x === x && p.y === y) || getEntityAt(w, x, y) !== undefined;
     if (!wantsOpen && occupied && tile.holdDoorClosesOnOccupant === false) continue;
     w.terrain[y][x] = tile.holdDoorTogglesTo;
     changed = true;
@@ -344,10 +346,22 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
 function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (!w.player.alive) return;
-  const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
-  if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
-    ctx.emitVisual('explosion', w.player.x, w.player.y);
-    killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+  if (w.parked.length === 0) {
+    const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+      ctx.emitVisual('explosion', w.player.x, w.player.y);
+      killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+    }
+    return;
+  }
+  // A parked player that burns takes the controlled slot, so the loop reads a copy.
+  for (const p of [...playersOf(w)]) {
+    const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
+    if (p.alive && tile.hazard === 'fire' && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
+      ctx.emitVisual('explosion', p.x, p.y);
+      killPlayerAt(ctx, p, 'hud.messages.death_fire', 'burn');
+      return;
+    }
   }
 }
 
@@ -385,7 +399,7 @@ export function spawnFromCloner(
   const spawnX = clonerX + vec.dx;
   const spawnY = clonerY + vec.dy;
   if (!isInBounds(w, spawnX, spawnY)) return true;
-  if (w.player.x === spawnX && w.player.y === spawnY) return true;
+  if (playersOf(w).some((p) => p.x === spawnX && p.y === spawnY)) return true;
 
   const def = ConfigRegistry.getEntityDef(templateType);
   // A phasing monster is never a clone template (the validator refuses it); a stray link spawns nothing.

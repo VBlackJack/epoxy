@@ -22,7 +22,7 @@ import { attemptPushBlock } from './epoxyBlocks';
 import { railRedirect } from './epoxyRailsCc2';
 import { leaveSwivel } from './epoxySwivels';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
-import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, playerAtCell } from './epoxyWorld';
 
 /** Whether the entity is a monster that moves only when a steering pad is worked. */
 function isSteered(entity: RuntimeEntity): boolean {
@@ -66,7 +66,7 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, wanted: Direction
     // The cell behind the block: the live player is never pushed onto.
     const behindX = nx + vec.dx;
     const behindY = ny + vec.dy;
-    if (w.player.alive && w.player.x === behindX && w.player.y === behindY) return 'stayed';
+    if (playerAtCell(w, behindX, behindY) !== undefined) return 'stayed';
     if (!attemptPushBlock(ctx, occupant, dir, false)) return 'stayed';
     if (!w.player.alive) return 'killed';
     // The pushed block may have sunk, burned or slid on, but it never stays in the cell.

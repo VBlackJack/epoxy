@@ -29,7 +29,8 @@ import {
   canPlayerEnter,
   getEntityAt,
   isEdgeBlocked,
-  isInBounds
+  isInBounds,
+  playerAtCell
 } from './epoxyWorld';
 
 /**
@@ -79,7 +80,7 @@ function candidateCountOf(origin: TileDefinition, linked: number): number {
 function padRefusesLanding(w: EpoxyWorld, origin: TileDefinition, pad: GridPoint, moverIsPlayer: boolean): boolean {
   if (origin.teleportExitOrder === undefined) return false;
   if (getEntityAt(w, pad.x, pad.y)) return true;
-  return !moverIsPlayer && w.player.alive && w.player.x === pad.x && w.player.y === pad.y;
+  return !moverIsPlayer && playerAtCell(w, pad.x, pad.y) !== undefined;
 }
 
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
@@ -129,6 +130,8 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
         if (
           canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
           !getEntityAt(w, exitX, exitY) &&
+          // Only another player bars the exit: the teleporting one stands on the source cell, which may be an exit cell too.
+          [undefined, w.player].includes(playerAtCell(w, exitX, exitY)) &&
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
           AudioManager.playSfx('teleport');
@@ -174,7 +177,7 @@ export function teleportEntity(
       const exitX = candidate.x + vec.dx;
       const exitY = candidate.y + vec.dy;
       // An exit named by an order is skipped when the live player stands there (CC3D: the step would hit him).
-      if (origin.teleportExitOrder !== undefined && w.player.alive && w.player.x === exitX && w.player.y === exitY) continue;
+      if (origin.teleportExitOrder !== undefined && playerAtCell(w, exitX, exitY) !== undefined) continue;
       // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
       const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir: exitDir };
       const canExit =

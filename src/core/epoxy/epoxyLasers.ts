@@ -25,11 +25,12 @@ import {
   getEntityAt,
   isEdgeBlocked,
   isInBounds,
-  killPlayer,
   litLaserGroups,
   mapHeight,
   mapWidth,
-  removeEntity
+  removeEntity,
+  killPlayerAt,
+  playersOf
 } from './epoxyWorld';
 import { traceTurretBeams } from './epoxyTurrets';
 
@@ -146,8 +147,9 @@ export function resolveLasers(ctx: EpoxyContext): void {
     // The beam that ended on the monster goes on through its cell.
     if (w.hasTurrets) w.beamDirty = true;
   }
-  if (beamIndexes.has(w.player.y * width + w.player.x)) {
-    killPlayer(ctx, 'hud.messages.death_laser', LASER_DEATH_SFX);
+  const burned = playersOf(w).find((p) => p.alive && beamIndexes.has(p.y * width + p.x));
+  if (burned !== undefined) {
+    killPlayerAt(ctx, burned, 'hud.messages.death_laser', LASER_DEATH_SFX);
     return;
   }
 
@@ -166,7 +168,7 @@ function setLaserGates(w: EpoxyWorld): void {
     const tile = ConfigRegistry.getTile(w.terrain[y][x]);
     const wantsOpen = tile.laserGateGroup !== undefined && litGroups.has(tile.laserGateGroup);
     if (!tile.laserGateTogglesTo || tile.laserGateOpen === wantsOpen) continue;
-    const occupied = (w.player.x === x && w.player.y === y) || getEntityAt(w, x, y) !== undefined;
+    const occupied = playersOf(w).some((p) => p.x === x && p.y === y) || getEntityAt(w, x, y) !== undefined;
     if (!wantsOpen && occupied) continue;
     w.terrain[y][x] = tile.laserGateTogglesTo;
     changed = true;

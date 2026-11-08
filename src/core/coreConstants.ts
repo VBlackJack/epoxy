@@ -197,6 +197,9 @@ export const FIRE_LAUNCHERS_ACTION: ButtonAction = 'fire_launchers';
 /** Signal links a level may hold per cell at most (a shape check on stored levels, not a design limit). */
 export const SIGNAL_LINKS_PER_CELL_MAX = 4;
 
+/** Most players a level may place beyond the first (a level with several players): a stored list longer than this is cut. */
+export const EXTRA_PLAYERS_MAX = 7;
+
 /** Length bounds of the optional port name of a signal link. */
 export const SIGNAL_PORT_MIN_LENGTH = 1;
 export const SIGNAL_PORT_MAX_LENGTH = 16;
@@ -367,6 +370,9 @@ export const TIMER_PAUSE_KEY_PREFIX = 'tm';
 
 /** Prefix of the player's character in a search state key; written only while a transmogrifier made it differ from the level's. */
 export const PLAYER_CHARACTER_KEY_PREFIX = 'pc';
+
+/** Prefix of the parked players and the exit count in a search state key; written only on a level with several players. */
+export const PLAYERS_KEY_PREFIX = 'pl';
 
 /** Prefix of the turning force floor turn in a search state key. */
 export const FORCE_CYCLE_KEY_PREFIX = 'fc';

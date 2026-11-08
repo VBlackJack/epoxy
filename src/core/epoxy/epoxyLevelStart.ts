@@ -15,11 +15,11 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, PULSE_WIRED_ACTION } from '../coreConstants';
+import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, DEFAULT_PLAYER_CHARACTER, PULSE_WIRED_ACTION } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
 import { buildRailCells } from './epoxyRailsCc2';
-import { CompiledLevel } from '../types';
+import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -67,10 +67,10 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
     };
   });
 
-  w.player = {
-    x: level.playerStart.x,
-    y: level.playerStart.y,
-    dir: level.playerStart.dir,
+  const newPlayer = (x: number, y: number, dir: Direction, character?: PlayerCharacter): PlayerState => ({
+    x,
+    y,
+    dir,
     alive: true,
     deathReasonKey: null,
     isSliding: false,
@@ -79,8 +79,16 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
     slideCooldown: 0,
     inWater: false,
     keys: {},
-    boots: new Set<string>()
-  };
+    boots: new Set<string>(),
+    ...(character !== undefined ? { character } : {})
+  });
+  w.player = newPlayer(level.playerStart.x, level.playerStart.y, level.playerStart.dir);
+  // A level with several players: the others start parked, in swap order, each with its own character.
+  const extras = level.extraPlayers ?? [];
+  w.parked = extras.map((p) => newPlayer(p.x, p.y, p.dir, p.character));
+  if (extras.length > 0) w.player.character = level.character ?? DEFAULT_PLAYER_CHARACTER;
+  w.exitedPlayers = 0;
+  w.swappedIn = null;
 
   w.chipsRemaining = level.chipsRequired;
   w.playStartTick = NO_PLAY_START_TICK;

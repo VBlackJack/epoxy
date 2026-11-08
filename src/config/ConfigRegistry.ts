@@ -70,6 +70,7 @@ import {
   isRuleset,
   isBlockBudget,
   normalizeCellEdges,
+  normalizeExtraPlayers,
   normalizeRailTracks,
   normalizeLauncherLinks,
   normalizeUnderlays,
@@ -1486,6 +1487,7 @@ class ConfigRegistryService {
       }
     }
 
+    const extraPlayers = normalizeExtraPlayers(bp.extraPlayers, start, mapWidth, mapHeight);
     const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
     const railTracks = normalizeRailTracks(bp.railTracks, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
@@ -1521,6 +1523,7 @@ class ConfigRegistryService {
       },
       terrain,
       items,
+      ...(extraPlayers ? { extraPlayers } : {}),
       ...(cellEdges ? { cellEdges } : {}),
       ...(railTracks ? { railTracks } : {}),
       ...(underlays ? { underlays } : {}),
