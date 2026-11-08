@@ -20,7 +20,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
-import { Direction, TileDefinition } from '../types';
+import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
@@ -41,13 +41,17 @@ import {
   holdsItem,
   isEdgeBlocked,
   isInBounds,
+  dropExitedController,
   killPlayer,
   leaveCell,
+  leaveThroughExit,
   notePulseArrival,
+  playerAtCell,
   playerCharacterOf,
   playerGripsTile,
   shotAt,
-  takeRevealedTerrain
+  takeRevealedTerrain,
+  withPlayer
 } from './epoxyWorld';
 
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
@@ -56,16 +60,18 @@ export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
 
 /** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
-export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): boolean {
-  return tile.slideType === 'force' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem));
+export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition, player: PlayerState = w.player): boolean {
+  return tile.slideType === 'force' && (!tile.protectedByItem || !player.boots.has(tile.protectedByItem));
 }
 
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   const w = ctx.world;
+  // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
+  if (dropExitedController(w)) return moved;
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
   // They copy the requested direction, before any track redirect of the player's own cell.
-  if (w.player.alive && !w.levelCompleted) steerMirrors(ctx, requestedDir);
+  if (w.player.alive && !w.levelCompleted && w.player.exited !== true) steerMirrors(ctx, requestedDir);
   return moved;
 }
 
@@ -86,6 +92,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   }
 
   if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir, false, rail)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // Another player standing in the cell ahead blocks the step, as a wall would.
+  if (playerAtCell(w, targetX, targetY) !== undefined) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -227,7 +239,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   resolvePlayerArrival(ctx, dir, true);
   // The arrival is settled (a teleport included): a lurker asleep next to the player wakes.
-  if (w.player.alive && !w.levelCompleted) wakeLurkersNearPlayer(w);
+  if (w.player.alive && !w.levelCompleted && w.player.exited !== true) wakeLurkersNearPlayer(w);
 
   if (
     !fromSlide &&
@@ -235,6 +247,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     !updatedTargetTile.isTeleporter &&
     w.player.alive &&
     !w.levelCompleted &&
+    w.player.exited !== true &&
     hadPullBoots &&
     bootsPullBlocks(w.player.boots)
   ) {
@@ -300,7 +313,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   // A transmogrifier turns the player into the other character on arrival (Lexy's Labyrinth tiletypes.js `transmogrifier`).
-  if (tile.transmogrifies) w.playerCharacter = transmogrifiedCharacter(w.playerCharacter);
+  if (tile.transmogrifies) w.player.character = transmogrifiedCharacter(playerCharacterOf(w));
 
   const itemId = w.items[y][x];
   if (itemId) {
@@ -387,7 +400,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   if (tile.isLevelExit) {
     ctx.emitVisual('win', x, y);
-    ctx.completeLevel();
+    // Lexy's Labyrinth exit.on_arrive: the level is won when no player remains; otherwise this one leaves play.
+    if (leaveThroughExit(w)) ctx.completeLevel();
     return;
   }
 
@@ -459,6 +473,24 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
 
   w.player.isSliding = false;
   w.player.slideDir = null;
+}
+
+/**
+ * One tick of every parked player, in swap order: the cooldowns run down and a forced move (ice, force floor) goes
+ * on, through the controlled player's own code with the parked player standing in for it. A parked player takes
+ * no voluntary move. Stops when a player died or the level was won.
+ */
+export function tickParkedPlayers(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  for (const parked of [...w.parked]) {
+    if (!w.player.alive || w.levelCompleted) return;
+    withPlayer(w, parked, () => {
+      if (w.player.moveCooldown > 0) w.player.moveCooldown--;
+      if (!w.player.isSliding) return;
+      if (w.player.slideCooldown > 0) w.player.slideCooldown--;
+      else processPlayerSlideStep(ctx);
+    });
+  }
 }
 
 export function processPlayerSlideStep(ctx: EpoxyContext): void {

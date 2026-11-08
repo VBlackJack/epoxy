@@ -96,6 +96,9 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           forceCycleTurn: engine.getForceCycleTurn?.(),
           // Undefined (and so left out of the hash) unless a transmogrifier switched the player's character.
           character: engine.getPlayerCharacterSwitch?.(),
+          // Undefined (and so left out of the hash) on a level with one player.
+          parked: engine.getParkedPlayers?.(),
+          exited: engine.getExitedPlayers?.(),
           // Undefined (and so left out of the hash) on a level without a toggle clock.
           timerPaused: engine.isTimerPaused?.(),
           // Undefined (and so left out of the hash) on a level without track cells.
@@ -136,6 +139,7 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           const { due, nextIndex } = collectDueMoves(moves, index, engine.getTick());
           for (const move of due) {
             if (move.drop !== undefined) engine.dropItem(move.drop);
+            else if (move.swap === true) engine.swapPlayer();
             else engine.attemptPlayerMove(move.dir);
           }
           index = nextIndex;

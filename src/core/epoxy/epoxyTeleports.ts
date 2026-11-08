@@ -28,7 +28,8 @@ import {
   canPlayerEnter,
   getEntityAt,
   isEdgeBlocked,
-  isInBounds
+  isInBounds,
+  playerAtCell
 } from './epoxyWorld';
 
 /**
@@ -92,6 +93,7 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
         if (
           canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
           !getEntityAt(w, exitX, exitY) &&
+          playerAtCell(w, exitX, exitY) === undefined &&
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
           AudioManager.playSfx('teleport');

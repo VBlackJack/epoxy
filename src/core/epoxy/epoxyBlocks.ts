@@ -32,11 +32,12 @@ import {
   isCellClosedTrap,
   isEdgeBlocked,
   isInBounds,
-  killPlayer,
   leaveCell,
   notePulseArrival,
   removeEntity,
-  shotAt
+  shotAt,
+  playerAtCell,
+  killPlayerAt
 } from './epoxyWorld';
 
 /** Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). */
@@ -79,7 +80,9 @@ function planPushLine(
     // A player push never reaches this (the player stands behind the line) and puppets do not chain; slide pushes do.
     // A chain never ends on the live player; a lone block keeps its single-push behaviour.
     // A push made by a sliding block guards the lone block too: nothing is pushed onto the live player.
-    if ((guardPlayerCell || line.length > 1) && w.player.alive && w.player.x === destX && w.player.y === destY) {
+    // A push never lands on a player standing still: the parked ones are guarded like the live one.
+    if (w.parked.some((p) => p.alive && p.x === destX && p.y === destY)) return undefined;
+    if ((guardPlayerCell || line.length > 1) && playerAtCell(w, destX, destY) !== undefined) {
       return undefined;
     }
     return line;
@@ -184,8 +187,9 @@ export function moveBlockTo(
   const tile = ConfigRegistry.getTile(tileId);
   const itemId = w.items[destY][destX];
 
-  if (w.player.x === destX && w.player.y === destY && w.player.alive) {
-    killPlayer(ctx, 'hud.messages.death_block', 'death');
+  const crushed = playerAtCell(w, destX, destY);
+  if (crushed !== undefined) {
+    killPlayerAt(ctx, crushed, 'hud.messages.death_block', 'death');
     return;
   }
 

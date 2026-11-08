@@ -1720,6 +1720,11 @@ export interface LevelBlueprint {
   timeLimitSeconds: number;
   chipsRequired: number;
   playerStart: { x: number; y: number; dir: Direction };
+  /**
+   * The other players of a level with several (CC2 levels with Chip and Melinda on the map), in swap order after the one
+   * at playerStart; absent on a level with one player. Each one has its own character.
+   */
+  extraPlayers?: ExtraPlayerStart[];
   rows?: string[];
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
@@ -1913,6 +1918,14 @@ export interface Cc2LevelData {
   coverage: Cc2Coverage;
 }
 
+/** The start of a player beyond the first on a level with several. */
+export interface ExtraPlayerStart {
+  x: number;
+  y: number;
+  dir: Direction;
+  character: PlayerCharacter;
+}
+
 export interface CompiledLevel {
   id: string;
   /** Pilot design note: the blocks the level needs; see BlockBudget. */
@@ -1942,6 +1955,11 @@ export interface CompiledLevel {
   timeLimitSeconds: number;
   chipsRequired: number;
   playerStart: { x: number; y: number; dir: Direction };
+  /**
+   * The other players of a level with several (CC2 levels with Chip and Melinda on the map), in swap order after the one
+   * at playerStart; absent on a level with one player. Each one has its own character.
+   */
+  extraPlayers?: ExtraPlayerStart[];
   /** True when an import found no player start: playerStart is then an inert placeholder and the validator reports an error. */
   missingStart?: boolean;
   terrain: string[][];
@@ -2010,6 +2028,13 @@ export interface PlayerState {
   inWater: boolean;
   keys: Record<string, number>;
   boots: Set<string>;
+  /**
+   * The character this player is; absent until set, when it is the level's character. Each player of a level with
+   * several has its own, and a transmogrifier switches only the player that arrives on it.
+   */
+  character?: PlayerCharacter;
+  /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
+  exited?: true;
 }
 
 /**
@@ -2020,6 +2045,8 @@ export interface TimedMove {
   tick: number;
   dir: Direction;
   drop?: string;
+  /** True when the action is the swap key: control passes to the next player of a level with several. */
+  swap?: true;
 }
 
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
@@ -2031,22 +2058,31 @@ export interface LitCharge extends GridPoint {
   awaitingDeparture?: true;
 }
 
+/** The saved state of one player. */
+export interface PlayerSnapshot {
+  x: number;
+  y: number;
+  dir: Direction;
+  isSliding: boolean;
+  slideDir: Direction | null;
+  moveCooldown: number;
+  slideCooldown: number;
+  inWater: boolean;
+  keys: Record<string, number>;
+  boots: string[];
+  /** The player's character; written only on a level with several players, where each has its own. */
+  character?: PlayerCharacter;
+}
+
 export interface UndoSnapshot {
   terrain: string[][];
   items: (string | null)[][];
   entities: RuntimeEntity[];
-  player: {
-    x: number;
-    y: number;
-    dir: Direction;
-    isSliding: boolean;
-    slideDir: Direction | null;
-    moveCooldown: number;
-    slideCooldown: number;
-    inWater: boolean;
-    keys: Record<string, number>;
-    boots: string[];
-  };
+  player: PlayerSnapshot;
+  /** The players not controlled now, in swap order; written only on a level with several players. */
+  parked?: PlayerSnapshot[];
+  /** Players that already left through an exit; written only on a level with several players. */
+  exitedPlayers?: number;
   chipsRemaining: number;
   ticksElapsed: number;
   stepsCount: number;
@@ -2077,7 +2113,7 @@ export interface UndoSnapshot {
   swivelEntry?: [number, Direction][];
   /** The state of the track cells: [cell index, active segment or -1 without a switch, side the last actor came in by]; written only on a level that has track cells. */
   railState?: [number, number, Direction][];
-  /** The player's character after a transmogrifier switched it; written only while it differs from the level's, absent otherwise. */
+  /** The player's character after a transmogrifier switched it; written only while it differs from the level's, absent otherwise (a level with several players writes each player's own). */
   playerCharacter?: PlayerCharacter;
   /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
   timerPaused?: boolean;

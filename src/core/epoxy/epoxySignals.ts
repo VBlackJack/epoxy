@@ -21,7 +21,7 @@ import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '..
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
-import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
 import {
   SignalEdge,
   SignalNetwork,
@@ -108,7 +108,7 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
  * monster or block that is not sliding and presses plates. A coloured block counts, as on a plate of its colour.
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
-  if (w.player.alive && w.player.x === x && w.player.y === y) return true;
+  if (playerAtCell(w, x, y) !== undefined) return true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y || e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
@@ -138,7 +138,8 @@ function samplePulse(runtime: SignalRuntime, index: number, cell: number, prime:
 
 /** Whether the player stands on the cell holding the lightning bolt. */
 function chargedCellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
-  return w.player.alive && w.player.x === x && w.player.y === y && w.player.boots.has(LIGHTNING_BOLT_ITEM_ID);
+  const here = playerAtCell(w, x, y);
+  return here !== undefined && here.boots.has(LIGHTNING_BOLT_ITEM_ID);
 }
 
 /**

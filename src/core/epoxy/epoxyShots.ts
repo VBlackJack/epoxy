@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { FLOOR_TILE_ID, STONE_DEATH_REASON_KEY, STONE_SHOT_PAYLOAD, reflectOnMirror } from '../coreConstants';
-import { Direction, RuntimeEntity, Shot, ShotEffect } from '../types';
+import { Direction, PlayerState, RuntimeEntity, Shot, ShotEffect } from '../types';
 import { isLitChargeItem } from './epoxyCharges';
 import {
   EpoxyContext,
@@ -27,9 +27,10 @@ import {
   getEntityAt,
   isEdgeBlocked,
   isInBounds,
-  killPlayer,
   removeEntity,
-  shotAt
+  shotAt,
+  killPlayerAt,
+  playerAtCell
 } from './epoxyWorld';
 
 /** Reason shown when a shot kills the player. */
@@ -84,8 +85,8 @@ export function spendShotAt(w: EpoxyWorld, x: number, y: number): Shot | undefin
 }
 
 /** Kills the player who ran into a shot (the caller spent the shot); a thrown stone has its own death message. */
-export function killPlayerByShot(ctx: EpoxyContext, payload?: Shot['payload']): void {
-  killPlayer(ctx, payload === undefined ? SHOT_DEATH_REASON_KEY : STONE_DEATH_REASON_KEY, SHOT_HIT_SFX);
+export function killPlayerByShot(ctx: EpoxyContext, payload?: Shot['payload'], player: PlayerState = ctx.world.player): void {
+  killPlayerAt(ctx, player, payload === undefined ? SHOT_DEATH_REASON_KEY : STONE_DEATH_REASON_KEY, SHOT_HIT_SFX);
 }
 
 /** Removes a monster that ran into a shot (the caller spent the shot). */
@@ -123,8 +124,9 @@ function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Directi
   if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, fromX, fromY, nx, ny, dir, true)) return ENDED;
   if (ConfigRegistry.getTile(w.terrain[ny][nx]).laserTransparent !== true) return ENDED;
 
-  if (w.player.alive && w.player.x === nx && w.player.y === ny) {
-    killPlayerByShot(ctx, payload);
+  const struck = playerAtCell(w, nx, ny);
+  if (struck !== undefined) {
+    killPlayerByShot(ctx, payload, struck);
     return ENDED;
   }
 

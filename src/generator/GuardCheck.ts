@@ -39,6 +39,8 @@ function forceFloorsAreOneWay(level: CompiledLevel): boolean {
  * that defeat them.
  */
 export function cellReachableWithout(level: CompiledLevel, walled: Box, target: GridPoint): boolean {
+  // The flood starts from one player; with several it proves nothing, so the answer is the one that claims nothing.
+  if ((level.extraPlayers?.length ?? 0) > 0) return true;
   const height = level.terrain.length;
   const width = level.terrain[0].length;
   const open = (p: GridPoint): boolean => {
@@ -106,6 +108,8 @@ function levelHasBlocks(level: CompiledLevel): boolean {
  * while `true` proves nothing.
  */
 export function exitReachableWithout(level: CompiledLevel, itemId: string): boolean {
+  // The flood starts from one player; with several it proves nothing, so the answer is the one that claims nothing.
+  if ((level.extraPlayers?.length ?? 0) > 0) return true;
   const beforeSockets = floodWithout(level, itemId, false);
   if (beforeSockets.exit) return true;
   if (beforeSockets.chips < level.chipsRequired) return false;

@@ -831,6 +831,8 @@ class EpoxyApplication {
     for (const move of due) {
       if (move.drop) {
         this.engine.dropItem(move.drop);
+      } else if (move.swap === true) {
+        this.engine.swapPlayer?.();
       } else {
         this.engine.attemptPlayerMove(move.dir);
       }

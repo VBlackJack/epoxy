@@ -71,7 +71,17 @@ export interface EpoxyWorld {
   entities: RuntimeEntity[];
   trapLinks: TrapLink[];
   cloneLinks: CloneLink[];
+  /** The controlled player (the only one on a native level). */
   player: PlayerState;
+  /**
+   * The players on the map that are not controlled now, in swap order (Lexy's Labyrinth `remaining_players` minus the
+   * controlled one); empty on a level with one player.
+   */
+  parked: PlayerState[];
+  /** Players that already left through an exit; 0 on a level with one player. */
+  exitedPlayers: number;
+  /** The parked player now standing in the controlled slot for a step of its own (see withPlayer); null otherwise. Transient. */
+  swappedIn: PlayerState | null;
   /**
    * The shots in flight, in the order they were fired. Empty on a level without launchers. A shot is not
    * an entity: it is no occupant of a cell for the hold doors, the traps or the targets.
@@ -116,11 +126,6 @@ export interface EpoxyWorld {
   hasForceCycle: boolean;
   /** True when the level places a toggle clock; fixed for the level. Only such a level counts paused ticks. */
   hasToggleClock: boolean;
-  /**
-   * The character the player is now: the level's character at load, switched Chip <-> Melinda each time the player
-   * arrives on a transmogrifier (Lexy's Labyrinth `transmogrifier.on_arrive` turns `player` into `player2` and back).
-   */
-  playerCharacter: PlayerCharacter;
   /** True while a toggle clock holds the level timer; false at load. */
   timerPaused: boolean;
   /** Ticks the level timer stood paused so far; they do not count toward the time spent. 0 at load. */
@@ -214,6 +219,9 @@ export function createEpoxyWorld(): EpoxyWorld {
     trapLinks: [],
     cloneLinks: [],
     player: undefined as unknown as PlayerState,
+    parked: [],
+    exitedPlayers: 0,
+    swappedIn: null,
     shots: [],
     edgeMask: null,
     underlays: null,
@@ -227,7 +235,6 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasDynamite: false,
     hasForceCycle: false,
     hasToggleClock: false,
-    playerCharacter: DEFAULT_PLAYER_CHARACTER,
     timerPaused: false,
     pausedTicks: 0,
     chipsRemaining: 0,
@@ -294,7 +301,6 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasDynamite = w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
   w.hasForceCycle = false;
   w.hasToggleClock = false;
-  w.playerCharacter = w.level.character ?? DEFAULT_PLAYER_CHARACTER;
   w.timerPaused = false;
   w.pausedTicks = 0;
   w.trapLinksByTrap.clear();
@@ -562,9 +568,98 @@ function barsCarriedItem(w: EpoxyWorld, itemId: string | null | undefined): bool
   return barred !== undefined && holdsItem(w, barred);
 }
 
-/** The character the player is now: the level's character (Chip unless the level names another) until a transmogrifier switches it. */
+/**
+ * The character the controlled player is now: its own character, which is the level's (Chip unless the level names
+ * another) until a transmogrifier switches it. Each player of a level with several has its own.
+ */
 export function playerCharacterOf(w: EpoxyWorld): PlayerCharacter {
-  return w.playerCharacter;
+  return w.player.character ?? w.level.character ?? DEFAULT_PLAYER_CHARACTER;
+}
+
+/** Every player still on the map: the controlled one first, then the parked ones in swap order. */
+export function playersOf(w: EpoxyWorld): readonly PlayerState[] {
+  return w.parked.length === 0 ? [w.player] : [w.player, ...w.parked];
+}
+
+/** The living player standing on the cell, controlled or parked; undefined when none. */
+export function playerAtCell(w: EpoxyWorld, x: number, y: number): PlayerState | undefined {
+  if (w.player.alive && w.player.x === x && w.player.y === y) return w.player;
+  for (const p of w.parked) {
+    if (p.alive && p.x === x && p.y === y) return p;
+  }
+  return undefined;
+}
+
+/**
+ * Runs `fn` with the parked player `p` as the controlled one, so the single-player code (slides, force floors, hazards,
+ * pick-ups) serves it unchanged. The controlled player is back afterwards, except when `p` died: a dead player stays
+ * in the controlled slot (the level is lost, and the death is read from there). A player that left through an exit
+ * is dropped.
+ */
+export function withPlayer<T>(w: EpoxyWorld, p: PlayerState, fn: () => T): T {
+  const index = w.parked.indexOf(p);
+  if (index < 0) return fn();
+  const active = w.player;
+  const outerSwap = w.swappedIn;
+  w.player = p;
+  w.parked[index] = active;
+  w.swappedIn = p;
+  try {
+    return fn();
+  } finally {
+    w.swappedIn = outerSwap;
+    if (p.exited === true) {
+      // The slot holds the controlled player again; the exited one is gone.
+      w.player = active;
+      w.parked.splice(index, 1);
+    } else if (p.alive) {
+      w.player = active;
+      w.parked[index] = p;
+    }
+  }
+}
+
+/**
+ * Lets the controlled player leave through an exit (or completes the level when it is the last one). A player that
+ * leaves while others remain is flagged `exited`; it is dropped by `withPlayer` when it was a parked player taking its
+ * own step, and by `dropExitedController` when it was the controlled one (the next player then takes control).
+ * Returns true when the level is complete.
+ */
+export function leaveThroughExit(w: EpoxyWorld): boolean {
+  if (w.parked.length === 0) return true;
+  w.player.exited = true;
+  w.exitedPlayers++;
+  return false;
+}
+
+/** Drops the controlled player once it has left through an exit and hands control to the next one; true when it did. */
+export function dropExitedController(w: EpoxyWorld): boolean {
+  if (w.player.exited !== true || w.swappedIn !== null) return false;
+  const next = w.parked.shift();
+  if (next !== undefined) w.player = next;
+  return true;
+}
+
+/** Hands control to the next parked player; the controlled one goes to the back of the queue. False when nobody is parked. */
+export function rotatePlayers(w: EpoxyWorld): boolean {
+  const next = w.parked.shift();
+  if (next === undefined) return false;
+  w.parked.push(w.player);
+  w.player = next;
+  return true;
+}
+
+/** Kills `p`, controlled or parked: a parked player that dies takes the controlled slot, as the level is lost. */
+export function killPlayerAt(ctx: EpoxyContext, p: PlayerState, reasonKey: string, sfxId: string): void {
+  const w = ctx.world;
+  if (p !== w.player) {
+    const index = w.parked.indexOf(p);
+    if (index >= 0) {
+      w.parked[index] = w.player;
+      w.player = p;
+    }
+  }
+  killPlayer(ctx, reasonKey, sfxId);
 }
 
 /**
@@ -625,6 +720,7 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   if (w.player.x === bx && w.player.y === by) return true;
+  if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   return w.entities.some((e) => e.x === bx && e.y === by && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
@@ -635,7 +731,7 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
  * pressing. Brown buttons keep their own rule (`isButtonPressed`), which every occupant satisfies.
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
-  if (w.player.alive && w.player.x === x && w.player.y === y) return true;
+  if (playerAtCell(w, x, y) !== undefined) return true;
   return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && entityPressesPlate(e.type, e.kind, color));
 }
 

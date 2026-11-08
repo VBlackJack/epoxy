@@ -69,6 +69,15 @@ export interface PlayEngine {
   getItems(): (string | null)[][];
   getEntities(): RuntimeEntity[];
   getPlayer(): PlayerState;
+  /**
+   * Optional. The swap key: control passes to the next player of a level with several; false when nobody else is on the
+   * map. An engine without several players omits it.
+   */
+  swapPlayer?(): boolean;
+  /** Optional. The players not controlled now, in swap order; undefined on a level with one player. */
+  getParkedPlayers?(): readonly PlayerState[] | undefined;
+  /** Optional. How many players already left through an exit; undefined on a level with one player. */
+  getExitedPlayers?(): number | undefined;
   getLevel(): CompiledLevel;
   /** Optional. The character the player is now (a transmogrifier switches it); an engine without characters omits it and the level's character applies. */
   getPlayerCharacter?(): PlayerCharacter;
