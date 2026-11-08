@@ -38,6 +38,7 @@ import {
   copySignalPulses,
   copySignalState,
   fireSignalSinks,
+  counterValuesOf,
   poweredSignalCellsOf,
   restoreSignalPulses,
   settleWorldSignals,
@@ -291,6 +292,11 @@ export class GameEngine {
   /** The cells (y * width + x) whose signal node is on at the last settle; undefined without signals. Read only, for drawing. */
   public getPoweredSignalCells(): ReadonlySet<number> | undefined {
     return poweredSignalCellsOf(this.w);
+  }
+
+  /** The count of each counter gate by cell (y * width + x); undefined without a counter. Read only, for drawing. */
+  public getCounterValues(): ReadonlyMap<number, number> | undefined {
+    return counterValuesOf(this.w);
   }
 
   /** Sink edges the signal network has reported since the level loaded; a diagnostic, undefined without signals. */

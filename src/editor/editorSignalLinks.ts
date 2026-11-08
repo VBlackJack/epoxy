@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks, signalSinkOf } from '../core/signalLinks';
+import { canonicalSignalPort, formatSignalPort, parseSignalPort } from '../core/signalPorts';
+import type { SignalPortIndex } from '../core/signalPorts';
 import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
 /** The signal links of a map, as the editor reads and rewrites them (Epoxy levels only, never CC3D). */
@@ -59,7 +62,8 @@ export function signalLinkTouches(link: SignalLink, x: number, y: number): boole
   return (link.fromX === x && link.fromY === y) || (link.toX === x && link.toY === y);
 }
 
-const pairKey = (l: SignalLink): string => [l.fromX, l.fromY, l.toX, l.toY].join('|');
+/** One wire per pair of cells, except that wires naming different real ports (see signalPorts.ts) are different wires. */
+const pairKey = (l: SignalLink): string => [l.fromX, l.fromY, l.toX, l.toY].join('|') + `#${canonicalSignalPort(l.port) ?? ''}`;
 
 /**
  * Stores the links of a map in canonical order (source row, source column, target row, target column), one per
@@ -76,7 +80,9 @@ export function setSignalLinks(map: SignalLinkHolder, links: readonly SignalLink
     const previous = unique.get(pairKey(l));
     if (previous === undefined || (l.port ?? '') < (previous.port ?? '')) unique.set(pairKey(l), copyLink(l));
   }
-  map.signalLinks = [...unique.values()].sort((a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX);
+  map.signalLinks = [...unique.values()].sort(
+    (a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX || (a.port ?? '').localeCompare(b.port ?? '')
+  );
 }
 
 /** Removes the links that touch the cell; returns how many were removed. The map is changed in place. */
@@ -144,9 +150,42 @@ export function dropSignalPair(map: SignalLinkHolder, from: Cell, to: Cell): voi
   if (kept.length !== before.length) setSignalLinks(map, kept);
 }
 
-/** Adds a signal link from the output cell to the input cell, in canonical order. The map is changed in place. */
+/** The gate kind of the tile on the cell, or undefined when the cell holds no gate. */
+function gateKindAt(map: Pick<SignalLinkHolder, 'terrain'>, cell: Cell): string | undefined {
+  const id = map.terrain[cell.y]?.[cell.x];
+  return id === undefined ? undefined : ConfigRegistry.getTile(id).signalGate;
+}
+
+/**
+ * The first of the two ports (0, then 1) that no link in `taken` uses; the second when both are taken, so a third wire
+ * never silently replaces the first.
+ */
+function freePort(taken: ReadonlySet<number>): SignalPortIndex {
+  return taken.has(0) ? 1 : 0;
+}
+
+/**
+ * Adds a signal link from the output cell to the input cell, in canonical order. The map is changed in place. A wire
+ * into a data latch or a counter takes the first free input port (data or count up, then clock or count down); a wire
+ * out of a counter takes the first free output port (overflow, then underflow).
+ */
 export function appendSignalLink(map: SignalLinkHolder, from: Cell, to: Cell): void {
-  setSignalLinks(map, [...(map.signalLinks ?? []), { fromX: from.x, fromY: from.y, toX: to.x, toY: to.y }]);
+  const links = map.signalLinks ?? [];
+  const toKind = gateKindAt(map, to);
+  const fromKind = gateKindAt(map, from);
+  const pair: { out?: SignalPortIndex; in?: SignalPortIndex } = {};
+  if (toKind === 'dlatch' || toKind === 'counter') {
+    const taken = new Set<number>();
+    for (const l of links) if (l.toX === to.x && l.toY === to.y) taken.add(parseSignalPort(l.port).in ?? 0);
+    pair.in = freePort(taken);
+  }
+  if (fromKind === 'counter') {
+    const taken = new Set<number>();
+    for (const l of links) if (l.fromX === from.x && l.fromY === from.y) taken.add(parseSignalPort(l.port).out ?? 0);
+    pair.out = freePort(taken);
+  }
+  const port = formatSignalPort(pair);
+  setSignalLinks(map, [...links, { fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, ...(port === undefined ? {} : { port }) }]);
 }
 
 /** Whether a wire from `from` to `to` would close a loop: the signal already flows from `to` back to `from`. */

@@ -113,6 +113,11 @@ item theme=cyber_neon id=hiking_boots 435ebc9a52beaed9
 item theme=arctic_lab id=hiking_boots c9cfed216284eb05
 item theme=magma_core id=hiking_boots 34f25e9e86401e45
 item theme=lynx_lcd id=hiking_boots fd001b6a34f4eb5d
+item theme=default id=lightning_bolt a4771c195a2ddbc7
+item theme=cyber_neon id=lightning_bolt 57df1608001d0700
+item theme=arctic_lab id=lightning_bolt 0ad1e5088db7e8b4
+item theme=magma_core id=lightning_bolt c00ee4313b61681c
+item theme=lynx_lcd id=lightning_bolt 307e86ea03eb4107
 item theme=default id=steel_foil 762d27ac5c239837
 item theme=cyber_neon id=steel_foil 66a1da224f5b3a17
 item theme=arctic_lab id=steel_foil 8231cf50a45f6298

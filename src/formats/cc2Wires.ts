@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { formatSignalPort } from '../core/signalPorts';
 import type { SignalLink } from '../core/types';
 import type { Cc2Map } from './cc2Model';
 import { Cc2Layer } from './cc2Model';
@@ -119,6 +120,11 @@ export function decodeCc2Gate(mod: number | undefined): Cc2Gate {
   return kind === undefined ? { kind: 'unknown' } : { kind, facing: value & GATE_FACING_MASK };
 }
 
+/** Whether the modifier of a gate is the counter-clockwise latch (data on the first input, clock on the second). */
+export function isCc2CounterClockwiseLatch(mod: number | undefined): boolean {
+  return ((mod ?? 0) & GATE_BASE_MASK) === GATE_BASE_LATCH_CCW;
+}
+
 /** What a cell is to the wires. */
 type Role = 'wire' | 'source' | 'gate' | 'sink';
 
@@ -144,6 +150,10 @@ interface CellInfo {
   mask: number;
   tunnels: number;
   gate?: Cc2Gate;
+  /** A latch gate only: the counter-clockwise rotation. */
+  latchCcw?: boolean;
+  /** A plain floor (not a steel wall) that carries a wire: a player holding the lightning bolt powers its nets from here. */
+  floor?: boolean;
 }
 
 /** A device the wires touch that Epoxy cannot play as a link end. */
@@ -164,6 +174,11 @@ export interface Cc2WireResult {
   hasTunnels: boolean;
   /** Cells of the devices a wire reaches as an input (sinks), sorted by place: the cells whose tile may need its wired form. */
   wiredSinks: Array<{ x: number; y: number }>;
+  /**
+   * The wire floors a player holding the lightning bolt powers, sorted by place; filled only when asked for (see
+   * Cc2WireOptions) and only for floors on a net that something reads. Each is a source of the links.
+   */
+  chargeFloors?: Array<{ x: number; y: number }>;
   /** Devices on a network that Epoxy cannot play, sorted by place. */
   unsupported: Cc2UnsupportedNode[];
   /** Human-readable notes (tunnel without a partner, gate of unknown kind). */
@@ -181,7 +196,7 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
   const wires = (mod ?? 0) & WIRE_NIBBLE_MASK;
   const tunnels = ((mod ?? 0) >> TUNNEL_SHIFT) & WIRE_NIBBLE_MASK;
   if (code === CODE_FLOOR || code === CODE_STEEL_WALL) {
-    return wires === 0 ? null : { role: 'wire', supported: true, mask: wires, tunnels };
+    return wires === 0 ? null : { role: 'wire', supported: true, mask: wires, tunnels, ...(code === CODE_FLOOR ? { floor: true } : {}) };
   }
   if (code === CODE_PINK_BUTTON) return { role: 'source', kind: 'pink_button', supported: true, mask: wires, tunnels: 0 };
   if (code === CODE_TOGGLE_SWITCH_OFF || code === CODE_TOGGLE_SWITCH_ON) {
@@ -190,8 +205,8 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
   if (code === CODE_BLACK_BUTTON) return { role: 'source', kind: 'black_button', supported: true, mask: wires, tunnels: 0 };
   if (code === CODE_LOGIC_GATE) {
     const gate = decodeCc2Gate(mod);
-    const supported = gate.kind !== 'nand' && gate.kind !== 'counter' && gate.kind !== 'unknown';
-    return { role: 'gate', kind: 'logic_gate', supported, mask: ALL_SIDES_MASK, tunnels: 0, gate };
+    const supported = gate.kind !== 'unknown';
+    return { role: 'gate', kind: 'logic_gate', supported, mask: ALL_SIDES_MASK, tunnels: 0, gate, latchCcw: isCc2CounterClockwiseLatch(mod) };
   }
   if (code === CODE_CLONER || code === CODE_CLONER_CC1) {
     // The modifier of a clone machine holds its arrow, not wires: it takes a wire from any side.
@@ -243,6 +258,42 @@ class DisjointSet {
   }
 }
 
+/**
+ * The sides of a counter gate, which has no facing: it reads as if facing north, the overflow output on the west, the
+ * underflow output on the north, the count-up input on the east and the count-down input on the south [Lexy's Labyrinth
+ * logic_gate _gate_types, counter].
+ */
+const COUNTER_PORT_SIDES: ReadonlyMap<number, string> = new Map<number, string>([
+  [SIDE_W, 'out0'],
+  [SIDE_N, 'out1'],
+  [SIDE_E, 'in0'],
+  [SIDE_S, 'in1']
+]);
+
+/**
+ * The port a data latch or a counter reads or drives on a side, as an Epoxy port name (see signalPorts.ts), or undefined
+ * for a device without ordered ports. The Epoxy data latch takes its data on in0 and its clock on in1; a clockwise CC2
+ * latch has its clock on the side after its facing and its data on the side before, a counter-clockwise one the reverse.
+ */
+function devicePortName(info: CellInfo, side: number): string | undefined {
+  if (info.role !== 'gate' || info.gate === undefined) return undefined;
+  if (info.gate.kind === 'counter') return COUNTER_PORT_SIDES.get(side);
+  if (info.gate.kind !== 'latch' || info.gate.facing === undefined) return undefined;
+  const afterFacing = (info.gate.facing + RIGHT_STEP) % SIDE_COUNT;
+  const clockwiseClock = side === afterFacing;
+  return clockwiseClock === (info.latchCcw !== true) ? 'in1' : 'in0';
+}
+
+/** The output half of a port name (`out0`, `out1`), as a port pair; empty for an input name. */
+function outPortOf(name: string): { out?: 0 | 1 } {
+  return name === 'out0' ? { out: 0 } : name === 'out1' ? { out: 1 } : {};
+}
+
+/** The input half of a port name (`in0`, `in1`), as a port pair; empty for an output name. */
+function inPortOf(name: string): { in?: 0 | 1 } {
+  return name === 'in0' ? { in: 0 } : name === 'in1' ? { in: 1 } : {};
+}
+
 /** A way a device meets a network: it drives it (output) or reads it (input). */
 type PortKind = 'out' | 'in';
 
@@ -253,6 +304,10 @@ type PortKind = 'out' | 'in';
 function devicePorts(info: CellInfo): Map<number, PortKind> {
   const ports = new Map<number, PortKind>();
   if (info.role === 'gate') {
+    if (info.gate?.kind === 'counter') {
+      for (const [side, port] of COUNTER_PORT_SIDES) ports.set(side, port.startsWith('out') ? 'out' : 'in');
+      return ports;
+    }
     const facing = info.gate?.facing;
     if (facing === undefined) return ports;
     ports.set(facing, 'out');
@@ -268,10 +323,16 @@ function devicePorts(info: CellInfo): Map<number, PortKind> {
   return ports;
 }
 
+/** What buildCc2Wires is asked for besides the wires. */
+export interface Cc2WireOptions {
+  /** Make every wire floor on a net that something reads a source of that net (the lightning bolt powers the cell it stands on). */
+  chargeFloors?: boolean;
+}
+
 /**
  * Builds the wire networks of a map and the signal links between its devices. Pure and deterministic.
  */
-export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
+export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2WireResult {
   const { width, height } = map;
   const cells: (CellInfo | null)[] = map.cells.map((cell) => {
     const tile = terrainTile(cell);
@@ -295,8 +356,8 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
 
   const nets = new DisjointSet(total * GROUPS_PER_CELL);
   // Attachments of devices to nets, and direct device-to-device links, resolved after the unions.
-  const attachments: Array<{ net: number; node: number; port: PortKind }> = [];
-  const direct: Array<{ from: number; to: number }> = [];
+  const attachments: Array<{ net: number; node: number; port: PortKind; name?: string }> = [];
+  const direct: Array<{ from: number; to: number; fromName?: string; toName?: string }> = [];
 
   for (let index = 0; index < total; index++) {
     const info = cells[index];
@@ -332,9 +393,18 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
         neighbour.role === 'wire' ? netOf(neighbourIndex, back) : devicePorts(neighbour).get(back);
       if (theirs === undefined) continue;
       if (typeof mine === 'number' && typeof theirs === 'number') nets.union(mine, theirs);
-      else if (typeof theirs === 'number' && typeof mine === 'string') attachments.push({ net: theirs, node: index, port: mine });
-      else if (typeof mine === 'string' && typeof theirs === 'string' && mine === 'out' && theirs === 'in') {
-        direct.push({ from: index, to: neighbourIndex });
+      else if (typeof theirs === 'number' && typeof mine === 'string') {
+        const name = devicePortName(info, side);
+        attachments.push({ net: theirs, node: index, port: mine, ...(name === undefined ? {} : { name }) });
+      } else if (typeof mine === 'string' && typeof theirs === 'string' && mine === 'out' && theirs === 'in') {
+        const fromName = devicePortName(info, side);
+        const toName = devicePortName(neighbour, back);
+        direct.push({
+          from: index,
+          to: neighbourIndex,
+          ...(fromName === undefined ? {} : { fromName }),
+          ...(toName === undefined ? {} : { toName })
+        });
       }
       // The wire-side half of a device meeting is recorded from the device's own turn above.
     }
@@ -365,14 +435,39 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
   pairTunnels(SIDE_S, SIDE_N, width, height, (line, i) => i * width + line);
 
   // Devices per net root.
-  const drivers = new Map<number, number[]>();
-  const readers = new Map<number, number[]>();
+  interface Attached {
+    node: number;
+    name?: string;
+  }
+  const drivers = new Map<number, Attached[]>();
+  const readers = new Map<number, Attached[]>();
   for (const attachment of attachments) {
     const root = nets.find(attachment.net);
     const table = attachment.port === 'out' ? drivers : readers;
     const list = table.get(root);
-    if (list === undefined) table.set(root, [attachment.node]);
-    else if (!list.includes(attachment.node)) list.push(attachment.node);
+    const attached: Attached = { node: attachment.node, ...(attachment.name === undefined ? {} : { name: attachment.name }) };
+    if (list === undefined) table.set(root, [attached]);
+    else if (!list.some((other) => other.node === attached.node && other.name === attached.name)) list.push(attached);
+  }
+
+  // The lightning bolt: a player holding it powers every net of the floor cell they stand on, so each wire floor of a net
+  // that something reads becomes a driver of that net (a crossing floor drives both of its axes).
+  if (options.chargeFloors === true) {
+    const charged = new Set<number>();
+    for (let index = 0; index < total; index++) {
+      const info = cells[index];
+      if (info === null || info === undefined || info.floor !== true) continue;
+      const groups = info.mask === ALL_SIDES_MASK ? [GROUP_MAIN, GROUP_CROSS] : [GROUP_MAIN];
+      for (const group of groups) {
+        const root = nets.find(index * GROUPS_PER_CELL + group);
+        if ((readers.get(root) ?? []).length === 0) continue;
+        const list = drivers.get(root);
+        if (list === undefined) drivers.set(root, [{ node: index }]);
+        else if (!list.some((other) => other.node === index)) list.push({ node: index });
+        charged.add(index);
+      }
+    }
+    result.chargeFloors = [...charged].sort((a, b) => a - b).map((index) => ({ x: index % width, y: Math.floor(index / width) }));
   }
 
   const seen = new Set<string>();
@@ -388,7 +483,7 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
       warnings.push(`gate of kind ${info.gate.kind} at ${index % width},${Math.floor(index / width)} is not played`);
     }
   };
-  const emit = (from: number, to: number): void => {
+  const emit = (from: number, to: number, fromName?: string, toName?: string): void => {
     if (from === to) return;
     const source = cells[from] as CellInfo;
     const sink = cells[to] as CellInfo;
@@ -400,20 +495,33 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
       note(to, 'sink');
       return;
     }
-    const key = `${from}>${to}`;
+    // A port is named only where the device has ordered ports; the other links keep no port, as before.
+    const port = formatSignalPort({
+      ...(fromName === undefined ? {} : outPortOf(fromName)),
+      ...(toName === undefined ? {} : inPortOf(toName))
+    });
+    const key = `${from}>${to}:${port ?? ''}`;
     if (seen.has(key)) return;
     seen.add(key);
-    links.push({ fromX: from % width, fromY: Math.floor(from / width), toX: to % width, toY: Math.floor(to / width) });
+    links.push({
+      fromX: from % width,
+      fromY: Math.floor(from / width),
+      toX: to % width,
+      toY: Math.floor(to / width),
+      ...(port === undefined ? {} : { port })
+    });
   };
 
   for (const [root, from] of drivers) {
-    for (const source of from) for (const sink of readers.get(root) ?? []) emit(source, sink);
+    for (const source of from) {
+      for (const sink of readers.get(root) ?? []) emit(source.node, sink.node, source.name, sink.name);
+    }
   }
-  for (const edge of direct) emit(edge.from, edge.to);
+  for (const edge of direct) emit(edge.from, edge.to, edge.fromName, edge.toName);
 
   // Every sink a wire touches, whether or not a source feeds it: such a device is played in its wired form.
   const reached = new Set<number>();
-  for (const list of readers.values()) for (const node of list) reached.add(node);
+  for (const list of readers.values()) for (const attached of list) reached.add(attached.node);
   for (const edge of direct) reached.add(edge.to);
   result.wiredSinks = [...reached]
     .filter((index) => (cells[index] as CellInfo).role === 'sink')

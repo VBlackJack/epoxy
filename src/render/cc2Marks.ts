@@ -46,6 +46,18 @@ const TREAD = { halfWidth: 0.11, halfHeight: 0.06, steps: 3, line: 0.035 } as co
 const PAUSE_BARS = { halfHeight: 0.1, offset: 0.055, width: 0.05 } as const;
 /** The sheet inside a foil badge (steel foil): half length of the slanted sheet, its half thickness and the glint line, in tiles. */
 const FOIL_SHEET = { halfLength: 0.12, halfThickness: 0.045, line: 0.025 } as const;
+/** The zigzag bolt inside a lightning badge: points of the bolt as offsets from the badge centre, in tiles, and the line width. */
+const BOLT = {
+  points: [
+    [0.045, -0.13],
+    [-0.07, 0.01],
+    [0.0, 0.01],
+    [-0.045, 0.13],
+    [0.07, -0.02],
+    [0.005, -0.02]
+  ],
+  line: 0.025
+} as const;
 /** The note inside a bribe badge: half width, half height and line width, in tiles, and the radius of the coin mark on it. */
 const BRIBE_NOTE = { halfWidth: 0.13, halfHeight: 0.085, line: 0.025, coin: 0.035 } as const;
 /** The rivets of a steel wall: inset from the corner, radius, and the inset of the plate outline, in tiles. */
@@ -197,6 +209,27 @@ export function paintFoilBadge(ctx: CanvasRenderingContext2D, x: number, y: numb
   ctx.beginPath();
   ctx.moveTo(cx - half * HALF, cy + half * HALF);
   ctx.lineTo(cx + half * HALF, cy - half * HALF);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The lightning bolt: a round badge with a filled zigzag bolt, in the colour of electricity. */
+export function paintBoltBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, BOLT.line);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  BOLT.points.forEach(([dx, dy], i) => {
+    if (i === 0) ctx.moveTo(cx + size * dx, cy + size * dy);
+    else ctx.lineTo(cx + size * dx, cy + size * dy);
+  });
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }

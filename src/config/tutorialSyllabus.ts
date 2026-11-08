@@ -128,9 +128,14 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   ghost: ['ghost'],
   rover: ['rover'],
   wires: ['signal_plate', 'signal_button', SYNTHETIC_SIGNAL_LINKS],
-  and_or_gates: ['signal_gate_and', 'signal_gate_or'],
+  and_or_gates: ['signal_gate_and', 'signal_gate_or', 'signal_gate_nand'],
   not_xor_gates: ['signal_gate_not', 'signal_gate_xor'],
-  latches: ['signal_latch_off', 'signal_latch_on'],
+  latches: [
+    'signal_latch_off',
+    'signal_latch_on',
+    'signal_gate_dlatch',
+    ...Array.from({ length: 10 }, (_, n) => `signal_counter_${n}`)
+  ],
   relay_pads: ['relay_pad_dark', 'relay_pad_lit'],
   wired_devices: [
     'purple_wall',
@@ -141,7 +146,9 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
     'button_gray_area',
     'trap_wired',
     'flame_jet_wired_off',
-    'flame_jet_wired_on'
+    'flame_jet_wired_on',
+    'signal_wire_floor',
+    'lightning_bolt'
   ],
   light_beams: [
     'laser_emitter_n',

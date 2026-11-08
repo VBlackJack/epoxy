@@ -143,6 +143,23 @@ export const SIGNAL_LINKS_PER_CELL_MAX = 4;
 export const SIGNAL_PORT_MIN_LENGTH = 1;
 export const SIGNAL_PORT_MAX_LENGTH = 16;
 
+/** Port names of a gate with ordered ports: `in0` and `in1` are inputs, `out0` and `out1` outputs; `>` joins an output to an input. */
+export const SIGNAL_PORT_IN_PREFIX = 'in';
+export const SIGNAL_PORT_OUT_PREFIX = 'out';
+export const SIGNAL_PORT_JOINER = '>';
+
+/** The largest digit a counter gate holds; it wraps to 0 above and to this below 0. */
+export const SIGNAL_COUNTER_MAX = 9;
+
+/** Item id of the lightning bolt: while held, the player powers the wires of the cell they stand on. */
+export const LIGHTNING_BOLT_ITEM_ID = 'lightning_bolt';
+
+/** Tile id of the floor a wire runs under, a signal source that is on while a player holding the lightning bolt stands there. */
+export const WIRE_FLOOR_TILE_ID = 'signal_wire_floor';
+
+/** Tile id prefix of the counter gates; the digit the counter starts with follows it. */
+export const SIGNAL_COUNTER_TILE_ID_PREFIX = 'signal_counter_';
+
 /** Tile id of the shot trigger, the tile whose action is fire_launchers. */
 export const SHOT_TRIGGER_TILE_ID = 'shot_trigger';
 

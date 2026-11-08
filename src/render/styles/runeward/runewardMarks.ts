@@ -603,7 +603,7 @@ function signalTile(id: string): RunewardTilePainter {
     ctx.save();
     ctx.translate(x, y);
     paintFloor(ctx, size, env.art, nb);
-    paintSignalTile(ctx, 0, 0, size, kind, env.signalPowered, colors, SIGNAL_STYLE);
+    paintSignalTile(ctx, 0, 0, size, kind, env.signalPowered, colors, SIGNAL_STYLE, env.signalCount);
     ctx.restore();
   };
 }

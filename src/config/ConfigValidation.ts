@@ -24,6 +24,7 @@ import {
   FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
+  SIGNAL_COUNTER_MAX,
   SIGNAL_LINKS_PER_CELL_MAX,
   PHASE_LINE_PATTERN,
   STATIONARY_PATTERN,
@@ -1358,10 +1359,10 @@ export function findFacingTurnConfigErrors(tiles: Record<string, TileDefinition>
 }
 
 /** The source kinds a signal source tile may declare. */
-const SIGNAL_SOURCE_VALUES: readonly unknown[] = ['held', 'pulse', 'inverted', 'toggle'];
+const SIGNAL_SOURCE_VALUES: readonly unknown[] = ['held', 'pulse', 'inverted', 'toggle', 'charged'];
 
 /** The gate logics a signal gate tile may declare. */
-const SIGNAL_GATE_VALUES: readonly unknown[] = ['and', 'or', 'not', 'xor', 'latch'];
+const SIGNAL_GATE_VALUES: readonly unknown[] = ['and', 'or', 'not', 'xor', 'latch', 'nand', 'dlatch', 'counter'];
 
 /**
  * Problems of the signal fields of tiles.json: a source is 'held', 'pulse', 'inverted' or 'toggle' (a toggle source names its
@@ -1381,9 +1382,18 @@ export function findSignalConfigErrors(tiles: Record<string, TileDefinition>): s
     if (tile.signalLatchStartsOn !== undefined && tile.signalGate !== 'latch') {
       errors.push(`${id}.signalLatchStartsOn: only a latch gate may start on`);
     }
+    if (tile.signalCounterStart !== undefined && tile.signalGate !== 'counter') {
+      errors.push(`${id}.signalCounterStart: only a counter gate has a starting digit`);
+    }
+    if (
+      tile.signalGate === 'counter' &&
+      (!Number.isInteger(tile.signalCounterStart) || (tile.signalCounterStart as number) < 0 || (tile.signalCounterStart as number) > SIGNAL_COUNTER_MAX)
+    ) {
+      errors.push(`${id}.signalCounterStart: expected an integer from 0 to ${SIGNAL_COUNTER_MAX}`);
+    }
     if (!hasSource && !hasGate) continue;
     if (hasSource && !SIGNAL_SOURCE_VALUES.includes(tile.signalSource)) {
-      errors.push(`${id}.signalSource: expected "held", "pulse", "inverted" or "toggle"`);
+      errors.push(`${id}.signalSource: expected "held", "pulse", "inverted", "toggle" or "charged"`);
     }
     if (tile.signalSource === 'toggle') {
       // A toggle switch has two forms, on and off, each naming the other back.
@@ -1402,7 +1412,7 @@ export function findSignalConfigErrors(tiles: Record<string, TileDefinition>): s
       errors.push(`${id}.signalToggleTwin: only a toggle source has a powered form and a twin`);
     }
     if (hasGate && !SIGNAL_GATE_VALUES.includes(tile.signalGate)) {
-      errors.push(`${id}.signalGate: expected "and", "or", "not", "xor" or "latch"`);
+      errors.push(`${id}.signalGate: expected "and", "or", "not", "xor", "latch", "nand", "dlatch" or "counter"`);
     }
     if (tile.layer !== 'terrain') errors.push(`${id}: a signal source or gate must be a terrain tile`);
     if (hasSource && hasGate) errors.push(`${id}: a tile cannot be both a signal source and a signal gate`);
