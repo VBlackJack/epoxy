@@ -5,7 +5,7 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
-## [2.26.0] - 2026-11-08
+## [2.26.0] - 2026-11-09
 
 ### Fixed
 
