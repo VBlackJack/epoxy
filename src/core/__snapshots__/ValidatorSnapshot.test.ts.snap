@@ -311,19 +311,6 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
   "epoxy_c_3": {
     "issues": [
       {
-        "i18nKey": "validator.issues.unreachable_chips.label",
-        "params": {
-          "reachable": 2,
-          "required": 4,
-        },
-        "severity": "error",
-      },
-      {
-        "i18nKey": "validator.issues.unreachable_exit.label",
-        "params": null,
-        "severity": "error",
-      },
-      {
         "i18nKey": "validator.issues.hidden_by_block.label",
         "params": {
           "count": 3,
@@ -335,11 +322,11 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
       "chipsPlaced": 4,
       "chipsRequired": 4,
       "exitCount": 1,
-      "reachableChips": 2,
-      "reachableExit": false,
+      "reachableChips": 4,
+      "reachableExit": true,
       "targetCount": 0,
     },
-    "valid": false,
+    "valid": true,
   },
   "epoxy_c_30": {
     "issues": [],
@@ -728,30 +715,16 @@ exports[`validator output of every shipped level > pilot levels 1`] = `
     "valid": true,
   },
   "epoxy_p_20": {
-    "issues": [
-      {
-        "i18nKey": "validator.issues.unreachable_chips.label",
-        "params": {
-          "reachable": 0,
-          "required": 3,
-        },
-        "severity": "error",
-      },
-      {
-        "i18nKey": "validator.issues.unreachable_exit.label",
-        "params": null,
-        "severity": "error",
-      },
-    ],
+    "issues": [],
     "stats": {
       "chipsPlaced": 3,
       "chipsRequired": 3,
       "exitCount": 1,
-      "reachableChips": 0,
-      "reachableExit": false,
+      "reachableChips": 3,
+      "reachableExit": true,
       "targetCount": 0,
     },
-    "valid": false,
+    "valid": true,
   },
   "epoxy_p_21": {
     "issues": [],
