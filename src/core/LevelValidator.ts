@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
 import { BlockPuzzleSolver, requestedSearchBudget, watchSearchBudget } from './BlockPuzzleSolver';
+import { isConvertedCc3dLevel } from './cc3d/cc3dConstants';
 import { cc3dValidationReport } from './cc3d/cc3dValidator';
 import {
   BLOCK_TARGET_TILE_ID,
@@ -539,7 +540,8 @@ export class LevelValidator {
     // A Lynx level is played by the Lynx engine, not by the Epoxy block rules this reach walk approximates.
     if (level.ruleset !== 'lynx') this.checkHiddenByBlocks(level, issues);
 
-    if (needsExit && exitCount > 0 && level.chipsRequired > 0) {
+    // A level converted from CC3D is exempt: there the exit takes no chips and a socket is an optional gate.
+    if (needsExit && exitCount > 0 && level.chipsRequired > 0 && !isConvertedCc3dLevel(level)) {
       if (this.canReachExitWithoutSocket(level)) {
         issues.push({
           severity: 'error',

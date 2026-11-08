@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { GameEngine } from './GameEngine';
+import { CONVERTED_ID_SUFFIX } from './cc3d/cc3dConstants';
 import { LevelValidator } from './LevelValidator';
 import { CloneLink, CompiledLevel, Direction, EntityPlacement } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -293,6 +294,14 @@ describe('LevelValidator', () => {
 
   describe('socket bypass', () => {
     const BYPASS = 'validator.issues.socket_bypass.label';
+
+    it('does not report a bypass on a level converted from CC3D, where the exit takes no chips', () => {
+      const native = grid(['#######', '#P.cSE#', '#.....#', '#######'], { chipsRequired: 1 });
+      expect(keys(native)).toContain(BYPASS);
+      const converted = { ...native, id: `cc3d_pack-001-1${CONVERTED_ID_SUFFIX}` };
+      expect(keys(converted)).not.toContain(BYPASS);
+      expect(LevelValidator.validate(converted).valid).toBe(true);
+    });
 
     it('ignores a detour that a thin wall closes', () => {
       // The lower corridor would reach the exit, but the thin wall stops it east of its third cell.
