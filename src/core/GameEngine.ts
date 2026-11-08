@@ -19,6 +19,7 @@ import { AudioManager } from '../audio/AudioManager';
 import { FORCE_CYCLE_ORDER } from '../config/constants';
 import {
   BLOCK_TARGET_TILE_ID,
+  BRIBE_ITEM_ID,
   CELL_EDGE_BITS,
   CELL_EDGE_SIDE_ORDER,
   FLOOR_TILE_ID,
@@ -314,6 +315,10 @@ export class GameEngine {
    * Whether a toggle clock holds the level timer; undefined on a level without a toggle clock, so nothing about it reaches
    * a level without one or its hash.
    */
+  public getPausedTicks(): number {
+    return this.w.pausedTicks;
+  }
+
   public isTimerPaused(): boolean | undefined {
     return this.w.hasToggleClock ? this.w.timerPaused : undefined;
   }
@@ -435,7 +440,7 @@ export class GameEngine {
     }
     // A toll token is never set down: it is spent at a thief or kept.
     if (ConfigRegistry.getTile(itemId).collectible === 'token') {
-      this.w.statusBannerKey = 'hud.messages.drop_token';
+      this.w.statusBannerKey = itemId === BRIBE_ITEM_ID ? 'hud.messages.drop_bribe' : 'hud.messages.drop_token';
       AudioManager.playSfx('blocked');
       return false;
     }

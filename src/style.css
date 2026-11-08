@@ -2465,7 +2465,8 @@ body.fullscreen-mode .view-section {
     scroll-behavior: auto !important;
   }
 
-  .led-danger {
+  .led-danger,
+  .led-paused {
     animation: none;
   }
 }

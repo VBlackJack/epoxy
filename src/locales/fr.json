@@ -1342,6 +1342,9 @@
       "drop_token": {
         "label": "Un jeton de péage ne se dépose pas : il paie un voleur."
       },
+      "drop_bribe": {
+        "label": "Un pot-de-vin ne se dépose pas : il paie un voleur."
+      },
       "thief_paid": {
         "label": "Le jeton de péage a payé le voleur. Rien n'a été pris !"
       },

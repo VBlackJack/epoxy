@@ -338,6 +338,19 @@ describe('bribe', () => {
     expect(count(engine, BRIBE)).toBe(1);
   });
 
+  it('says a bribe cannot be set down, not a toll token', () => {
+    const engine = load(room());
+    engine.getPlayer().keys[BRIBE] = 1;
+    expect(engine.dropItem(BRIBE)).toBe(false);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_bribe');
+    engine.getPlayer().keys[TOKEN] = 1;
+    engine.dropItem(TOKEN);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_token');
+    for (const locale of [en, fr] as unknown as Array<{ hud: { messages: Record<string, { label: string }> } }>) {
+      expect(locale.hud.messages.drop_bribe.label).toBeTruthy();
+    }
+  });
+
   it('is spent instead of the boots at the boot thief', () => {
     const engine = thiefRoom(BOOT_THIEF);
     engine.getPlayer().boots.add(BOOTS);

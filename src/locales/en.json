@@ -1342,6 +1342,9 @@
       "drop_token": {
         "label": "A toll token cannot be set down; it pays a thief."
       },
+      "drop_bribe": {
+        "label": "A bribe cannot be set down; it pays a thief."
+      },
       "thief_paid": {
         "label": "The toll token paid the thief. Nothing was taken!"
       },

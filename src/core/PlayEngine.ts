@@ -125,6 +125,8 @@ export interface PlayEngine {
   getTimeRemainingSeconds(): number;
   /** Optional. Whether a toggle clock holds the level timer; undefined on a level without one. An engine without toggle clocks omits it. */
   isTimerPaused?(): boolean | undefined;
+  /** Optional. Ticks a toggle clock held the level timer so far; 0 or absent without one. */
+  getPausedTicks?(): number;
   getTimedMoveHistory(): TimedMove[];
   getStepsCount(): number;
 
