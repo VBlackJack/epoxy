@@ -1685,6 +1685,9 @@
       "no_matching_key": {
         "label": "Error: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists."
       },
+      "keyless_doors": {
+        "label": "Warning: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists, so {doors, plural, one {the door stays} other {the doors stay}} shut like {doors, plural, one {a wall} other {walls}}."
+      },
       "fewer_keys_than_doors": {
         "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})."
       },
