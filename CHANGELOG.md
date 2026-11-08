@@ -19,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Chuck's Challenge 3D blue golem as an Epoxy monster (`golem_blue`, pack format 13): it marches straight on, turns round when a blue button is pressed, and stops before water, fire and slime; the CC3D conversion uses it instead of the tank. Drawings in every style, both locales.
 - Documentation: a mechanisms reference for level authors (docs/mechanisms.md, French mirror docs/fr/mechanisms.md) covering every CC2, CC3D and Epoxy mechanism added in this release and how to place it in the editor; authoring help rows in the editor; the French puzzle encyclopedia is back in sync with the English one.
 - Level editor: a Second Player tool places extra player starts (up to 7, facing from the direction control, R or Shift+R turns them); the Cell inspector picks each one's character (Chip or Melinda) or removes it; extras follow every edit (eraser, cut, paste, move, resize, undo) and the level settings show the player count. Epoxy rules only. Both locales.
 - Playing levels with several players: V (rebindable in the game config) or the new touch button swaps to the next player; the HUD shows the controlled character with its portrait, how many players remain and how many are out; a ring marks the controlled player; swaps are announced and replayed. Both locales.
