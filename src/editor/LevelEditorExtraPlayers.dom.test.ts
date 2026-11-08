@@ -141,6 +141,7 @@ beforeEach(() => {
     getAppearanceKey: vi.fn(() => 'look'),
     renderIconToDataUrl: vi.fn(() => 'data:,'),
     drawTile: vi.fn(),
+    drawTrackCell: vi.fn(),
     drawItem: vi.fn(),
     drawEntity: vi.fn(),
     drawPlayer: vi.fn(),
@@ -212,6 +213,20 @@ describe('authoring the other players', () => {
     expect(status()).toContain('turned to face');
     editor.undo();
     expect(players()?.[0].dir).toBe('S');
+  });
+
+  it('turns a second player before the track cell it stands on', () => {
+    editor.loadCompiledLevel(room());
+    canvas.focus();
+    (editor as unknown as { selectBrush(b: unknown): void }).selectBrush({ kind: 'terrain', id: 'rail_junction' });
+    clickCell(PLAYER_X, PLAYER_Y);
+    const tracksBefore = editor.exportCompiledLevel().railTracks;
+    expect(tracksBefore).toHaveLength(1);
+    secondPlayerButton().click();
+    clickCell(PLAYER_X, PLAYER_Y);
+    editor.handleKeyAction({ kind: 'rotate_in_place' });
+    expect(players()?.[0].dir).toBe('W');
+    expect(editor.exportCompiledLevel().railTracks).toEqual(tracksBefore);
   });
 
   it('removes the start with the eraser, with the secondary button and with the panel, each undoable', () => {

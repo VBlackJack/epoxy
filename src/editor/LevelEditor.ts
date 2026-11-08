@@ -2258,7 +2258,7 @@ export class LevelEditor {
       case 'rotate_in_place':
         // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
         if (this.pasting && this.floatingStamp) this.turnStamp();
-        else if (!this.rotateTrackCellInPlace() && !this.rotateExtraPlayerInPlace()) this.rotateEntityInPlace();
+        else if (!this.rotateExtraPlayerInPlace() && !this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -3472,12 +3472,17 @@ export class LevelEditor {
     this.syncSizeInputs();
   }
 
+  /** True when the document plays the Epoxy rules, the only ones with several players (others never draw or count them). */
+  private holdsExtraPlayers(doc: EditorDocument): boolean {
+    return !doc.cc3d && editableRulesetOf(doc.ruleset) !== LYNX_RULESET;
+  }
+
   /** Shows how many players the level has: the main one and the starts of the others. */
   private syncPlayerCount(): void {
     const field = byId(PLAYERS_FIELD_ID);
     const output = byId(PLAYERS_OUTPUT_ID);
     if (!field || !output) return;
-    const count = 1 + (this.doc.cc3d ? 0 : (this.doc.extraPlayers?.length ?? 0));
+    const count = 1 + (this.holdsExtraPlayers(this.doc) ? (this.doc.extraPlayers?.length ?? 0) : 0);
     output.textContent = t('editor.extra_players.count.label', { count });
   }
 
@@ -6616,7 +6621,7 @@ export class LevelEditor {
   private drawPlayerStart(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
     this.renderer.drawPlayer(ctx, doc.playerStart.x * s, doc.playerStart.y * s, s, doc.playerStart.dir, false, true);
     // The starts of the other players, each as the character it plays.
-    if (!doc.cc3d) {
+    if (this.holdsExtraPlayers(doc)) {
       for (const player of doc.extraPlayers ?? []) {
         this.renderer.drawPlayerOfCharacter(ctx, player.x * s, player.y * s, s, player.dir, player.character);
       }
