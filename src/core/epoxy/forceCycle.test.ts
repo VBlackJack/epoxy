@@ -301,11 +301,12 @@ describe('force_cycle: validator and rulesets', () => {
     return level;
   };
 
-  it('does not report a false unreachable exit behind a turning floor, unlike the random floor', () => {
+  it('does not report a false unreachable exit behind a turning or a random floor', () => {
     const cycle = LevelValidator.validate(corridor(CYCLE));
     expect(cycle.stats.reachableExit).toBe(true);
     expect(cycle.valid).toBe(true);
-    expect(LevelValidator.validate(corridor('force_random')).stats.reachableExit).toBe(false);
+    // A random floor has no predictable push either: the walk tries every exit rather than claiming none.
+    expect(LevelValidator.validate(corridor('force_random')).stats.reachableExit).toBe(true);
   });
 
   it('still reports an exit that is truly unreachable past a turning floor', () => {

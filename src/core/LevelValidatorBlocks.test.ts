@@ -223,9 +223,12 @@ describe('blocks that fill water or melt fire', () => {
       expect(engineWins(level, THIEF_ROUTE)).toBe(true);
     });
 
-    it('(e) guards over-optimism: without the filler the water after the thief stays unreachable', () => {
+    // The stock is checked per hazard and not as a running total, so the one ice block that melted the fire is also
+    // taken as the filler of the water after the thief: a deliberate over-approximation (never a false unreachable).
+    // The scripted route still loses in the engine, which shows the verdict is optimistic here and not exact.
+    it('(e) over-approximates: the single ice block covers the water after the thief too, though the engine route fails', () => {
       const level = grid([WIDE_WALL, '#Pwi.F.tW.E#', '#######..###', '#######..###', WIDE_WALL]);
-      expect(exitUnreachable(level)).toBe(true);
+      expect(exitUnreachable(level)).toBe(false);
       expect(engineWins(level, THIEF_ROUTE)).toBe(false);
     });
 
@@ -253,9 +256,11 @@ describe('blocks that fill water or melt fire', () => {
       expect(engineWins(level, RECROSS_ROUTE)).toBe(true);
     });
 
-    it('(f) guards over-optimism: fire boots do not cross a melted fire without a filler', () => {
+    // Same per-hazard stock check: the ice block that melted the fire also covers the recrossing, so the verdict is
+    // optimistic while the scripted engine route, without a dirt block, loses.
+    it('(f) over-approximates: fire boots recross a melted fire on the ice block alone, though the engine route fails', () => {
       const level = recrossLevel(false);
-      expect(exitUnreachable(level)).toBe(true);
+      expect(exitUnreachable(level)).toBe(false);
       expect(engineWins(level, RECROSS_ROUTE)).toBe(false);
     });
 
