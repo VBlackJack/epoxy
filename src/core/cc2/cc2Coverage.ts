@@ -95,6 +95,8 @@ const EXACT_KEYS: readonly string[] = [
 /**
  * Monsters and blocks: the mechanic exists, so the key is exact. Epoxy ids: bug, fireball, glider, paramecium, tank,
  * pink_ball, teeth, walker, blob; dirt_block, ice_block, arrow_block_* (directional blocks).
+ * Chain pushing (an ice or directional block pushing a line of blocks) is an Epoxy rule; a block that slides on ice or a
+ * force floor still stops at the first block it meets, where CC2 may push it along [unverified].
  */
 const MECHANIC_KEYS: readonly string[] = [
   'bug', 'fireball', 'glider', 'paramecium', 'tank', 'pink_ball', 'teeth', 'walker', 'blob',
@@ -170,7 +172,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: dirt_block.
-  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves.',
+  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
   [KEY_WIRE]: WIRED_REASON,
   [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
 };

@@ -153,8 +153,10 @@ describe('arrow blocks: configuration', () => {
     expect(dirtId).toBe('dirt_block');
     expect(dirtKey).toBe('entities.dirt_block.name');
     for (const id of SHAPES) {
-      const { id: ownId, i18nKey: ownKey, pushArrows, ...ownRest } = defOf(id);
+      // Besides its arrows, an arrow block differs from dirt only by what it may push along (chainPushes).
+      const { id: ownId, i18nKey: ownKey, pushArrows, chainPushes, ...ownRest } = defOf(id);
       expect(pushArrows, id).toEqual(arrows[id]);
+      expect(chainPushes, id).toContain('dirt_block');
       expect(ownId).toBe(id);
       expect(ownKey).toBe(`entities.${id}.name`);
       expect(ownRest, id).toEqual(dirtRest);

@@ -51,6 +51,7 @@ import {
   findSteeringConfigErrors,
   findFacingTurnConfigErrors,
   findSignalConfigErrors,
+  findChainPushConfigErrors,
   findPushArrowConfigErrors,
   findTurretConfigErrors,
   sanitizeStoredLevels,
@@ -449,6 +450,10 @@ class ConfigRegistryService {
     const pushArrowErrors = findPushArrowConfigErrors(bundle.monsters.entities);
     if (pushArrowErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, pushArrowErrors.join('; '));
+    }
+    const chainPushErrors = findChainPushConfigErrors(bundle.monsters.entities);
+    if (chainPushErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, chainPushErrors.join('; '));
     }
     const steeringErrors = findSteeringConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (steeringErrors.length > 0) {

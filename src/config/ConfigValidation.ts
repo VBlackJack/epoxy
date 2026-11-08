@@ -1426,6 +1426,31 @@ export function findPushArrowConfigErrors(entities: Record<string, EntityDefinit
   return errors;
 }
 
+/**
+ * Problems of the chainPushes field of an entity: a block (never a monster) with a non-empty list of unique
+ * ids of existing blocks. Each entry names the entity.
+ */
+export function findChainPushConfigErrors(entities: Record<string, EntityDefinition>): string[] {
+  const errors: string[] = [];
+  for (const entity of Object.values(entities)) {
+    const targets = entity.chainPushes;
+    if (targets === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'block') errors.push(`${id}.chainPushes: only a block may push a chain of blocks`);
+    if (!Array.isArray(targets) || targets.length === 0) {
+      errors.push(`${id}.chainPushes: expected a non-empty array`);
+      continue;
+    }
+    for (const target of targets) {
+      if (typeof target !== 'string' || entities[target]?.kind !== 'block') {
+        errors.push(`${id}.chainPushes: "${String(target)}" is not a known block`);
+      }
+    }
+    if (new Set(targets).size !== targets.length) errors.push(`${id}.chainPushes: ids must be unique`);
+  }
+  return errors;
+}
+
 /** Corners a one-sided mirror may face; the axis must be the one that cuts the corner off. */
 const MIRROR_CORNERS: readonly string[] = Object.keys(MIRROR_FRONT_AXIS);
 /** What a flying shot may do to an entity it meets. */

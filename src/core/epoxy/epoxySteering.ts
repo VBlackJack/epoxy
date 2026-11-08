@@ -64,7 +64,7 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, dir: Direction): 
     const behindX = nx + vec.dx;
     const behindY = ny + vec.dy;
     if (w.player.alive && w.player.x === behindX && w.player.y === behindY) return 'stayed';
-    if (!attemptPushBlock(ctx, occupant, dir)) return 'stayed';
+    if (!attemptPushBlock(ctx, occupant, dir, false)) return 'stayed';
     if (!w.player.alive) return 'killed';
     // The pushed block may have sunk, burned or slid on, but it never stays in the cell.
     if (getEntityAt(w, nx, ny)) return 'stayed';

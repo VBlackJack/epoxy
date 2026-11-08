@@ -34,6 +34,7 @@ import {
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
 import { DEFAULT_PLAYER_CHARACTER } from '../core/coreConstants';
+import { usesBlockChains } from '../core/blockChains';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
@@ -71,7 +72,10 @@ function packFileVersion(levels: readonly CompiledLevel[]): number {
   // A signal link that flips a tile is read by format 11 builds only, whatever ids the level holds.
   const flipVersion = levels.some((level) => usesFlipSinkFormat(level)) ? PACK_JSON_VERSION_V11 : 0;
   // A level played by Melinda is read as Chip's by a build that does not know the field, so it needs format 13.
-  const characterVersion = levels.some((level) => level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER)
+  // A block chain push is refused by a build that does not know it, so a level that can chain needs format 13 too.
+  const characterVersion = levels.some(
+    (level) => (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER) || usesBlockChains(level)
+  )
     ? PACK_JSON_VERSION_V13
     : flipVersion;
   const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), characterVersion);

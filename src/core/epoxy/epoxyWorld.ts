@@ -164,6 +164,10 @@ export interface EpoxyWorld {
   removedUids: Set<number>;
   /** Set when a rejected player move still altered the grid (revealed wall, opened door). */
   gridMutatedByMove: boolean;
+  /** Set when a push that was refused still moved blocks (a chain that stopped partway): the move keeps its undo snapshot. */
+  rejectedPushMovedBlocks: boolean;
+  /** Pushes that moved a block other than the one pushed directly (a chain, partial ones included); a debug counter. */
+  chainPushCount: number;
 }
 
 /**
@@ -232,7 +236,9 @@ export function createEpoxyWorld(): EpoxyWorld {
     beamHasSlidingMirror: false,
     beamDirty: true,
     removedUids: new Set<number>(),
-    gridMutatedByMove: false
+    gridMutatedByMove: false,
+    rejectedPushMovedBlocks: false,
+    chainPushCount: 0
   };
 }
 

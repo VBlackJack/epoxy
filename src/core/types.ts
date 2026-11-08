@@ -1349,6 +1349,12 @@ export interface EntityDefinition {
    */
   pushArrows?: RelativeTurn[];
   /**
+   * Present on a block: the block ids this block may push along in a line when the player pushes it (CC2 chain
+   * pushing). A wall, the map edge, a sliding block or a block that cannot yield refuses the whole push (the plan is checked before anything moves); a line that a move then breaks up may stop partway. Absent: the
+   * block pushes no other block. Not `pushesBlocks`, which lets a monster push one block and never a chain.
+   */
+  chainPushes?: string[];
+  /**
    * A monster that never decides a step of its own: it moves only when a button of this action is worked
    * (see ButtonAction 'steer_monsters'), one step in the direction the player moved.
    */

@@ -5079,31 +5079,31 @@
     "arrow_block_one": {
       "name": "Bloc fléché (un sens)",
       "desc": {
-        "label": "Un bloc poussable qui ne bouge que vers le seul côté marqué d'une flèche. Poussé par un autre côté, il reste immobile."
+        "label": "Un bloc poussable qui ne bouge que vers le seul côté marqué d'une flèche. Poussé par un autre côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "arrow_block_line": {
       "name": "Bloc fléché (deux sens)",
       "desc": {
-        "label": "Un bloc poussable qui ne bouge que vers les deux côtés opposés marqués d'une flèche. Poussé par un autre côté, il reste immobile."
+        "label": "Un bloc poussable qui ne bouge que vers les deux côtés opposés marqués d'une flèche. Poussé par un autre côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "arrow_block_corner": {
       "name": "Bloc fléché (coin)",
       "desc": {
-        "label": "Un bloc poussable qui ne bouge que vers les deux côtés adjacents marqués d'une flèche. Poussé par un autre côté, il reste immobile."
+        "label": "Un bloc poussable qui ne bouge que vers les deux côtés adjacents marqués d'une flèche. Poussé par un autre côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "arrow_block_tee": {
       "name": "Bloc fléché (trois sens)",
       "desc": {
-        "label": "Un bloc poussable qui ne bouge que vers les trois côtés marqués d'une flèche. Poussé par le quatrième côté, il reste immobile."
+        "label": "Un bloc poussable qui ne bouge que vers les trois côtés marqués d'une flèche. Poussé par le quatrième côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "ice_block": {
       "name": "Bloc de Glace Glissant",
       "desc": {
-        "label": "Un bloc que le joueur peut pousser. Transforme l'eau en glace quand on le pousse dedans, et fond en eau dans le feu ; un tir le détruit aussi, en ne laissant de l'eau que sur un sol simple."
+        "label": "Un bloc que le joueur peut pousser. Transforme l'eau en glace quand on le pousse dedans, et fond en eau dans le feu ; un tir le détruit aussi, en ne laissant de l'eau que sur un sol simple. Poussé, il entraîne une file de blocs de glace et de blocs fléchés, jamais un bloc de terre : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "bug": {
