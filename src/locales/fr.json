@@ -2371,6 +2371,28 @@
         "lynx": {
           "label": "Niveaux Lynx : seuls les liens de piège et de clonage existent, un par bouton ; un bouton brun ou rouge sans lien ne fait rien, et son piège ou sa machine à cloner reste fermé."
         },
+        "authoring": {
+          "track": {
+            "name": "Cases de voies",
+            "label": "Choisissez une case de voies dans le groupe Rails. La section Cellule bascule ses six segments et choisit le segment ouvert de son aiguillage ; Maj+R tourne les voies d'un quart de tour. On n'entre que par un côté qu'un segment ouvre et on ressort le long d'un segment qui rejoint le côté d'entrée."
+          },
+          "ports": {
+            "name": "Ports des portes",
+            "label": "Un verrou de données reçoit des liens de donnée et d'horloge, un compteur des liens de comptage + et de comptage -. Les lignes de Connexions nomment le rôle de chaque lien et Échanger les entrées ou Échanger les sorties les permute. Le validateur avertit d'un verrou de données sans horloge ou sans donnée."
+          },
+          "chain": {
+            "name": "Poussée en chaîne",
+            "label": "Rien à placer : un bloc de glace pousse les blocs de glace et fléchés, un bloc fléché pousse les blocs de terre, de glace et fléchés, donc une file avance en une poussée. Un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
+          },
+          "canopy": {
+            "name": "Auvent",
+            "label": "Utilisez le pinceau Auvent de l'onglet Terrain : un clic bascule une case, un glisser répète le choix de la première case, la gomme l'efface, et les murs minces sont conservés. Il arrête les insectes et les rôdeurs."
+          },
+          "players": {
+            "name": "Plusieurs joueurs",
+            "label": "Un niveau peut lister des joueurs supplémentaires à côté du départ. Un seul est commandé à la fois et un échange passe la main ; chacun garde ses clés et ses outils, les puces sont partagées, et tous les joueurs doivent atteindre une sortie. L'éditeur ne les dessine pas encore."
+          }
+        },
         "cc3d": {
           "trap": {
             "name": "Commande de piège et piège",

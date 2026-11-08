@@ -35,7 +35,7 @@ import { eraseCell, placeLayer } from './cc3dEdits';
 import { CC3D_CONNECTION_KEYS } from './cc3dConnectionRows';
 import { getEditorKeyAction } from './editorKeyboard';
 import { LevelEditor } from './LevelEditor';
-import { CC3D_MECHANISM_HELP_ROWS, MECHANISM_HELP_ROWS, MECHANISMS_HELP_CC3D_TOP_LAYER_KEY } from './mechanismsHelp';
+import { AUTHORING_HELP_ROWS, CC3D_MECHANISM_HELP_ROWS, MECHANISM_HELP_ROWS, MECHANISMS_HELP_CC3D_TOP_LAYER_KEY } from './mechanismsHelp';
 
 const GLYPHS: Record<string, GlyphMeaning> = {
   b: stacked({ kind: 'floor' }, { kind: 'trap_control' }),
@@ -235,8 +235,8 @@ describe('the How mechanisms work card on a CC3D level', () => {
     editor['refreshConnections']();
     editor.loadCompiledLevel(epoxyLevel());
     editor['refreshConnections']();
-    expect(helpRows()).toHaveLength(MECHANISM_HELP_ROWS.length);
-    expect(helpRows().map((item) => item.dataset.system)).toEqual(MECHANISM_HELP_ROWS.map((row) => row.system));
+    expect(helpRows()).toHaveLength(MECHANISM_HELP_ROWS.length + AUTHORING_HELP_ROWS.length);
+    expect(helpRows().slice(0, MECHANISM_HELP_ROWS.length).map((item) => item.dataset.system)).toEqual(MECHANISM_HELP_ROWS.map((row) => row.system));
     expect(byId('editor-mechanisms-help-keys').textContent).toContain('Shift+F');
     expect(byId('editor-mechanisms-help-lynx').textContent).toContain('Lynx');
   });

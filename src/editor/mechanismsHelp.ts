@@ -163,3 +163,25 @@ export const MECHANISM_HELP_ROWS: readonly MechanismHelpRow[] = [
     unlinkedKey: 'editor.connections.help.system.puppet.unlinked.label'
   }
 ];
+
+/** One row of the authoring part of the card: a mechanism the editor places or edits without a link of its own. */
+export interface AuthoringHelpRow {
+  /** Stable id, carried by the row element. */
+  id: 'track' | 'ports' | 'chain' | 'canopy' | 'players';
+  /** Locale key of the mechanism's name. */
+  nameKey: string;
+  /** Locale key of the sentence saying how to place or configure it. */
+  howKey: string;
+}
+
+/**
+ * The Epoxy-rules rows that follow the link mechanisms: Chip's Challenge 2 track cells, gate ports, chain pushing,
+ * the canopy and several players. Literal keys, so the locale checks see them.
+ */
+export const AUTHORING_HELP_ROWS: readonly AuthoringHelpRow[] = [
+  { id: 'track', nameKey: 'editor.connections.help.authoring.track.name', howKey: 'editor.connections.help.authoring.track.label' },
+  { id: 'ports', nameKey: 'editor.connections.help.authoring.ports.name', howKey: 'editor.connections.help.authoring.ports.label' },
+  { id: 'chain', nameKey: 'editor.connections.help.authoring.chain.name', howKey: 'editor.connections.help.authoring.chain.label' },
+  { id: 'canopy', nameKey: 'editor.connections.help.authoring.canopy.name', howKey: 'editor.connections.help.authoring.canopy.label' },
+  { id: 'players', nameKey: 'editor.connections.help.authoring.players.name', howKey: 'editor.connections.help.authoring.players.label' }
+];

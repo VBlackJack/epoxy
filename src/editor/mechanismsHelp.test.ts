@@ -22,6 +22,7 @@ import frLocale from '../locales/fr.json';
 import { SYSTEM_NAME_KEYS } from './connectionRows';
 import { DEFAULT_SECTION_STATE, INSPECTOR_SECTIONS } from './inspectorSections';
 import {
+  AUTHORING_HELP_ROWS,
   CC3D_MECHANISM_HELP_ROWS,
   MECHANISM_HELP_ROWS,
   MECHANISMS_HELP_CC3D_TOP_LAYER_KEY,
@@ -84,6 +85,18 @@ describe('CC3D mechanism help rows', () => {
     const keys = [MECHANISMS_HELP_CC3D_TOP_LAYER_KEY, ...CC3D_MECHANISM_HELP_ROWS.flatMap((row) => [row.nameKey, row.howKey])];
     for (const locale of [EN, FR]) {
       for (const key of keys) expect((resolveMessage(locale, key) ?? '').length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('authoring help rows', () => {
+  it('has the five authoring mechanisms once, each with a name and a sentence in both locales', () => {
+    expect(AUTHORING_HELP_ROWS.map((row) => row.id)).toEqual(['track', 'ports', 'chain', 'canopy', 'players']);
+    for (const locale of [EN, FR]) {
+      for (const row of AUTHORING_HELP_ROWS) {
+        expect((resolveMessage(locale, row.nameKey) ?? '').length).toBeGreaterThan(0);
+        expect((resolveMessage(locale, row.howKey) ?? '').length).toBeGreaterThan(0);
+      }
     }
   });
 });

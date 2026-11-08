@@ -31,7 +31,7 @@ import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals } from '../test/domFixture';
 import { LevelEditor } from './LevelEditor';
-import { MECHANISM_HELP_ROWS } from './mechanismsHelp';
+import { AUTHORING_HELP_ROWS, MECHANISM_HELP_ROWS } from './mechanismsHelp';
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -119,7 +119,7 @@ describe('the How mechanisms work card', () => {
   });
 
   it('has one row per mechanism, each naming the mechanism and what happens when it is unlinked', () => {
-    expect(rows()).toHaveLength(MECHANISM_HELP_ROWS.length);
+    expect(rows()).toHaveLength(MECHANISM_HELP_ROWS.length + AUTHORING_HELP_ROWS.length);
     for (const [index, row] of MECHANISM_HELP_ROWS.entries()) {
       const text = rows()[index].textContent ?? '';
       expect(rows()[index].dataset.system).toBe(row.system);
@@ -127,6 +127,17 @@ describe('the How mechanisms work card', () => {
       expect(text).toContain(t(row.howKey, row.params));
       expect(text).toContain(t(row.unlinkedKey, row.params));
     }
+  });
+
+  it('adds the authoring rows after the link rows under Epoxy rules and leaves them out under Lynx rules', () => {
+    const authoring = (): string[] => rows().filter((row) => row.dataset.authoring).map((row) => row.dataset.authoring ?? '');
+    expect(authoring()).toEqual(AUTHORING_HELP_ROWS.map((row) => row.id));
+    editor.loadCompiledLevel(plainLevel('lynx'));
+    editor['refreshConnections']();
+    expect(authoring()).toEqual([]);
+    editor.loadCompiledLevel(plainLevel());
+    editor['refreshConnections']();
+    expect(authoring()).toEqual(AUTHORING_HELP_ROWS.map((row) => row.id));
   });
 
   it('names the keys and the Lynx rule', () => {
@@ -148,7 +159,7 @@ describe('the How mechanisms work card', () => {
     editor.loadCompiledLevel(plainLevel());
     editor['refreshConnections']();
     expect(section().classList.contains('hidden')).toBe(false);
-    expect(rows()).toHaveLength(MECHANISM_HELP_ROWS.length);
+    expect(rows()).toHaveLength(MECHANISM_HELP_ROWS.length + AUTHORING_HELP_ROWS.length);
   });
 
   it('keeps its rows when the hovered cell changes', () => {
