@@ -424,11 +424,6 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
   "epoxy_c_9": {
     "issues": [
       {
-        "i18nKey": "validator.issues.unreachable_exit.label",
-        "params": null,
-        "severity": "error",
-      },
-      {
         "i18nKey": "validator.issues.hidden_by_block.label",
         "params": {
           "count": 3,
@@ -441,10 +436,10 @@ exports[`validator output of every shipped level > campaign levels 1`] = `
       "chipsRequired": 3,
       "exitCount": 1,
       "reachableChips": 3,
-      "reachableExit": false,
+      "reachableExit": true,
       "targetCount": 0,
     },
-    "valid": false,
+    "valid": true,
   },
 }
 `;

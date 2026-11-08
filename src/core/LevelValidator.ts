@@ -642,6 +642,8 @@ export class LevelValidator {
 
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
       this.applySignalSinks(level, blockTypes, stockBlocks, simItems, simTerrain);
+      // Monsters and blocks reach buttons and bombs the player may not: applied once, before the fixpoint.
+      this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain);
 
       let changed = true;
       let passes = 0;
@@ -2129,6 +2131,74 @@ export class LevelValidator {
         const item = simItems[cy][cx];
         if (item && ConfigRegistry.getTile(item).hazard === 'bomb') simItems[cy][cx] = null;
       }
+    }
+  }
+
+  /**
+   * Cells monsters and blocks can reach from their start cells. The flood follows each actor's tile passability
+   * and the map bounds, and ignores timing, other actors and pushing. What stands on such a cell is taken as
+   * triggered: a green button opens the closed toggle walls, a red button grants its block cloner, and a bomb is
+   * set off. A monster that does not press plates (pressesPlates false) still sets off bombs but works no button.
+   * Accepted over-approximations: the flood walks past bombs, and a block used up on a bomb keeps flooding.
+   * The player need not reach those cells, so this runs before the reach walk and never makes a reachable
+   * exit unreachable.
+   */
+  private static applyMovingThingEffects(
+    level: CompiledLevel,
+    blockTypes: ReadonlySet<string>,
+    grantedCloneLinks: Set<number>,
+    stockBlocks: (type: string, count: number) => void,
+    simItems: (string | null)[][],
+    simTerrain: string[][]
+  ): void {
+    const height = simTerrain.length;
+    const width = simTerrain[0]?.length ?? 0;
+    if (width === 0) return;
+    const reached = new Uint8Array(width * height);
+    const pressed = new Uint8Array(width * height);
+    for (const entity of level.entities) {
+      const def = ConfigRegistry.getEntityDef(entity.type);
+      const kind = def?.kind;
+      if (kind !== 'monster' && kind !== 'block') continue;
+      const pressesButtons = !(kind === 'monster' && def?.pressesPlates === false);
+      if (entity.x < 0 || entity.y < 0 || entity.x >= width || entity.y >= height) continue;
+      const seen = new Uint8Array(width * height);
+      const queue: GridPoint[] = [{ x: entity.x, y: entity.y }];
+      seen[entity.y * width + entity.x] = 1;
+      for (let head = 0; head < queue.length; head++) {
+        const { x, y } = queue[head];
+        reached[y * width + x] = 1;
+        if (pressesButtons) pressed[y * width + x] = 1;
+        for (const dir of ORDERED_DIRECTIONS) {
+          const nx = x + DIRECTION_VECTORS[dir].dx;
+          const ny = y + DIRECTION_VECTORS[dir].dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny * width + nx]) continue;
+          const dest = ConfigRegistry.getTile(simTerrain[ny][nx]);
+          if (kind === 'monster' ? !dest.passableByMonster : dest.passableByBlock !== true) continue;
+          seen[ny * width + nx] = 1;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+    }
+    let opensToggleWalls = false;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!reached[y * width + x]) continue;
+        const action = pressed[y * width + x] ? ConfigRegistry.getTile(simTerrain[y][x]).buttonAction : undefined;
+        if (action === 'toggle_walls') opensToggleWalls = true;
+        if (action === 'trigger_cloner') {
+          level.cloneLinks.forEach((link, linkIdx) => {
+            if (link.buttonX !== x || link.buttonY !== y || !blockTypes.has(link.templateType) || grantedCloneLinks.has(linkIdx)) return;
+            grantedCloneLinks.add(linkIdx);
+            stockBlocks(link.templateType, CLONER_BLOCK_ALLOWANCE);
+          });
+        }
+        const item = simItems[y][x];
+        if (item && ConfigRegistry.getTile(item).hazard === 'bomb') simItems[y][x] = null;
+      }
+    }
+    if (opensToggleWalls) {
+      this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), () => undefined);
     }
   }
 

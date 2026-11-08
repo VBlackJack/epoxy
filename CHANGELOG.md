@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Validator: fewer false "exit unreachable" reports. A green button, a bomb or a block cloner button that a monster or block can reach counts as triggered (toggle walls open, bomb removed, clone granted).
 - CC1 `.DAT` import: under the Lynx rules the swimming Chip codes 0x3C-0x3F give the player start (facing kept, terrain below kept) when the level has no other start; the unused codes 0x33-0x3B and 112-255 are reported as import diagnostics; a level with no player start is flagged and fails validation instead of getting a start at the centre.
 
 ### Added
