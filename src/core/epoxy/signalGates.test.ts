@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { formatSignalPort, isSignalPort, parseSignalPort } from '../signalPorts';
+import { canonicalSignalPort, formatSignalPort, isSignalPort, parseSignalPort } from '../signalPorts';
 import {
   buildSignalNetwork,
   cloneSignalState,
@@ -63,6 +63,15 @@ describe('port names', () => {
     expect(formatSignalPort({ in: 1 })).toBe('in1');
     expect(formatSignalPort({ out: 0, in: 1 })).toBe('out0>in1');
     expect(parseSignalPort(formatSignalPort({ out: 1, in: 0 }))).toEqual({ out: 1, in: 0 });
+  });
+});
+
+describe('canonical ports', () => {
+  it('drops the default ports, so in0, out0 and out0>in0 are no port at all', () => {
+    for (const text of ['in0', 'out0', 'out0>in0', 'a', undefined]) expect(canonicalSignalPort(text), String(text)).toBeUndefined();
+    expect(canonicalSignalPort('out0>in1')).toBe('in1');
+    expect(canonicalSignalPort('out1>in0')).toBe('out1');
+    expect(canonicalSignalPort('out1>in1')).toBe('out1>in1');
   });
 });
 

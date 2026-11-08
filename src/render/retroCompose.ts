@@ -109,6 +109,8 @@ export interface RetroTileInput {
   isClosedTrap: boolean;
   /** A signal tile whose node is on: its lit overlay is stacked over the sprite (absent: off). */
   powered?: boolean;
+  /** A counter gate tile: the count it holds now, drawn instead of the number it started with (absent: the starting number). */
+  counterCount?: number;
   /** Animation phase, 0 to RETRO_PHASE_COUNT - 1, shared by every animated tile. */
   phase: number;
   reducedMotion: boolean;
@@ -317,7 +319,7 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
     const layers: RetroLayer[] = [
       floorOnly,
       { name: RETRO_COUNTER_SPRITE },
-      { name: `${RETRO_SPRITE_PREFIX.digit}${counterMatch[1]}`, x: COUNTER_NUMBER_POSITION.x, y: COUNTER_NUMBER_POSITION.y }
+      { name: `${RETRO_SPRITE_PREFIX.digit}${input.counterCount !== undefined && input.counterCount >= 0 && input.counterCount <= 9 ? Math.trunc(input.counterCount) : counterMatch[1]}`, x: COUNTER_NUMBER_POSITION.x, y: COUNTER_NUMBER_POSITION.y }
     ];
     if (input.powered === true) layers.push({ name: `${RETRO_COUNTER_SPRITE}${RETRO_SIGNAL_LIT_SUFFIX}` });
     return layers;

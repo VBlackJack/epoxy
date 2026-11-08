@@ -29,6 +29,8 @@ export interface RunewardPaintEnv {
   readonly timeTick: number;
   /** True when the signal node of the cell being drawn is on; false in the editor and for non-signal cells. */
   readonly signalPowered: boolean;
+  /** The live count of the counter gate being drawn; absent in the editor, where the tile shows its starting number. */
+  readonly signalCount?: number;
   /** True when the player asked for reduced motion. */
   readonly reducedMotion: boolean;
   /** Per-renderer cache a painter may fill lazily (sprites, gradients); created on first use. */

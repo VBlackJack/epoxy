@@ -81,8 +81,8 @@ const GENDER_SIGN_REASON =
  * (cleats), boots_force (suction boots), invisible_wall, appearing_wall, blue_wall_real/fake, thin walls (cell edges),
  * swivel doors, toggle_wall_open/closed, button_green/blue/brown/red, trap, clone_machine, teleport_blue (unwired),
  * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x, purple_wall and
- * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources), lightning_bolt
- * (with signal_wire_floor, the floor a wire runs under when a bolt is on the level) and nand_gate (signal_gate_nand). The
+ * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources) and nand_gate
+ * (signal_gate_nand). The
  * data latch (signal_gate_dlatch, both rotations) plays under the wire key. The wire timing
  * is judged by the wire key, so a wired level stays approximate.
  */
@@ -95,7 +95,7 @@ const EXACT_KEYS: readonly string[] = [
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe',
-  'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'lightning_bolt', 'nand_gate'
+  'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate'
 ];
 
 /**
@@ -192,6 +192,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
+  // Epoxy: lightning_bolt with signal_wire_floor, the floor a wire runs under on a level that holds a bolt.
+  lightning_bolt: 'Epoxy powers the wire nets fed by the wire floor the player stands on while holding the bolt, sampled when the signals settle after a move; CC2 powers them only while the holder stands still (not modelled), and CC2 electrified floor, which the bolt also powers, is not handled [unverified].',
   // Epoxy: signal_counter_0 to signal_counter_9.
   counter_gate: 'Epoxy settles its signals at the end of a move, where a CC2 counter counts tick by tick: a count and its overflow pulse can be merged or missed when two inputs rise within one move [unverified].',
   [KEY_WIRE]: WIRED_REASON,

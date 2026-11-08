@@ -38,7 +38,7 @@ import {
   SIGNAL_PORT_MAX_LENGTH,
   SIGNAL_PORT_MIN_LENGTH
 } from './coreConstants';
-import { isSignalPort } from './signalPorts';
+import { canonicalSignalPort, isSignalPort } from './signalPorts';
 import type { CellUnderlay, CompiledLevel, SignalLink, SignalNodeDef, SignalSpec, TileDefinition } from './types';
 
 /** What a tile is to a signal network. */
@@ -170,7 +170,7 @@ export function normalizeSignalLinks(
       if (to === null || (to.role !== 'gate' && to.role !== 'sink')) continue;
     }
     // A pair is one wire, except that wires naming different real ports are different wires (a counter's two outputs).
-    const key = `${link.fromY},${link.fromX},${link.toY},${link.toX}${isSignalPort(link.port) ? `#${link.port}` : ''}`;
+    const key = `${link.fromY},${link.fromX},${link.toY},${link.toX}#${canonicalSignalPort(link.port) ?? ''}`;
     const previous = kept.get(key);
     if (previous === undefined || (link.port ?? '') < (previous.port ?? '')) kept.set(key, link);
   }

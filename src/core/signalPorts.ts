@@ -66,3 +66,16 @@ export function formatSignalPort(pair: SignalPortPair): string | undefined {
   if (pair.in !== undefined) parts.push(`${SIGNAL_PORT_IN_PREFIX}${pair.in}`);
   return parts.length === 0 ? undefined : parts.join(SIGNAL_PORT_JOINER);
 }
+
+/**
+ * The port text in canonical form: the first input and the first output are the default, so `in0`, `out0` and
+ * `out0>in0` all mean the same as no port. Undefined when the text names no port or only the defaults; two links of one
+ * pair with the same canonical port are one wire.
+ */
+export function canonicalSignalPort(port: string | undefined): string | undefined {
+  const pair = parseSignalPort(port);
+  return formatSignalPort({
+    ...(pair.out === 1 ? { out: 1 as const } : {}),
+    ...(pair.in === 1 ? { in: 1 as const } : {})
+  });
+}

@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks, signalSinkOf } from '../core/signalLinks';
-import { formatSignalPort, isSignalPort, parseSignalPort } from '../core/signalPorts';
+import { canonicalSignalPort, formatSignalPort, parseSignalPort } from '../core/signalPorts';
 import type { SignalPortIndex } from '../core/signalPorts';
 import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
@@ -63,7 +63,7 @@ export function signalLinkTouches(link: SignalLink, x: number, y: number): boole
 }
 
 /** One wire per pair of cells, except that wires naming different real ports (see signalPorts.ts) are different wires. */
-const pairKey = (l: SignalLink): string => [l.fromX, l.fromY, l.toX, l.toY].join('|') + (isSignalPort(l.port) ? `#${l.port}` : '');
+const pairKey = (l: SignalLink): string => [l.fromX, l.fromY, l.toX, l.toY].join('|') + `#${canonicalSignalPort(l.port) ?? ''}`;
 
 /**
  * Stores the links of a map in canonical order (source row, source column, target row, target column), one per

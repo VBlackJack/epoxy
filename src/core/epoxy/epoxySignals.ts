@@ -222,6 +222,21 @@ export function poweredSignalCellsOf(w: EpoxyWorld): ReadonlySet<number> | undef
   return powered;
 }
 
+/**
+ * The count each counter gate holds now, by cell index; undefined when the level has no counter. Read only, a drawing
+ * aid: the tile shows the live count, not the number it started with.
+ */
+export function counterValuesOf(w: EpoxyWorld): ReadonlyMap<number, number> | undefined {
+  const runtime = w.signals;
+  const values = runtime?.state.counterValues;
+  if (runtime === undefined || values === undefined) return undefined;
+  const counts = new Map<number, number>();
+  runtime.network.nodes.forEach((node, index) => {
+    if (node.kind === 'counter') counts.set(node.cell, values[index]);
+  });
+  return counts;
+}
+
 /** A copy of the state of the world's network, for a snapshot or a hash; undefined without signals. */
 export function copySignalState(w: EpoxyWorld): SignalState | undefined {
   return w.signals === undefined ? undefined : cloneSignalState(w.signals.state);

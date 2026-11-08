@@ -259,7 +259,8 @@ function paintSymbol(
   kind: SignalTileKind,
   m: CellMap,
   colors: SignalTileColors,
-  powered: boolean
+  powered: boolean,
+  liveCount?: number
 ): void {
   ctx.beginPath();
   switch (kind) {
@@ -318,8 +319,10 @@ function paintSymbol(
       ctx.lineTo(m.px(DLATCH_STEM_X), m.py(DLATCH_TOP_Y));
       break;
     default: {
-      const digit = counterDigitOf(kind);
-      if (digit === undefined) break;
+      // The live count wins over the number the counter started with (the editor has no running level).
+      const startNumber = counterDigitOf(kind);
+      if (startNumber === undefined) break;
+      const digit = liveCount !== undefined && liveCount >= 0 && liveCount < COUNTER_DIGIT_COUNT ? Math.trunc(liveCount) : startNumber;
       DIGIT_SEGMENTS.forEach((seg, bit) => {
         if ((DIGIT_SEGMENT_MASKS[digit] & (1 << bit)) !== 0) segment(ctx, m, seg[0], seg[1], seg[2], seg[3]);
       });
@@ -396,7 +399,8 @@ export function paintSignalTile(
   kind: SignalTileKind,
   powered: boolean,
   colors: SignalTileColors,
-  style: SignalTileStyle
+  style: SignalTileStyle,
+  liveCount?: number
 ): void {
   const ink = powered ? colors.lit : colors.idle;
   const map: CellMap = { px: (u) => x + u * size, py: (v) => y + v * size, size };
@@ -460,6 +464,6 @@ export function paintSignalTile(
   }
   ctx.stroke();
   ctx.lineWidth = Math.max(MIN_STROKE_PX, size * SYMBOL_STROKE_TILE);
-  paintSymbol(ctx, kind, map, colors, powered);
+  paintSymbol(ctx, kind, map, colors, powered, liveCount);
   ctx.restore();
 }

@@ -144,6 +144,7 @@ describe('lightning bolt', () => {
     ]);
     const { level, coverage } = convertCc2Map(map, OPTIONS);
     expect(level.items[1][4]).toBe('lightning_bolt');
+    expect(coverage.approx).toContain('lightning_bolt');
     expect(level.terrain[0][1]).toBe('signal_wire_floor');
     expect(level.terrain[0][2]).toBe('signal_wire_floor');
     const links = level.signalLinks ?? [];
