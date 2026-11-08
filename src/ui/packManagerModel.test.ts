@@ -33,6 +33,8 @@ import {
   packFileName,
   resolveSelection,
   selectionAfterRemoval,
+  SHARE_REFUSAL_KEYS,
+  shareRefusal,
   transferTargets
 } from './packManagerModel';
 
@@ -278,5 +280,33 @@ describe('convertedTitle', () => {
     expect(convertedTitle('  Tutorial  ', MAX)).toBe(`Tutorial${CONVERTED_TITLE_SUFFIX}`);
     expect(convertedTitle('Tutorial', 3)).toHaveLength(3);
     expect(convertedTitle('Tutorial', 0)).toBe('');
+  });
+});
+
+describe('shareRefusal', () => {
+  const FAKE_CC2: NonNullable<CompiledLevel['cc2']> = {
+    v: 1,
+    sha256: 'f'.repeat(64),
+    file: 'synthetic.c2m',
+    order: 1,
+    gridHash: 'h',
+    coverage: { verdict: 'exact', lost: [], approx: [] }
+  };
+
+  it('refuses an empty pack', () => {
+    expect(shareRefusal([])).toBe('empty');
+  });
+
+  it('accepts a pack of plain levels', () => {
+    expect(shareRefusal([makeLevel('a'), makeLevel('b')])).toBeNull();
+  });
+
+  it('refuses a pack holding a CC2 level, even among plain ones', () => {
+    expect(shareRefusal([makeLevel('a'), { ...makeLevel('b'), cc2: FAKE_CC2 }])).toBe('cc2_content');
+  });
+
+  it('gives each refusal its own translation key', () => {
+    expect(SHARE_REFUSAL_KEYS.empty).toBe('app.packs.share.empty.label');
+    expect(SHARE_REFUSAL_KEYS.cc2_content).toBe('app.packs.share.cc2.label');
   });
 });

@@ -48,12 +48,12 @@ export interface ShareStreams {
 export type DigestFunction = (bytes: Uint8Array) => Promise<ArrayBuffer>;
 
 /** Why a link could not be made. */
-export type ShareEncodeError = 'unsupported' | 'too_long';
+export type ShareEncodeError = 'unsupported' | 'too_long' | 'cc2_content';
 
 export type ShareEncodeResult = { ok: true; url: string } | { ok: false; error: ShareEncodeError };
 
 /** Why a link could not be read. */
-export type ShareDecodeError = 'unsupported' | 'newer' | 'damaged';
+export type ShareDecodeError = 'unsupported' | 'newer' | 'damaged' | 'cc2_content';
 
 export type ShareDecodeResult = { ok: true; text: string } | { ok: false; error: ShareDecodeError };
 
@@ -298,6 +298,8 @@ export async function readSharedPack(hash: string, context: ShareReadContext): P
     context.textLimits
   );
   if (!parsed.ok) return { ok: false, error: parsed.error === 'version' ? 'newer' : 'damaged' };
+  // Licensed CC2 content never travels in a link: a link that carries some was not made by this app.
+  if (parsed.levels.some((level) => level.cc2 !== undefined)) return { ok: false, error: 'cc2_content' };
   const sourceHash = await sha256Hex(decoded.text, context.digest === undefined ? browserDigest() : context.digest);
   return {
     ok: true,

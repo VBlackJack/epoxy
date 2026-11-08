@@ -8,6 +8,7 @@ versions follow Semantic Versioning.
 ### Fixed
 
 - CC1 `.DAT` import under the Epoxy rules: the unused codes 51-53 now read as walls and 54-56 as invisible walls, as under the Lynx rules, instead of floor (they are never written back). This changes three bundled CCLP2 levels: 71, 98 and 127.
+- Share links: a pack holding imported Chip's Challenge 2 levels can no longer be shared by link (the button is disabled with an explanation), and an incoming link carrying such levels is refused; the converted levels stay on this device. The JSON and .ccl downloads are unchanged.
 - CC2 import: a no-sign over a key or boots now plays as the matching forbid tile (empty no-signs as plain floor), and the pink button plays as the held pressure plate instead of the pulse button.
 - Validator: fewer false "exit unreachable" reports. A green button, a bomb or a block cloner button that a monster or block can reach counts as triggered (toggle walls open, bomb removed, clone granted).
 - CC1 `.DAT` import: under the Lynx rules the swimming Chip codes 0x3C-0x3F give the player start (facing kept, terrain below kept) when the level has no other start; the unused codes 0x33-0x3B and 112-255 are reported as import diagnostics; a level with no player start is flagged and fails validation instead of getting a start at the centre.
