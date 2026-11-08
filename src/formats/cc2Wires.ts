@@ -158,6 +158,8 @@ export interface Cc2WireResult {
   hasWires: boolean;
   /** Whether any cell carries a tunnel bit. */
   hasTunnels: boolean;
+  /** Cells of the devices a wire reaches as an input (sinks), sorted by place: the cells whose tile may need its wired form. */
+  wiredSinks: Array<{ x: number; y: number }>;
   /** Devices on a network that Epoxy cannot play, sorted by place. */
   unsupported: Cc2UnsupportedNode[];
   /** Human-readable notes (tunnel without a partner, gate of unknown kind). */
@@ -179,9 +181,9 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
   }
   if (code === CODE_PINK_BUTTON) return { role: 'source', kind: 'pink_button', supported: true, mask: wires, tunnels: 0 };
   if (code === CODE_TOGGLE_SWITCH_OFF || code === CODE_TOGGLE_SWITCH_ON) {
-    return { role: 'source', kind: 'toggle_switch', supported: false, mask: wires, tunnels: 0 };
+    return { role: 'source', kind: 'toggle_switch', supported: true, mask: wires, tunnels: 0 };
   }
-  if (code === CODE_BLACK_BUTTON) return { role: 'source', kind: 'black_button', supported: false, mask: wires, tunnels: 0 };
+  if (code === CODE_BLACK_BUTTON) return { role: 'source', kind: 'black_button', supported: true, mask: wires, tunnels: 0 };
   if (code === CODE_LOGIC_GATE) {
     const gate = decodeCc2Gate(mod);
     const supported = gate.kind !== 'nand' && gate.kind !== 'counter' && gate.kind !== 'unknown';
@@ -193,13 +195,13 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
   }
   // Green toggle walls are not wire devices in CC2 (only the green button flips them); purple walls are the wired toggles.
   if (code === CODE_TRAP || code === CODE_OPEN_TRAP) {
-    return { role: 'sink', kind: 'trap', supported: false, mask: ALL_SIDES_MASK, tunnels: 0 };
+    return { role: 'sink', kind: 'trap', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
   if (code === CODE_FLAME_JET_OFF || code === CODE_FLAME_JET_ON) {
-    return { role: 'sink', kind: 'flame_jet', supported: false, mask: ALL_SIDES_MASK, tunnels: 0 };
+    return { role: 'sink', kind: 'flame_jet', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
   if (code === CODE_PURPLE_FLOOR || code === CODE_PURPLE_WALL) {
-    return { role: 'sink', kind: 'purple', supported: false, mask: ALL_SIDES_MASK, tunnels: 0 };
+    return { role: 'sink', kind: 'purple', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
   if (code >= CODE_TELEPORT_FIRST && code <= CODE_TELEPORT_LAST) {
     return wires === 0 ? null : { role: 'sink', kind: 'teleport', supported: false, mask: wires, tunnels: 0 };
@@ -273,7 +275,7 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
   });
   const warnings: string[] = [];
   const unsupported: Cc2UnsupportedNode[] = [];
-  const result: Cc2WireResult = { links: [], hasWires: false, hasTunnels: false, unsupported, warnings };
+  const result: Cc2WireResult = { links: [], hasWires: false, hasTunnels: false, wiredSinks: [], unsupported, warnings };
   const total = width * height;
   if (map.cells.length !== total) return result;
 
@@ -404,6 +406,15 @@ export function buildCc2Wires(map: Cc2Map): Cc2WireResult {
     for (const source of from) for (const sink of readers.get(root) ?? []) emit(source, sink);
   }
   for (const edge of direct) emit(edge.from, edge.to);
+
+  // Every sink a wire touches, whether or not a source feeds it: such a device is played in its wired form.
+  const reached = new Set<number>();
+  for (const list of readers.values()) for (const node of list) reached.add(node);
+  for (const edge of direct) reached.add(edge.to);
+  result.wiredSinks = [...reached]
+    .filter((index) => (cells[index] as CellInfo).role === 'sink')
+    .sort((a, b) => a - b)
+    .map((index) => ({ x: index % width, y: Math.floor(index / width) }));
 
   links.sort((a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX);
   unsupported.sort((a, b) => a.y - b.y || a.x - b.x || a.end.localeCompare(b.end));

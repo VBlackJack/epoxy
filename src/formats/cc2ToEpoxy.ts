@@ -65,7 +65,10 @@ import {
   TERRAIN_MAP,
   TRACK_JUNCTION,
   UNKNOWN_ID,
-  UNKNOWN_KEY
+  UNKNOWN_KEY,
+  WIRED_FLAME_JET_OFF,
+  WIRED_FLAME_JET_ON,
+  WIRED_TRAP
 } from './cc2Mapping';
 import type { Cc2TileMapping } from './cc2Mapping';
 import { buildCc2Wires, decodeCc2Gate } from './cc2Wires';
@@ -92,7 +95,6 @@ const EPOXY_RULESET = 'epoxy';
 const KEY_ARROW_BLOCK = 'arrow_block';
 const KEY_ARROW_BLOCK_LOCKED = 'arrow_block_locked';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
-const WIRED_SINK_KEYS: Readonly<Record<string, string>> = { trap: 'wired_trap', flame_jet: 'wired_flame_jet' };
 
 /** Track segments in the low bits of the track modifier (bit order not verified against a reference). */
 const TRACK_SEGMENTS: ReadonlyArray<{ bit: number; id: string }> = [
@@ -112,6 +114,8 @@ const WIRE_NIBBLE_MASK = 0x0f;
 /** Codes the converter reads by themselves. */
 const CODE_TRAP = 0x42;
 const CODE_OPEN_TRAP = 0x41;
+const CODE_FLAME_JET_OFF = 0x5f;
+const CODE_FLAME_JET_ON = 0x60;
 const CODE_CLONER_CC1 = 0x43;
 const CODE_CLONER = 0x44;
 const CODE_BUTTON_BROWN = 0x3a;
@@ -364,6 +368,10 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   let playerTile: Cc2Tile | undefined;
   let wiredDevices = false;
 
+  // The wires come first: a trap or flame jet that a wire reaches is placed in its wired form.
+  const wires = buildCc2Wires(map);
+  const wiredSinkCells = new Set(wires.wiredSinks.map((sink) => sink.y * width + sink.x));
+
   // The player is the first chip or Melinda in reading order; every other one is an inert placeholder.
   const parts: CellParts[] = map.cells.map(partsOf);
   parts.forEach((part, index) => {
@@ -399,7 +407,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
       const tile = part.terrain;
       if (tile !== undefined) {
         const code = tile.code;
-        const mapping = terrainMapping(tile, warnings, where);
+        const mapping = terrainMapping(tile, warnings, where, wiredSinkCells.has(index));
         terrainId = mapping.id;
         keys.add(mapping.key);
         if (code === CODE_SOCKET) hasSocket = true;
@@ -565,12 +573,9 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   }
 
   // Wires.
-  const wires = buildCc2Wires(map);
   warnings.push(...wires.warnings);
   for (const node of wires.unsupported) {
     warnings.push(`${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`);
-    const wiredKey = WIRED_SINK_KEYS[node.kind];
-    if (wiredKey !== undefined) keys.add(wiredKey);
   }
   if (wires.hasWires || wiredDevices) keys.add(KEY_WIRE);
   if (wires.hasTunnels) keys.add(KEY_WIRE_TUNNEL);
@@ -630,8 +635,13 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
 }
 
 /** The mapping of a terrain tile, with the cases that read the modifier. */
-function terrainMapping(tile: Cc2Tile, warnings: string[], where: string): Cc2TileMapping {
+function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired: boolean): Cc2TileMapping {
   const code = tile.code;
+  if (wired) {
+    if (code === CODE_TRAP || code === CODE_OPEN_TRAP) return WIRED_TRAP;
+    if (code === CODE_FLAME_JET_OFF) return WIRED_FLAME_JET_OFF;
+    if (code === CODE_FLAME_JET_ON) return WIRED_FLAME_JET_ON;
+  }
   if (code === CC2_CODE_TRACK) return trackMapping(tile.mod);
   if (code === CODE_LOGIC_GATE) {
     const gate = decodeCc2Gate(tile.mod);
