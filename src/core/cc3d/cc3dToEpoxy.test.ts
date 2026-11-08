@@ -218,7 +218,7 @@ const MOB_CASES: MobCase[] = [
   mobCase('baby_screamer', 'baby_screamer'),
   mobCase('snappy', 'snappy'),
   mobCase('nibble', 'nibble'),
-  mobCase('golem_blue', 'tank'),
+  mobCase('golem_blue', 'golem_blue'),
   mobCase('golem_yellow', 'puppet'),
   mobCase('laser_shooter', null),
   mobCase('bot_static', 'turret_fixed'),

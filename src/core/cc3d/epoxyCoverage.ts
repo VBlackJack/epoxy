@@ -103,7 +103,9 @@ const GATE_TOOLS_REASON =
 const GATE_KEYS_REASON =
   'The gate takes every key of the player who enters it, the green one included, and refuses ordinary blocks, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy refuses the ice block, which CC3D slides over the gate.';
 const GOLEM_BLUE_REASON =
-  'The golem walks straight on, stops at walls and at everything that blocks a monster, turns round at its control, and is carried by ice and force floors, as in CC3D, with the same path state by state (cc3dEvidenceDevices.test.ts). Differences: a CC3D golem crosses a cell in 4 ticks, an Epoxy one in 6; a CC3D golem stops before water and slime, where an Epoxy one walks in and is lost; a CC3D golem enters an open blue gate and makes a wall of an appearing wall, where an Epoxy one is refused; and a CC3D golem that reaches the player stops next to him, where an Epoxy one steps onto his cell. The golem presses a plate it stands on, as in CC3D.';
+  'Epoxy plays the blue golem as a monster of its own: straight on, never turning by itself, stopping at walls and at everything that blocks a monster, turning round at its control, a four-tick step, carried by ice and force floors, refusing water, fire and slime, entering turtles and sinking the one it leaves, pressing plates and switches.' +
+  ' Measured in cc3dEvidenceDevices.test.ts against the CC3D engine, state by state, in corridors with each of these, with a second golem, a golem control, an open blue gate and a clone machine. What differs without changing the path: a golem reaching the player stands next to him in CC3D and on his cell in Epoxy, and entering ice or a force floor is a fast step in CC3D and a normal one in Epoxy, and the Epoxy golem makes its first step three ticks after the CC3D one.' +
+  " A CC3D golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).";
 const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
 const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
@@ -208,7 +210,7 @@ const EXACT_KEYS: readonly string[] = [
   // A stack Epoxy holds exactly: see classifyStack.
   KEY_STACKED_TERRAIN,
   // The CC3D monsters that have an Epoxy monster of their own, measured by cc3dEvidenceMonsters.test.ts.
-  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble'
+  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble', 'golem_blue'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
@@ -236,7 +238,8 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   screamer: SCREAMER_REASON,
   baby_screamer: BABY_SCREAMER_REASON,
   snappy: SNAPPY_REASON,
-  nibble: NIBBLE_REASON
+  nibble: NIBBLE_REASON,
+  golem_blue: GOLEM_BLUE_REASON
 };
 
 const APPROX_ENTRIES: Record<string, string> = {
@@ -276,7 +279,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   bot_multi: BOT_REASON,
   golem_yellow: GOLEM_YELLOW_REASON,
   golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
-  golem_blue: GOLEM_BLUE_REASON,
   laser_controller: LASER_CONTROLLER_REASON,
   laser_shooter: LASER_SHOOTER_REASON
 };

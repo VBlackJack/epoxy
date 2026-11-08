@@ -273,6 +273,10 @@ entity walker_3d dir=N tick=3 b68f345722b65190
 entity walker_3d dir=E tick=3 36d2d8b4d7239a63
 entity walker_3d dir=S tick=3 3292d2c8788ac459
 entity walker_3d dir=W tick=3 88a96a86d2c83beb
+entity golem_blue dir=N tick=3 721b2a2171455764
+entity golem_blue dir=E tick=3 e303bbe742adf595
+entity golem_blue dir=S tick=3 a8fecf44b091d7dd
+entity golem_blue dir=W tick=3 5047202359c511a8
 item key_red tick=13 82bfb5eeb1aa2852
 item key_blue tick=13 b040abda3c0463ac
 item key_yellow tick=13 2e22c41c933df976
@@ -548,6 +552,10 @@ entity walker_3d dir=N tick=13 068f1165dacad800
 entity walker_3d dir=E tick=13 2e515fc6dba6ddc1
 entity walker_3d dir=S tick=13 ca29db8d2e23aba8
 entity walker_3d dir=W tick=13 f2eb0084af412ab4
+entity golem_blue dir=N tick=13 b8103c473cd018ce
+entity golem_blue dir=E tick=13 8a0ce9ee69edcb3f
+entity golem_blue dir=S tick=13 dba777df83897241
+entity golem_blue dir=W tick=13 1a424793f5e8a6a7
 player dir=N inWater=false alive=true frame=0 hop=0 94bd50eed422ccec
 player dir=N inWater=false alive=true frame=0 hop=0.3 31d6ab00cccd7111
 player dir=N inWater=false alive=true frame=1 hop=0 48398424e58c541a

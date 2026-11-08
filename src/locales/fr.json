@@ -5781,6 +5781,12 @@
         "label": "Va tout droit ; quand il est bloqué, il tire une direction au hasard et attend si ce chemin est bloqué aussi. Il avance en quatre tics. Il refuse d'entrer dans l'eau, le feu ou la bave. Il actionne les plaques et les interrupteurs et tue au contact."
       }
     },
+    "golem_blue": {
+      "name": "Golem bleu",
+      "desc": {
+        "label": "Avance tout droit et s'arrête devant un mur ou tout ce qui bloque un monstre ; il ne tourne pas tout seul. Un bouton bleu le fait faire demi-tour, et il fait demi-tour lui-même quand il marche sur un bouton. Il avance en quatre tics, est entraîné par la glace et les sols de force, actionne les plaques et les interrupteurs, et refuse d'entrer dans l'eau, le feu ou la bave. Il tue au contact."
+      }
+    },
     "mirror_chip": {
       "name": "Chip miroir",
       "desc": {
