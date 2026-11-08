@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.26.0] - 2026-11-08
+
 ### Fixed
 
 - CC2 import: a no-sign over the railroad sign plays as a new item-layer sign; a no-sign on a wall, a chip or a bomb is dropped (it could not stop anyone: chips and bombs are never held, a wall blocks anyway). No official or community CC2 level is lost any more.
