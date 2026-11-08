@@ -54,6 +54,10 @@ const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
 const NO_SIGN_REASON =
   'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
+const NO_SIGN_ITEM_REASON =
+  'Epoxy plays a no-sign over a carried item as a sign on the item layer: the item is not placed so it cannot be picked up, a player carrying it cannot enter the cell, and the terrain under it keeps working. Blocks carry nothing, so they pass; monsters do not enter a cell that holds an item, as in CC2. The bar follows Lexy\'s Labyrinth (no_sign in tiletypes.js) [unverified against CC2 itself].';
+const NO_SIGN_BONUS_REASON =
+  'A no-sign over a bonus flag, a stopwatch or the toggle clock bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth; the cell is then open to monsters (and, for the clock, to blocks), which an item would have kept out [unverified against CC2 itself].';
 const EXTRA_CHIP_REASON =
   'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =
@@ -135,6 +139,10 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   no_sign_key: NO_SIGN_REASON,
   // Epoxy: forbid_boots_ice/water/fire/force.
   no_sign_boots: NO_SIGN_REASON,
+  // Epoxy: no_sign_<item> on the item layer, for every item a player can carry.
+  no_sign_item: NO_SIGN_ITEM_REASON,
+  // Epoxy: the bonus or time item is dropped.
+  no_sign_bonus: NO_SIGN_BONUS_REASON,
   // Epoxy: button_gray_area.
   button_gray: 'Epoxy plays the CC2 gray button as a button that pulses every wire-capable device in its 5 x 5 square, linked or not; the exact reach and the pulse order are [unverified].',
   // Epoxy: trap_wired.
@@ -205,7 +213,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_CANOPY]:
     'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
   arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
-  no_sign: 'A no-sign over an item other than a key or boots (or over a cell that is not plain floor) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
+  no_sign: 'A no-sign over a chip, a bomb, a placeholder item (the railroad sign) or a wall has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };
 

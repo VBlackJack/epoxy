@@ -247,7 +247,7 @@ export class Pathfinder {
         // A barrier against an item the player carries stays solid along the whole path
         if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
         // A sign of the other character is a wall, and dirt or gravel asks Melinda for her boots.
-        if (nextTile.passableByPlayer && !engine.canPlayerStepOn(nextTile)) continue;
+        if (nextTile.passableByPlayer && !engine.canPlayerStepOn(nextTile, itemOnNext)) continue;
 
         // A thief on this step takes the boots before the cell's own hazard applies
         // A held toll token pays a thief that would take the boots, who then takes nothing; one token per visit.
@@ -444,7 +444,7 @@ export class Pathfinder {
         }
 
         if (!nextTile.passableByPlayer) continue;
-        if (!engine.canPlayerStepOn(nextTile)) continue;
+        if (!engine.canPlayerStepOn(nextTile, items[ny][nx])) continue;
         if (
           nextTile.hazard === 'fire' &&
           (!nextTile.protectedByItem || !player.boots.has(nextTile.protectedByItem))

@@ -493,16 +493,26 @@ export function isEdgeBlocked(
 
 /**
  * Whether the player may stand on a tile: it must be passable and must not
- * bar an item they carry. Walking and teleporting share this rule.
+ * bar an item they carry, on the terrain or through a no-sign on the item layer
+ * (itemId, the item of the same cell). Walking and teleporting share this rule.
  */
-export function canPlayerEnter(w: EpoxyWorld, tile: TileDefinition): boolean {
+export function canPlayerEnter(w: EpoxyWorld, tile: TileDefinition, itemId?: string | null): boolean {
   if (!tile.passableByPlayer) return false;
   const character = playerCharacterOf(w);
   // A gender sign is a wall for the other character; the boots a character needs on dirt and gravel are checked here too.
   if (tile.characterOnly !== undefined && tile.characterOnly !== character) return false;
   const neededBoots = tile.bootsForCharacter?.[character];
   if (neededBoots !== undefined && !w.player.boots.has(neededBoots)) return false;
-  return !(tile.forbiddenItem && holdsItem(w, tile.forbiddenItem));
+  if (tile.forbiddenItem && holdsItem(w, tile.forbiddenItem)) return false;
+  // A no-sign lying on the item layer bars the same way, and the terrain under it keeps working.
+  return !barsCarriedItem(w, itemId);
+}
+
+/** Whether the item layer holds a no-sign for an item the player carries. */
+function barsCarriedItem(w: EpoxyWorld, itemId: string | null | undefined): boolean {
+  if (!itemId) return false;
+  const barred = ConfigRegistry.getTile(itemId).forbiddenItem;
+  return barred !== undefined && holdsItem(w, barred);
 }
 
 /** The character the level is played with: Chip unless the level names another. */

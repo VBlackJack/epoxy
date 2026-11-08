@@ -29,7 +29,7 @@ import { DatCodec, datRefusalReason } from '../../formats/DatCodec';
 import en from '../../locales/en.json';
 import fr from '../../locales/fr.json';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { GRAY_BUTTON_RADIUS } from '../coreConstants';
+import { GRAY_BUTTON_RADIUS, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import { LevelValidator } from '../LevelValidator';
 import { isEpoxyOnlyItemId, isEpoxyOnlyTileId, isWiredDeviceTileId } from '../RulesetFeatures';
@@ -219,8 +219,9 @@ describe('wired devices: configuration', () => {
 
   it('adds pack format 13 for exactly these ids', () => {
     expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V13);
+    const noSigns = NO_SIGN_ITEM_IDS.map((id) => `${NO_SIGN_ITEM_PREFIX}${id}`);
     expect([...PACK_JSON_VERSION_V13_IDS].sort()).toEqual(
-      [...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_MONSTER_IDS, ...CC2_SIGNAL_IDS].sort()
+      [...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_MONSTER_IDS, ...CC2_SIGNAL_IDS, ...noSigns].sort()
     );
     expect(idSetVersionOf(room({ terrain: [[{ x: 3, y: 3 }, PURPLE_WALL]] }))).toBe(PACK_JSON_VERSION_V13);
     expect(idSetVersionOf(room())).toBe(0);
