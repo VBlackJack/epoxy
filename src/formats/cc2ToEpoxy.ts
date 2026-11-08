@@ -25,6 +25,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
+import { MELINDA_CHARACTER } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -57,6 +58,7 @@ import {
   GENDER_SIGN_MAP,
   ITEM_LOST_KEYS,
   ITEM_MAP,
+  KEY_MELINDA_PLAYER,
   KEY_NO_SIGN,
   KEY_NO_SIGN_EMPTY,
   NAND_GATE,
@@ -123,6 +125,8 @@ const CODE_BUTTON_RED = 0x39;
 const CODE_LOGIC_GATE = 0x5c;
 const CODE_STEEL_WALL = 0x50;
 const CODE_DYNAMITE = 0x51;
+/** The CC2 green chip; counted toward the chip requirement like the computer chips [medium confidence]. */
+const CODE_GREEN_CHIP = 0x84;
 const CODE_SOCKET = 0x2c;
 const TELEPORT_FIRST = 0x10;
 const TELEPORT_LAST = 0x13;
@@ -424,12 +428,6 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           }
         }
         if (code === TRANSMOGRIFIER && ((tile.mod ?? 0) & WIRE_NIBBLE_MASK) !== 0) wiredDevices = true;
-        const sign = GENDER_SIGN_MAP.get(code);
-        if (sign !== undefined) {
-          terrainId = FLOOR_ID;
-          itemId = sign.id;
-          keys.add(sign.key);
-        }
       } else {
         keys.add(UNKNOWN_KEY);
         terrainId = UNKNOWN_ID;
@@ -442,10 +440,9 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         const mapping = ITEM_MAP.get(code);
         if (lostKey !== undefined) keys.add(lostKey);
         else if (mapping !== undefined) {
-          if (itemId !== null) warnings.push(`item at ${where} replaced by a gender sign`);
-          else itemId = mapping.id;
+          itemId = mapping.id;
           keys.add(mapping.key);
-          if (code === CC2_CODE_COMPUTER_CHIP) chips += 1;
+          if (code === CC2_CODE_COMPUTER_CHIP || code === CODE_GREEN_CHIP) chips += 1;
           if (code === CODE_DYNAMITE) hasDynamite = true;
         } else {
           keys.add(KEY_UNKNOWN);
@@ -485,7 +482,10 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         const code = actor.code;
         const isPlayer = code === CC2_CODE_PLAYER || code === CC2_CODE_MELINDA;
         if (isPlayer && index === playerIndex) {
-          if (code === CC2_CODE_MELINDA) keys.add(RESERVED_PLAYER_ENTITIES.get(code)?.key ?? KEY_UNKNOWN);
+          // Melinda alone plays as the melinda character; next to a second player the level is lost anyway.
+          if (code === CC2_CODE_MELINDA) {
+            keys.add(playerCount === 1 ? KEY_MELINDA_PLAYER : (RESERVED_PLAYER_ENTITIES.get(code)?.key ?? KEY_UNKNOWN));
+          }
         } else {
           const placed = actorEntity(actor, isPlayer, warnings, where);
           if (placed.key !== undefined) keys.add(placed.key);
@@ -528,6 +528,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     };
   }
   if (playerCount > 1) keys.add(KEY_MULTIPLE_PLAYERS);
+  const melindaOnly = playerCount === 1 && playerTile?.code === CC2_CODE_MELINDA;
 
   // Trap and clone links: a button works the first trap or clone machine after it in reading order, wrapping round
   // [medium confidence: this is the CC2 rule as documented, not checked against the game].
@@ -600,6 +601,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     timeLimitSeconds: options.timeLimit ?? 0,
     // The chip count gates the socket only (Epoxy checks it nowhere else), so a level without a socket asks for none.
     chipsRequired: hasSocket ? chips : 0,
+    ...(melindaOnly ? { character: MELINDA_CHARACTER } : {}),
     playerStart,
     terrain,
     items,

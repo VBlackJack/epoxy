@@ -117,7 +117,7 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x4a, same('swivel_door_cc2_ne', 'swivel_door')],
   [0x4b, same('swivel_door_cc2_se', 'swivel_door')],
   [0x4e, same('transmogrifier')],
-  [0x50, same('wall', 'steel_wall')],
+  [0x50, same('steel_wall')],
   // The CC2 pink button is held: powered while an actor stands on it, which is the Epoxy pressure plate.
   [0x5e, same(SIGNAL_PLATE_ID, 'wire')],
   [0x5f, same('flame_jet_off', 'flame_jet')],
@@ -156,7 +156,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x4d, reserved('toggle_clock')],
   [0x51, same('charge', 'dynamite')],
   [0x52, same('ward', 'helmet')],
-  [0x59, reserved('hiking_boots')],
+  [0x59, same('hiking_boots')],
   [0x62, reserved('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],
   [0x6a, same('stopwatch_penalty', 'time_penalty')],
@@ -165,8 +165,8 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x7b, same('score_100', 'bonus_flag_100')],
   [0x7c, same('score_1000', 'bonus_flag_1000')],
   [0x80, same('score_2x', 'bonus_flag_2x')],
-  [0x83, reserved('green_bomb')],
-  [0x84, reserved('green_chip')],
+  [0x83, same('green_bomb')],
+  [0x84, same('green_chip')],
   [0x8c, reserved('steel_foil')],
   [0x8e, same('boots_eye', 'secret_eye')],
   [0x90, same('boots_speed', 'speed_boots')],
@@ -219,6 +219,8 @@ export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, C
 
 /** Player actors: Chip, Melinda and their mirror images. */
 export const CC2_CODE_MELINDA = 0x56;
+/** Coverage key of a level whose only player is Melinda: Epoxy plays it with the melinda character. */
+export const KEY_MELINDA_PLAYER = 'melinda_player';
 export const CC2_CODE_MIRROR_CHIP = 0x65;
 export const CC2_CODE_MIRROR_MELINDA = 0x66;
 /** Reserved entities for the players Epoxy does not drive. */
@@ -228,10 +230,10 @@ export const RESERVED_PLAYER_ENTITIES: ReadonlyMap<number, Cc2TileMapping> = new
   [CC2_CODE_MIRROR_MELINDA, reserved('mirror_melinda')]
 ]);
 
-/** Terrain-coded gender signs: they become a floor with the reserved sign as the item. */
+/** Terrain-coded gender signs: the male sign stops Melinda, the female sign stops Chip (terrain tiles in Epoxy). */
 export const GENDER_SIGN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
-  [0x5a, reserved('gender_sign_male')],
-  [0x5b, reserved('gender_sign_female')]
+  [0x5a, same('sign_chip_only', 'gender_sign_male')],
+  [0x5b, same('sign_melinda_only', 'gender_sign_female')]
 ]);
 
 /** The key of the lost placeholder for a code the table does not know. */

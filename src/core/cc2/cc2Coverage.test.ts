@@ -32,7 +32,8 @@ import {
 
 /** Reserved ids that a mapping plays as an Epoxy element instead of losing. */
 const MAPPED_RESERVED = [
-  'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray'
+  'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female'
 ];
 
 describe('cc2 coverage table', () => {
@@ -85,7 +86,9 @@ describe('classifyCc2Level', () => {
   it('reads the structural keys', () => {
     expect(classifyCc2Level([KEY_WIRE]).verdict).toBe('approx');
     expect(classifyCc2Level(['steel_wall']).verdict).toBe('exact');
-    expect(classifyCc2Level(['steel_wall', KEY_STEEL_WALL_DESTROYER]).verdict).toBe('lost');
+    expect(classifyCc2Level(['steel_wall', KEY_STEEL_WALL_DESTROYER]).verdict).toBe('approx');
+    expect(classifyCc2Level(['green_chip', 'green_bomb', 'button_green', 'melinda_player']).verdict).toBe('exact');
+    expect(classifyCc2Level(['melinda']).verdict).toBe('lost');
   });
 
   it('counts a key the table does not know as the unknown placeholder, which is lost', () => {
