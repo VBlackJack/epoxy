@@ -60,6 +60,10 @@ const BOLT = {
 } as const;
 /** The note inside a bribe badge: half width, half height and line width, in tiles, and the radius of the coin mark on it. */
 const BRIBE_NOTE = { halfWidth: 0.13, halfHeight: 0.085, line: 0.025, coin: 0.035 } as const;
+/** The sticks inside a dynamite badge: count, half height, bar width and spacing between bar centres, in tiles. */
+const DYNAMITE_STICKS = { count: 3, halfHeight: 0.1, width: 0.045, spacing: 0.07 } as const;
+/** The track inside a railroad sign badge: half length of the rails, their distance from the centre, the sleeper count and half length, and the line width, in tiles. */
+const RAIL_BADGE = { halfLength: 0.12, rail: 0.04, sleepers: 3, sleeperHalf: 0.075, line: 0.025 } as const;
 /** The rivets of a steel wall: inset from the corner, radius, and the inset of the plate outline, in tiles. */
 const RIVETS = { inset: 0.17, radius: 0.055, plateInset: 0.09, line: 0.03 } as const;
 /** The plate of a gender sign: half width, half height, corner radius and line width, in tiles. */
@@ -251,6 +255,43 @@ export function paintBribeBadge(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.fillStyle = colours.ink;
   disc(ctx, cx, cy, size * BRIBE_NOTE.coin);
   ctx.fill();
+  ctx.restore();
+}
+
+/** Dynamite: the badge holds a bundle of three upright sticks. */
+export function paintDynamiteBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.fillStyle = colours.ink;
+  const first = -((DYNAMITE_STICKS.count - 1) / 2) * DYNAMITE_STICKS.spacing;
+  for (let i = 0; i < DYNAMITE_STICKS.count; i++) {
+    const stickX = cx + size * (first + i * DYNAMITE_STICKS.spacing);
+    ctx.fillRect(stickX - (size * DYNAMITE_STICKS.width) / 2, cy - size * DYNAMITE_STICKS.halfHeight, size * DYNAMITE_STICKS.width, size * DYNAMITE_STICKS.halfHeight * 2);
+  }
+  ctx.restore();
+}
+
+/** A railroad sign: the badge holds a short piece of track, two rails across three sleepers. */
+export function paintRailBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, RAIL_BADGE.line);
+  ctx.beginPath();
+  for (const side of [-1, 1]) {
+    ctx.moveTo(cx - size * RAIL_BADGE.halfLength, cy + side * size * RAIL_BADGE.rail);
+    ctx.lineTo(cx + size * RAIL_BADGE.halfLength, cy + side * size * RAIL_BADGE.rail);
+  }
+  for (let sleeper = 0; sleeper < RAIL_BADGE.sleepers; sleeper++) {
+    const at = cx + size * RAIL_BADGE.halfLength * (((sleeper * 2) / (RAIL_BADGE.sleepers - 1)) - 1) * 0.8;
+    ctx.moveTo(at, cy - size * RAIL_BADGE.sleeperHalf);
+    ctx.lineTo(at, cy + size * RAIL_BADGE.sleeperHalf);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 

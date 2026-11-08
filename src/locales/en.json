@@ -4429,6 +4429,12 @@
         "label": "No-sign for the item \"Blast Charge\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
       }
     },
+    "no_sign_dynamite": {
+      "name": "No Sign: Dynamite",
+      "desc": {
+        "label": "No-sign for the item \"Dynamite\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
     "no_sign_pocket_gate": {
       "name": "No Sign: Pocket Gate",
       "desc": {
@@ -4540,6 +4546,18 @@
         "label": "Blasts a few seconds after it was dropped. It blocks nothing and cannot be picked up or pushed."
       }
     },
+    "dynamite": {
+      "name": "Dynamite",
+      "desc": {
+        "label": "Pick it up, then drop it where you want. It lights when you step off its cell and blasts about four seconds later. The blast covers a 5 by 5 square without its four far corners: it destroys every item, kills every monster, block and you, and turns walls, doors, water and other terrain into floor. Steel walls, sockets and logic gates resist."
+      }
+    },
+    "dynamite_lit": {
+      "name": "Lit Dynamite",
+      "desc": {
+        "label": "Blasts a few seconds after you left it. Another blast destroys it before it goes off. It blocks nothing and cannot be picked up."
+      }
+    },
     "pocket_gate": {
       "name": "Pocket Gate",
       "desc": {
@@ -4619,6 +4637,18 @@
       "name": "Bribe",
       "desc": {
         "label": "Pick it up and keep it. Each time you step on a thief, one bribe is spent and nothing is taken, whether it guards boots or keys. It cannot be set down, and a thief never takes it."
+      }
+    },
+    "rail_junction": {
+      "name": "Track Junction",
+      "desc": {
+        "label": "A Chip's Challenge 2 track cell with up to six track segments. You may only come in through a side a track opens, and you leave only along a track that joins the side you came in by; a blocked step is turned onto the track. A cell with a switch uses one track at a time and moves to the next when something leaves along the active track. Blocks may back out. The railroad sign ignores the tracks."
+      }
+    },
+    "railroad_sign": {
+      "name": "Railroad Sign",
+      "desc": {
+        "label": "Pick it up and keep it. While you hold it, track cells no longer limit where you come in or out. A thief takes it with the other boots."
       }
     },
     "score_10": {

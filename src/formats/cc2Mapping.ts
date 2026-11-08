@@ -154,13 +154,13 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x40, same('bomb')],
   [0x4c, same('stopwatch_bonus', 'time_bonus')],
   [0x4d, same('toggle_clock')],
-  [0x51, same('charge', 'dynamite')],
+  [0x51, same('dynamite')],
   [0x52, same('ward', 'helmet')],
   [0x59, same('hiking_boots')],
   [0x62, same('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],
   [0x6a, same('stopwatch_penalty', 'time_penalty')],
-  [0x6f, reserved('railroad_sign')],
+  [0x6f, same('railroad_sign')],
   [0x7a, same('score_10', 'bonus_flag_10')],
   [0x7b, same('score_100', 'bonus_flag_100')],
   [0x7c, same('score_1000', 'bonus_flag_1000')],
@@ -254,7 +254,7 @@ export const GENDER_SIGN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<numb
 /** The key of the lost placeholder for a code the table does not know. */
 export const UNKNOWN_KEY = 'unknown';
 
-/** Track junction placeholder (terrain). */
+/** Track junction placeholder (terrain). The importer no longer places it: a track cell is played as `rail_junction`. Kept for the reserved id. */
 export const TRACK_JUNCTION = reserved('track_junction');
 /** Reserved ids of the logic gates, kept for packs written before Epoxy played them (the converter no longer places them). */
 export const NAND_GATE = reserved('nand_gate');

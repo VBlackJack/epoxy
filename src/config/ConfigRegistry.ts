@@ -69,6 +69,7 @@ import {
   isRuleset,
   isBlockBudget,
   normalizeCellEdges,
+  normalizeRailTracks,
   normalizeLauncherLinks,
   normalizeUnderlays,
   registerTerrainTileLookup,
@@ -1481,6 +1482,7 @@ class ConfigRegistryService {
     }
 
     const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
+    const railTracks = normalizeRailTracks(bp.railTracks, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
     const launcherLinks = normalizeLauncherLinks(bp.launcherLinks, terrain, bp.ruleset, underlays);
     const signalLinks = normalizeSignalLinks(bp.signalLinks, terrain, bp.ruleset, underlays);
@@ -1515,6 +1517,7 @@ class ConfigRegistryService {
       terrain,
       items,
       ...(cellEdges ? { cellEdges } : {}),
+      ...(railTracks ? { railTracks } : {}),
       ...(underlays ? { underlays } : {}),
       ...(launcherLinks ? { launcherLinks } : {}),
       ...(signalLinks ? { signalLinks } : {}),

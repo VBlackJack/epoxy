@@ -34,7 +34,7 @@ import {
 const MAPPED_RESERVED = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
-  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'mirror_chip', 'mirror_melinda'
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'track_junction', 'railroad_sign', 'mirror_chip', 'mirror_melinda'
 ];
 
 describe('cc2 coverage table', () => {

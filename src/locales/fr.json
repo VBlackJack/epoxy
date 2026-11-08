@@ -4429,6 +4429,12 @@
         "label": "Panneau d'interdiction pour l'objet \"Charge Explosive\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
+    "no_sign_dynamite": {
+      "name": "Panneau Interdit : Dynamite",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Dynamite\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
     "no_sign_pocket_gate": {
       "name": "Panneau Interdit : Porte de poche",
       "desc": {
@@ -4540,6 +4546,18 @@
         "label": "Explose quelques secondes après avoir été posée. Elle ne bloque rien et ne peut être ni ramassée ni poussée."
       }
     },
+    "dynamite": {
+      "name": "Dynamite",
+      "desc": {
+        "label": "Ramassez-la, puis posez-la où vous voulez. Elle s'allume quand vous quittez sa case et explose environ quatre secondes plus tard. Le souffle couvre un carré de 5 sur 5 sans ses quatre coins éloignés : il détruit tous les objets, tue tous les monstres, les blocs et vous, et transforme les murs, les portes, l'eau et les autres terrains en sol nu. Les murs d'acier, les verrous de puces et les portes logiques résistent."
+      }
+    },
+    "dynamite_lit": {
+      "name": "Dynamite Allumée",
+      "desc": {
+        "label": "Explose quelques secondes après que vous l'avez quittée. Un autre souffle la détruit avant qu'elle n'explose. Elle ne bloque rien et ne peut pas être ramassée."
+      }
+    },
     "pocket_gate": {
       "name": "Porte de poche",
       "desc": {
@@ -4619,6 +4637,18 @@
       "name": "Pot-de-vin",
       "desc": {
         "label": "Ramassez-le et gardez-le. Chaque fois que vous marchez sur un voleur, un pot-de-vin est dépensé et rien n'est pris, que le voleur garde des bottes ou des clés. Il ne se dépose pas et un voleur ne le prend jamais."
+      }
+    },
+    "rail_junction": {
+      "name": "Jonction de voies",
+      "desc": {
+        "label": "Une case de voies de Chip's Challenge 2 avec jusqu'à six tronçons. On n'y entre que par un côté qu'une voie ouvre, et on n'en sort que le long d'une voie qui rejoint le côté d'entrée ; un pas bloqué est dévié sur la voie. Une case à aiguillage n'utilise qu'une voie à la fois et passe à la suivante quand quelque chose en sort le long de la voie active. Les blocs peuvent reculer. Le panneau de chemin de fer ignore les voies."
+      }
+    },
+    "railroad_sign": {
+      "name": "Panneau de chemin de fer",
+      "desc": {
+        "label": "Ramassez-le et gardez-le. Tant que vous le portez, les cases de voies ne limitent plus par où vous entrez et sortez. Un voleur le prend avec les autres bottes."
       }
     },
     "score_10": {

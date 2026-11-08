@@ -72,7 +72,7 @@ describe('paletteAvailability', () => {
         def.toggleChannel !== undefined ||
         def.floatingBlockColor !== undefined ||
         (def.buttonAction !== undefined && COLOUR_BUTTON_ACTIONS.includes(def.buttonAction));
-      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined || def.collectible === 'charge' || def.litCharge !== undefined || def.collectible === 'gate' || def.collectible === 'stone' || def.collectible === 'token' || def.portableTeleporter !== undefined || def.relayPad !== undefined || def.wireTogglesTo !== undefined || def.wiredTrap !== undefined || def.buttonAction === 'pulse_wired_area' || def.itemTogglesTo !== undefined || def.blastProof === true || def.characterOnly !== undefined || def.turnsWallsTo !== undefined || def.togglesTimer === true || id === 'hiking_boots' || (def.layer === 'item' && def.forbiddenItem !== undefined);
+      const isEpoxyOnlyItem = def.slowsMonsters !== undefined || def.hastesPlayer !== undefined || def.revealsHiddenWalls !== undefined || def.pullsBlocks !== undefined || def.absorbsMonsterContact !== undefined || def.collectible === 'charge' || def.litCharge !== undefined || def.collectible === 'gate' || def.collectible === 'stone' || def.collectible === 'token' || def.portableTeleporter !== undefined || def.relayPad !== undefined || def.wireTogglesTo !== undefined || def.wiredTrap !== undefined || def.buttonAction === 'pulse_wired_area' || def.itemTogglesTo !== undefined || def.blastProof === true || def.characterOnly !== undefined || def.turnsWallsTo !== undefined || def.togglesTimer === true || id === 'hiking_boots' || (def.layer === 'item' && def.forbiddenItem !== undefined) || id === 'railroad_sign';
       const isSteeringPad = def.buttonAction === 'steer_monsters';
       const isShotDevice = def.shotLauncher !== undefined || def.buttonAction === 'fire_launchers';
       const isSwivelDoor = def.swivelTurns !== undefined;
@@ -80,7 +80,7 @@ describe('paletteAvailability', () => {
       const isTurnPlate = def.facingTurn !== undefined;
       const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
       const isForceCycle = def.forceCycle === true;
-      const isRail = def.railSides !== undefined;
+      const isRail = def.railSides !== undefined || def.railJunction === true;
       const result = tileAvailability('lynx', id);
       expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle || isRail));
       if (!result.available) blocked.push(id);

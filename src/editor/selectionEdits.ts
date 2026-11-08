@@ -15,8 +15,9 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, SignalLink, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, RailTrackCell, SignalLink, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
+import { canonicalRailTracks, removeRailTracksWhere, replaceRailTracks } from './editorRailTracks';
 import { cloneMap, EditorMap } from './editorDocument';
 import type { Brush } from './editorTools';
 import { canonicalLauncherLinks, pruneLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
@@ -60,6 +61,15 @@ export interface ClipEdge {
   canopy?: true;
 }
 
+/** The track segments of one track cell of a clip, positioned relative to the clip's top-left cell. */
+export interface ClipRailTrack {
+  dx: number;
+  dy: number;
+  mask: number;
+  active?: number;
+  entry?: Direction;
+}
+
 /** The terrain hidden under one cell of a clip, positioned relative to the clip's top-left cell. */
 export interface ClipUnderlay {
   dx: number;
@@ -80,6 +90,8 @@ export interface Clip {
   entities: ClipEntity[];
   /** Thin walls of the clipped cells; absent when none has any. A Lynx level has no such walls, so they are dropped there. */
   edges?: ClipEdge[];
+  /** Track segments of the clipped track cells; absent when none. A Lynx level has no track cells, so they are dropped there. */
+  railTracks?: ClipRailTrack[];
   /** Terrain hidden under the clipped cells; absent when none hides any. A Lynx level has no hidden terrain, so it is dropped there. */
   underlays?: ClipUnderlay[];
   /** Brown button to trap links with both ends inside the clip, in clip-relative cells; absent when none. */
@@ -186,6 +198,7 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       cloneLinks: map.cloneLinks,
       playerStart: map.playerStart,
       cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
+      railTracks: canonicalRailTracks(map.railTracks, map.terrain) ?? [],
       underlays: canonicalUnderlays(map.underlays, map.terrain) ?? [],
       launcherLinks: canonicalLauncherLinks(map.launcherLinks, map.terrain, map.underlays) ?? [],
       signalLinks: canonicalSignalLinks(map.signalLinks, map.terrain) ?? []
@@ -215,6 +228,10 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
   const edges: ClipEdge[] = (map.cellEdges ?? [])
     .filter((e) => rectContains(rect, e.x, e.y))
     .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) }));
+  const railTracks: ClipRailTrack[] = (map.railTracks ?? [])
+    .filter((t) => rectContains(rect, t.x, t.y))
+    .map((t) => ({ ...t, dx: t.x - rect.x, dy: t.y - rect.y }))
+    .map(({ x: _x, y: _y, ...rest }) => rest);
   const underlays: ClipUnderlay[] = (map.underlays ?? [])
     .filter((u) => rectContains(rect, u.x, u.y))
     .map((u) => ({ dx: u.x - rect.x, dy: u.y - rect.y, terrain: u.terrain }));
@@ -262,6 +279,7 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     items,
     entities,
     ...(edges.length > 0 ? { edges } : {}),
+    ...(railTracks.length > 0 ? { railTracks } : {}),
     ...(underlays.length > 0 ? { underlays } : {}),
     ...(trapLinks.length > 0 ? { trapLinks } : {}),
     ...(cloneLinks.length > 0 ? { cloneLinks } : {}),
@@ -281,6 +299,7 @@ function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number)
   }
   map.entities = map.entities.filter((e) => !rectContains(rect, e.x, e.y) || keep(e.x, e.y));
   removeEdgesWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
+  removeRailTracksWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
   removeUnderlaysWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
 }
 
@@ -395,6 +414,16 @@ function stampClip(
     else pastedEdges.push({ x, y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) });
   }
   if (keptEdges.length !== (map.cellEdges?.length ?? 0) || pastedEdges.length > 0) replaceEdges(map, [...keptEdges, ...pastedEdges]);
+  const keptRails = (map.railTracks ?? []).filter((t) => !writtenCells.has(`${t.x},${t.y}`));
+  const pastedRails: RailTrackCell[] = [];
+  for (const t of clip.railTracks ?? []) {
+    const x = originX + t.dx;
+    const y = originY + t.dy;
+    if (!writtenCells.has(`${x},${y}`)) continue;
+    if (ruleset === 'lynx') skipped++;
+    else pastedRails.push({ x, y, mask: t.mask, ...(t.active !== undefined ? { active: t.active } : {}), ...(t.entry !== undefined ? { entry: t.entry } : {}) });
+  }
+  if (keptRails.length !== (map.railTracks?.length ?? 0) || pastedRails.length > 0) replaceRailTracks(map, [...keptRails, ...pastedRails]);
   const keptUnderlays = (map.underlays ?? []).filter((u) => !writtenCells.has(`${u.x},${u.y}`));
   const pastedUnderlays: CellUnderlay[] = [];
   for (const u of clip.underlays ?? []) {
@@ -766,6 +795,8 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     }
   }
   const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
+  // A cell that stops being a track cell loses its tracks.
+  if (brush.kind === 'terrain' && map.railTracks) replaceRailTracks(map, map.railTracks);
   if (anyHidden) droppedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return {
     map,

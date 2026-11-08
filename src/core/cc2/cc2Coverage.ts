@@ -72,6 +72,12 @@ const STEEL_FOIL_REASON =
   'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
 const TOGGLE_CLOCK_REASON =
   'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
+const DYNAMITE_REASON =
+  'Epoxy plays dynamite with the CC2 blast of the Lexy Labyrinth engine: lit once the player leaves the cell, a fuse of 85 ticks, a 5 x 5 square without its far corners that destroys items and turns terrain into floor (steel wall, socket and logic gates resist, creatures are killed). Differences: a lit dynamite is an item in Epoxy, so it blocks nothing and never slides on ice or force floors; thin walls on the cells are not destroyed and canopies do not shield their cell; a cracked floor would become a hole but Epoxy has no such tile; a no-sign on the cell does not stop the lighting; a lit dynamite does not block re-entry of its cell; the explosion animation does not block the player; the fuse may be one tick off [unverified].';
+const TRACK_REASON =
+  'Epoxy plays a CC2 track cell as a track cell of its own (rail_junction): entering only through a side an open track touches, leaving only along a track that joins the side of entry (a block may back out), a blocked step of the player, a pushed block or a monster turned right, left then back, and a switch that advances when an actor leaves along the active track or a gray button works. The validator and the hints read a track cell as open floor (they over-approximate). Deviations: the thin walls of the cell are not read when a step is turned, the ghost leaves no entry side, and the importer links no wire to a switch (a gray button works it) [unverified against the game: the rules are those of the Lexy Labyrinth engine].';
+const RAILROAD_SIGN_REASON =
+  'Epoxy plays the railroad sign as boots: the player who holds it ignores the track cells (enters and leaves on any side, is never turned, and still moves the switches). A thief takes it with the other boots, as in CC2.';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 
@@ -98,7 +104,7 @@ const EXACT_KEYS: readonly string[] = [
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe',
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate'
 ];
 
@@ -126,6 +132,7 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   extra_chip: EXTRA_CHIP_REASON,
   green_chip: GREEN_CHIP_REASON,
   bribe: BRIBE_REASON,
+  railroad_sign: RAILROAD_SIGN_REASON,
   melinda_player: MELINDA_PLAYER_REASON,
   gender_sign_male: GENDER_SIGN_REASON,
   gender_sign_female: GENDER_SIGN_REASON
@@ -136,9 +143,9 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   steel_foil: STEEL_FOIL_REASON,
   // Epoxy: toggle_clock.
   toggle_clock: TOGGLE_CLOCK_REASON,
-  // Epoxy: steel_wall next to dynamite.
+  // Epoxy: steel_wall next to a destroyer other than dynamite; the importer no longer sets this key for dynamite.
   [KEY_STEEL_WALL_DESTROYER]:
-    'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist blasts, but the dynamite itself is approximate [unverified].',
+    'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist dynamite as CC2 does, and the time bomb is not played [unverified].',
   // Epoxy: forbid_key_red/blue/yellow/green.
   no_sign_key: NO_SIGN_REASON,
   // Epoxy: forbid_boots_ice/water/fire/force.
@@ -163,8 +170,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   bowling_ball: 'Epoxy plays the bowling ball as a hurl stone: it flies the same way but its range and what it breaks differ [unverified].',
   // Epoxy: ward.
   helmet: 'Epoxy plays the helmet as a ward, which absorbs the first monster contact; the CC2 helmet protects against other things too [unverified]. The reserved id cc2_helmet stays available for a stricter import.',
-  // Epoxy: charge.
-  dynamite: 'Epoxy plays dynamite as a blast charge: the blast rules differ from CC2 [unverified].',
+  // Epoxy: dynamite and dynamite_lit.
+  dynamite: DYNAMITE_REASON,
   // Epoxy: boots_speed.
   speed_boots: 'Epoxy plays the speed boots as its own speed boots; the speed gain and the ice and force floor behaviour may differ [unverified].',
   // Epoxy: boots_pull.
@@ -184,7 +191,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: turtle.
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical [unverified].',
   // Epoxy: rail_* pieces and rail_switch_a/b.
-  track: 'Epoxy rail pieces cover the plain CC2 track; switch and junction behaviour differ [unverified].',
+  track: TRACK_REASON,
+  track_junction: TRACK_REASON,
   // Epoxy: puppet (steered by the puppet control).
   yellow_tank: 'Epoxy plays the yellow tank as a puppet steered by the puppet control; the step order differs [unverified].',
   button_yellow: 'Epoxy plays the yellow button as the puppet control; only the player works it [unverified].',
@@ -227,7 +235,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
-  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'mirror_chip', 'mirror_melinda'
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'track_junction', 'railroad_sign', 'mirror_chip', 'mirror_melinda'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };

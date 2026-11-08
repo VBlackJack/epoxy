@@ -150,10 +150,13 @@ describe('terrain, items and entities', () => {
   });
 
   it('keeps reserved ids for what Epoxy lacks', () => {
-    const { level, coverage, report } = convert([put(1, 0, { code: 0x6f }, { code: FLOOR_CODE })]);
-    expect(level.items[0][1]).toBe('cc2_railroad_sign');
+    const { level, coverage, report } = convertCc2Map(
+      makeMap(5, 3, [player(1, 0, DIR_S), player(2, 2, DIR_E, MELINDA)]),
+      OPTIONS
+    );
+    expect(level.entities).toEqual([{ x: 2, y: 2, type: 'cc2_melinda', dir: 'E' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['railroad_sign']);
+    expect(coverage.lost).toEqual(['melinda', 'multiple_players']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -252,7 +255,7 @@ describe('terrain, items and entities', () => {
     ]);
     expect(level.terrain[0].slice(1, 6)).toEqual(['floor', 'floor', 'floor', 'floor', 'floor']);
     expect(level.items[0].slice(1, 6)).toEqual([
-      'no_sign_charge', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
+      'no_sign_dynamite', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
     ]);
     expect(coverage.lost).toEqual([]);
     expect(coverage.approx).toContain('no_sign_item');
@@ -306,38 +309,50 @@ describe('terrain, items and entities', () => {
     expect(coverage.verdict).toBe('exact');
   });
 
-  it('reads a track with one segment as a rail and several as a junction', () => {
+  it('reads every track as a track cell and keeps its segments in the level', () => {
     const { level, coverage } = convert([put(1, 0, modTile(0x4f, 0x10)), put(2, 0, modTile(0x4f, 0x11))]);
-    expect(level.terrain[0][1]).toBe('rail_ew');
-    expect(level.terrain[0][2]).toBe('cc2_track_junction');
-    expect(coverage.lost).toContain('track_junction');
+    expect(level.terrain[0][1]).toBe('rail_junction');
+    expect(level.terrain[0][2]).toBe('rail_junction');
+    expect(level.railTracks).toEqual([
+      { x: 1, y: 0, mask: 0x10 },
+      { x: 2, y: 0, mask: 0x11 }
+    ]);
+    expect(coverage.lost).not.toContain('track_junction');
     expect(coverage.approx).toContain('track');
+    expect(coverage.approx).toContain('track_junction');
   });
 
-  it('reads each track bit as its Lexy railroad segment', () => {
-    const expected: ReadonlyArray<readonly [number, string]> = [
-      [0x01, 'rail_ne'],
-      [0x02, 'rail_se'],
-      [0x04, 'rail_sw'],
-      [0x08, 'rail_nw'],
-      [0x10, 'rail_ew'],
-      [0x20, 'rail_ns']
-    ];
-    for (const [bit, id] of expected) {
-      expect(convert([put(1, 0, modTile(0x4f, bit))]).level.terrain[0][1], `bit 0x${bit.toString(16)}`).toBe(id);
+  it('keeps each track bit as its Lexy railroad segment', () => {
+    for (let bit = 0; bit < 6; bit++) {
+      const { level, coverage } = convert([put(1, 0, modTile(0x4f, 1 << bit))]);
+      expect(level.railTracks, `bit ${bit}`).toEqual([{ x: 1, y: 0, mask: 1 << bit }]);
+      // One segment and no switch is a plain track; the junction key is for several segments or a switch.
+      expect(coverage.approx, `bit ${bit}`).toContain('track');
+      expect(coverage.approx, `bit ${bit}`).not.toContain('track_junction');
     }
   });
 
-  it('ignores the switch flag and the active track bits when a track has one segment', () => {
+  it('reads the switch flag, the active track and the entered side', () => {
     const switched = 0x40 | 0x02 | (1 << 8) | (2 << 12);
-    expect(convert([put(1, 0, modTile(0x4f, switched))]).level.terrain[0][1]).toBe('rail_se');
+    const { level, coverage } = convert([put(1, 0, modTile(0x4f, switched))]);
+    // Moving south when it came in: it entered from the north.
+    expect(level.railTracks).toEqual([{ x: 1, y: 0, mask: 0x02, active: 1, entry: 'N' }]);
+    expect(coverage.approx).toContain('track_junction');
   });
 
-  it('approximates a steel wall only next to dynamite', () => {
+  it('plays the railroad sign as the Epoxy item', () => {
+    const { level, coverage, report } = convert([put(1, 0, { code: 0x6f }, { code: FLOOR_CODE })]);
+    expect(level.items[0][1]).toBe('railroad_sign');
+    expect(coverage.lost).not.toContain('railroad_sign');
+    expect(report.exact).toContain('railroad_sign');
+  });
+
+  it('plays a steel wall next to dynamite as dynamite alone is played', () => {
     expect(convert([put(1, 0, { code: STEEL_WALL })]).coverage.verdict).toBe('exact');
     const withDynamite = convert([put(1, 0, { code: STEEL_WALL }), put(2, 0, { code: DYNAMITE }, { code: FLOOR_CODE })]);
     expect(withDynamite.coverage.lost).toEqual([]);
-    expect(withDynamite.coverage.approx).toEqual(['dynamite', 'steel_wall_with_destroyer']);
+    expect(withDynamite.coverage.approx).toEqual(['dynamite']);
+    expect(withDynamite.level.items[0][2]).toBe('dynamite');
   });
 });
 
@@ -801,7 +816,7 @@ describe('the validator', () => {
     const clean = LevelValidator.validate(exact.level);
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
     const lost = convertCc2Map(
-      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0x6f }, { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
+      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, actorTile(0x65, DIR_W), { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
       OPTIONS
     );
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);

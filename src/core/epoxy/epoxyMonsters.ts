@@ -34,6 +34,7 @@ import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
+import { railRedirect } from './epoxyRailsCc2';
 import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -113,13 +114,15 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     return true;
   }
 
-  const vec = DIRECTION_VECTORS[chosenDir];
+  // On a Chip's Challenge 2 track cell the step the monster chose is turned onto the track (the identity elsewhere).
+  const moveDir = phases || floorFree ? chosenDir : railRedirect(w, entity.x, entity.y, chosenDir, 'walker');
+  const vec = DIRECTION_VECTORS[moveDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
-  if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, chosenDir);
+  if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
   entity.x = nx;
   entity.y = ny;
-  entity.dir = chosenDir;
+  entity.dir = moveDir;
 
   return phases ? resolvePhasedArrival(ctx, entity) : resolveMonsterArrival(ctx, entity, true);
 }
@@ -369,7 +372,12 @@ function canopyStopsStep(w: EpoxyWorld, def: EntityDefinition | undefined, fromX
  * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
  * entity check to the caller, which pushes the block in the way (a steered puppet).
  */
-export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction, ignoreOccupant = false): boolean {
+export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction, ignoreOccupant = false): boolean {
+  // On a track cell the step is judged where it would really go: turned onto the track, as the move itself will be.
+  const dir =
+    ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true
+      ? wanted
+      : railRedirect(w, monster.x, monster.y, wanted, 'walker');
   const vec = DIRECTION_VECTORS[dir];
   const nx = monster.x + vec.dx;
   const ny = monster.y + vec.dy;

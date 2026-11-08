@@ -132,6 +132,8 @@ export interface PlayEngine {
   getTimeRemainingSeconds(): number;
   /** Optional. Whether a toggle clock holds the level timer; undefined on a level without one. An engine without toggle clocks omits it. */
   isTimerPaused?(): boolean | undefined;
+  /** Optional. The Chip's Challenge 2 track cells as [cell index, active segment or -1, entry side], by cell; undefined on a level without any. An engine without track cells omits it. */
+  getRailState?(): readonly (readonly [number, number, Direction])[] | undefined;
   /** Optional. Ticks a toggle clock held the level timer so far; 0 or absent without one. */
   getPausedTicks?(): number;
   getTimedMoveHistory(): TimedMove[];

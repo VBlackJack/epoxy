@@ -21,6 +21,8 @@ import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, togg
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
+import { railEdgeBlocked } from './epoxyRailsCc2';
+import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
 import {
   BeamCell,
@@ -97,12 +99,19 @@ export interface EpoxyWorld {
    * actor leaves. Empty at load.
    */
   swivelEntry: Map<number, Direction>;
+  /**
+   * The Chip's Challenge 2 track cells by cell index (y * width + x): their segments, the active one of a switch and the
+   * side the last actor came in by (see epoxyRailsCc2). Empty on a level without track cells.
+   */
+  railCells: Map<number, RailCellState>;
   /** One bit per covered toggle family, set while an odd number of presses happened; 0 at load. */
   toggleParity: number;
   /** Arrivals counted so far on turning force floors, by any actor; picks the next direction of the shared turn. 0 at load. */
   forceCycleTurn: number;
   /** The blast charges dropped and not yet blasted, in the order they were lit; empty on a level without charges. */
   litCharges: LitCharge[];
+  /** True when the level places dynamite, which can turn terrain into floor; fixed for the level. */
+  hasDynamite: boolean;
   /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
   hasForceCycle: boolean;
   /** True when the level places a toggle clock; fixed for the level. Only such a level counts paused ticks. */
@@ -206,9 +215,11 @@ export function createEpoxyWorld(): EpoxyWorld {
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
     swivelEntry: new Map<number, Direction>(),
+    railCells: new Map<number, RailCellState>(),
     toggleParity: 0,
     forceCycleTurn: 0,
     litCharges: [],
+    hasDynamite: false,
     hasForceCycle: false,
     hasToggleClock: false,
     timerPaused: false,
@@ -274,6 +285,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
   w.litCharges = [];
+  w.hasDynamite = w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
   w.hasForceCycle = false;
   w.hasToggleClock = false;
   w.timerPaused = false;
@@ -348,6 +360,31 @@ export function playerHaste(w: EpoxyWorld): number {
     factor = Math.max(factor, ConfigRegistry.getTile(bootId).hastesPlayer ?? NORMAL_PLAYER_HASTE);
   }
   return factor;
+}
+
+/**
+ * Lists the devices of the grid again, from the terrain as it is now. Dynamite turns terrain into floor, so a device it
+ * destroyed must leave the lists the laser, hold door, plate and teleporter passes walk. A device hidden under a removable
+ * top stays listed, as at load.
+ */
+export function rebuildDeviceLookups(w: EpoxyWorld): void {
+  w.holdTrapButtons = [];
+  w.targetCells = [];
+  w.laserEmitters = [];
+  w.laserReceivers = [];
+  w.laserGates = [];
+  w.plates = [];
+  w.holdDoors = [];
+  w.teleportersByGroup.clear();
+  const coversTargets = w.level.winRule === 'targets';
+  const width = mapWidth(w);
+  for (let y = 0; y < w.terrain.length; y++) {
+    for (let x = 0; x < w.terrain[y].length; x++) {
+      registerDevices(w, x, y, w.terrain[y][x], coversTargets);
+      const hidden = underlayAt(w.underlays, width, x, y);
+      if (hidden !== undefined) registerDevices(w, x, y, hidden, coversTargets);
+    }
+  }
 }
 
 /** Lists the cell in the device lookups its terrain belongs to. */
@@ -486,9 +523,12 @@ export function isEdgeBlocked(
   toX: number,
   toY: number,
   dir: Direction,
-  beam = false
+  beam = false,
+  rail: RailActor = 'walker'
 ): boolean {
-  return isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam);
+  if (isEdgeBlockedAt(w.terrain, w.edgeMask, fromX, fromY, toX, toY, dir, beam)) return true;
+  // The tracks of a Chip's Challenge 2 track cell stop walkers, slides and blocks, never a beam or a shot.
+  return !beam && w.railCells.size > 0 && railEdgeBlocked(w, fromX, fromY, toX, toY, dir, rail);
 }
 
 /**

@@ -338,6 +338,8 @@ editor tile shot_launcher_w closed=true 46c8e0635a855da3
 editor tile shot_launcher_w closed=false 74ae1c1a8fb963a0
 editor tile shot_trigger closed=true cfd184a207bbc4c9
 editor tile shot_trigger closed=false d2bd1dbcfa87c41d
+editor tile rail_junction closed=true 9717b873456bd062
+editor tile rail_junction closed=false 03e4e5e64688929d
 editor tile key_red closed=true fcf2f6844705adce
 editor tile key_red closed=false e54d12f07389b5c2
 editor tile key_blue closed=true 9605ed2bf8a796e6
@@ -404,6 +406,8 @@ editor tile stopwatch_bonus closed=true c529ac9e69374b19
 editor tile stopwatch_bonus closed=false 874392fc5dc3ba27
 editor tile stopwatch_penalty closed=true 015c551deb989019
 editor tile stopwatch_penalty closed=false f4fedbcb53dafae1
+editor tile railroad_sign closed=true a780ee2991269705
+editor tile railroad_sign closed=false a4ff910cef6f8485
 editor tile no_sign_key_red closed=true 53e40553f3fa1ade
 editor tile no_sign_key_red closed=false 9d2f34d09e2e7398
 editor tile no_sign_key_blue closed=true 7d11d45805efa739
@@ -446,6 +450,12 @@ editor tile no_sign_bribe closed=true 0172a04bf04cda4b
 editor tile no_sign_bribe closed=false 7dd6eb71e50e74bb
 editor tile no_sign_lightning_bolt closed=true d2ee7061eb5b6158
 editor tile no_sign_lightning_bolt closed=false ec26316c0e76cecf
+editor tile dynamite closed=true 8585804ccadd130f
+editor tile dynamite closed=false f6038f52eaca074d
+editor tile dynamite_lit closed=true b2bc9e27a00d8650
+editor tile dynamite_lit closed=false d1dcce342f4ee147
+editor tile no_sign_dynamite closed=true e8ee0a539a6e7132
+editor tile no_sign_dynamite closed=false 597c5806bf369f79
 editor item over floor key_red b0d4f3e59d0bd250
 editor item over floor key_blue 11e82955f69caaa2
 editor item over floor key_yellow 6ad2a1f35a95607e
@@ -479,6 +489,7 @@ editor item over floor score_1000 4ae5379dde6659cd
 editor item over floor score_2x e472dfbb164517ee
 editor item over floor stopwatch_bonus 0b955a8d6e026b55
 editor item over floor stopwatch_penalty 499276a08264d0b7
+editor item over floor railroad_sign c356185849da63f3
 editor item over floor no_sign_key_red 0ad4e857807b2389
 editor item over floor no_sign_key_blue 91667d00ff7c0dc5
 editor item over floor no_sign_key_yellow 92f79eea7f1d11b6
@@ -500,6 +511,9 @@ editor item over floor no_sign_toll_token 4f5de3812465faca
 editor item over floor no_sign_steel_foil 08361ee5e3bf9285
 editor item over floor no_sign_bribe 8d0c5d3f6f364a15
 editor item over floor no_sign_lightning_bolt c4a4b11cadf7574d
+editor item over floor dynamite 9ed75916e2f493af
+editor item over floor dynamite_lit aedc9d7dfa4d1004
+editor item over floor no_sign_dynamite 96f2906498747d45
 editor entity over floor dirt_block cc7c815bcdf41ac0
 editor entity over floor arrow_block_one 3eafadf248729945
 editor entity over floor arrow_block_line da097a1e6e0dae1d

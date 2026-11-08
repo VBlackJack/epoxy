@@ -29,6 +29,7 @@ import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
+import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -59,17 +60,21 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): bool
   return tile.slideType === 'force' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem));
 }
 
-export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
-  const moved = attemptPlayerStep(ctx, dir, fromSlide);
+export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
+  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   const w = ctx.world;
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
-  if (w.player.alive && !w.levelCompleted) steerMirrors(ctx, dir);
+  // They copy the requested direction, before any track redirect of the player's own cell.
+  if (w.player.alive && !w.levelCompleted) steerMirrors(ctx, requestedDir);
   return moved;
 }
 
-/** The player's own step in `dir`: the checks of the cell ahead, the push of a block and the arrival. */
-function attemptPlayerStep(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
+/** The player's own step toward `requestedDir`: the track redirect, the checks of the cell ahead, the push of a block and the arrival. */
+function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
+  // On a Chip's Challenge 2 track cell a step the tracks refuse is turned onto the track (the identity elsewhere).
+  const rail = playerRailActor(w);
+  const dir = railRedirect(w, w.player.x, w.player.y, requestedDir, rail);
   w.player.dir = dir;
   const vec = DIRECTION_VECTORS[dir];
   const targetX = w.player.x + vec.dx;
@@ -80,7 +85,7 @@ function attemptPlayerStep(ctx: EpoxyContext, dir: Direction, fromSlide: boolean
     return false;
   }
 
-  if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir)) {
+  if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir, false, rail)) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }

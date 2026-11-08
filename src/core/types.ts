@@ -47,6 +47,8 @@ export interface TimingConfig {
   maxUndoSnapshots: number;
   /** Ticks from the moment a blast charge is dropped to its blast. */
   chargeFuseTicks: number;
+  /** Ticks from the moment the player leaves the dynamite they set down to its blast. */
+  dynamiteFuseTicks: number;
   /** Ticks a thrown hurl stone takes to cross one cell (a whole number of at least 1). */
   hurlStepTicks: number;
   timeBonusMultiplier: number;
@@ -1106,6 +1108,12 @@ export interface TileDefinition {
    * the door turns behind the actor to close the side it came in by).
    */
   swivelRule?: 'cc2';
+  /**
+   * A Chip's Challenge 2 track cell (terrain): up to six track segments, held per cell in the level's `railTracks`.
+   * Whoever enters must come in through a side an active track opens; it leaves only along a track that joins the side
+   * it came in by (see epoxyRailsCc2). The tile itself closes no side, so beams, shots and the checkers see it as open floor.
+   */
+  railJunction?: boolean;
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
   /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
@@ -1164,10 +1172,17 @@ export interface TileDefinition {
    */
   countsAsChip?: boolean;
   /**
-   * A wall that no blast destroys (the steel wall). Blast charges never remove terrain today, so the flag has no effect on
-   * play yet; it is what a future terrain-breaking blast reads.
+   * A wall that no blast destroys (the steel wall). The blast charge never removes terrain; dynamite does, and spares a
+   * tile flagged blastProof or survivesDynamite.
    */
   blastProof?: boolean;
+  /** Terrain that dynamite leaves as it is although it is no blast-proof wall (the socket and the logic gates). */
+  survivesDynamite?: boolean;
+  /**
+   * Chip's Challenge 2 dynamite, set on the item the player carries and on the lit form it turns into: a blast that
+   * clears items and terrain in a diamond-shaped region (see epoxyDynamite.ts), not the square of the blast charge.
+   */
+  cc2Dynamite?: boolean;
   /**
    * Boots only (the steel foil): while held, a player who bumps a wall whose id is a key here turns it into the tile named by
    * the value, and does not move. Every target must be an impassable terrain, so the foil never opens a way. The boots stay held.
@@ -1709,6 +1724,8 @@ export interface LevelBlueprint {
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
   cellEdges?: CellEdge[];
+  /** Track segments of the Chip's Challenge 2 track cells (Epoxy ruleset only); see CompiledLevel.railTracks. */
+  railTracks?: RailTrackCell[];
   /** Terrain hidden under a removable top (Epoxy ruleset only); see CompiledLevel.underlays. */
   underlays?: CellUnderlay[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
@@ -1756,6 +1773,21 @@ export interface CellEdge {
    * when true; a canopy on a cell with no thin wall is an entry with no side.
    */
   canopy?: true;
+}
+
+/**
+ * The track segments of one Chip's Challenge 2 track cell (terrain `rail_junction`, Epoxy ruleset only). `mask` holds one
+ * bit per segment in the order of the Lexy's Labyrinth railroad: bit 0 north-east, 1 south-east, 2 south-west, 3 north-west,
+ * 4 east-west, 5 north-south. A cell with a switch has an `active` segment (0 to 5, the bit number): only that segment
+ * is open until the switch advances. `entry` is the side an actor standing on the cell at the start came in by;
+ * absent means the south side (the track modifier's default of an actor that came in moving north).
+ */
+export interface RailTrackCell {
+  x: number;
+  y: number;
+  mask: number;
+  active?: number;
+  entry?: Direction;
 }
 
 /**
@@ -1916,6 +1948,11 @@ export interface CompiledLevel {
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
   cellEdges?: CellEdge[];
+  /**
+   * The track segments of the Chip's Challenge 2 track cells, one entry per cell whose terrain is `rail_junction`
+   * (Epoxy ruleset only); absent when the level has none.
+   */
+  railTracks?: RailTrackCell[];
   /** Terrain hidden under a removable top, one entry per cell (Epoxy ruleset only); absent when the level has none. */
   underlays?: CellUnderlay[];
   entities: EntityPlacement[];
@@ -1988,6 +2025,10 @@ export interface TimedMove {
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
 export interface LitCharge extends GridPoint {
   detonateTick: number;
+  /** Dynamite: the blast follows the Chip's Challenge 2 rules and the fuse is the dynamite fuse. Absent on a blast charge. */
+  dynamite?: true;
+  /** Dynamite set down but not lit yet: the fuse starts once the player leaves the cell. Absent otherwise. */
+  awaitingDeparture?: true;
 }
 
 export interface UndoSnapshot {
@@ -2034,6 +2075,8 @@ export interface UndoSnapshot {
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
   swivelEntry?: [number, Direction][];
+  /** The state of the track cells: [cell index, active segment or -1 without a switch, side the last actor came in by]; written only on a level that has track cells. */
+  railState?: [number, number, Direction][];
   /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
   timerPaused?: boolean;
   /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */

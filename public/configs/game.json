@@ -683,6 +683,7 @@
     "animationFrameTicks": 4,
     "maxUndoSnapshots": 300,
     "chargeFuseTicks": 60,
+    "dynamiteFuseTicks": 85,
     "hurlStepTicks": 1,
     "timeBonusMultiplier": 10,
     "levelBasePoints": 500,
