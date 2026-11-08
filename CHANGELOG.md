@@ -19,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor: gate ports are visible and editable. Connections rows of a data latch or counter name each wire's role (data, clock, count up, count down, overflow, underflow), a Swap ports button exchanges them (undoable), the device overlay tags each arrow with its port, and the validator warns about a data latch without clock or data and a counter that only counts down with no wire on its underflow output. Both locales.
 - Level editor: a Canopy brush in the Terrain tab (Epoxy rules): a click toggles the CC2 canopy on a cell and keeps its thin walls, a drag applies the first cell's choice along the stroke, the eraser clears it. Both locales.
 - Chip's Challenge 2 mirror players (Epoxy rules, pack format 13): mirror Chip and mirror Melinda copy every move the player of their character attempts (blocked ones included), follow that character's terrain rules, open the doors of their own key colour (green for Chip's, yellow for Melinda's), pick up keys and tools but not chips, push one block, press buttons, die on hazards without ending the level, and kill the player on contact. The CC2 import maps them. Both locales.
 - Tools: `npm run import:cc3d` converts a folder of Chuck's Challenge 3D pack folders (XML levels) offline into one native CC3D pack and one Epoxy-rules pack per folder, with a coverage report per pack; level passwords can be carried over from older packs by map id (`CC3D_META_DIR`).

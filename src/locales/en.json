@@ -1713,6 +1713,15 @@
       "signal_gate_no_input": {
         "label": "Error: A signal gate at ({x}, {y}) ({count} in all) has no input link."
       },
+      "signal_dlatch_no_clock": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has no clock link, so it never captures its data."
+      },
+      "signal_dlatch_no_data": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has a clock link but no data link, so it can only store off."
+      },
+      "signal_counter_no_up": {
+        "label": "Warning: A counter at ({x}, {y}) ({count} in all) is wired to count down only but its underflow output goes nowhere, so it can never do anything."
+      },
       "signal_cycle": {
         "label": "Error: Signal links loop back on themselves at ({x}, {y}) ({count} cells in all). Signals cannot loop."
       },
@@ -1927,6 +1936,12 @@
   },
   "editor": {
     "cell_speech": {
+      "port_input": {
+        "label": "{role} input from ({x}, {y})"
+      },
+      "port_output": {
+        "label": "{role} output to ({x}, {y})"
+      },
       "list_separator": {
         "label": ", "
       },
@@ -1994,6 +2009,42 @@
         "w": {
           "label": "west"
         }
+      }
+    },
+    "signal_ports": {
+      "data": {
+        "label": "data",
+        "tag": "D"
+      },
+      "clock": {
+        "label": "clock",
+        "tag": "CK"
+      },
+      "count_up": {
+        "label": "count up",
+        "tag": "+"
+      },
+      "count_down": {
+        "label": "count down",
+        "tag": "-"
+      },
+      "overflow": {
+        "label": "overflow",
+        "tag": "OV"
+      },
+      "underflow": {
+        "label": "underflow",
+        "tag": "UN"
+      },
+      "both": {
+        "label": "{output} > {input}"
+      },
+      "swap": {
+        "action_input": "Swap inputs",
+        "action_output": "Swap outputs",
+        "aria_input": "Swap the input ports of {name} ({x}, {y})",
+        "aria_output": "Swap the output ports of {name} ({x}, {y})",
+        "done": "Ports swapped on {name} ({x}, {y})."
       }
     },
     "connections": {

@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, TileDefinition } from './types';
 import { BOMB_ITEM_ID, CHIP_ITEM_ID, GRAY_BUTTON_RADIUS, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { canonicalSignalPort } from './signalPorts';
 import { underlayAt, underlayMap } from './Underlays';
 
 /**
@@ -94,6 +95,8 @@ export interface Relation {
   channel?: string;
   /** Present (true) only on the 'level' edges of the fallbacks: from any brown button (linked or not) to an unlinked trap, and from an unlinked red button to every machine with a template. */
   fallback?: true;
+  /** Signal links only: the canonical port text of the wire (see canonicalSignalPort), present only when it names a port other than the first. */
+  port?: string;
 }
 
 /** Which facet of a cell gave its device role: the visible top, the terrain hidden under it, or an entity. */
@@ -153,6 +156,7 @@ interface Edge {
   system: RelationSystem;
   channel?: string;
   fallback?: true;
+  port?: string;
 }
 
 interface TileAt extends Cell {
@@ -298,7 +302,7 @@ function levelIndex(level: DeviceLevel): LevelIndex {
 
 function buildEdges(level: DeviceLevel): Edge[] {
   const edges: Edge[] = [];
-  const add = (from: Cell, to: Cell, kind: RelationKind, system: RelationSystem, channel?: string, fallback?: true): void => {
+  const add = (from: Cell, to: Cell, kind: RelationKind, system: RelationSystem, channel?: string, fallback?: true, port?: string): void => {
     if (from.x === to.x && from.y === to.y && system !== 'swap') return;
     edges.push({
       from: { x: from.x, y: from.y },
@@ -306,7 +310,8 @@ function buildEdges(level: DeviceLevel): Edge[] {
       kind,
       system,
       ...(channel !== undefined ? { channel } : {}),
-      ...(fallback ? { fallback } : {})
+      ...(fallback ? { fallback } : {}),
+      ...(port !== undefined ? { port } : {})
     });
   };
 
@@ -331,7 +336,7 @@ function buildEdges(level: DeviceLevel): Edge[] {
 
   for (const l of level.signalLinks ?? []) {
     if (inBounds(level, l.fromX, l.fromY) && inBounds(level, l.toX, l.toY)) {
-      add({ x: l.fromX, y: l.fromY }, { x: l.toX, y: l.toY }, 'link', 'signal');
+      add({ x: l.fromX, y: l.fromY }, { x: l.toX, y: l.toY }, 'link', 'signal', undefined, undefined, canonicalSignalPort(l.port));
     }
   }
 
@@ -409,7 +414,8 @@ function compareRelations(a: Relation, b: Relation): number {
     a.kind.localeCompare(b.kind) ||
     a.system.localeCompare(b.system) ||
     (a.channel ?? '').localeCompare(b.channel ?? '') ||
-    Number(a.fallback === true) - Number(b.fallback === true)
+    Number(a.fallback === true) - Number(b.fallback === true) ||
+    (a.port ?? '').localeCompare(b.port ?? '')
   );
 }
 
@@ -417,7 +423,7 @@ function uniqueSorted(relations: Relation[]): Relation[] {
   const seen = new Set<string>();
   const out: Relation[] = [];
   for (const r of [...relations].sort(compareRelations)) {
-    const key = `${r.x},${r.y},${r.kind},${r.system},${r.channel ?? ''},${r.fallback === true}`;
+    const key = `${r.x},${r.y},${r.kind},${r.system},${r.channel ?? ''},${r.fallback === true},${r.port ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(r);
@@ -463,7 +469,8 @@ export function deviceRelations(level: DeviceLevel, x: number, y: number): Devic
     kind: e.kind,
     system: e.system,
     ...(e.channel !== undefined ? { channel: e.channel } : {}),
-    ...(e.fallback ? { fallback: true as const } : {})
+    ...(e.fallback ? { fallback: true as const } : {}),
+    ...(e.port !== undefined ? { port: e.port } : {})
   });
   const controls = (index.outgoing.get(cell) ?? []).map((e) => toRelation(e.to, e));
   const controlledBy = (index.incoming.get(cell) ?? []).map((e) => toRelation(e.from, e));

@@ -181,6 +181,7 @@ import {
   CHANNEL_NAME_KEYS,
   type ConnectionList,
   type ConnectionRow,
+  type ConnectionSwap,
   type ConnectionUnlink,
   type ConnectionView,
   type ConnectionLink,
@@ -191,6 +192,10 @@ import {
   systemNameKey
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
+import type { DeviceOverlayTags } from './deviceOverlay';
+import { gateKindOfTile, PORT_ROLE_LABEL_KEYS, SIGNAL_PORT_KEYS } from './signalPortRoles';
+import type { WirePortRoles } from './signalPortRoles';
+import { swapGatePorts } from './signalPortEdits';
 import { datLinkCapNotice } from './datLinkCap';
 import {
   CC3D_MECHANISM_HELP_ROWS,
@@ -302,6 +307,14 @@ import {
   EDITOR_RELATION_COLORS,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
   EDITOR_CLONER_BADGE_BACKING,
+  EDITOR_PORT_TAG_ALONG_TILE,
+  EDITOR_PORT_TAG_FILL_COLOR,
+  EDITOR_PORT_TAG_FONT_FAMILY,
+  EDITOR_PORT_TAG_LANE_TILE,
+  EDITOR_PORT_TAG_FONT_TILE,
+  EDITOR_PORT_TAG_MIN_TILE_PX,
+  EDITOR_PORT_TAG_OUTLINE_COLOR,
+  EDITOR_PORT_TAG_STROKE_WIDTH,
   EDITOR_CLONER_BADGE_TILE,
   EDITOR_CC3D_LINK_COLORS,
   EDITOR_CC3D_OVERLAY_ALPHA,
@@ -5088,10 +5101,18 @@ export class LevelEditor {
   /** The words of a row: the other cell's name and place, how they are wired, which mechanism, which colour. */
   private connectionRowText(row: ConnectionRow): string {
     const channel = row.channel === undefined ? [] : [CHANNEL_NAME_KEYS[row.channel] ? t(CHANNEL_NAME_KEYS[row.channel]) : row.channel];
-    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(row.systemNameKey ?? systemNameKey(row.system)), ...channel].join(
+    const ports = row.ports ? [this.portRolesText(row.ports)] : [];
+    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(row.systemNameKey ?? systemNameKey(row.system)), ...channel, ...ports].join(
       t(LIST_SEPARATOR_KEY)
     );
     return t(CONNECTIONS_ROW_KEY, { name: t(row.name.key, row.name.params), x: row.x, y: row.y, detail });
+  }
+
+  /** The words for the ports a signal wire joins: the output it leaves, the input it enters, or both. */
+  private portRolesText(ports: WirePortRoles): string {
+    const out = ports.out === undefined ? undefined : t(PORT_ROLE_LABEL_KEYS[ports.out]);
+    const input = ports.in === undefined ? undefined : t(PORT_ROLE_LABEL_KEYS[ports.in]);
+    return out !== undefined && input !== undefined ? t(SIGNAL_PORT_KEYS.both, { output: out, input }) : (out ?? input ?? '');
   }
 
   private connectionRowItem(row: ConnectionRow): HTMLLIElement {
@@ -5128,7 +5149,44 @@ export class LevelEditor {
       });
       item.appendChild(btn);
     }
+    for (const swap of row.swaps ?? []) item.appendChild(this.swapPortsButton(swap));
     return item;
+  }
+
+  /** The Swap ports button of a row: turns the ports of one side of the data latch or counter the wire joins. */
+  private swapPortsButton(swap: ConnectionSwap): HTMLButtonElement {
+    const name = t(connectionCellName(this.doc, swap.cell.x, swap.cell.y).key);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hud-btn small';
+    btn.dataset.action = 'swap-ports';
+    btn.textContent = t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapActionInput : SIGNAL_PORT_KEYS.swapActionOutput);
+    btn.setAttribute(
+      'aria-label',
+      t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapAriaInput : SIGNAL_PORT_KEYS.swapAriaOutput, { name, x: swap.cell.x, y: swap.cell.y })
+    );
+    btn.addEventListener('click', () => {
+      btn.focus({ preventScroll: true });
+      this.swapGatePortsAt(swap);
+    });
+    return btn;
+  }
+
+  /** Swaps the ports of one side of a gate, as one undoable edit, and says so. */
+  private swapGatePortsAt(swap: ConnectionSwap): void {
+    if (this.stroke || this.isCc3d()) return;
+    const base = this.doc;
+    const result = swapGatePorts(base, swap.cell, swap.side);
+    if (!result.changed) {
+      this.connectionsKey = '';
+      this.render();
+      return;
+    }
+    this.doc = withEditedMap(base, result.map);
+    this.recordChange(base);
+    const name = connectionCellName(base, swap.cell.x, swap.cell.y);
+    this.setStatusText(t(SIGNAL_PORT_KEYS.swapDone, { name: t(name.key, name.params), x: swap.cell.x, y: swap.cell.y }));
+    this.render();
   }
 
   private markConnectionRow(cell: { x: number; y: number } | null): void {
@@ -6653,6 +6711,42 @@ export class LevelEditor {
     this.ctx.fill();
   }
 
+  /** The port tags of a signal wire: the output port beside its start, the input port beside its head. */
+  private drawPortTags(from: { x: number; y: number }, to: { x: number; y: number }, tags: DeviceOverlayTags, lane: number, s: number): void {
+    if (s < EDITOR_PORT_TAG_MIN_TILE_PX) return;
+    const c = EDITOR_TILE_CENTER_OFFSET;
+    const x0 = (from.x + c) * s;
+    const y0 = (from.y + c) * s;
+    const x1 = (to.x + c) * s;
+    const y1 = (to.y + c) * s;
+    const length = Math.hypot(x1 - x0, y1 - y0);
+    if (length === 0) return;
+    const along = Math.min(EDITOR_PORT_TAG_ALONG_TILE * s, length / 2);
+    const ux = (x1 - x0) / length;
+    const uy = (y1 - y0) / length;
+    // Tags of wires between the same two cells sit on separate lanes beside the arrow, never on top of each other.
+    const side = EDITOR_PORT_TAG_LANE_TILE * s * (lane + 1);
+    const nx = -uy * side;
+    const ny = ux * side;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.font = `bold ${EDITOR_PORT_TAG_FONT_TILE * s}px ${EDITOR_PORT_TAG_FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = EDITOR_PORT_TAG_STROKE_WIDTH;
+    ctx.strokeStyle = EDITOR_PORT_TAG_OUTLINE_COLOR;
+    ctx.fillStyle = EDITOR_PORT_TAG_FILL_COLOR;
+    const place = (key: string, x: number, y: number): void => {
+      const text = t(key);
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+    };
+    if (tags.from) place(tags.from, x0 + ux * along + nx, y0 + uy * along + ny);
+    if (tags.to) place(tags.to, x1 - ux * along + nx, y1 - uy * along + ny);
+    ctx.restore();
+  }
+
   /** A bar on one side of a cell: the side a click in the thin wall mode would toggle. */
   private drawSideHint(cell: { x: number; y: number }, side: Direction, s: number): void {
     const x0 = cell.x * s;
@@ -6747,9 +6841,12 @@ export class LevelEditor {
       const key = `${cell.x},${cell.y}`;
       if (drawn.has(key)) continue;
       drawn.add(key);
-      const overlay = deviceOverlayFor(deviceRelations(this.doc, cell.x, cell.y), cell);
+      const overlay = deviceOverlayFor(deviceRelations(this.doc, cell.x, cell.y), cell, (point) => gateKindOfTile(this.doc.terrain[point.y]?.[point.x]));
       for (const target of overlay.highlights) this.outlineCell(target.x, target.y, EDITOR_RELATION_COLORS[target.system], s);
-      for (const arrow of overlay.arrows) this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
+      for (const arrow of overlay.arrows) {
+        this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
+        if (arrow.tags) this.drawPortTags(arrow.from, arrow.to, arrow.tags, arrow.lane ?? 0, s);
+      }
     }
     if (rowCell) this.outlineCell(rowCell.x, rowCell.y, EDITOR_HOVER_OUTLINE_COLOR, s, EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH);
     this.ctx.restore();
