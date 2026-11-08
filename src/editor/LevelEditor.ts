@@ -384,6 +384,7 @@ const SEPARATOR_BETWEEN_MESSAGES = ' ';
 const SEPARATOR_BETWEEN_PARTS = ', ';
 /** Status keys of a selection fill that cannot go ahead (their texts live in the locale files). */
 const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cell_edge';
+const MESSAGE_FILL_REFUSED_CANOPY = 'editor.selection.status.fill_refused_canopy';
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
 const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
@@ -1764,7 +1765,9 @@ export class LevelEditor {
     }
 
     if (category === TERRAIN_CATEGORY) {
-      add({ kind: 'cell_edge', id: CANOPY_BRUSH_ID }, t('editor.palette.tools.canopy'), () => this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE));
+      add({ kind: 'cell_edge', id: CANOPY_BRUSH_ID }, t('editor.palette.tools.canopy'), () =>
+        this.renderer.renderIconToDataUrl('canopy', CANOPY_BRUSH_ID)
+      );
       add({ kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID }, t('editor.palette.tools.cell_edge'), () =>
         this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
       );
@@ -5776,6 +5779,8 @@ export class LevelEditor {
         return { key: refusal.reasonKey };
       case 'cell_edge':
         return { key: MESSAGE_FILL_REFUSED_CELL_EDGE };
+      case 'canopy':
+        return { key: MESSAGE_FILL_REFUSED_CANOPY };
       case 'unsupported':
         return { key: MESSAGE_FILL_REFUSED_ENTRY };
     }

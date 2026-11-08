@@ -7037,7 +7037,8 @@ export class PixelRenderer {
     ctx.closePath();
   }
 
-  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity' | 'player', id: string, dir: Direction = ICON_FACING): string {
+  /** The picture of a palette entry; the 'canopy' kind is a floor cell under the roof the editor draws (its id is unused). */
+  public renderIconToDataUrl(kind: 'tile' | 'item' | 'entity' | 'player' | 'canopy', id: string, dir: Direction = ICON_FACING): string {
     const iconSize = this.getSettings().iconPixelSize;
     const canvas = document.createElement('canvas');
     canvas.width = iconSize;
@@ -7056,6 +7057,9 @@ export class PixelRenderer {
     } else if (kind === 'player') {
       this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
       this.drawPlayer(ctx, 0, 0, iconSize, dir, false, true);
+    } else if (kind === 'canopy') {
+      this.drawTile(ctx, FLOOR_TILE_ID, 0, 0, iconSize, true, true);
+      this.drawCanopy(ctx, 0, 0, iconSize);
     }
     return canvas.toDataURL();
   }
