@@ -1016,6 +1016,23 @@
         "label": "Game board"
       }
     },
+    "players": {
+      "group": {
+        "label": "Players"
+      },
+      "current": {
+        "label": "Player: {name}"
+      },
+      "character_chip": {
+        "label": "Chip"
+      },
+      "character_melinda": {
+        "label": "Melinda"
+      },
+      "summary": {
+        "label": "{remaining} on the map, {exited} out"
+      }
+    },
     "inventory": {
       "keys": {
         "label": "ACCESS KEYS"
@@ -1131,6 +1148,9 @@
       },
       "stone": {
         "action": "Throw a Hurl Stone"
+      },
+      "swap": {
+        "action": "Swap players"
       },
       "chips": {
         "short": "CHIPS"
@@ -1287,6 +1307,12 @@
       },
       "replay_action": {
         "action": "Watch Solution Replay"
+      },
+      "swap_done": {
+        "label": "Now playing {name} ({remaining} on the map)"
+      },
+      "swap_refused": {
+        "label": "No other player to swap to"
       },
       "replaying_banner": {
         "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control"
@@ -1530,6 +1556,9 @@
       "kb_items": {
         "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item"
       },
+      "kb_swap": {
+        "label": "V: Swap to the next player (levels with several players)"
+      },
       "kb_fov_options": {
         "label": "Zoom: Options > Essential > Zoom"
       },
@@ -1664,6 +1693,12 @@
       },
       "unreachable_exit": {
         "label": "Error: The Exit Portal is blocked or unreachable."
+      },
+      "player_unreachable_exit": {
+        "label": "Error: Player {player} cannot reach the Exit Portal, even with what the other players can collect."
+      },
+      "players_share_start": {
+        "label": "Warning: Two players start on the same cell ({x}, {y})."
       },
       "unreachable_chips_proven": {
         "label": "Warning: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable by the simulation, but the stored solution wins."
@@ -1987,6 +2022,31 @@
         "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
       }
     },
+    "extra_players": {
+      "heading": "Second player at ({x}, {y})",
+      "character": {
+        "legend": "Character",
+        "chip": {"label": "Chip"},
+        "melinda": {"label": "Melinda"}
+      },
+      "remove": {
+        "action": "Remove this player"
+      },
+      "rotate": {
+        "hint": "Press Shift+R to turn this player a quarter turn."
+      },
+      "count": {
+        "label": "{count, plural, one {# player} other {# players}}"
+      },
+      "status": {
+        "on_start": {"label": "A second player cannot start on the player start cell."},
+        "too_many": {"label": "A level has at most {count} more players: remove one first."},
+        "start_on_extra": {"label": "The player start cannot move onto the start of another player."},
+        "rotated": {"label": "Player at ({x}, {y}) turned to face {side}."},
+        "character": {"label": "Player at ({x}, {y}) is now {name}."},
+        "removed": {"label": "Player at ({x}, {y}) removed."}
+      }
+    },
     "cell_speech": {
       "port_input": {
         "label": "{role} input from ({x}, {y})"
@@ -2011,6 +2071,9 @@
       },
       "player": {
         "label": "Player start, facing {side}"
+      },
+      "extra_player": {
+        "label": "Second player, {name}, facing {side}"
       },
       "cloner": {
         "label": "clones {name} facing {side}"
@@ -3393,6 +3456,7 @@
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
         "dropped_links": "{count, plural, one {# link was} other {# links were}} removed.",
         "start_moved": "The player start was moved inside the level.",
+        "dropped_players": "{count, plural, one {# second player was} other {# second players were}} removed.",
         "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
         "dropped_underlays": "{count, plural, one {# cell lost its hidden terrain} other {# cells lost their hidden terrain}}.",
         "border_kept": "The outer ring was closed with walls."
@@ -3467,6 +3531,9 @@
       },
       "character_melinda": {
         "label": "Melinda (no sliding on ice, hiking boots needed on dirt and gravel)"
+      },
+      "players": {
+        "label": "Players"
       },
       "win_rule_exit": {
         "label": "Reach the exit"
@@ -3580,6 +3647,12 @@
         },
         "player_start_desc": {
           "label": "Where the player begins the level. There is only one: placing it again moves it."
+        },
+        "extra_player_start": {
+          "label": "Second Player"
+        },
+        "extra_player_start_desc": {
+          "label": "The start of another player, for a level played by several characters you swap between. Click to place one, then pick its character in the Cell section; the direction control sets its facing. The eraser removes it."
         },
         "canopy": {
           "label": "Canopy"

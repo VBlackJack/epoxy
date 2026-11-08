@@ -15,6 +15,7 @@
  */
 
 import { isDirection, isFiniteNumber, isRecord } from '../config/ConfigValidation';
+import type { PlayEngine } from '../core/PlayEngine';
 import { TimedMove } from '../core/types';
 
 export interface DueMoves {
@@ -35,6 +36,17 @@ export function collectDueMoves(moves: readonly TimedMove[], startIndex: number,
     idx++;
   }
   return { due, nextIndex: idx };
+}
+
+/** Applies one recorded action to the engine: a drop, a swap of players, or a move. */
+export function applyTimedMove(engine: PlayEngine, move: TimedMove): void {
+  if (move.drop) {
+    engine.dropItem(move.drop);
+  } else if (move.swap === true) {
+    engine.swapPlayer?.();
+  } else {
+    engine.attemptPlayerMove(move.dir);
+  }
 }
 
 /**

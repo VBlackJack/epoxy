@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-import { Direction } from '../core/types';
+import { EXTRA_PLAYERS_MAX } from '../core/coreConstants';
+import { Direction, PlayerCharacter } from '../core/types';
 import { clonerTemplateMessage } from './cellDescription';
 import { CanopyMode, hasCanopyAt, toggleCanopyAt } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
+import { extraPlayerAt } from './editorExtraPlayers';
+import { defaultExtraCharacter, placeExtraPlayer } from './extraPlayerEdits';
 import {
   eraseCell,
   floodFillTerrain,
@@ -33,10 +36,13 @@ export type EditorTool = 'brush' | 'fill' | 'eraser' | 'picker' | 'select';
 
 export const EDITOR_TOOLS: readonly EditorTool[] = ['brush', 'fill', 'eraser', 'picker', 'select'];
 
-export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'cell_edge';
+export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'extra_player_start' | 'cell_edge';
 
 /** Id of the thin wall entry of the Epoxy palette (the CC3D palettes keep their own 'panel' entry). */
 export const CELL_EDGE_BRUSH_ID = 'cell_edge';
+
+/** Id of the entry of the Epoxy palette that places the start of another player. */
+export const EXTRA_PLAYER_BRUSH_ID = 'extra_player_start';
 
 /** Id of the canopy entry of the Epoxy palette: a cell_edge brush that edits the roof flag instead of a side. */
 export const CANOPY_BRUSH_ID = 'canopy';
@@ -58,6 +64,9 @@ export const MESSAGE_UNDERLAYS_REMOVED = 'editor.layout.status.underlays_removed
 export const MESSAGE_UNDERLAYS_ERASED = 'editor.layout.status.underlays_erased.label';
 export const MESSAGE_START_KEPT = 'editor.layout.status.start_kept';
 export const MESSAGE_FILL_NEEDS_TERRAIN = 'editor.layout.status.fill_needs_terrain';
+export const MESSAGE_EXTRA_ON_START = 'editor.extra_players.status.on_start.label';
+export const MESSAGE_EXTRA_TOO_MANY = 'editor.extra_players.status.too_many.label';
+export const MESSAGE_START_ON_EXTRA = 'editor.extra_players.status.start_on_extra.label';
 
 export interface ToolInput {
   map: EditorMap;
@@ -72,6 +81,8 @@ export interface ToolInput {
   forceErase?: boolean;
   /** Canopy brush only: a drag puts the canopy on (or takes it off) every cell it crosses, as its first cell did. */
   canopyMode?: CanopyMode;
+  /** Second player brush only: the character a new start takes. */
+  extraCharacter?: PlayerCharacter;
 }
 
 export interface ToolOutcome {
@@ -148,7 +159,19 @@ export function applyTool(input: ToolInput): ToolOutcome {
     case 'entity':
       return fromEdit(paintEntity(map, x, y, brush.id, dir));
     case 'player_start':
+      // Two starts never share a cell: the main start does not move onto the start of another player.
+      if (extraPlayerAt(map, x, y)) return { map, changed: false, messages: [{ key: MESSAGE_START_ON_EXTRA }] };
       return fromEdit(paintPlayerStart(map, x, y, dir));
+    case 'extra_player_start': {
+      const placed = placeExtraPlayer(map, x, y, dir, input.extraCharacter ?? defaultExtraCharacter(undefined));
+      const refusal =
+        placed.refusal === 'on_start'
+          ? [{ key: MESSAGE_EXTRA_ON_START }]
+          : placed.refusal === 'too_many'
+            ? [{ key: MESSAGE_EXTRA_TOO_MANY, params: { count: EXTRA_PLAYERS_MAX } }]
+            : [];
+      return { map: placed.map, changed: placed.changed, messages: refusal };
+    }
     case 'cell_edge':
       if (brush.id === CANOPY_BRUSH_ID) return paintCanopy(map, x, y, input.canopyMode ?? 'toggle');
       return fromEdit(toggleCellEdge(map, x, y, input.side ?? dir));

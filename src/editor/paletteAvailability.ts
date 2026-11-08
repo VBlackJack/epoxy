@@ -47,6 +47,11 @@ export function cellEdgeAvailability(ruleset: EditableRuleset): Availability {
   return epoxyOnlyUnless(ruleset, true);
 }
 
+/** Availability of the second player tool: the Lynx and CC3D engines have one player. */
+export function extraPlayerAvailability(ruleset: EditableRuleset): Availability {
+  return epoxyOnlyUnless(ruleset, true);
+}
+
 /** Availability of a link session for a system: the shot and signal systems need Epoxy rules, traps and clone machines link under both. */
 export function linkAvailability(ruleset: EditableRuleset, system: LinkSystem): Availability {
   return epoxyOnlyUnless(ruleset, system === 'shot' || system === 'signal');

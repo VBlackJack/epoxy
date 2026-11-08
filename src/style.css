@@ -768,6 +768,42 @@ body.fullscreen-mode .play-shell .viewport-wrapper {
   animation: led-pulse-danger 0.9s infinite alternate;
 }
 
+/* Who is controlled on a level with several players: portrait, name, and how many remain */
+.hud-players {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.45rem;
+  background: #12151c;
+  border: 1px solid #262c3a;
+  border-radius: 6px;
+}
+
+.hud-players.hidden {
+  display: none;
+}
+
+.hud-players-portrait {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  outline: 2px solid var(--led-green);
+}
+
+.hud-players-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.hud-players-summary {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
 .led-danger {
   color: var(--danger);
   text-shadow: 0 0 8px rgba(255, 23, 68, 0.7);

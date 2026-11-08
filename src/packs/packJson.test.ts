@@ -408,6 +408,35 @@ describe('pack format 7 id gate', () => {
     if (reread.ok) expect(reread.levels[0].cc2).toBeUndefined();
   });
 
+  it('writes format 13 for a level with several players and keeps its extra players normalised', () => {
+    const plain = makeLevel('one');
+    const several = makeLevel('two', {
+      extraPlayers: [
+        { x: 2, y: 1, dir: 'W', character: 'melinda' },
+        { x: 3, y: 1, dir: 'E', character: 'chip' }
+      ]
+    });
+    expect(several.extraPlayers).toHaveLength(2);
+    expect(JSON.parse(serializePack('N', [plain])).version).toBe(PACK_JSON_VERSION);
+    const text = serializePack('N', [plain, several]);
+    expect(JSON.parse(text).version).toBe(PACK_JSON_VERSION_V13);
+    const result = parse(text);
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.levels[0].extraPlayers).toBeUndefined();
+    expect(result.levels[1].extraPlayers).toEqual(several.extraPlayers);
+    // A start that is off the map or on the first player is dropped when the file is read.
+    const messy = JSON.parse(text);
+    messy.levels[1].extraPlayers = [
+      { x: 2, y: 1, dir: 'W', character: 'melinda' },
+      { x: 99, y: 99, dir: 'E', character: 'chip' },
+      { x: 1, y: 1, dir: 'E', character: 'chip' }
+    ];
+    const cleaned = parse(JSON.stringify(messy));
+    expect(cleaned).toMatchObject({ ok: true });
+    if (cleaned.ok) expect(cleaned.levels[1].extraPlayers).toEqual([{ x: 2, y: 1, dir: 'W', character: 'melinda' }]);
+  });
+
   it('has every id of the gate in the shipped configs', () => {
     const bundle = loadTestConfigs() as unknown as {
       tiles: { tiles: Record<string, unknown> | Array<{ id: string }> };

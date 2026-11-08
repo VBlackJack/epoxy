@@ -142,6 +142,7 @@ import {
   CANOPY_BRUSH_ID,
   CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
+  EXTRA_PLAYER_BRUSH_ID,
   isCanopyBrush,
   EDITOR_TOOLS,
   EditorTool,
@@ -163,6 +164,9 @@ import { nextBrushTile } from './brushCycle';
 import { familyKey, paletteTilesOf, variantFamilyOf } from './paletteVariants';
 import { CellSection } from './cellPanel';
 import { RailTrackPanel } from './railTrackPanel';
+import { ExtraPlayerPanel } from './extraPlayerPanel';
+import { extraPlayerAt } from './editorExtraPlayers';
+import { defaultExtraCharacter, rotateExtraPlayerAt } from './extraPlayerEdits';
 import { rotateRailTracksAt } from './railTrackEdits';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
@@ -245,6 +249,7 @@ import {
   EditableRuleset,
   entityAvailability,
   EPOXY_ONLY_REASON_KEY,
+  extraPlayerAvailability,
   linkAvailability,
   majorityRuleset,
   tileAvailability,
@@ -388,6 +393,8 @@ const GESTURE_FIELD_IDS: readonly string[] = ['editor-meta-winrule', 'editor-met
 const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
 const RULESET_INPUT_ID = 'editor-meta-ruleset';
 const CHARACTER_INPUT_ID = 'editor-meta-character';
+const PLAYERS_FIELD_ID = 'editor-field-players';
+const PLAYERS_OUTPUT_ID = 'editor-meta-players';
 const TITLE_INPUT_ID = 'editor-meta-title';
 const LYNX_RULESET = 'lynx' as const;
 /** The explicit Check and the Test pre-check search door orders more thoroughly than the automatic check. */
@@ -1623,6 +1630,7 @@ export class LevelEditor {
     if (brush.kind === 'terrain' || brush.kind === 'item') return tileAvailability(ruleset, brush.id);
     if (brush.kind === 'entity') return entityAvailability(ruleset, brush.id);
     if (brush.kind === 'cell_edge') return cellEdgeAvailability(ruleset);
+    if (brush.kind === 'extra_player_start') return extraPlayerAvailability(ruleset);
     return { available: true };
   }
 
@@ -1803,6 +1811,7 @@ export class LevelEditor {
 
     if (category === ENTITIES_CATEGORY) {
       add({ kind: 'player_start', id: EDITOR_PLAYER_BRUSH_ID }, t('editor.palette.tools.player_start'), () => this.playerIconUrl);
+      add({ kind: 'extra_player_start', id: EXTRA_PLAYER_BRUSH_ID }, t('editor.palette.tools.extra_player_start'), () => this.playerIconUrl);
     }
     return items;
   }
@@ -2091,12 +2100,24 @@ export class LevelEditor {
     return this.commitCellEdit(turned, [{ key: 'editor.rail_tracks.status.rotated.label', params: { x: cell.x, y: cell.y } }]);
   }
 
+  /** Turns the other player's start on the keyboard cursor cell (else the last hovered one) a quarter turn; false when that cell holds none. */
+  private rotateExtraPlayerInPlace(): boolean {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const turned = cell ? rotateExtraPlayerAt(this.doc, cell.x, cell.y) : null;
+    const player = cell ? extraPlayerAt(turned ?? this.doc, cell.x, cell.y) : undefined;
+    if (!cell || turned === null || !player) return false;
+    return this.commitCellEdit(turned, [
+      { key: 'editor.extra_players.status.rotated.label', params: { x: cell.x, y: cell.y, side: sideDisplayName(player.dir) } }
+    ]);
+  }
+
   /** Mounts the Cell section of the inspector, with the panels that fill it. */
   private bindCellSection(): void {
     const section = byId(CELL_SECTION_ID);
     const body = byId(CELL_BODY_ID);
     if (!section || !body) return;
-    const panels = [new RailTrackPanel({ commit: (map, messages) => this.commitCellEdit(map, messages) }, () => this.doc)];
+    const host = { commit: (map: EditorMap, messages?: ToolMessage[]): boolean => this.commitCellEdit(map, messages) };
+    const panels = [new RailTrackPanel(host, () => this.doc), new ExtraPlayerPanel(host, () => this.doc)];
     this.cellSection = new CellSection(section, body, panels, () => {
       if (!this.disposed) this.render();
     });
@@ -2238,7 +2259,7 @@ export class LevelEditor {
       case 'rotate_in_place':
         // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
         if (this.pasting && this.floatingStamp) this.turnStamp();
-        else if (!this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
+        else if (!this.rotateExtraPlayerInPlace() && !this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -3447,8 +3468,23 @@ export class LevelEditor {
     set('editor-meta-chips', String(doc.chipsRequired));
     set(WIN_RULE_INPUT_ID, doc.winRule);
     set(CHARACTER_INPUT_ID, doc.character ?? DEFAULT_PLAYER_CHARACTER);
+    this.syncPlayerCount();
     this.syncRulesetInput();
     this.syncSizeInputs();
+  }
+
+  /** True when the document plays the Epoxy rules, the only ones with several players (others never draw or count them). */
+  private holdsExtraPlayers(doc: EditorDocument): boolean {
+    return !doc.cc3d && editableRulesetOf(doc.ruleset) !== LYNX_RULESET;
+  }
+
+  /** Shows how many players the level has: the main one and the starts of the others. */
+  private syncPlayerCount(): void {
+    const field = byId(PLAYERS_FIELD_ID);
+    const output = byId(PLAYERS_OUTPUT_ID);
+    if (!field || !output) return;
+    const count = 1 + (this.holdsExtraPlayers(this.doc) ? (this.doc.extraPlayers?.length ?? 0) : 0);
+    output.textContent = t('editor.extra_players.count.label', { count });
   }
 
   /**
@@ -5057,6 +5093,7 @@ export class LevelEditor {
    */
   private refreshConnections(): void {
     this.refreshCellSection();
+    this.syncPlayerCount();
     const section = byId(CONNECTIONS_SECTION_ID);
     if (!section || this.stroke || this.connectionsDrawing) return;
     const cc3d = this.isCc3d();
@@ -5700,7 +5737,8 @@ export class LevelEditor {
       x,
       y,
       forceErase: stroke.forceErase,
-      canopyMode: stroke.canopyMode
+      canopyMode: stroke.canopyMode,
+      extraCharacter: defaultExtraCharacter(this.doc.character)
     });
     // The first cell of a canopy stroke decides whether the stroke puts the roof on or takes it off.
     if (stroke.canopyMode === undefined && !stroke.forceErase && this.tool === 'brush' && isCanopyBrush(this.brush)) {
@@ -5919,6 +5957,8 @@ export class LevelEditor {
         const entity = ConfigRegistry.getEntityDef(brush.id);
         return entity ? t(entity.i18nKey) : brush.id;
       }
+      case 'extra_player_start':
+        return t('editor.palette.tools.extra_player_start');
       default:
         return brush.id;
     }
@@ -6454,6 +6494,9 @@ export class LevelEditor {
     if (clip.playerStart) {
       this.renderer.drawPlayer(this.ctx, (ox + clip.playerStart.dx) * s, (oy + clip.playerStart.dy) * s, s, clip.playerStart.dir, false, true);
     }
+    for (const player of clip.extraPlayers ?? []) {
+      this.renderer.drawPlayerOfCharacter(this.ctx, (ox + player.dx) * s, (oy + player.dy) * s, s, player.dir, player.character);
+    }
     this.ctx.restore();
     this.outlineRect({ x: ox, y: oy, width: clip.width, height: clip.height }, s, 1);
   }
@@ -6592,6 +6635,12 @@ export class LevelEditor {
 
   private drawPlayerStart(ctx: CanvasRenderingContext2D, doc: EditorDocument, s: number): void {
     this.renderer.drawPlayer(ctx, doc.playerStart.x * s, doc.playerStart.y * s, s, doc.playerStart.dir, false, true);
+    // The starts of the other players, each as the character it plays.
+    if (this.holdsExtraPlayers(doc)) {
+      for (const player of doc.extraPlayers ?? []) {
+        this.renderer.drawPlayerOfCharacter(ctx, player.x * s, player.y * s, s, player.dir, player.character);
+      }
+    }
   }
 
   /** Draws one chunk of the CC3D map from scratch (a margin of one cell around it lets neighbours' glow in). */

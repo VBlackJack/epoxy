@@ -82,6 +82,11 @@ const CLONER_BLOCK_ALLOWANCE = 10;
  */
 const MAX_TRACKED_BOOT_TYPES = 8;
 const NO_BOOTS = 0;
+/**
+ * Most origin tags a walk carries on a level with several players. Each start floods under its own tag bit (above the
+ * boots bits); the starts past the limit share the last tag, which can only hide a stranded player, never invent one.
+ */
+const MAX_ORIGIN_TAGS = 3;
 /** A key in a door's room outweighs any number of chips when choosing which door to open first. */
 const DOOR_KEY_WEIGHT = 1000;
 /**
@@ -143,7 +148,10 @@ type BlockUse = 'water' | 'fire' | 'melt' | 'other';
 /** What one reach walk found: the chips it collected and whether it stood on an exit. */
 interface ReachOutcome {
   collectedChips: number;
+  /** On a level with several players: every origin tag reached an exit. */
   reachableExit: boolean;
+  /** The origin tags that reached an exit (0 on a level with one player). */
+  exitTags?: number;
   /** The doors opened at fixpoints, in order. */
   decisions: DoorDecision[];
   /** Cells expanded by the walk, its door ranking included. */
@@ -526,6 +534,7 @@ export class LevelValidator {
     }
 
     this.checkStartCell(level, issues);
+    this.checkSharedStarts(level, issues);
     this.checkLinkEndpoints(level, issues);
     // A Lynx level is played by the Lynx engine, not by the Epoxy block rules this reach walk approximates.
     if (level.ruleset !== 'lynx') this.checkHiddenByBlocks(level, issues);
@@ -541,7 +550,16 @@ export class LevelValidator {
 
     const holdDoorOpenable = this.openableHoldDoorColors(level);
     const bootBits = this.buildBootBits(characters);
-    const maskCount = 1 << bootBits.size;
+    // Every start of a level with several players floods under its own tag bit, so the walk shares the inventory
+    // (keys, chips, opened doors) between the players while it still tells which start reached an exit.
+    const startPoints: GridPoint[] = [level.playerStart, ...(level.extraPlayers ?? [])].filter(
+      (p) => Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 0 && p.x < width && p.y >= 0 && p.y < height
+    );
+    const tagCount = startPoints.length > 1 ? Math.min(startPoints.length, MAX_ORIGIN_TAGS) : 0;
+    const originShift = bootBits.size;
+    const tagOf = (startIndex: number): number => (tagCount === 0 ? 0 : 1 << (originShift + Math.min(startIndex, tagCount - 1)));
+    const originMask = tagCount === 0 ? 0 : ((1 << tagCount) - 1) << originShift;
+    const maskCount = 1 << (bootBits.size + tagCount);
     // A level that places a toll token may pay any thief once, so the walk takes no thief as stealing (an
     // over-approximation: it never reports a false unreachable, at the price of missing a robbery the token covers).
     const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
@@ -644,6 +662,7 @@ export class LevelValidator {
       const ownedKeys: Record<string, number> = {};
       let collectedChips = 0;
       let reachableExit = false;
+      let exitTags = 0;
       // Set once the walk reaches a railroad sign: its holder ignores the tracks, and the sign is not tracked per state
       // (it protects from nothing), so from then on every track cell is taken as open floor (over-approximation).
       let railSignReached = false;
@@ -838,7 +857,9 @@ export class LevelValidator {
             }
           }
         }
-        enqueue(sx, sy, NO_BOOTS, railEntries.get(sy * width + sx));
+        startPoints.forEach((point, startIndex) => {
+          enqueue(point.x, point.y, tagOf(startIndex), railEntries.get(point.y * width + point.x));
+        });
 
         /**
          * Links the pocket pads once the gates reached and the placed pads can make a pair: every reached cell may hold
@@ -863,7 +884,7 @@ export class LevelValidator {
 
         for (let head = 0; head < queue.length || linkPocketPads(); head++) {
           // A walk that outruns its step limit is cut off and discarded by the caller.
-          if (++work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
+          if (++work.spent > work.limit) return { collectedChips, reachableExit, exitTags, decisions, steps: work.spent, aborted: true };
           if (meter) meter.cells++;
           const curr = queue[head];
           const currTile = ConfigRegistry.getTile(simTerrain[curr.y][curr.x]);
@@ -876,7 +897,8 @@ export class LevelValidator {
           }
 
           if (currTile.isLevelExit) {
-            reachableExit = true;
+            exitTags |= curr.boots & originMask;
+            reachableExit = originMask === 0 || (exitTags & originMask) === originMask;
           }
 
           // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
@@ -1162,7 +1184,7 @@ export class LevelValidator {
           if (forcedKey !== undefined) {
             const forcedDoor = deferredDoors.get(forcedKey);
             // A forced door that is not waiting means this order leads somewhere else: nothing to report.
-            if (!forcedDoor) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
+            if (!forcedDoor) return { collectedChips, reachableExit, exitTags, decisions, steps: work.spent, aborted: true };
             best = forcedDoor;
             ranked = [forcedKey];
           } else {
@@ -1186,7 +1208,7 @@ export class LevelValidator {
               meter
             });
             // A ranking cut short by the limit is not a ranking: the walk is discarded.
-            if (work.spent > work.limit) return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: true };
+            if (work.spent > work.limit) return { collectedChips, reachableExit, exitTags, decisions, steps: work.spent, aborted: true };
             best = order[0];
             ranked = order.map(doorKey);
           }
@@ -1197,7 +1219,7 @@ export class LevelValidator {
           changed = true;
         }
       }
-      return { collectedChips, reachableExit, decisions, steps: work.spent, aborted: false };
+      return { collectedChips, reachableExit, exitTags, decisions, steps: work.spent, aborted: false };
     };
 
     const misses = (walk: ReachOutcome): number =>
@@ -1229,7 +1251,19 @@ export class LevelValidator {
       });
     }
 
-    if (exitMissed) {
+    // On a level with several players, name the ones whose flood never met an exit when others did.
+    const strandedTags = tagCount > 0 && (reported.exitTags ?? 0) !== 0 && !reported.aborted ? originMask & ~(reported.exitTags ?? 0) : 0;
+    if (exitMissed && strandedTags !== 0 && !provenSolvable) {
+      startPoints.forEach((_, startIndex) => {
+        if ((tagOf(startIndex) & strandedTags) !== 0) {
+          issues.push({
+            severity: 'error',
+            i18nKey: 'validator.issues.player_unreachable_exit.label',
+            params: { player: startIndex + 1 }
+          });
+        }
+      });
+    } else if (exitMissed) {
       issues.push({
         severity: missSeverity,
         i18nKey: provenSolvable
@@ -1415,6 +1449,19 @@ export class LevelValidator {
     }
     if ((level.entities ?? []).some((e) => e.x === x && e.y === y)) {
       issues.push({ severity: 'warning', i18nKey: 'validator.issues.start_on_entity.label' });
+    }
+  }
+
+  /** Warns when two players of a level with several start on the same cell. */
+  private static checkSharedStarts(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const seen = new Set<string>();
+    for (const start of [level.playerStart, ...(level.extraPlayers ?? [])]) {
+      const key = `${start.x},${start.y}`;
+      if (seen.has(key)) {
+        issues.push({ severity: 'warning', i18nKey: 'validator.issues.players_share_start.label', params: { x: start.x, y: start.y } });
+        return;
+      }
+      seen.add(key);
     }
   }
 
@@ -1746,7 +1793,9 @@ export class LevelValidator {
     const placed =
       level.terrain.some((row) => row.some((id) => isTransmogrifierTileId(id))) ||
       (underlays !== null && [...underlays.values()].some((id) => isTransmogrifierTileId(id)));
-    return placed ? [own, transmogrifiedCharacter(own)] : [own];
+    // Every player of a level with several is read at once, so the walk never bars a route one of them could take.
+    const owns = [...new Set<PlayerCharacter>([own, ...(level.extraPlayers ?? []).map((p) => p.character)])];
+    return placed ? [...new Set<PlayerCharacter>([...owns, ...owns.map((c) => transmogrifiedCharacter(c))])] : owns;
   }
 
   /**
@@ -2492,7 +2541,8 @@ export class LevelValidator {
     bootBits: Map<string, number>,
     hasToken: boolean
   ): number {
-    if (tile.stealsBoots && !hasToken) return NO_BOOTS;
+    // A thief takes the boots only: the origin tag bits above them (levels with several players) stay.
+    if (tile.stealsBoots && !hasToken) return boots & ~((1 << bootBits.size) - 1);
     return itemId ? boots | (bootBits.get(itemId) ?? NO_BOOTS) : boots;
   }
 

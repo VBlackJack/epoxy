@@ -24,7 +24,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { CC2_ID_PREFIX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
+import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, EXTRA_PLAYERS_MAX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -32,6 +32,7 @@ import type {
   CompiledLevel,
   Direction,
   EntityPlacement,
+  ExtraPlayerStart,
   RailTrackCell,
   TrapLink
 } from '../core/types';
@@ -65,7 +66,6 @@ import {
   NO_SIGN_BLOCKED_TERRAIN,
   NO_SIGN_FORBID_MAP,
   NO_SIGN_INERT_ITEMS,
-  RESERVED_PLAYER_ENTITIES,
   TERRAIN_MAP,
   UNKNOWN_ID,
   UNKNOWN_KEY,
@@ -364,9 +364,9 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const redButtons: number[] = [];
   let chips = 0;
   let hasSocket = false;
-  let playerCount = 0;
   let playerIndex = -1;
   let playerTile: Cc2Tile | undefined;
+  const extraPlayers: ExtraPlayerStart[] = [];
   let wiredDevices = false;
 
   // The wires come first: a trap or flame jet that a wire reaches is placed in its wired form.
@@ -381,7 +381,6 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   parts.forEach((part, index) => {
     const code = part.actor?.code;
     if (code === CC2_CODE_PLAYER || code === CC2_CODE_MELINDA) {
-      playerCount += 1;
       if (playerIndex < 0) {
         playerIndex = index;
         playerTile = part.actor;
@@ -493,12 +492,21 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         const code = actor.code;
         const isPlayer = code === CC2_CODE_PLAYER || code === CC2_CODE_MELINDA;
         if (isPlayer && index === playerIndex) {
-          // Melinda alone plays as the melinda character; next to a second player the level is lost anyway.
-          if (code === CC2_CODE_MELINDA) {
-            keys.add(playerCount === 1 ? KEY_MELINDA_PLAYER : (RESERVED_PLAYER_ENTITIES.get(code)?.key ?? KEY_UNKNOWN));
-          }
+          // Melinda plays as the melinda character, whether she is alone or the first of several players.
+          if (code === CC2_CODE_MELINDA) keys.add(KEY_MELINDA_PLAYER);
+        } else if (isPlayer) {
+          // Every further player is a start of its own, in reading order, with its character and facing.
+          if (extraPlayers.length < EXTRA_PLAYERS_MAX) {
+            extraPlayers.push({
+              x,
+              y,
+              dir: cc2Direction(actor.dir),
+              character: code === CC2_CODE_MELINDA ? MELINDA_CHARACTER : DEFAULT_PLAYER_CHARACTER
+            });
+          } else warnings.push(`player at ${where} is dropped: Epoxy plays at most ${EXTRA_PLAYERS_MAX + 1} players`);
+          if (code === CC2_CODE_MELINDA) keys.add(KEY_MELINDA_PLAYER);
         } else {
-          const placed = actorEntity(actor, isPlayer, warnings, where);
+          const placed = actorEntity(actor, warnings, where);
           if (placed.key !== undefined) keys.add(placed.key);
           const terrainCode = part.terrain?.code;
           const dir = placed.dir;
@@ -538,8 +546,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
       dir: cc2Direction(playerTile.dir)
     };
   }
-  if (playerCount > 1) keys.add(KEY_MULTIPLE_PLAYERS);
-  const melindaOnly = playerCount === 1 && playerTile?.code === CC2_CODE_MELINDA;
+  if (extraPlayers.length > 0) keys.add(KEY_MULTIPLE_PLAYERS);
+  const melindaFirst = playerTile?.code === CC2_CODE_MELINDA;
 
   // Trap and clone links: a button works the first trap or clone machine after it in reading order, wrapping round
   // [medium confidence: this is the CC2 rule as documented, not checked against the game].
@@ -609,7 +617,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     timeLimitSeconds: options.timeLimit ?? 0,
     // The chip count gates the socket only (Epoxy checks it nowhere else), so a level without a socket asks for none.
     chipsRequired: hasSocket ? chips : 0,
-    ...(melindaOnly ? { character: MELINDA_CHARACTER } : {}),
+    ...(melindaFirst ? { character: MELINDA_CHARACTER } : {}),
     playerStart,
     terrain,
     items,
@@ -618,6 +626,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     cloneLinks
   };
   if (edges.length > 0) level.cellEdges = edges;
+  if (extraPlayers.length > 0) level.extraPlayers = extraPlayers;
   if (railTracks.length > 0) level.railTracks = railTracks;
   if (wires.links.length > 0) level.signalLinks = wires.links;
   level.cc2 = {
@@ -672,7 +681,6 @@ function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired:
 /** The entity an actor tile becomes. `key` is the coverage key the entity stands for. */
 function actorEntity(
   actor: Cc2Tile,
-  extraPlayer: boolean,
   warnings: string[],
   where: string
 ): { type: string; dir: Direction; key?: string } {
@@ -681,13 +689,6 @@ function actorEntity(
   if (code === CC2_CODE_DIRECTIONAL_BLOCK) {
     const block = directionalBlock(actor, warnings, where);
     return { ...block, key: block.key ?? KEY_ARROW_BLOCK };
-  }
-  const reservedPlayer = RESERVED_PLAYER_ENTITIES.get(code);
-  if (reservedPlayer !== undefined) return { type: reservedPlayer.id, dir, key: reservedPlayer.key };
-  if (extraPlayer) {
-    // A second chip: no reserved id of its own, the second-player stand-in is used.
-    const stand = RESERVED_PLAYER_ENTITIES.get(CC2_CODE_MELINDA) as Cc2TileMapping;
-    return { type: stand.id, dir, key: stand.key };
   }
   const mapping = ENTITY_MAP.get(code);
   if (mapping !== undefined) return { type: mapping.id, dir, key: mapping.key };

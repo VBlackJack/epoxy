@@ -15,8 +15,9 @@
  */
 
 import { FLOOR_TILE_ID } from '../core/coreConstants';
-import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, RailTrackCell, SignalLink, TrapLink } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, ExtraPlayerStart, LauncherLink, PlayerCharacter, RailTrackCell, SignalLink, TrapLink } from '../core/types';
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
+import { canonicalExtraPlayers, extraPlayerAt, removeExtraPlayersWhere, replaceExtraPlayers } from './editorExtraPlayers';
 import { canonicalRailTracks, removeRailTracksWhere, replaceRailTracks } from './editorRailTracks';
 import { cloneMap, EditorMap } from './editorDocument';
 import { CANOPY_BRUSH_ID, type Brush } from './editorTools';
@@ -71,6 +72,14 @@ export interface ClipRailTrack {
   entry?: Direction;
 }
 
+/** The start of another player in a clip, positioned relative to the clip's top-left cell. */
+export interface ClipExtraPlayer {
+  dx: number;
+  dy: number;
+  dir: Direction;
+  character: PlayerCharacter;
+}
+
 /** The terrain hidden under one cell of a clip, positioned relative to the clip's top-left cell. */
 export interface ClipUnderlay {
   dx: number;
@@ -103,6 +112,8 @@ export interface Clip {
   launcherLinks?: LauncherLink[];
   /** Links with an end inside the rectangle that the clip could not carry (the other end outside, or an end on the ring); absent when none. */
   linksLeftOut?: number;
+  /** The starts of other players, in swap order, when the clip carries the players (a cut or a move); absent otherwise. */
+  extraPlayers?: ClipExtraPlayer[];
   /** The player start, relative to the clip, when the clip carries it; null otherwise. */
   playerStart: { dx: number; dy: number; dir: Direction } | null;
 }
@@ -198,6 +209,7 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
       trapLinks: map.trapLinks,
       cloneLinks: map.cloneLinks,
       playerStart: map.playerStart,
+      extraPlayers: canonicalExtraPlayers(map.extraPlayers, map.playerStart, map.terrain) ?? [],
       cellEdges: canonicalEdges(map.cellEdges, map.terrain) ?? [],
       railTracks: canonicalRailTracks(map.railTracks, map.terrain) ?? [],
       underlays: canonicalUnderlays(map.underlays, map.terrain) ?? [],
@@ -210,7 +222,7 @@ function sameMapLayers(a: EditorMap, b: EditorMap): boolean {
 /**
  * Copies the content of the cells of a rectangle inside the map. The player
  * start is unique: it goes into the clip only when `includePlayerStart` is set
- * (cut), and a copy leaves it out.
+ * (cut), and a copy leaves it out. The starts of the other players follow the same rule.
  */
 export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: boolean): Clip {
   const terrain: string[][] = [];
@@ -236,6 +248,11 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
   const underlays: ClipUnderlay[] = (map.underlays ?? [])
     .filter((u) => rectContains(rect, u.x, u.y))
     .map((u) => ({ dx: u.x - rect.x, dy: u.y - rect.y, terrain: u.terrain }));
+  const extraPlayers: ClipExtraPlayer[] = includePlayerStart
+    ? (map.extraPlayers ?? [])
+        .filter((p) => rectContains(rect, p.x, p.y))
+        .map((p) => ({ dx: p.x - rect.x, dy: p.y - rect.y, dir: p.dir, character: p.character }))
+    : [];
   const start = map.playerStart;
   const playerStart =
     includePlayerStart && rectContains(rect, start.x, start.y)
@@ -285,6 +302,7 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     ...(trapLinks.length > 0 ? { trapLinks } : {}),
     ...(cloneLinks.length > 0 ? { cloneLinks } : {}),
     ...(launcherLinks.length > 0 ? { launcherLinks } : {}),
+    ...(extraPlayers.length > 0 ? { extraPlayers } : {}),
     ...(linksLeftOut > 0 ? { linksLeftOut } : {}),
     playerStart
   };
@@ -302,11 +320,12 @@ function clearCells(map: EditorMap, rect: CellRect, keep: (x: number, y: number)
   removeEdgesWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
   removeRailTracksWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
   removeUnderlaysWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
+  removeExtraPlayersWhere(map, (x, y) => rectContains(rect, x, y) && !keep(x, y));
 }
 
 /**
  * Clears the cells of a rectangle to floor, removes their thin walls and hidden terrain and drops the links that end in
- * it. The player start stays where it is, and the result says so.
+ * it. The player start stays where it is, and the result says so; the start of another player in the rectangle goes.
  */
 export function clearRect(source: EditorMap, rect: CellRect): SelectionEditResult {
   if (source.cc3d) return { map: source, changed: false, droppedLinks: 0, skipped: 0, borderSkipped: 0, playerStartKept: false, rect: null }; // a CC3D map is edited through cc3dEdits only
@@ -447,6 +466,24 @@ function stampClip(
       map.playerStart = { x, y, dir: clip.playerStart.dir };
       delete map.missingStart;
     }
+  }
+  // The other players of a clip stand where the paste wrote their cells, never on the main start or on a cell left out
+  // (the ring included); the Lynx engine has one player, and a full list takes no more. What is left out is counted.
+  const arrivals: ExtraPlayerStart[] = [];
+  for (const p of clip.extraPlayers ?? []) {
+    const x = originX + p.dx;
+    const y = originY + p.dy;
+    if (!inGrid(map, x, y) || !writtenCells.has(`${x},${y}`) || fromRing(p.dx, p.dy)) continue;
+    arrivals.push({ x, y, dir: p.dir, character: p.character });
+  }
+  const clipPlayers = clip.extraPlayers?.length ?? 0;
+  const keptPlayers = (map.extraPlayers ?? []).filter((p) => !writtenCells.has(`${p.x},${p.y}`));
+  if (clipPlayers > 0 || keptPlayers.length !== (map.extraPlayers?.length ?? 0)) {
+    replaceExtraPlayers(map, ruleset === 'lynx' ? keptPlayers : [...keptPlayers, ...arrivals]);
+  }
+  if (clipPlayers > 0) {
+    const placed = ruleset === 'lynx' ? 0 : arrivals.filter((p) => extraPlayerAt(map, p.x, p.y) !== undefined).length;
+    skipped += clipPlayers - placed;
   }
   return { skipped, borderSkipped, droppedLinks, droppedUnderlays, writtenCells };
 }
@@ -601,6 +638,24 @@ export function pasteClip(
 }
 
 /**
+ * Puts the other players of a map back in the order they had before an edit that moved some of them: the order is the
+ * swap order of the game. `where` gives the cell each former player is on after the edit; one that is gone stays gone.
+ */
+function keepSwapOrder(map: EditorMap, former: readonly ExtraPlayerStart[], where: (p: ExtraPlayerStart) => { x: number; y: number }): void {
+  const now = new Map((map.extraPlayers ?? []).map((p) => [`${p.x},${p.y}`, p]));
+  const ordered: ExtraPlayerStart[] = [];
+  for (const p of former) {
+    const cell = where(p);
+    const found = now.get(`${cell.x},${cell.y}`);
+    if (found) {
+      ordered.push(found);
+      now.delete(`${cell.x},${cell.y}`);
+    }
+  }
+  if (ordered.length > 0 || now.size > 0) replaceExtraPlayers(map, [...ordered, ...now.values()]);
+}
+
+/**
  * Moves the content of a rectangle by a step, leaving floor behind and
  * overwriting what is at the destination. A selection that would leave the
  * map does not move. Links with both ends in the rectangle move with it; links
@@ -688,6 +743,7 @@ export function moveRect(source: EditorMap, rect: CellRect, dx: number, dy: numb
   map.cloneLinks.push(...movedClone);
   setLauncherLinks(map, [...(map.launcherLinks ?? []), ...movedLauncher]);
   setSignalLinks(map, [...(map.signalLinks ?? []), ...movedSignal]);
+  keepSwapOrder(map, source.extraPlayers ?? [], (p) => (inSource(p.x, p.y) ? { x: p.x + dx, y: p.y + dy } : { x: p.x, y: p.y }));
   return {
     map,
     changed: !sameMapLayers(source, map),
@@ -717,6 +773,7 @@ export function fillBrushRefusal(brush: Brush, ruleset: EditableRuleset): FillRe
     case 'cell_edge':
       return { reason: brush.id === CANOPY_BRUSH_ID ? 'canopy' : 'cell_edge' };
     case 'player_start':
+    case 'extra_player_start':
       return { reason: 'unsupported' };
     case 'terrain':
     case 'item': {
@@ -782,7 +839,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
         droppedLinks += dropLinksAt(map, x, y, keepsLauncherLinks(previous, brush.id) || hidden);
       } else if (brush.kind === 'item') {
         map.items[y][x] = brush.id;
-      } else if (x === source.playerStart.x && y === source.playerStart.y) {
+      } else if ((x === source.playerStart.x && y === source.playerStart.y) || extraPlayerAt(source, x, y)) {
         skipped++;
       } else {
         const present = map.entities.filter((e) => e.x === x && e.y === y);

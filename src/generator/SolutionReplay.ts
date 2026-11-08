@@ -17,7 +17,7 @@
 import { AudioManager } from '../audio/AudioManager';
 import { GameEngine } from '../core/GameEngine';
 import { CompiledLevel, TimedMove } from '../core/types';
-import { decodeActions, DROP_ACTION_ITEMS, isDropAction, PieceSolver, WAIT_ACTION } from './PieceSolver';
+import { decodeActions, DROP_ACTION_ITEMS, isDropAction, PieceSolver, SWAP_ACTION, WAIT_ACTION } from './PieceSolver';
 
 /**
  * Turns a level's written solution into the tick-stamped moves the game's
@@ -36,6 +36,8 @@ export function timedSolution(level: CompiledLevel): TimedMove[] | null {
     for (const action of actions) {
       if (isDropAction(action)) {
         moves.push({ tick: engine.getTick(), dir: engine.getPlayer().dir, drop: DROP_ACTION_ITEMS[action] });
+      } else if (action === SWAP_ACTION) {
+        moves.push({ tick: engine.getTick(), dir: engine.getPlayer().dir, swap: true });
       } else if (action !== WAIT_ACTION) {
         moves.push({ tick: engine.getTick(), dir: action });
       }

@@ -23,6 +23,7 @@ const NAME_SEGMENT_SUFFIX = '.name';
 const DESCRIPTION_SEGMENT_SUFFIX = '.desc.label';
 /** Description keys of the synthetic palette entries, which have no tile or entity definition. */
 const PLAYER_START_DESCRIPTION_KEY = 'editor.palette.tools.player_start_desc.label';
+const EXTRA_PLAYER_START_DESCRIPTION_KEY = 'editor.palette.tools.extra_player_start_desc.label';
 const CELL_EDGE_DESCRIPTION_KEY = 'editor.palette.tools.cell_edge_desc.label';
 const CANOPY_DESCRIPTION_KEY = 'editor.palette.tools.canopy_desc.label';
 
@@ -33,6 +34,7 @@ const CANOPY_DESCRIPTION_KEY = 'editor.palette.tools.canopy_desc.label';
  */
 export function descriptionKeyFor(kind: BrushKind, id: string): string | undefined {
   if (kind === 'player_start') return PLAYER_START_DESCRIPTION_KEY;
+  if (kind === 'extra_player_start') return EXTRA_PLAYER_START_DESCRIPTION_KEY;
   if (kind === 'cell_edge') {
     if (id === CANOPY_BRUSH_ID) return CANOPY_DESCRIPTION_KEY;
     return id === CELL_EDGE_BRUSH_ID ? CELL_EDGE_DESCRIPTION_KEY : undefined;

@@ -18,6 +18,7 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
+import { canonicalExtraPlayers } from './editorExtraPlayers';
 import { canonicalRailTracks } from './editorRailTracks';
 import { canonicalUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks } from './editorLauncherLinks';
@@ -67,6 +68,10 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   const railTracks = level.cc3d ? undefined : canonicalRailTracks(map.railTracks, map.terrain);
   if (railTracks) map.railTracks = railTracks;
   else delete map.railTracks;
+  // The other players are held in canonical form too: inside the grid, off the main start and off each other.
+  const extraPlayers = level.cc3d ? undefined : canonicalExtraPlayers(map.extraPlayers, map.playerStart, map.terrain);
+  if (extraPlayers) map.extraPlayers = extraPlayers;
+  else delete map.extraPlayers;
   // Hidden terrain is held in canonical form too, and only where the terrain on top can still hide it.
   const underlays = level.cc3d ? undefined : canonicalUnderlays(map.underlays, map.terrain);
   if (underlays) map.underlays = underlays;
@@ -131,10 +136,14 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
   const exportedRailTracks = doc.cc3d ? undefined : canonicalRailTracks(level.railTracks, level.terrain);
   if (exportedRailTracks) level.railTracks = exportedRailTracks;
   else delete level.railTracks;
+  const exportedExtraPlayers = doc.cc3d ? undefined : canonicalExtraPlayers(level.extraPlayers, level.playerStart, level.terrain);
+  if (exportedExtraPlayers) level.extraPlayers = exportedExtraPlayers;
+  else delete level.extraPlayers;
   // Thin walls exist under the Epoxy ruleset only: a document of another ruleset never exports them.
   // Hidden terrain, shot launcher links and signal links are Epoxy features in the same way.
   if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) {
     delete level.character;
+    delete level.extraPlayers;
     delete level.cellEdges;
     delete level.railTracks;
     delete level.underlays;

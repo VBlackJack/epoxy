@@ -1016,6 +1016,23 @@
         "label": "Plateau de jeu"
       }
     },
+    "players": {
+      "group": {
+        "label": "Joueurs"
+      },
+      "current": {
+        "label": "Joueur : {name}"
+      },
+      "character_chip": {
+        "label": "Chip"
+      },
+      "character_melinda": {
+        "label": "Melinda"
+      },
+      "summary": {
+        "label": "{remaining} sur la carte, {exited} sortis"
+      }
+    },
     "inventory": {
       "keys": {
         "label": "CLÉS D'ACCÈS"
@@ -1131,6 +1148,9 @@
       },
       "stone": {
         "action": "Lancer une pierre de jet"
+      },
+      "swap": {
+        "action": "Changer de joueur"
       },
       "chips": {
         "short": "PUCES"
@@ -1287,6 +1307,12 @@
       },
       "replay_action": {
         "action": "Revoir la Solution (Replay)"
+      },
+      "swap_done": {
+        "label": "Vous jouez maintenant {name} ({remaining} sur la carte)"
+      },
+      "swap_refused": {
+        "label": "Aucun autre joueur vers qui passer"
       },
       "replaying_banner": {
         "label": "REPLAY EN COURS ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre le contrôle"
@@ -1530,6 +1556,9 @@
       "kb_items": {
         "label": "E / X : Déposer l'objet sélectionné sur votre case | C : Sélectionner l'objet suivant | Clic sur une case d'inventaire : déposer cet objet"
       },
+      "kb_swap": {
+        "label": "V : Passer au joueur suivant (niveaux à plusieurs joueurs)"
+      },
       "kb_fov_options": {
         "label": "Zoom : Options > Essentiel > Zoom"
       },
@@ -1664,6 +1693,12 @@
       },
       "unreachable_exit": {
         "label": "Erreur : Le portail de sortie est bloqué ou inaccessible."
+      },
+      "player_unreachable_exit": {
+        "label": "Erreur : le joueur {player} ne peut pas atteindre le portail de sortie, même avec ce que les autres joueurs peuvent ramasser."
+      },
+      "players_share_start": {
+        "label": "Avertissement : deux joueurs démarrent sur la même case ({x}, {y})."
       },
       "unreachable_chips_proven": {
         "label": "Avertissement : la simulation n'atteint que {reachable}/{required, plural, one {# puce} other {# puces}}, mais la solution enregistrée gagne."
@@ -1987,6 +2022,31 @@
         "cleared": {"label": "Rails en ({x}, {y}) effacés."}
       }
     },
+    "extra_players": {
+      "heading": "Deuxième joueur en ({x}, {y})",
+      "character": {
+        "legend": "Personnage",
+        "chip": {"label": "Chip"},
+        "melinda": {"label": "Melinda"}
+      },
+      "remove": {
+        "action": "Retirer ce joueur"
+      },
+      "rotate": {
+        "hint": "Appuyez sur Maj+R pour tourner ce joueur d'un quart de tour."
+      },
+      "count": {
+        "label": "{count, plural, one {# joueur} other {# joueurs}}"
+      },
+      "status": {
+        "on_start": {"label": "Un deuxième joueur ne peut pas partir de la case du départ du joueur."},
+        "too_many": {"label": "Un niveau compte au plus {count} joueurs de plus : retirez-en un d'abord."},
+        "start_on_extra": {"label": "Le départ du joueur ne peut pas aller sur le départ d'un autre joueur."},
+        "rotated": {"label": "Le joueur en ({x}, {y}) regarde maintenant vers {side}."},
+        "character": {"label": "Le joueur en ({x}, {y}) est maintenant {name}."},
+        "removed": {"label": "Le joueur en ({x}, {y}) a été retiré."}
+      }
+    },
     "cell_speech": {
       "port_input": {
         "label": "entrée {role} depuis ({x}, {y})"
@@ -2011,6 +2071,9 @@
       },
       "player": {
         "label": "Départ du joueur, tourné vers {side}"
+      },
+      "extra_player": {
+        "label": "Deuxième joueur, {name}, tourné vers {side}"
       },
       "cloner": {
         "label": "clone {name}, orientation {side}"
@@ -3393,6 +3456,7 @@
         "dropped_entities": "{count, plural, one {# créature ou bloc a été retiré} other {# créatures ou blocs ont été retirés}}.",
         "dropped_links": "{count, plural, one {# lien a été retiré} other {# liens ont été retirés}}.",
         "start_moved": "Le départ du joueur a été ramené à l'intérieur du niveau.",
+        "dropped_players": "{count, plural, one {# deuxième joueur a été retiré} other {# deuxièmes joueurs ont été retirés}}.",
         "dropped_edges": "{count, plural, one {# case a perdu ses murs fins} other {# cases ont perdu leurs murs fins}}.",
         "dropped_underlays": "{count, plural, one {# case a perdu son terrain caché} other {# cases ont perdu leur terrain caché}}.",
         "border_kept": "Le contour a été refermé avec des murs."
@@ -3467,6 +3531,9 @@
       },
       "character_melinda": {
         "label": "Melinda (ne glisse pas sur la glace, chaussures de randonnée requises sur la terre et le gravier)"
+      },
+      "players": {
+        "label": "Joueurs"
       },
       "win_rule_exit": {
         "label": "Atteindre la sortie"
@@ -3580,6 +3647,12 @@
         },
         "player_start_desc": {
           "label": "L'endroit où le joueur commence le niveau. Il n'y en a qu'un : le poser à nouveau le déplace."
+        },
+        "extra_player_start": {
+          "label": "Deuxième joueur"
+        },
+        "extra_player_start_desc": {
+          "label": "Le départ d'un autre joueur, pour un niveau joué par plusieurs personnages entre lesquels on alterne. Cliquez pour en poser un, puis choisissez son personnage dans la section Cellule ; le contrôle de direction règle son orientation. La gomme le retire."
         },
         "canopy": {
           "label": "Canopée"
