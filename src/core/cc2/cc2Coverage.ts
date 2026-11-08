@@ -57,9 +57,9 @@ const MECHANIC_REASON =
 const NO_SIGN_REASON =
   'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
 const NO_SIGN_ITEM_REASON =
-  'Epoxy plays a no-sign over a carried item as a sign on the item layer: the item is not placed so it cannot be picked up, a player carrying it cannot enter the cell, and the terrain under it keeps working. Monsters and blocks carry nothing, so they pass, as in Lexy\'s Labyrinth (no_sign in tiletypes.js) [unverified against CC2 itself].';
+  'Epoxy plays a no-sign over a carried item as a sign on the item layer: the item is not placed so it cannot be picked up, a player carrying it cannot enter the cell, and the terrain under it keeps working. Blocks carry nothing, so they pass; monsters do not enter a cell that holds an item, as in CC2. The bar follows Lexy\'s Labyrinth (no_sign in tiletypes.js) [unverified against CC2 itself].';
 const NO_SIGN_BONUS_REASON =
-  'A no-sign over a bonus flag, a stopwatch or the toggle clock bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth [unverified against CC2 itself].';
+  'A no-sign over a bonus flag, a stopwatch or the toggle clock bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth; the cell is then open to monsters (and, for the clock, to blocks), which an item would have kept out [unverified against CC2 itself].';
 const EXTRA_CHIP_REASON =
   'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =

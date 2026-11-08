@@ -36,6 +36,7 @@ import {
   canPlayerEnter,
   entityPressesPlate,
   getEntityAt,
+  holdsItem,
   isEdgeBlocked,
   isInBounds,
   killPlayer,
@@ -159,11 +160,9 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
     // Bumping a plain wall with the steel foil turns it into a steel wall; the step is refused all the same.
     foilBumpedWall(w, targetX, targetY);
     // A barrier against an item the player carries (terrain, or a no-sign on the item layer): solid until the item is dropped elsewhere.
-    if (
-      updatedTargetTile.passableByPlayer &&
-      (updatedTargetTile.forbiddenItem !== undefined ||
-        (itemOnTarget !== null && ConfigRegistry.getTile(itemOnTarget).forbiddenItem !== undefined))
-    ) {
+    const signedItem =
+      updatedTargetTile.forbiddenItem ?? (itemOnTarget !== null ? ConfigRegistry.getTile(itemOnTarget).forbiddenItem : undefined);
+    if (updatedTargetTile.passableByPlayer && signedItem !== undefined && holdsItem(w, signedItem)) {
       w.statusBannerKey = 'hud.messages.forbidden_item';
     } else if (updatedTargetTile.bootsForCharacter?.[playerCharacterOf(w)] !== undefined) {
       w.statusBannerKey = 'hud.messages.needs_hiking_boots';

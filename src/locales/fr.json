@@ -4342,121 +4342,121 @@
     "no_sign_key_red": {
       "name": "Panneau Interdit : Clé Rouge",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Clé Rouge\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Clé Rouge\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_key_blue": {
       "name": "Panneau Interdit : Clé Bleue",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Clé Bleue\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Clé Bleue\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_key_yellow": {
       "name": "Panneau Interdit : Clé Jaune",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Clé Jaune\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Clé Jaune\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_key_green": {
       "name": "Panneau Interdit : Clé Verte (Passe-partout)",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Clé Verte (Passe-partout)\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Clé Verte (Passe-partout)\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_water": {
       "name": "Panneau Interdit : Palmes Aquatiques",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Palmes Aquatiques\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Palmes Aquatiques\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_fire": {
       "name": "Panneau Interdit : Bottes Ignifugées",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Bottes Ignifugées\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Bottes Ignifugées\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_ice": {
       "name": "Panneau Interdit : Crampons à Glace",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Crampons à Glace\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Crampons à Glace\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_force": {
       "name": "Panneau Interdit : Bottes Ventouses",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Bottes Ventouses\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Bottes Ventouses\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_slow_time": {
       "name": "Panneau Interdit : Ralentisseur",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Ralentisseur\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Ralentisseur\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_speed": {
       "name": "Panneau Interdit : Bottes de Vitesse",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Bottes de Vitesse\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Bottes de Vitesse\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_eye": {
       "name": "Panneau Interdit : Bottes de Clairvoyance",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Bottes de Clairvoyance\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Bottes de Clairvoyance\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_boots_pull": {
       "name": "Panneau Interdit : Gants de Traction",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Gants de Traction\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Gants de Traction\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_ward": {
       "name": "Panneau Interdit : Égide",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Égide\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Égide\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_hiking_boots": {
       "name": "Panneau Interdit : Chaussures de Randonnée",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Chaussures de Randonnée\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Chaussures de Randonnée\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_charge": {
       "name": "Panneau Interdit : Charge Explosive",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Charge Explosive\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Charge Explosive\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_pocket_gate": {
       "name": "Panneau Interdit : Porte de poche",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Porte de poche\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Porte de poche\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_hurl_stone": {
       "name": "Panneau Interdit : Pierre de jet",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Pierre de jet\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Pierre de jet\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_toll_token": {
       "name": "Panneau Interdit : Jeton de péage",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Jeton de péage\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Jeton de péage\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_steel_foil": {
       "name": "Panneau Interdit : Feuille d'Acier",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Feuille d'Acier\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Feuille d'Acier\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "no_sign_bribe": {
       "name": "Panneau Interdit : Pot-de-vin",
       "desc": {
-        "label": "Panneau d'interdiction pour l'objet \"Pot-de-vin\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les monstres et les blocs passent."
+        "label": "Panneau d'interdiction pour l'objet \"Pot-de-vin\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
     "door_red": {

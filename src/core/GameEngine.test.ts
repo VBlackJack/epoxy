@@ -460,6 +460,17 @@ describe('GameEngine item-layer no-signs', () => {
     expect(engine.getPlayer().y).toBe(3);
   });
 
+  it('keeps the normal refusal message when the player does not hold the signed item', () => {
+    const lvl = openLevel('no_sign_message_level');
+    lvl.character = 'melinda';
+    lvl.terrain[2][3] = 'gravel';
+    lvl.items[2][3] = 'no_sign_key_red';
+    const engine = new GameEngine();
+    engine.loadLevel(lvl);
+    expect(isBlocked(engine, 'E')).toBe(true);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.needs_hiking_boots');
+  });
+
   it('lets a block be pushed onto the sign: only a carrying player is barred', () => {
     const lvl = openLevel('no_sign_block_level');
     lvl.items[2][4] = 'no_sign_key_red';
