@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
 import { EPOXY_COVERAGE } from './epoxyCoverage';
@@ -33,7 +34,7 @@ import type { Cc3dColor, Cc3dMobKind } from './model';
  * Coverage evidence for the devices: traps and their controls, clone machines and switches, the blue golem and
  * its control, and the four colours of plate. Each case plays a tiny CC3D map on the CC3D engine and on its
  * conversion and compares the two (see cc3dEvidenceRig): after every move for a map where the monsters stand
- * still, and as a timeline for a golem, whose pace differs from Epoxy's.
+ * still, and as a timeline for a golem, whose first step comes later in Epoxy.
  */
 
 beforeEach(() => {
@@ -60,6 +61,12 @@ const GLYPHS: Record<string, GlyphMeaning> = {
 };
 const doorOpen = (color: Cc3dColor): string => `cc3d_hold_door_${color}_open`;
 const doorClosed = (color: Cc3dColor): string => `cc3d_hold_door_${color}_closed`;
+
+/** Ticks of the pace measurement, steps it must show, ticks a golem step lasts, and how much later the Epoxy golem makes its first step. */
+const PACE_TICKS = 40;
+const MIN_PACE_STEPS = 5;
+const GOLEM_STEP_TICKS = 4;
+const EPOXY_FIRST_STEP_LAG_TICKS = 3;
 
 /** The player sealed in a corner cell, so that only the monsters move. */
 const SEALED_START = '@#########';
@@ -157,7 +164,7 @@ describe('clone machine and clone switch', () => {
   it('clones a golem that then walks off, as a timeline', () => {
     const t = playTimeline({ rows: room('@x#######', '##g.....#'), moves: '', glyphs: GLYPHS }, 'E');
     expect(t.sameFinal).toBe(true);
-    expect(t.cc3d.final.match(/tank@/g)).toHaveLength(2);
+    expect(t.cc3d.final.match(/golem_blue@/g)).toHaveLength(2);
   });
 });
 
@@ -170,6 +177,9 @@ describe('blue golem', () => {
     ['turns round at its control and walks back', '.B...*...'],
     ['turns round together with a second golem', '.B.(.*..'],
     ['is stopped by a golem coming the other way', '.B...(..'],
+    ['is stopped by water', '.B..W.'],
+    ['is stopped by slime', '.B..L.'],
+    ['is stopped by fire', '.B..F.'],
     ['is stopped by dirt', '.B..D.'],
     ['is stopped by gravel', '.B..G.'],
     ['is stopped by sand', '.B..A.'],
@@ -181,7 +191,8 @@ describe('blue golem', () => {
     ['is carried by a force floor', '.B..>...'],
     ['is turned back by a force floor against it', '.B..<...'],
     ['walks into a trap', '.B..p..'],
-    ['walks through an open toggle door', '.B..j.']
+    ['walks through an open toggle door', '.B..j.'],
+    ['walks over a turtle and sinks it', '.B..T..']
   ];
 
   it.each(SAME_PATH)('%s', (_name, cells) => {
@@ -191,6 +202,13 @@ describe('blue golem', () => {
     expect(t.cc3d.terrain).toEqual(t.epoxy.terrain);
   });
 
+  it('sets off a bomb and is gone with it, in CC3D and in Epoxy', () => {
+    const t = playTimeline({ rows: corridor('.B..O.'), moves: '', glyphs: GLYPHS });
+    expect(t.sameFinal).toBe(true);
+    expect(t.cc3d.final).not.toContain('golem_blue@');
+    expect(t.epoxy.final).not.toContain('golem_blue@');
+  });
+
   it('presses a plate while it stands on it, and the door follows', () => {
     const t = playTimeline({ rows: corridor('.B.=...d.'), moves: '', glyphs: GLYPHS });
     expect(t.cc3d.terrain).toHaveLength(3);
@@ -198,12 +216,12 @@ describe('blue golem', () => {
     expect(t.cc3d.final).toBe(t.epoxy.final);
   });
 
-  it('differs at water and at slime: a CC3D golem stops before it, an Epoxy one walks in and is lost', () => {
-    for (const hazard of ['W', 'L']) {
+  it('stops before water, slime and fire, in CC3D and in Epoxy alike', () => {
+    for (const hazard of ['W', 'L', 'F']) {
       const t = playTimeline({ rows: corridor(`.B..${hazard}.`), moves: '', glyphs: GLYPHS });
-      expect(t.sameFinal).toBe(false);
-      expect(t.cc3d.final).toContain('tank@');
-      expect(t.epoxy.final).not.toContain('tank@');
+      expect(t.sameFinal).toBe(true);
+      expect(t.cc3d.final).toContain('golem_blue@');
+      expect(t.epoxy.final).toContain('golem_blue@');
     }
   });
 
@@ -227,25 +245,38 @@ describe('blue golem', () => {
   it('differs on contact: a CC3D golem stops next to the player, an Epoxy one steps onto his cell', () => {
     const t = playTimeline({ rows: room('@..(...#'), moves: '', glyphs: GLYPHS });
     expect(t.sameFinal).toBe(false);
-    expect(t.cc3d.final).toContain('tank@2,1');
+    expect(t.cc3d.final).toContain('golem_blue@2,1');
     expect(t.cc3d.final).toContain('P1,1x');
-    expect(t.epoxy.final).toContain('tank@1,1');
+    expect(t.epoxy.final).toContain('golem_blue@1,1');
   });
 
-  it('differs in pace: a CC3D golem crosses a cell in 4 ticks, an Epoxy one in 6', () => {
+  it('is an Epoxy-only monster of its own that steps in four ticks, reversed by the blue button', () => {
+    const def = ConfigRegistry.getEntityDef('golem_blue');
+    expect(def?.kind).toBe('monster');
+    expect(def?.epoxyOnly).toBe(true);
+    expect(def?.reversedByButton).toBe(true);
+    // A step lasts interval + 1 ticks.
+    expect((def?.moveIntervalTicks ?? 0) + 1).toBe(GOLEM_STEP_TICKS);
+  });
+
+  it('keeps the pace of CC3D: a cell in 4 ticks, the Epoxy golem starting its first step 3 ticks later', () => {
     const source = cc3dLevel(corridor('.B.......'), { glyphs: GLYPHS });
     const pair = new DifferentialPair(source, convertCc3dLevel(source).level, 1);
-    const started = { cc3d: pair.rig.entities[0].x, epoxy: pair.epoxy.getEntities()[0].x };
-    const crossed = { cc3d: 0, epoxy: 0 };
-    const CELLS = 3;
-    for (let tick = 1; tick <= 200; tick++) {
+    const stepTicks: { cc3d: number[]; epoxy: number[] } = { cc3d: [], epoxy: [] };
+    let at = { cc3d: pair.rig.entities[0].x, epoxy: pair.epoxy.getEntities()[0].x };
+    for (let tick = 1; tick <= PACE_TICKS; tick++) {
       pair.rig.tick(1);
       pair.epoxy.tick();
-      if (crossed.cc3d === 0 && pair.rig.entities[0].x - started.cc3d >= CELLS) crossed.cc3d = tick;
-      if (crossed.epoxy === 0 && pair.epoxy.getEntities()[0].x - started.epoxy >= CELLS) crossed.epoxy = tick;
+      const now = { cc3d: pair.rig.entities[0].x, epoxy: pair.epoxy.getEntities()[0].x };
+      if (now.cc3d !== at.cc3d) stepTicks.cc3d.push(tick);
+      if (now.epoxy !== at.epoxy) stepTicks.epoxy.push(tick);
+      at = now;
     }
-    expect(crossed.cc3d).toBeGreaterThan(0);
-    expect(crossed.cc3d).toBeLessThan(crossed.epoxy);
+    const gaps = (ticks: number[]): number[] => ticks.slice(1).map((tick, i) => tick - ticks[i]);
+    expect(stepTicks.cc3d.length).toBeGreaterThan(MIN_PACE_STEPS);
+    expect(gaps(stepTicks.cc3d).every((gap) => gap === GOLEM_STEP_TICKS)).toBe(true);
+    expect(gaps(stepTicks.epoxy).every((gap) => gap === GOLEM_STEP_TICKS)).toBe(true);
+    expect(stepTicks.epoxy[0] - stepTicks.cc3d[0]).toBe(EPOXY_FIRST_STEP_LAG_TICKS);
   });
 });
 
@@ -253,13 +284,13 @@ describe('blue golem control', () => {
   it('turns every golem round when the player steps onto it', () => {
     const t = playTimeline({ rows: room('@*######', '##(....#'), moves: '', glyphs: GLYPHS }, 'E');
     expect(t.sameFinal).toBe(true);
-    expect(t.cc3d.final).toContain('tank@7,2');
+    expect(t.cc3d.final).toContain('golem_blue@7,2');
   });
 
   it('turns every golem round when a block is pushed onto it', () => {
     const t = playTimeline({ rows: room('@K*#####', '###(....#'), moves: '', glyphs: GLYPHS }, 'E');
     expect(t.sameFinal).toBe(true);
-    expect(t.cc3d.final).toContain('tank@8,2');
+    expect(t.cc3d.final).toContain('golem_blue@8,2');
   });
 
   it('turns every golem round when a golem steps onto it, as the golem cases above show', () => {
@@ -341,15 +372,15 @@ describe.each(CC3D_COLORS)('%s plate', (color) => {
 });
 
 describe('coverage verdicts that rest on this evidence', () => {
-  it('plays the trap, the clone machine and the golem control as CC3D does, each reason citing this file', () => {
-    for (const key of ['trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue']) {
+  it('plays the trap, the clone machine, the golem control and the golem as CC3D does, each reason citing this file', () => {
+    for (const key of ['trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_blue']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceDevices.test.ts');
     }
   });
 
-  it('keeps the golem and the four plates approximate, each reason citing this file', () => {
-    for (const key of ['golem_blue', ...CC3D_COLORS.map((color) => `plate_${color}`)]) {
+  it('keeps the four plates approximate, each reason citing this file', () => {
+    for (const key of [...CC3D_COLORS.map((color) => `plate_${color}`)]) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceDevices.test.ts');
     }

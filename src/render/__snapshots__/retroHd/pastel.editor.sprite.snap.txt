@@ -574,3 +574,4 @@ editor entity over floor legs_red 6f1e95fab4f00dfc
 editor entity over floor screamer b78b04eff27cf0f6
 editor entity over floor baby_screamer 570d8a78cd5b9ea8
 editor entity over floor walker_3d d5062b9fbbab5143
+editor entity over floor golem_blue ce445bd09b8ff235

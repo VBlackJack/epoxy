@@ -259,7 +259,7 @@ const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
   baby_screamer: { type: fixed('baby_screamer') },
   snappy: { type: fixed('snappy') },
   nibble: { type: fixed('nibble') },
-  golem_blue: { type: fixed('tank') },
+  golem_blue: { type: fixed('golem_blue') },
   golem_yellow: { type: fixed('puppet') },
   laser_shooter: { type: null },
   bot_static: { type: fixed('turret_fixed') },
