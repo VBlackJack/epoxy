@@ -38,6 +38,7 @@ import {
   SIGNAL_PORT_MAX_LENGTH,
   SIGNAL_PORT_MIN_LENGTH
 } from './coreConstants';
+import { canonicalSignalPort, isSignalPort } from './signalPorts';
 import type { CellUnderlay, CompiledLevel, SignalLink, SignalNodeDef, SignalSpec, TileDefinition } from './types';
 
 /** What a tile is to a signal network. */
@@ -91,10 +92,10 @@ function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false)
     return { role: 'source', def: { cell, kind: 'source', sample: tile.signalSource } };
   }
   if (tile.signalGate !== undefined) {
-    const def: SignalNodeDef =
-      tile.signalGate === 'latch'
-        ? { cell, kind: 'latch', startBit: tile.signalLatchStartsOn === true }
-        : { cell, kind: tile.signalGate };
+    let def: SignalNodeDef;
+    if (tile.signalGate === 'latch') def = { cell, kind: 'latch', startBit: tile.signalLatchStartsOn === true };
+    else if (tile.signalGate === 'counter') def = { cell, kind: 'counter', startValue: tile.signalCounterStart ?? 0 };
+    else def = { cell, kind: tile.signalGate };
     return { role: 'gate', def };
   }
   const sink = signalSinkOf(tile, { hidden });
@@ -138,7 +139,7 @@ function validPort(value: unknown): string | undefined {
  * With a tile lookup, an entry is also dropped unless its `from` cell is a source or a gate and its `to`
  * cell a gate or a sink (a device hidden under a removable top counts). A port that is not a string of 1 to
  * 16 characters is dropped alone. A pair of cells is kept once, with the smallest port (none is the smallest),
- * because a duplicate wire would change the parity of a XOR. The links are sorted by source row, source
+ * because a duplicate wire would change the parity of a XOR (a port that names a real port of the gate, see signalPorts.ts, makes a wire of its own). The links are sorted by source row, source
  * column, target row, then target column. A cycle is kept: the validator refuses it later. Returns null
  * when none is left.
  */
@@ -168,12 +169,15 @@ export function normalizeSignalLinks(
       if (from === null || (from.role !== 'source' && from.role !== 'gate')) continue;
       if (to === null || (to.role !== 'gate' && to.role !== 'sink')) continue;
     }
-    const key = `${link.fromY},${link.fromX},${link.toY},${link.toX}`;
+    // A pair is one wire, except that wires naming different real ports are different wires (a counter's two outputs).
+    const key = `${link.fromY},${link.fromX},${link.toY},${link.toX}#${canonicalSignalPort(link.port) ?? ''}`;
     const previous = kept.get(key);
     if (previous === undefined || (link.port ?? '') < (previous.port ?? '')) kept.set(key, link);
   }
   if (kept.size === 0) return null;
-  return [...kept.values()].sort((a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX);
+  return [...kept.values()].sort(
+    (a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX || (a.port ?? '').localeCompare(b.port ?? '')
+  );
 }
 
 /**
@@ -254,6 +258,14 @@ export function usesFlipSinkFormat(
     if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
     return isFlip(level.terrain[toY]?.[toX]);
   });
+}
+
+/**
+ * True when a signal link of the level names a port (see signalPorts.ts). An older build keeps the link but ignores the port,
+ * so a data latch or a counter would read every wire as its first input; the file needs a format that build refuses.
+ */
+export function usesSignalPorts(level: Pick<CompiledLevel, 'signalLinks'>): boolean {
+  return (level.signalLinks ?? []).some((link) => link !== null && typeof link === 'object' && isSignalPort(link.port));
 }
 
 /**

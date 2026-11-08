@@ -40,6 +40,7 @@ import {
   copySignalPulses,
   copySignalState,
   fireSignalSinks,
+  counterValuesOf,
   poweredSignalCellsOf,
   restoreSignalPulses,
   settleWorldSignals,
@@ -295,6 +296,11 @@ export class GameEngine {
     return poweredSignalCellsOf(this.w);
   }
 
+  /** The count of each counter gate by cell (y * width + x); undefined without a counter. Read only, for drawing. */
+  public getCounterValues(): ReadonlyMap<number, number> | undefined {
+    return counterValuesOf(this.w);
+  }
+
   /** Sink edges the signal network has reported since the level loaded; a diagnostic, undefined without signals. */
   public getSignalEdgeCounts(): { rising: number; falling: number } | undefined {
     return this.w.signals === undefined ? undefined : { ...this.w.signals.edgeCounts };
@@ -433,8 +439,8 @@ export class GameEngine {
   }
 
   /** Whether the player, with what they carry now, may step on the tile (the rule of a step, for the path tools). */
-  public canPlayerStepOn(tile: TileDefinition): boolean {
-    return canPlayerEnter(this.w, tile);
+  public canPlayerStepOn(tile: TileDefinition, itemId?: string | null): boolean {
+    return canPlayerEnter(this.w, tile, itemId);
   }
 
   /**

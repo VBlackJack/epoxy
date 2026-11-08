@@ -4339,6 +4339,132 @@
     "forbid_boots_force": {
       "name": "No Suction Boots Barrier"
     },
+    "no_sign_key_red": {
+      "name": "No Sign: Red Key",
+      "desc": {
+        "label": "No-sign for the item \"Red Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_blue": {
+      "name": "No Sign: Blue Key",
+      "desc": {
+        "label": "No-sign for the item \"Blue Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_yellow": {
+      "name": "No Sign: Yellow Key",
+      "desc": {
+        "label": "No-sign for the item \"Yellow Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_green": {
+      "name": "No Sign: Green Master Key",
+      "desc": {
+        "label": "No-sign for the item \"Green Master Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_water": {
+      "name": "No Sign: Flippers",
+      "desc": {
+        "label": "No-sign for the item \"Flippers\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_fire": {
+      "name": "No Sign: Fire Boots",
+      "desc": {
+        "label": "No-sign for the item \"Fire Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_ice": {
+      "name": "No Sign: Ice Skates",
+      "desc": {
+        "label": "No-sign for the item \"Ice Skates\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_force": {
+      "name": "No Sign: Suction Boots",
+      "desc": {
+        "label": "No-sign for the item \"Suction Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_slow_time": {
+      "name": "No Sign: Slow-Time Charm",
+      "desc": {
+        "label": "No-sign for the item \"Slow-Time Charm\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_speed": {
+      "name": "No Sign: Speed Boots",
+      "desc": {
+        "label": "No-sign for the item \"Speed Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_eye": {
+      "name": "No Sign: Truesight Boots",
+      "desc": {
+        "label": "No-sign for the item \"Truesight Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_pull": {
+      "name": "No Sign: Grappling Gloves",
+      "desc": {
+        "label": "No-sign for the item \"Grappling Gloves\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_ward": {
+      "name": "No Sign: Ward",
+      "desc": {
+        "label": "No-sign for the item \"Ward\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_hiking_boots": {
+      "name": "No Sign: Hiking Boots",
+      "desc": {
+        "label": "No-sign for the item \"Hiking Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_charge": {
+      "name": "No Sign: Blast Charge",
+      "desc": {
+        "label": "No-sign for the item \"Blast Charge\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_pocket_gate": {
+      "name": "No Sign: Pocket Gate",
+      "desc": {
+        "label": "No-sign for the item \"Pocket Gate\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_hurl_stone": {
+      "name": "No Sign: Hurl Stone",
+      "desc": {
+        "label": "No-sign for the item \"Hurl Stone\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_toll_token": {
+      "name": "No Sign: Toll Token",
+      "desc": {
+        "label": "No-sign for the item \"Toll Token\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_steel_foil": {
+      "name": "No Sign: Steel Foil",
+      "desc": {
+        "label": "No-sign for the item \"Steel Foil\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_bribe": {
+      "name": "No Sign: Bribe",
+      "desc": {
+        "label": "No-sign for the item \"Bribe\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_lightning_bolt": {
+      "name": "No Sign: Lightning Bolt",
+      "desc": {
+        "label": "No-sign for the item \"Lightning Bolt\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
     "door_red": {
       "name": "Red Door"
     },
@@ -4469,6 +4595,12 @@
       "name": "Hiking Boots",
       "desc": {
         "label": "Let Melinda walk on dirt and gravel. They do nothing for Chip."
+      }
+    },
+    "lightning_bolt": {
+      "name": "Lightning Bolt",
+      "desc": {
+        "label": "While the player holds it, the wire floor they stand on sends a signal along its wires."
       }
     },
     "steel_foil": {
@@ -4763,6 +4895,84 @@
       "name": "Latch (on)",
       "desc": {
         "label": "Flips between sending and not sending each time its input starts sending; starts on. Needs: signal links in and out."
+      }
+    },
+    "signal_gate_nand": {
+      "name": "NAND Gate",
+      "desc": {
+        "label": "Sends a signal unless every signal linked into it is sending. Needs: signal links in and out."
+      }
+    },
+    "signal_gate_dlatch": {
+      "name": "Data Latch",
+      "desc": {
+        "label": "Remembers the signal on its data link (port in0) while its clock link (port in1) is sending, and sends what it remembers. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_0": {
+      "name": "Counter (0)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 0. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_1": {
+      "name": "Counter (1)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 1. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_2": {
+      "name": "Counter (2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 2. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_3": {
+      "name": "Counter (3)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 3. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_4": {
+      "name": "Counter (4)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 4. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_5": {
+      "name": "Counter (5)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 5. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_6": {
+      "name": "Counter (6)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 6. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_7": {
+      "name": "Counter (7)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 7. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_8": {
+      "name": "Counter (8)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 8. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_counter_9": {
+      "name": "Counter (9)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 9. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out."
+      }
+    },
+    "signal_wire_floor": {
+      "name": "Conductive Floor",
+      "desc": {
+        "label": "A floor a wire runs under. It sends a signal while the player stands on it holding the lightning bolt. Needs: signal links out."
       }
     },
     "purple_wall": {

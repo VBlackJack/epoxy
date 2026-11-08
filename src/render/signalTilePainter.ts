@@ -15,16 +15,35 @@
  */
 
 /**
- * Vector drawing of the seven signal tiles for the flat and neon styles: a dark device box with a symbol
+ * Vector drawing of the signal tiles for the flat and neon styles: a dark device box with a symbol
  * drawn by canvas paths for each gate (AND "&", OR ">=1", NOT a "1" with an inversion circle, XOR "=1",
- * latch "L"), a flat hex pad for the held signal plate, and a round bezel with a raised cap for the pulse
+ * latch "L", NAND an "&" with an inversion circle, data latch "D", counter the seven-segment digit it starts
+ * with), a wire trace on a floor for the wire floor, a flat hex pad for the held signal plate, and a round bezel with a raised cap for the pulse
  * button (a push button: it reads as momentary, and a lit pulse shows a burst of short rays around the cap).
  * A powered device shows a lit rim and a lit symbol; the pad lights when pressed. Colours arrive as arguments (the renderer reads them from its palette), so
  * this module holds no colour of its own and works for any theme.
  */
 
 /** What a signal tile is drawn as. */
-export type SignalTileKind = 'plate' | 'button' | 'and' | 'or' | 'not' | 'xor' | 'latch_off' | 'latch_on';
+export type SignalTileKind =
+  | 'plate'
+  | 'button'
+  | 'and'
+  | 'or'
+  | 'not'
+  | 'xor'
+  | 'latch_off'
+  | 'latch_on'
+  | 'nand'
+  | 'dlatch'
+  | 'wire'
+  | `counter_${number}`;
+
+/** Prefix of the kind of a counter, followed by the digit it starts with. */
+const COUNTER_KIND_PREFIX = 'counter_';
+
+/** How many digits a counter can start with (0 to 9). */
+const COUNTER_DIGIT_COUNT = 10;
 
 /** The kind of each shipped signal tile id. */
 export const SIGNAL_TILE_KINDS: Readonly<Record<string, SignalTileKind>> = {
@@ -35,7 +54,13 @@ export const SIGNAL_TILE_KINDS: Readonly<Record<string, SignalTileKind>> = {
   signal_gate_not: 'not',
   signal_gate_xor: 'xor',
   signal_latch_off: 'latch_off',
-  signal_latch_on: 'latch_on'
+  signal_latch_on: 'latch_on',
+  signal_gate_nand: 'nand',
+  signal_gate_dlatch: 'dlatch',
+  signal_wire_floor: 'wire',
+  ...Object.fromEntries(
+    Array.from({ length: COUNTER_DIGIT_COUNT }, (_, digit): [string, SignalTileKind] => [`signal_counter_${digit}`, `${COUNTER_KIND_PREFIX}${digit}`])
+  )
 };
 
 /** Colours of a signal tile, all taken from the active palette by the caller. */
@@ -125,6 +150,48 @@ const NOT_CIRCLE = { x: 0.66, y: 0.5, radius: 0.075 };
 const LATCH_STEM = { x: 0.4, top: 0.28, bottom: 0.7, foot: 0.64 };
 const LATCH_MARK = { x: 0.7, y: 0.3, radius: 0.055 };
 
+/** NAND symbol: the AND ampersand and an inversion circle on the output side. */
+const NAND_CIRCLE = { x: 0.8, y: 0.5, radius: 0.05 };
+
+/** Data latch symbol "D": a stem and a bowl. */
+const DLATCH_STEM_X = 0.36;
+const DLATCH_TOP_Y = 0.28;
+const DLATCH_BOTTOM_Y = 0.72;
+const DLATCH_BOWL_START_X = 0.48;
+const DLATCH_BOWL_CONTROL_X = 0.72;
+
+/**
+ * Counter digit, seven segments in the box [0.36, 0.64] x [0.26, 0.74]. The bits of each digit name the segments
+ * top, upper right, lower right, bottom, lower left, upper left and middle, from the least significant bit.
+ */
+const DIGIT_LEFT_X = 0.36;
+const DIGIT_RIGHT_X = 0.64;
+const DIGIT_TOP_Y = 0.26;
+const DIGIT_MIDDLE_Y = 0.5;
+const DIGIT_BOTTOM_Y = 0.74;
+const DIGIT_SEGMENTS: ReadonlyArray<readonly [number, number, number, number]> = [
+  [DIGIT_LEFT_X, DIGIT_TOP_Y, DIGIT_RIGHT_X, DIGIT_TOP_Y],
+  [DIGIT_RIGHT_X, DIGIT_TOP_Y, DIGIT_RIGHT_X, DIGIT_MIDDLE_Y],
+  [DIGIT_RIGHT_X, DIGIT_MIDDLE_Y, DIGIT_RIGHT_X, DIGIT_BOTTOM_Y],
+  [DIGIT_LEFT_X, DIGIT_BOTTOM_Y, DIGIT_RIGHT_X, DIGIT_BOTTOM_Y],
+  [DIGIT_LEFT_X, DIGIT_MIDDLE_Y, DIGIT_LEFT_X, DIGIT_BOTTOM_Y],
+  [DIGIT_LEFT_X, DIGIT_TOP_Y, DIGIT_LEFT_X, DIGIT_MIDDLE_Y],
+  [DIGIT_LEFT_X, DIGIT_MIDDLE_Y, DIGIT_RIGHT_X, DIGIT_MIDDLE_Y]
+];
+const DIGIT_SEGMENT_MASKS: readonly number[] = [0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f];
+
+/** Wire floor: the trace crosses the cell, with a node in the middle. */
+const WIRE_TRACE_INSET_TILE = 0.08;
+const WIRE_TRACE_WIDTH_TILE = 0.07;
+const WIRE_NODE_RADIUS_TILE = 0.13;
+
+/** The digit a counter kind starts with, or undefined for any other kind. */
+function counterDigitOf(kind: SignalTileKind): number | undefined {
+  if (!kind.startsWith(COUNTER_KIND_PREFIX)) return undefined;
+  const digit = Number(kind.slice(COUNTER_KIND_PREFIX.length));
+  return Number.isInteger(digit) && digit >= 0 && digit < COUNTER_DIGIT_COUNT ? digit : undefined;
+}
+
 /** Maps the unit square to the pixels of one cell. */
 interface CellMap {
   px(u: number): number;
@@ -192,7 +259,8 @@ function paintSymbol(
   kind: SignalTileKind,
   m: CellMap,
   colors: SignalTileColors,
-  powered: boolean
+  powered: boolean,
+  liveCount?: number
 ): void {
   ctx.beginPath();
   switch (kind) {
@@ -226,8 +294,40 @@ function paintSymbol(
       ctx.lineTo(m.px(LATCH_STEM.x), m.py(LATCH_STEM.bottom));
       ctx.lineTo(m.px(LATCH_STEM.foot), m.py(LATCH_STEM.bottom));
       break;
-    default:
+    case 'nand':
+      ctx.moveTo(m.px(AND_START[0]), m.py(AND_START[1]));
+      ctx.lineTo(m.px(AND_HEAD_FOOT[0]), m.py(AND_HEAD_FOOT[1]));
+      curve(ctx, m, AND_HEAD_LEFT);
+      curve(ctx, m, AND_HEAD_RIGHT);
+      ctx.lineTo(m.px(AND_BOWL_TOP[0]), m.py(AND_BOWL_TOP[1]));
+      curve(ctx, m, AND_BOWL_LEFT);
+      curve(ctx, m, AND_BOWL_RIGHT);
+      circle(ctx, m, NAND_CIRCLE.x, NAND_CIRCLE.y, NAND_CIRCLE.radius);
       break;
+    case 'dlatch':
+      ctx.moveTo(m.px(DLATCH_STEM_X), m.py(DLATCH_TOP_Y));
+      ctx.lineTo(m.px(DLATCH_STEM_X), m.py(DLATCH_BOTTOM_Y));
+      ctx.lineTo(m.px(DLATCH_BOWL_START_X), m.py(DLATCH_BOTTOM_Y));
+      ctx.bezierCurveTo(
+        m.px(DLATCH_BOWL_CONTROL_X),
+        m.py(DLATCH_BOTTOM_Y),
+        m.px(DLATCH_BOWL_CONTROL_X),
+        m.py(DLATCH_TOP_Y),
+        m.px(DLATCH_BOWL_START_X),
+        m.py(DLATCH_TOP_Y)
+      );
+      ctx.lineTo(m.px(DLATCH_STEM_X), m.py(DLATCH_TOP_Y));
+      break;
+    default: {
+      // The live count wins over the number the counter started with (the editor has no running level).
+      const startNumber = counterDigitOf(kind);
+      if (startNumber === undefined) break;
+      const digit = liveCount !== undefined && liveCount >= 0 && liveCount < COUNTER_DIGIT_COUNT ? Math.trunc(liveCount) : startNumber;
+      DIGIT_SEGMENTS.forEach((seg, bit) => {
+        if ((DIGIT_SEGMENT_MASKS[digit] & (1 << bit)) !== 0) segment(ctx, m, seg[0], seg[1], seg[2], seg[3]);
+      });
+      break;
+    }
   }
   ctx.stroke();
   if (kind === 'latch_off' || kind === 'latch_on') {
@@ -299,7 +399,8 @@ export function paintSignalTile(
   kind: SignalTileKind,
   powered: boolean,
   colors: SignalTileColors,
-  style: SignalTileStyle
+  style: SignalTileStyle,
+  liveCount?: number
 ): void {
   const ink = powered ? colors.lit : colors.idle;
   const map: CellMap = { px: (u) => x + u * size, py: (v) => y + v * size, size };
@@ -309,6 +410,25 @@ export function paintSignalTile(
   ctx.strokeStyle = ink;
   if (kind === 'button') {
     paintPulseButton(ctx, x, y, size, powered, colors, style);
+    ctx.restore();
+    return;
+  }
+  if (kind === 'wire') {
+    // A trace across the cell and a node; the node fills with the lit colour while the wire is powered.
+    ctx.lineWidth = Math.max(MIN_STROKE_PX, size * WIRE_TRACE_WIDTH_TILE);
+    if (powered && style.glowBlurPx > 0) {
+      ctx.shadowColor = colors.lit;
+      ctx.shadowBlur = style.glowBlurPx;
+    }
+    ctx.beginPath();
+    segment(ctx, map, WIRE_TRACE_INSET_TILE, CENTRE_TILE, 1 - WIRE_TRACE_INSET_TILE, CENTRE_TILE);
+    segment(ctx, map, CENTRE_TILE, WIRE_TRACE_INSET_TILE, CENTRE_TILE, 1 - WIRE_TRACE_INSET_TILE);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + size * CENTRE_TILE, y + size * CENTRE_TILE, size * WIRE_NODE_RADIUS_TILE, 0, FULL_TURN);
+    ctx.fillStyle = powered ? colors.lit : colors.box;
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
     return;
   }
@@ -344,6 +464,6 @@ export function paintSignalTile(
   }
   ctx.stroke();
   ctx.lineWidth = Math.max(MIN_STROKE_PX, size * SYMBOL_STROKE_TILE);
-  paintSymbol(ctx, kind, map, colors, powered);
+  paintSymbol(ctx, kind, map, colors, powered, liveCount);
   ctx.restore();
 }

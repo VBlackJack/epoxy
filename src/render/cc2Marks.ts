@@ -46,6 +46,18 @@ const TREAD = { halfWidth: 0.11, halfHeight: 0.06, steps: 3, line: 0.035 } as co
 const PAUSE_BARS = { halfHeight: 0.1, offset: 0.055, width: 0.05 } as const;
 /** The sheet inside a foil badge (steel foil): half length of the slanted sheet, its half thickness and the glint line, in tiles. */
 const FOIL_SHEET = { halfLength: 0.12, halfThickness: 0.045, line: 0.025 } as const;
+/** The zigzag bolt inside a lightning badge: points of the bolt as offsets from the badge centre, in tiles, and the line width. */
+const BOLT = {
+  points: [
+    [0.045, -0.13],
+    [-0.07, 0.01],
+    [0.0, 0.01],
+    [-0.045, 0.13],
+    [0.07, -0.02],
+    [0.005, -0.02]
+  ],
+  line: 0.025
+} as const;
 /** The note inside a bribe badge: half width, half height and line width, in tiles, and the radius of the coin mark on it. */
 const BRIBE_NOTE = { halfWidth: 0.13, halfHeight: 0.085, line: 0.025, coin: 0.035 } as const;
 /** The track inside a railroad sign badge: half length of the rails, their distance from the centre, the sleeper count and half length, and the line width, in tiles. */
@@ -203,6 +215,27 @@ export function paintFoilBadge(ctx: CanvasRenderingContext2D, x: number, y: numb
   ctx.restore();
 }
 
+/** The lightning bolt: a round badge with a filled zigzag bolt, in the colour of electricity. */
+export function paintBoltBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, BOLT.line);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  BOLT.points.forEach(([dx, dy], i) => {
+    if (i === 0) ctx.moveTo(cx + size * dx, cy + size * dy);
+    else ctx.lineTo(cx + size * dx, cy + size * dy);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** A bribe: the badge holds a banknote, a small rectangle with a coin mark in its middle. */
 export function paintBribeBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
   ctx.save();
@@ -284,6 +317,30 @@ export function paintSignPlate(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(letter, cx, cy + 1);
+  ctx.restore();
+}
+
+/** A no-sign: radius of the ring, its line width and the angle of the bar across it, in tiles and radians. */
+const NO_SIGN = { radius: 0.4, line: 0.075, slashAngle: Math.PI * 1.25 } as const;
+
+/** A no-sign: a ring crossed by a bar (`fill` is the ring, `edge` the bar), over the item it names. */
+export function paintNoSign(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  const cx = x + size * HALF;
+  const cy = y + size * HALF;
+  const radius = size * NO_SIGN.radius;
+  const reachX = Math.cos(NO_SIGN.slashAngle) * radius;
+  const reachY = Math.sin(NO_SIGN.slashAngle) * radius;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = lineWidth(size, NO_SIGN.line);
+  ctx.strokeStyle = colours.fill;
+  disc(ctx, cx, cy, radius);
+  ctx.stroke();
+  ctx.strokeStyle = colours.edge;
+  ctx.beginPath();
+  ctx.moveTo(cx + reachX, cy + reachY);
+  ctx.lineTo(cx - reachX, cy - reachY);
+  ctx.stroke();
   ctx.restore();
 }
 

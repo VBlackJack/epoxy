@@ -1234,7 +1234,7 @@ export interface TileDefinition {
    * A signal source: 'held' is on while its cell is occupied, 'pulse' is on for one settle after something
    * arrives on its cell. A laser receiver is a source through laserReceiverGroup.
    */
-  signalSource?: 'held' | 'pulse' | 'inverted' | 'toggle';
+  signalSource?: 'held' | 'pulse' | 'inverted' | 'toggle' | 'charged';
   /**
    * A toggle switch (signalSource 'toggle'): whether this form is the powered one. The state of the switch is its terrain
    * form, so it lives in the terrain (snapshots and hashes already cover it).
@@ -1251,9 +1251,11 @@ export interface TileDefinition {
   /** A trap that a signal link may end on: it is open while that signal is on, besides while a brown button is held. */
   wiredTrap?: true;
   /** A signal gate: the logic it applies to the signals linked into it. */
-  signalGate?: 'and' | 'or' | 'not' | 'xor' | 'latch';
+  signalGate?: 'and' | 'or' | 'not' | 'xor' | 'latch' | 'nand' | 'dlatch' | 'counter';
   /** A latch tile that starts with its bit on; the bit itself lives in the signal state. */
   signalLatchStartsOn?: true;
+  /** A counter gate tile: the digit (0 to 9) it starts with; the count itself lives in the signal state. */
+  signalCounterStart?: number;
   /** Channel of a colour toggle wall; a toggle wall that declares none belongs to the green channel. */
   toggleChannel?: ChannelColor;
   /** The other form of a colour toggle wall, swapped by the toggle button of its channel only. */
@@ -1773,7 +1775,7 @@ export interface CellUnderlay {
   terrain: string;
 }
 
-export type SignalNodeKind = 'source' | 'and' | 'or' | 'not' | 'xor' | 'latch' | 'sink';
+export type SignalNodeKind = 'source' | 'and' | 'or' | 'not' | 'xor' | 'latch' | 'nand' | 'dlatch' | 'counter' | 'sink';
 
 export interface SignalNodeSpec {
   /** Index of the node's cell (y * width + x); unique in a network. */
@@ -1781,6 +1783,8 @@ export interface SignalNodeSpec {
   kind: SignalNodeKind;
   /** Latch nodes only: the bit the latch starts with at load; off when absent. */
   startBit?: boolean;
+  /** Counter nodes only: the digit (0 to 9) the counter starts with at load; 0 when absent. */
+  startValue?: number;
 }
 
 export interface SignalLinkSpec {
@@ -1788,7 +1792,11 @@ export interface SignalLinkSpec {
   from: number;
   /** Cell index of the node the signal enters. */
   to: number;
-  /** Reserved for ordered gates; ignored in v1. */
+  /**
+   * The ports the wire joins, for a gate with ordered ports (see signalPorts.ts): `in0` or `in1` names the input of the
+   * gate the link enters, `out0` or `out1` the output of the counter it leaves, `out1>in0` both. Absent: the first input,
+   * the first output.
+   */
   port?: string;
 }
 
@@ -1801,13 +1809,17 @@ export interface SignalState {
   latchBits: boolean[];
   /** The output of every node at the last settle; a source's output is the level last sampled for it. */
   lastOutputs: boolean[];
+  /** The count of each counter gate (0 to 9; 0 for other nodes). Present only in a network that has a counter. */
+  counterValues?: number[];
+  /** The underflow output of each counter gate, held until its next count (false for other nodes). Present with counterValues. */
+  counterUnderflow?: boolean[];
 }
 
 /**
  * How a signal source reads the world: a held source is on while its cell is occupied, an inverted one while it is not,
  * a receiver source while a laser lights it, a toggle source while its terrain is the powered form of a toggle switch.
  */
-export type SignalSampler = 'held' | 'pulse' | 'receiver' | 'inverted' | 'toggle';
+export type SignalSampler = 'held' | 'pulse' | 'receiver' | 'inverted' | 'toggle' | 'charged';
 
 /**
  * What a signal sink fires on a rising edge of its input: a shot launcher, a clone machine, or a flip tile (a green

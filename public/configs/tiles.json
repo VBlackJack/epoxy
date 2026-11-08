@@ -1118,6 +1118,14 @@
       "laserTransparent": true,
       "collectible": "boot"
     },
+    "lightning_bolt": {
+      "id": "lightning_bolt",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.lightning_bolt.name",
+      "laserTransparent": true,
+      "collectible": "boot"
+    },
     "steel_foil": {
       "id": "steel_foil",
       "category": "items",
@@ -1700,6 +1708,159 @@
       "signalGate": "latch",
       "signalLatchStartsOn": true
     },
+    "signal_gate_nand": {
+      "id": "signal_gate_nand",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_nand.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "nand"
+    },
+    "signal_gate_dlatch": {
+      "id": "signal_gate_dlatch",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_gate_dlatch.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "dlatch"
+    },
+    "signal_counter_0": {
+      "id": "signal_counter_0",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_0.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 0
+    },
+    "signal_counter_1": {
+      "id": "signal_counter_1",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_1.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 1
+    },
+    "signal_counter_2": {
+      "id": "signal_counter_2",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_2.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 2
+    },
+    "signal_counter_3": {
+      "id": "signal_counter_3",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_3.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 3
+    },
+    "signal_counter_4": {
+      "id": "signal_counter_4",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_4.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 4
+    },
+    "signal_counter_5": {
+      "id": "signal_counter_5",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_5.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 5
+    },
+    "signal_counter_6": {
+      "id": "signal_counter_6",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_6.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 6
+    },
+    "signal_counter_7": {
+      "id": "signal_counter_7",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_7.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 7
+    },
+    "signal_counter_8": {
+      "id": "signal_counter_8",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_8.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 8
+    },
+    "signal_counter_9": {
+      "id": "signal_counter_9",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_counter_9.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "signalGate": "counter",
+      "signalCounterStart": 9
+    },
+    "signal_wire_floor": {
+      "id": "signal_wire_floor",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.signal_wire_floor.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "signalSource": "charged"
+    },
     "purple_wall": {
       "id": "purple_wall",
       "category": "mechanisms",
@@ -2168,6 +2329,174 @@
       "i18nKey": "tiles.railroad_sign.name",
       "laserTransparent": true,
       "collectible": "boot"
+    },
+    "no_sign_key_red": {
+      "id": "no_sign_key_red",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_key_red.name",
+      "laserTransparent": true,
+      "forbiddenItem": "key_red"
+    },
+    "no_sign_key_blue": {
+      "id": "no_sign_key_blue",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_key_blue.name",
+      "laserTransparent": true,
+      "forbiddenItem": "key_blue"
+    },
+    "no_sign_key_yellow": {
+      "id": "no_sign_key_yellow",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_key_yellow.name",
+      "laserTransparent": true,
+      "forbiddenItem": "key_yellow"
+    },
+    "no_sign_key_green": {
+      "id": "no_sign_key_green",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_key_green.name",
+      "laserTransparent": true,
+      "forbiddenItem": "key_green"
+    },
+    "no_sign_boots_water": {
+      "id": "no_sign_boots_water",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_water.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_water"
+    },
+    "no_sign_boots_fire": {
+      "id": "no_sign_boots_fire",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_fire.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_fire"
+    },
+    "no_sign_boots_ice": {
+      "id": "no_sign_boots_ice",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_ice.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_ice"
+    },
+    "no_sign_boots_force": {
+      "id": "no_sign_boots_force",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_force.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_force"
+    },
+    "no_sign_slow_time": {
+      "id": "no_sign_slow_time",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_slow_time.name",
+      "laserTransparent": true,
+      "forbiddenItem": "slow_time"
+    },
+    "no_sign_boots_speed": {
+      "id": "no_sign_boots_speed",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_speed.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_speed"
+    },
+    "no_sign_boots_eye": {
+      "id": "no_sign_boots_eye",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_eye.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_eye"
+    },
+    "no_sign_boots_pull": {
+      "id": "no_sign_boots_pull",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_boots_pull.name",
+      "laserTransparent": true,
+      "forbiddenItem": "boots_pull"
+    },
+    "no_sign_ward": {
+      "id": "no_sign_ward",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_ward.name",
+      "laserTransparent": true,
+      "forbiddenItem": "ward"
+    },
+    "no_sign_hiking_boots": {
+      "id": "no_sign_hiking_boots",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_hiking_boots.name",
+      "laserTransparent": true,
+      "forbiddenItem": "hiking_boots"
+    },
+    "no_sign_charge": {
+      "id": "no_sign_charge",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_charge.name",
+      "laserTransparent": true,
+      "forbiddenItem": "charge"
+    },
+    "no_sign_pocket_gate": {
+      "id": "no_sign_pocket_gate",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_pocket_gate.name",
+      "laserTransparent": true,
+      "forbiddenItem": "pocket_gate"
+    },
+    "no_sign_hurl_stone": {
+      "id": "no_sign_hurl_stone",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_hurl_stone.name",
+      "laserTransparent": true,
+      "forbiddenItem": "hurl_stone"
+    },
+    "no_sign_toll_token": {
+      "id": "no_sign_toll_token",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_toll_token.name",
+      "laserTransparent": true,
+      "forbiddenItem": "toll_token"
+    },
+    "no_sign_steel_foil": {
+      "id": "no_sign_steel_foil",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_steel_foil.name",
+      "laserTransparent": true,
+      "forbiddenItem": "steel_foil"
+    },
+    "no_sign_bribe": {
+      "id": "no_sign_bribe",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_bribe.name",
+      "laserTransparent": true,
+      "forbiddenItem": "bribe"
+    },
+    "no_sign_lightning_bolt": {
+      "id": "no_sign_lightning_bolt",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_lightning_bolt.name",
+      "laserTransparent": true,
+      "forbiddenItem": "lightning_bolt"
     }
   }
 }

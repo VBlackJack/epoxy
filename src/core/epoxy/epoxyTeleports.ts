@@ -90,7 +90,7 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
       if (isInBounds(w, exitX, exitY)) {
         const exitTile = ConfigRegistry.getTile(w.terrain[exitY][exitX]);
         if (
-          canPlayerEnter(w, exitTile) &&
+          canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
           !getEntityAt(w, exitX, exitY) &&
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
