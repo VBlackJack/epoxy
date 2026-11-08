@@ -34,8 +34,8 @@ import {
 import type { Cc2ImportFile } from './cc2Import';
 
 const MAX_BYTES = 1 << 20;
-/** Steel foil has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
-const STEEL_FOIL = 0x8c;
+/** The railroad sign has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
+const RAILROAD_SIGN = 0x6f;
 const PURPLE_WALL = 0x73;
 const FORMAT = (bytes: number): string => String(bytes);
 
@@ -56,7 +56,7 @@ function scriptFile(path: string, text: string): Cc2ImportFile {
 
 /** A level whose title tells which file it came from. */
 function levelFile(path: string, title: string, broken = false): Cc2ImportFile {
-  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, { code: STEEL_FOIL }, { code: FLOOR_CODE })] : [])]);
+  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, { code: RAILROAD_SIGN }, { code: FLOOR_CODE })] : [])]);
   return fileOf(path, c2mFileBytes(map, title));
 }
 
@@ -156,7 +156,7 @@ describe('building the pack', () => {
     expect(result.levels.map((l) => l.number)).toEqual([1, 2, 3]);
     expect(result.levels.map((l) => l.cc2?.file)).toEqual(['b.c2m', 'a.c2m', 'c.c2m']);
     expect(result.summary).toMatchObject({ levelCount: 3, exact: 2, lost: 1, skipped: 0, appended: 1 });
-    expect(result.summary.lostKeys).toEqual(['steel_foil']);
+    expect(result.summary.lostKeys).toEqual(['railroad_sign']);
     expect(result.sources).toHaveLength(3);
   });
 

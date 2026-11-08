@@ -123,6 +123,8 @@ export interface PlayEngine {
   getTargetsProgress(): { covered: number; total: number };
   getTick(): number;
   getTimeRemainingSeconds(): number;
+  /** Optional. Whether a toggle clock holds the level timer; undefined on a level without one. An engine without toggle clocks omits it. */
+  isTimerPaused?(): boolean | undefined;
   getTimedMoveHistory(): TimedMove[];
   getStepsCount(): number;
 

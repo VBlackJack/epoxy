@@ -33,7 +33,7 @@ import {
 /** Reserved ids that a mapping plays as an Epoxy element instead of losing. */
 const MAPPED_RESERVED = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female'
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock'
 ];
 
 describe('cc2 coverage table', () => {

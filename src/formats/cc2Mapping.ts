@@ -153,7 +153,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x3e, same('boots_water', 'flippers')],
   [0x40, same('bomb')],
   [0x4c, same('stopwatch_bonus', 'time_bonus')],
-  [0x4d, reserved('toggle_clock')],
+  [0x4d, same('toggle_clock')],
   [0x51, same('charge', 'dynamite')],
   [0x52, same('ward', 'helmet')],
   [0x59, same('hiking_boots')],
@@ -167,8 +167,9 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x80, same('score_2x', 'bonus_flag_2x')],
   [0x83, same('green_bomb')],
   [0x84, same('green_chip')],
-  [0x8c, reserved('steel_foil')],
+  [0x8c, same('steel_foil')],
   [0x8e, same('boots_eye', 'secret_eye')],
+  [0x8f, same('bribe')],
   [0x90, same('boots_speed', 'speed_boots')],
   [0x92, same('boots_pull', 'hook')]
 ]);
@@ -195,7 +196,7 @@ export const NO_SIGN_FORBID_MAP: ReadonlyMap<string, Cc2TileMapping> = new Map<s
 ]);
 
 /** Item codes with no Epoxy and no reserved id: the item is dropped and the key is lost. */
-export const ITEM_LOST_KEYS: ReadonlyMap<number, string> = new Map<number, string>([[0x8f, 'bribe']]);
+export const ITEM_LOST_KEYS: ReadonlyMap<number, string> = new Map<number, string>();
 
 /** Actor codes that become an Epoxy entity (blocks and monsters). */
 export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([

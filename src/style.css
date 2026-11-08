@@ -758,6 +758,16 @@ body.fullscreen-mode .play-shell .viewport-wrapper {
   text-shadow: 0 0 6px rgba(255, 171, 0, 0.45);
 }
 
+/* Shown under the time counter while a toggle clock holds the level timer. */
+.led-paused {
+  display: block;
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--led-amber);
+  animation: led-pulse-danger 0.9s infinite alternate;
+}
+
 .led-danger {
   color: var(--danger);
   text-shadow: 0 0 8px rgba(255, 23, 68, 0.7);

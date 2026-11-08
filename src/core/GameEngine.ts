@@ -25,10 +25,12 @@ import {
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
+  TIMER_PAUSE_KEY_PREFIX,
   TOGGLE_PARITY_KEY_PREFIX,
   FORCE_CYCLE_KEY_PREFIX,
   LIT_CHARGE_KEY_PREFIX
 } from './coreConstants';
+import { countPausedTick } from './epoxy/epoxyCc2Items';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
 import {
@@ -309,6 +311,14 @@ export class GameEngine {
   }
 
   /**
+   * Whether a toggle clock holds the level timer; undefined on a level without a toggle clock, so nothing about it reaches
+   * a level without one or its hash.
+   */
+  public isTimerPaused(): boolean | undefined {
+    return this.w.hasToggleClock ? this.w.timerPaused : undefined;
+  }
+
+  /**
    * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
    * so nothing about charges reaches a level without one or its hash.
    */
@@ -327,6 +337,7 @@ export class GameEngine {
     if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
     const forceCycleTurn = this.getForceCycleTurn();
     if (forceCycleTurn !== undefined) parts.push(`${FORCE_CYCLE_KEY_PREFIX}${forceCycleTurn % FORCE_CYCLE_ORDER.length}`);
+    if (this.w.hasToggleClock) parts.push(`${TIMER_PAUSE_KEY_PREFIX}${this.w.timerPaused ? 1 : 0}`);
     if (this.w.litCharges.length > 0) parts.push(`${LIT_CHARGE_KEY_PREFIX}${litChargesStateKey(this.w, this.ticksElapsed)}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
     if (this.w.swivelEntry.size > 0) {
@@ -368,7 +379,8 @@ export class GameEngine {
 
   public getTimeRemainingSeconds(): number {
     const { ticksPerSecond } = ConfigRegistry.getGame().timing;
-    const elapsedSec = Math.floor(this.ticksElapsed / ticksPerSecond);
+    // The ticks a toggle clock held the timer do not count (always 0 on a level without one).
+    const elapsedSec = Math.floor((this.ticksElapsed - this.w.pausedTicks) / ticksPerSecond);
     return Math.max(0, this.w.level.timeLimitSeconds + this.w.extraTimeSeconds - elapsedSec);
   }
 
@@ -616,6 +628,8 @@ export class GameEngine {
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
       // Only a level with a turning force floor counts arrivals on it.
       ...(this.w.hasForceCycle ? { forceCycleTurn: this.w.forceCycleTurn } : {}),
+      // Only a level with a toggle clock can hold its timer.
+      ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
       ...(this.w.litCharges.length > 0 ? { litCharges: copyLitCharges(this.w) } : {}),
       // Only a level that revealed something has revealed cells to put back.
@@ -672,6 +686,8 @@ export class GameEngine {
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
     this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
+    this.w.timerPaused = snap.timerPaused ?? false;
+    this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
@@ -695,6 +711,7 @@ export class GameEngine {
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;
     this.ticksElapsed++;
+    countPausedTick(this.w);
     if (this.getTimeRemainingSeconds() <= 0 && this.w.level.timeLimitSeconds > 0) {
       killPlayer(this.ctx, 'hud.messages.death_time', 'death');
       return;

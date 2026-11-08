@@ -1001,6 +1001,9 @@
       "time_unlimited": {
         "label": "---"
       },
+      "time_paused": {
+        "label": "PAUSED"
+      },
       "score": {
         "label": "SCORE"
       },
@@ -1341,6 +1344,15 @@
       },
       "thief_paid": {
         "label": "The toll token paid the thief. Nothing was taken!"
+      },
+      "thief_bribed": {
+        "label": "The bribe paid the thief. Nothing was taken!"
+      },
+      "timer_paused": {
+        "label": "The clock is paused."
+      },
+      "timer_resumed": {
+        "label": "The clock is running again."
       },
       "throw_busy": {
         "label": "You cannot throw while you are moving."
@@ -4454,6 +4466,24 @@
       "name": "Hiking Boots",
       "desc": {
         "label": "Let Melinda walk on dirt and gravel. They do nothing for Chip."
+      }
+    },
+    "steel_foil": {
+      "name": "Steel Foil",
+      "desc": {
+        "label": "Pick it up and keep it. Bumping into a plain wall turns that wall into a steel wall; you do not move and the foil is not used up. A thief takes it with the other boots."
+      }
+    },
+    "toggle_clock": {
+      "name": "Toggle Clock",
+      "desc": {
+        "label": "Stays where it is. Stepping on it pauses the level timer, and stepping on it again resumes it. Monsters and blocks cannot enter its cell. It does nothing on a level without a time limit."
+      }
+    },
+    "bribe": {
+      "name": "Bribe",
+      "desc": {
+        "label": "Pick it up and keep it. Each time you step on a thief, one bribe is spent and nothing is taken, whether it guards boots or keys. It cannot be set down, and a thief never takes it."
       }
     },
     "score_10": {
