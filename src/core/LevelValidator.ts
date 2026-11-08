@@ -1252,7 +1252,7 @@ export class LevelValidator {
     }
 
     // On a level with several players, name the ones whose flood never met an exit when others did.
-    const strandedTags = tagCount > 0 && (reported.exitTags ?? 0) !== 0 ? originMask & ~(reported.exitTags ?? 0) : 0;
+    const strandedTags = tagCount > 0 && (reported.exitTags ?? 0) !== 0 && !reported.aborted ? originMask & ~(reported.exitTags ?? 0) : 0;
     if (exitMissed && strandedTags !== 0 && !provenSolvable) {
       startPoints.forEach((_, startIndex) => {
         if ((tagOf(startIndex) & strandedTags) !== 0) {

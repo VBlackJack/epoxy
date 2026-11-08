@@ -24,7 +24,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
+import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, EXTRA_PLAYERS_MAX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -496,12 +496,14 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           if (code === CC2_CODE_MELINDA) keys.add(KEY_MELINDA_PLAYER);
         } else if (isPlayer) {
           // Every further player is a start of its own, in reading order, with its character and facing.
-          extraPlayers.push({
-            x,
-            y,
-            dir: cc2Direction(actor.dir),
-            character: code === CC2_CODE_MELINDA ? MELINDA_CHARACTER : DEFAULT_PLAYER_CHARACTER
-          });
+          if (extraPlayers.length < EXTRA_PLAYERS_MAX) {
+            extraPlayers.push({
+              x,
+              y,
+              dir: cc2Direction(actor.dir),
+              character: code === CC2_CODE_MELINDA ? MELINDA_CHARACTER : DEFAULT_PLAYER_CHARACTER
+            });
+          } else warnings.push(`player at ${where} is dropped: Epoxy plays at most ${EXTRA_PLAYERS_MAX + 1} players`);
           if (code === CC2_CODE_MELINDA) keys.add(KEY_MELINDA_PLAYER);
         } else {
           const placed = actorEntity(actor, warnings, where);
