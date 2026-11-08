@@ -27,6 +27,7 @@ import {
   MarkColours,
   paintBoltBadge,
   paintBribeBadge,
+  paintDynamiteBadge,
   paintFoilBadge,
   paintNoSign,
   paintPauseBadge,
@@ -38,7 +39,7 @@ import {
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -56,6 +57,8 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   bribe: { base: 'toll_token', mark: 'bribe' },
   railroad_sign: { base: 'boots_fire', mark: 'rail' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
+  dynamite: { base: 'charge', mark: 'dynamite' },
+  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' },
   ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
 };
 
@@ -74,6 +77,7 @@ export interface MarkPalette {
   readonly green: string;
   readonly brown: string;
   readonly gray: string;
+  readonly red: string;
   readonly blue: string;
   readonly glyphInk: string;
   readonly hintGlyph: string;
@@ -104,6 +108,8 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'bribe':
       return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'dynamite':
+      return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'rail':
       return { fill: pal.gray, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
@@ -133,6 +139,8 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
     case 'bribe':
       return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
+    case 'dynamite':
+      return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
     case 'rail':
       return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
   }
@@ -161,6 +169,9 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'bribe':
       paintBribeBadge(ctx, x, y, size, colours);
+      return;
+    case 'dynamite':
+      paintDynamiteBadge(ctx, x, y, size, colours);
       return;
     case 'rail':
       paintRailBadge(ctx, x, y, size, colours);

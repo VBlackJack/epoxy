@@ -19,6 +19,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import { CHARGE_BLAST_RADIUS, CHARGE_BLAST_SFX, CHARGE_DEATH_REASON_KEY } from '../coreConstants';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { LitCharge } from '../types';
+import { blastDynamite, lightDepartedDynamite } from './epoxyDynamite';
 import { EpoxyContext, EpoxyWorld, killPlayer, removeEntity } from './epoxyWorld';
 
 /** True when the item id is a lit blast charge, which blocks nothing and cannot be picked up. */
@@ -59,10 +60,19 @@ function inBlast(cx: number, cy: number, x: number, y: number): boolean {
 export function detonateCharges(ctx: EpoxyContext, tick: number): void {
   const w = ctx.world;
   if (w.litCharges.length === 0) return;
+  // A dynamite whose player has left its cell lights now.
+  lightDepartedDynamite(w, tick);
   const due = w.litCharges.filter((charge) => charge.detonateTick <= tick);
   if (due.length === 0) return;
   w.litCharges = w.litCharges.filter((charge) => charge.detonateTick > tick);
-  for (const charge of due) blast(ctx, charge);
+  // A dynamite blast destroys the lit charges inside it, those of this very tick included: they leave `pending`.
+  const pending = new Set(due);
+  for (const charge of due) {
+    if (!pending.has(charge)) continue;
+    pending.delete(charge);
+    if (charge.dynamite === true) blastDynamite(ctx, charge, pending);
+    else blast(ctx, charge);
+  }
 }
 
 function blast(ctx: EpoxyContext, charge: LitCharge): void {
@@ -84,7 +94,12 @@ function blast(ctx: EpoxyContext, charge: LitCharge): void {
   }
 }
 
-/** Search state key of the lit charges: where each is and how many ticks its fuse has left. Empty when none is lit. */
+/**
+ * Search state key of the lit charges: where each is and how many ticks its fuse has left. Empty when none is lit. A
+ * set-down dynamite whose player has not left yet has no fuse: it reads "w".
+ */
 export function litChargesStateKey(w: EpoxyWorld, tick: number): string {
-  return w.litCharges.map((charge) => `${charge.x},${charge.y}:${charge.detonateTick - tick}`).join(';');
+  return w.litCharges
+    .map((charge) => `${charge.x},${charge.y}:${charge.awaitingDeparture === true ? 'w' : charge.detonateTick - tick}`)
+    .join(';');
 }

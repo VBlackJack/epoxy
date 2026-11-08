@@ -240,7 +240,7 @@ describe('terrain, items and entities', () => {
     ]);
     expect(level.terrain[0].slice(1, 6)).toEqual(['floor', 'floor', 'floor', 'floor', 'floor']);
     expect(level.items[0].slice(1, 6)).toEqual([
-      'no_sign_charge', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
+      'no_sign_dynamite', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
     ]);
     expect(coverage.lost).toEqual([]);
     expect(coverage.approx).toContain('no_sign_item');
@@ -332,11 +332,12 @@ describe('terrain, items and entities', () => {
     expect(report.exact).toContain('railroad_sign');
   });
 
-  it('approximates a steel wall only next to dynamite', () => {
+  it('plays a steel wall next to dynamite as dynamite alone is played', () => {
     expect(convert([put(1, 0, { code: STEEL_WALL })]).coverage.verdict).toBe('exact');
     const withDynamite = convert([put(1, 0, { code: STEEL_WALL }), put(2, 0, { code: DYNAMITE }, { code: FLOOR_CODE })]);
     expect(withDynamite.coverage.lost).toEqual([]);
-    expect(withDynamite.coverage.approx).toEqual(['dynamite', 'steel_wall_with_destroyer']);
+    expect(withDynamite.coverage.approx).toEqual(['dynamite']);
+    expect(withDynamite.level.items[0][2]).toBe('dynamite');
   });
 });
 
