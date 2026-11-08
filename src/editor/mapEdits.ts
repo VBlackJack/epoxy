@@ -28,6 +28,7 @@ import {
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
 import { removeRailTracksWhere, replaceRailTracks, translateRailTracks } from './editorRailTracks';
+import { defaultRailTrackCell } from './railTrackEdits';
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
@@ -180,11 +181,18 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
   const hidden = hidesShotDevice(map, x, y);
   let removedLinks = dropLinksAt(map, x, y, keepsLauncherLinks(previous, tileId) || hidden);
   const removedUnderlays = pruneUnderlays(map);
-  // A cell that stops being a track cell loses its tracks.
+  // A cell that stops being a track cell loses its tracks; one that becomes a track cell starts with the default tracks.
   if (map.railTracks) replaceRailTracks(map, map.railTracks);
+  addDefaultRailTracks(map, tileId, [{ x, y }]);
   // A device still hidden under the new top keeps its links; one that is gone loses them.
   if (hidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
+}
+
+/** Gives the cells that just became track cells (terrain `tileId`) the default tracks; any other tile adds nothing. */
+export function addDefaultRailTracks(map: EditorMap, tileId: string, cells: ReadonlyArray<{ x: number; y: number }>): void {
+  if (map.cc3d || tileDefinitionOf(tileId)?.railJunction !== true) return;
+  replaceRailTracks(map, [...(map.railTracks ?? []), ...cells.map((cell) => defaultRailTrackCell(cell.x, cell.y))]);
 }
 
 /** Paints an item (key, chip, boots...) on the item layer. */
@@ -302,6 +310,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
   const queue: number[] = [y * width + x];
   let removedLinks = 0;
   let anyHidden = false;
+  const filled: Array<{ x: number; y: number }> = [];
   for (let head = 0; head < queue.length; head++) {
     const index = queue[head];
     if (visited.has(index)) continue;
@@ -310,6 +319,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
     const cy = Math.floor(index / width);
     if (map.terrain[cy][cx] !== target) continue;
     map.terrain[cy][cx] = tileId;
+    filled.push({ x: cx, y: cy });
     const hidden = hidesShotDevice(map, cx, cy);
     anyHidden ||= hidden;
     removedLinks += dropLinksAt(map, cx, cy, keepsLauncherLinks(target, tileId) || hidden);
@@ -320,6 +330,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
   }
   const removedUnderlays = pruneUnderlays(map);
   if (map.railTracks) replaceRailTracks(map, map.railTracks);
+  addDefaultRailTracks(map, tileId, filled);
   if (anyHidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }

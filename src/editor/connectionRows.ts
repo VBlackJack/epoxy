@@ -22,6 +22,8 @@ import { EDITOR_CONNECTIONS_MAX_ROWS } from '../ui/uiConstants';
 import { holdsShotLauncher, holdsShotTrigger } from './editorLauncherLinks';
 import { signalTileHoldsEnd } from './editorSignalLinks';
 import type { ToolMessage } from './editorTools';
+import { gateHasPorts, gateKindOfTile, wirePortRoles } from './signalPortRoles';
+import type { SignalPortSide, WirePortRoles } from './signalPortRoles';
 import type { LinkEnd, LinkSystem } from './mapEdits';
 
 /**
@@ -172,6 +174,12 @@ export interface ConnectionUnlink {
   target: ConnectionPoint;
 }
 
+/** The port swap a row offers: the gate cell and which side of it the swap turns. */
+export interface ConnectionSwap {
+  cell: ConnectionPoint;
+  side: SignalPortSide;
+}
+
 export interface ConnectionRow {
   x: number;
   y: number;
@@ -185,6 +193,10 @@ export interface ConnectionRow {
   /** The other cell's device name, else its item or tile name. */
   name: ToolMessage;
   unlink: ConnectionUnlink | null;
+  /** Signal wires into or out of a data latch or a counter: the role each end of the wire plays (data, clock, count up...). */
+  ports?: WirePortRoles;
+  /** Signal wires into or out of a data latch or a counter: the swaps the row offers, one per gate end of the wire. */
+  swaps?: ConnectionSwap[];
 }
 
 export interface ConnectionList {
@@ -354,6 +366,32 @@ function unlinkOf(
     : { system: relation.system, button: other, target: subject };
 }
 
+/** The terrain tile on top of a cell, the only one a signal gate is read from. */
+function topTileOf(level: DeviceLevel, cell: ConnectionPoint): string | undefined {
+  return level.terrain[cell.y]?.[cell.x];
+}
+
+/** The roles and swaps of a signal wire row when one of its ends is a data latch or a counter; nothing otherwise. */
+function portDetailsOf(
+  level: DeviceLevel,
+  relation: Relation,
+  subject: ConnectionPoint,
+  direction: 'controls' | 'controlledBy'
+): Pick<ConnectionRow, 'ports' | 'swaps'> {
+  if (relation.kind !== 'link' || relation.system !== 'signal') return {};
+  const other = { x: relation.x, y: relation.y };
+  const from = direction === 'controls' ? subject : other;
+  const to = direction === 'controls' ? other : subject;
+  const fromKind = gateKindOfTile(topTileOf(level, from));
+  const toKind = gateKindOfTile(topTileOf(level, to));
+  const ports = wirePortRoles(relation.port, fromKind, toKind);
+  if (ports.in === undefined && ports.out === undefined) return {};
+  const swaps: ConnectionSwap[] = [];
+  if (gateHasPorts(toKind, 'input')) swaps.push({ cell: to, side: 'input' });
+  if (gateHasPorts(fromKind, 'output')) swaps.push({ cell: from, side: 'output' });
+  return { ports, swaps };
+}
+
 function listOf(
   level: DeviceLevel,
   relations: readonly Relation[],
@@ -372,7 +410,8 @@ function listOf(
     ...(r.channel !== undefined ? { channel: r.channel } : {}),
     fallback: r.fallback === true,
     name: nameOf(level, deviceRelations(level, r.x, r.y).role, r.x, r.y),
-    unlink: unlinkOf(r, subject, direction)
+    unlink: unlinkOf(r, subject, direction),
+    ...portDetailsOf(level, r, subject, direction)
   }));
   return { rows, more, empty: rows.length === 0 && more === 0 ? { key: emptyKey } : null };
 }

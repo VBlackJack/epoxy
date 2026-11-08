@@ -15,7 +15,7 @@
  */
 
 /** Inspector sections the player can fold, in display order. */
-export const INSPECTOR_SECTIONS = ['level', 'rules', 'layers', 'connections', 'mechanisms', 'issues', 'size', 'generate'] as const;
+export const INSPECTOR_SECTIONS = ['level', 'rules', 'layers', 'connections', 'cell', 'mechanisms', 'issues', 'size', 'generate'] as const;
 
 export type InspectorSection = (typeof INSPECTOR_SECTIONS)[number];
 
@@ -27,6 +27,7 @@ export const DEFAULT_SECTION_STATE: SectionState = {
   rules: true,
   layers: true,
   connections: true,
+  cell: true,
   mechanisms: false,
   issues: false,
   size: true,
