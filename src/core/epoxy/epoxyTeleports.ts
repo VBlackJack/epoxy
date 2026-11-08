@@ -18,7 +18,8 @@ import { playerRailActor } from './epoxyRailsCc2';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { Direction, GridPoint, RuntimeEntity, TileDefinition } from '../types';
+import { turnClockwise } from '../lynx/directions';
+import { Direction, GridPoint, RuntimeEntity, TeleportExitOrder, TileDefinition } from '../types';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter } from './epoxyMonsters';
 import {
@@ -48,6 +49,39 @@ function livePadsOf(w: EpoxyWorld, group: string, isPad: (tile: TileDefinition) 
   return pads;
 }
 
+/** Quarter turns clockwise from the way a mover was facing, in the order each named exit order tries them. */
+const EXIT_TURNS: Readonly<Record<TeleportExitOrder, readonly number[]>> = {
+  forward_only: [0],
+  forward_right_left_back: [0, 1, 3, 2]
+};
+
+/**
+ * The sides a mover may leave by, in order, when the teleporter it entered names an exit order, or null for a native
+ * teleporter (which keeps the order of the caller).
+ */
+function namedExitDirections(origin: TileDefinition, facing: Direction): Direction[] | null {
+  if (origin.teleportExitOrder === undefined) return null;
+  return EXIT_TURNS[origin.teleportExitOrder].map((turns) => turnClockwise(facing, turns));
+}
+
+/**
+ * How many teleporters a jump from a pad tries, the previous one in reading order first. A native pad ends its round on
+ * itself (a lone way out through its own exits); a pad that names an exit order never lands on the pad it entered.
+ */
+function candidateCountOf(origin: TileDefinition, linked: number): number {
+  return origin.teleportExitOrder === undefined ? linked : linked - 1;
+}
+
+/**
+ * Whether a pad that names an exit order refuses the jump: a mover never lands on a pad another block or monster
+ * stands on, nor (for a block or monster) on the pad the player stands on. A native pad leaves this to its exit cell.
+ */
+function padRefusesLanding(w: EpoxyWorld, origin: TileDefinition, pad: GridPoint, moverIsPlayer: boolean): boolean {
+  if (origin.teleportExitOrder === undefined) return false;
+  if (getEntityAt(w, pad.x, pad.y)) return true;
+  return !moverIsPlayer && w.player.alive && w.player.x === pad.x && w.player.y === pad.y;
+}
+
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const origin = ConfigRegistry.getTile(w.terrain[y][x]);
@@ -75,14 +109,17 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
   const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
   if (startIdx < 0) return false;
 
-  const candidateDirs: Direction[] = [
+  const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
+  const candidateDirs: Direction[] = namedExitDirections(origin, dir) ?? [
     dir,
     ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
   ];
 
-  for (let i = 1; i <= teleporters.length; i++) {
+  const candidateCount = candidateCountOf(origin, teleporters.length);
+  for (let i = 1; i <= candidateCount; i++) {
     const idx = (startIdx - i + teleporters.length) % teleporters.length;
     const candidate = teleporters[idx];
+    if (padRefusesLanding(w, origin, candidate, true)) continue;
     for (const tryDir of candidateDirs) {
       const vec = DIRECTION_VECTORS[tryDir];
       const exitX = candidate.x + vec.dx;
@@ -125,28 +162,34 @@ export function teleportEntity(
   const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
   if (startIdx < 0) return false;
 
-  const vec = DIRECTION_VECTORS[dir];
-  for (let i = 1; i <= teleporters.length; i++) {
+  const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
+  const exitDirs = namedExitDirections(origin, dir) ?? [dir];
+  const candidateCount = candidateCountOf(origin, teleporters.length);
+  for (let i = 1; i <= candidateCount; i++) {
     const idx = (startIdx - i + teleporters.length) % teleporters.length;
     const candidate = teleporters[idx];
-    const exitX = candidate.x + vec.dx;
-    const exitY = candidate.y + vec.dy;
-    // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
-    const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir };
-    const canExit =
-      entity.kind === 'block'
-        ? isCanBlockEnter(w, probe, exitX, exitY, dir)
-        : canMonsterEnter(w, probe, dir);
-    if (!canExit) continue;
+    if (padRefusesLanding(w, origin, candidate, false)) continue;
+    for (const exitDir of exitDirs) {
+      const vec = DIRECTION_VECTORS[exitDir];
+      const exitX = candidate.x + vec.dx;
+      const exitY = candidate.y + vec.dy;
+      // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
+      const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir: exitDir };
+      const canExit =
+        entity.kind === 'block'
+          ? isCanBlockEnter(w, probe, exitX, exitY, exitDir)
+          : canMonsterEnter(w, probe, exitDir);
+      if (!canExit) continue;
 
-    entity.x = exitX;
-    entity.y = exitY;
-    entity.dir = dir;
-    if (entity.kind === 'block') {
-      // Already standing on the exit cell: resolves the arrival without another jump.
-      moveBlockTo(ctx, entity, exitX, exitY, dir, false);
+      entity.x = exitX;
+      entity.y = exitY;
+      entity.dir = exitDir;
+      if (entity.kind === 'block') {
+        // Already standing on the exit cell: resolves the arrival without another jump.
+        moveBlockTo(ctx, entity, exitX, exitY, exitDir, false);
+      }
+      return true;
     }
-    return true;
   }
   return false;
 }

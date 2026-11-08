@@ -60,6 +60,8 @@ const CC2_ITEM_IDS = ['green_chip', 'green_bomb', 'steel_wall', 'hiking_boots', 
 const CC2_MONSTER_IDS = ['floor_mimic', 'timid_teeth', 'ghost', 'rover', 'mirror_chip', 'mirror_melinda'];
 const CC2_RAIL_IDS = ['rail_junction', 'railroad_sign'];
 const CC2_BLOCK_IDS = ['arrow_block_none'];
+/** The tiles of the CC3D rules: the fish gate and the two teleporters of the CC3D exit orders. */
+const CC3D_IDS = ['fish_gate', 'teleport_forward', 'teleport_turning'];
 /** The signal gates, the wire floor and the lightning bolt of the same format. */
 const CC2_SIGNAL_IDS = [
   'signal_gate_nand',
@@ -223,7 +225,7 @@ describe('wired devices: configuration', () => {
     expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V13);
     const noSigns = NO_SIGN_ITEM_IDS.map((id) => `${NO_SIGN_ITEM_PREFIX}${id}`);
     expect([...PACK_JSON_VERSION_V13_IDS].sort()).toEqual(
-      [...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_MONSTER_IDS, ...CC2_SIGNAL_IDS, ...CC2_BLOCK_IDS, ...CC2_RAIL_IDS, ...noSigns].sort()
+      [...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_MONSTER_IDS, ...CC2_SIGNAL_IDS, ...CC2_BLOCK_IDS, ...CC2_RAIL_IDS, ...CC3D_IDS, ...noSigns].sort()
     );
     expect(idSetVersionOf(room({ terrain: [[{ x: 3, y: 3 }, PURPLE_WALL]] }))).toBe(PACK_JSON_VERSION_V13);
     expect(idSetVersionOf(room())).toBe(0);

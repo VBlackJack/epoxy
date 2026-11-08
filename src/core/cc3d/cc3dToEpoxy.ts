@@ -64,7 +64,15 @@ const DEFAULT_PLAYER_DIR: Direction = 'W';
 const BOMB_ITEM_ID = 'bomb';
 const CHIP_ITEM_ID = 'chip';
 const SLOW_TIME_ITEM_ID = 'slow_time';
+/** The Epoxy tile of the CC3D red socket: a chip socket the player alone enters. */
 const SOCKET_TILE_ID = 'socket';
+/** The Epoxy tile of the CC3D blue socket: every mover enters it once the chips are in. */
+const FISH_GATE_TILE_ID = 'fish_gate';
+/** The Epoxy teleporters of the CC3D blue (leaves ahead only) and red (ahead, right, left, back) teleporters. */
+const TELEPORT_FORWARD_TILE_ID = 'teleport_forward';
+const TELEPORT_TURNING_TILE_ID = 'teleport_turning';
+/** Every Epoxy tile that counts as a socket for the chips a level needs. */
+const SOCKET_TILE_IDS: ReadonlySet<string> = new Set([SOCKET_TILE_ID, FISH_GATE_TILE_ID]);
 const BUTTON_BROWN_ID = 'button_brown';
 const TRAP_ID = 'trap';
 const BUTTON_RED_ID = 'button_red';
@@ -157,15 +165,15 @@ const TERRAIN_RULES: Record<Cc3dTerrainKind, TerrainRule> = {
   force: { id: (layer) => `force_${need(layer.dir, 'dir', layer.kind).toLowerCase()}` },
   force_random: { id: fixed('force_cycle') },
   exit: { id: fixed('exit') },
-  socket: { id: fixed(SOCKET_TILE_ID) },
+  socket: { id: fixed(FISH_GATE_TILE_ID) },
   socket_red: { id: fixed(SOCKET_TILE_ID) },
   slime: { id: fixed('slime') },
   turtle: { id: fixed('turtle') },
   dirt: { id: fixed('dirt') },
   gravel: { id: fixed('gravel') },
   sand: { id: fixed('gravel') },
-  teleport_blue: { id: fixed('teleport_blue') },
-  teleport_red: { id: fixed('teleport_red') },
+  teleport_blue: { id: fixed(TELEPORT_FORWARD_TILE_ID) },
+  teleport_red: { id: fixed(TELEPORT_TURNING_TILE_ID) },
   push_up_wall: { id: fixed('recessed_wall') },
   appearing_wall: { id: fixed('appearing_wall') },
   false_wall: { id: fixed('blue_wall_fake') },
@@ -361,7 +369,8 @@ interface ConvertedCell {
 
 /**
  * The layers of a cell once a run of sockets (blockers are kept in input order, so they are adjacent) is one
- * plain socket: the lower ones are never seen, and both colours become the same Epoxy tile.
+ * plain socket: the lower ones are never seen. The colour of the top socket of the run still decides which Epoxy
+ * tile is placed (see convertCell).
  */
 function reduceLayers(layers: readonly Cc3dTerrain[]): Cc3dTerrain[] {
   const kept: Cc3dTerrain[] = [];
@@ -397,12 +406,14 @@ function convertCell(
     if (cell.item === null) item = BOMB_ITEM_ID;
     else drop(KEY_BOMB_WITH_ITEM);
   }
+  const sourceTop = layers[layers.length - 1];
   layers = reduceLayers(layers);
   const top = layers[layers.length - 1];
   const kind = classifyStack({ terrain: layers, panels: [], item: cell.item });
   let underlay: string | null = null;
   if (kind === 'underlay') underlay = terrainOf(nonFloor(layers)[0], context);
-  const terrain = terrainOf(top, context);
+  // A run of sockets is one socket of the colour of its top one: a red top keeps the player-only socket.
+  const terrain = sourceTop?.kind === 'socket_red' && top.kind === 'socket' ? SOCKET_TILE_ID : terrainOf(top, context);
   if (terrain === FLOOR_ID && edges.length > 0) return { terrain: thinWallIdOf(edges), item, underlay, edges: [] };
   return { terrain, item, underlay, edges };
 }
@@ -565,7 +576,7 @@ export function convertCc3dLevel(source: CompiledLevel): ConversionResult {
       if (converted.item !== null && cell.item?.kind === 'fish') plainFish += 1;
       if (converted.underlay !== null) underlays.set(index, converted.underlay);
       if (converted.edges.length > 0) edges.push({ x, y, sides: converted.edges });
-      if (converted.terrain === SOCKET_TILE_ID || converted.underlay === SOCKET_TILE_ID) hasSocket = true;
+      if (SOCKET_TILE_IDS.has(converted.terrain) || (converted.underlay !== null && SOCKET_TILE_IDS.has(converted.underlay))) hasSocket = true;
     }
     terrain.push(terrainRow);
     items.push(itemRow);

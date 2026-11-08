@@ -28,18 +28,21 @@ import {
   paintBoltBadge,
   paintBribeBadge,
   paintDynamiteBadge,
+  paintFishBadge,
   paintFoilBadge,
+  paintForwardBadge,
   paintNoSign,
   paintPauseBadge,
   paintRailBadge,
   paintRivets,
   paintSignPlate,
   paintToggleBadge,
-  paintTreadBadge
+  paintTreadBadge,
+  paintTurningBadge
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -66,7 +69,11 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
 export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   steel_wall: { base: 'wall', mark: 'rivets' },
   sign_chip_only: { base: 'floor', mark: 'sign_chip' },
-  sign_melinda_only: { base: 'floor', mark: 'sign_melinda' }
+  sign_melinda_only: { base: 'floor', mark: 'sign_melinda' },
+  // The CC3D look-alikes: the blue socket every mover opens, and the two teleporters of the CC3D exit orders.
+  fish_gate: { base: 'socket', mark: 'fish' },
+  teleport_forward: { base: 'teleport_blue', mark: 'forward' },
+  teleport_turning: { base: 'teleport_red', mark: 'turning' }
 };
 
 /** The letter set on the plate of each gender sign: the initial of the character who may step there. */
@@ -112,6 +119,11 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'rail':
       return { fill: pal.gray, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'fish':
+    case 'forward':
+      return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'turning':
+      return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
 }
 
@@ -143,6 +155,11 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
     case 'rail':
       return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
+    case 'fish':
+    case 'forward':
+      return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
+    case 'turning':
+      return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
   }
 }
 
@@ -175,6 +192,15 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'rail':
       paintRailBadge(ctx, x, y, size, colours);
+      return;
+    case 'fish':
+      paintFishBadge(ctx, x, y, size, colours);
+      return;
+    case 'forward':
+      paintForwardBadge(ctx, x, y, size, colours);
+      return;
+    case 'turning':
+      paintTurningBadge(ctx, x, y, size, colours);
       return;
     case 'sign_chip':
     case 'sign_melinda':

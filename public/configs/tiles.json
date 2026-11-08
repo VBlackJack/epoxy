@@ -2541,6 +2541,48 @@
       "i18nKey": "tiles.no_sign_dynamite.name",
       "laserTransparent": true,
       "forbiddenItem": "dynamite"
+    },
+    "fish_gate": {
+      "id": "fish_gate",
+      "survivesDynamite": true,
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.fish_gate.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "requiresAllChips": true,
+      "fishGate": true,
+      "transformsToOnUnlock": "floor"
+    },
+    "teleport_forward": {
+      "id": "teleport_forward",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_forward.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "forward",
+      "teleportExitOrder": "forward_only",
+      "colorKey": "blue"
+    },
+    "teleport_turning": {
+      "id": "teleport_turning",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_turning.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "turning",
+      "teleportExitOrder": "forward_right_left_back",
+      "colorKey": "red"
     }
   }
 }

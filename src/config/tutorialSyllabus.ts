@@ -95,6 +95,8 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   green_button: ['button_green', 'toggle_wall_closed', 'toggle_wall_open'],
   teleports: ['teleport'],
   coloured_teleports: ['teleport_red', 'teleport_blue', 'teleport_yellow', 'teleport_green'],
+  exit_order_teleports: ['teleport_forward', 'teleport_turning'],
+  fish_gate: ['fish_gate'],
   coloured_toggles: [
     ...['red', 'blue', 'yellow'].flatMap((c) => [
       `toggle_wall_${c}_closed`,
@@ -286,6 +288,8 @@ export const PENDING: readonly string[] = [
   'key_thief',
   'boot_thief',
   'coloured_teleports',
+  'exit_order_teleports',
+  'fish_gate',
   'coloured_toggles',
   'pressure_plates',
   'flame_jets',
