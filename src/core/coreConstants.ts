@@ -251,6 +251,9 @@ export const SPENT_REVEAL_KEY_PREFIX = 'rv';
 /** Prefix of the swivel door entry sides in a search state key. */
 export const SWIVEL_ENTRY_KEY_PREFIX = 'sw';
 
+/** Value of `swivelRule` on the swivel doors that play by the Chip's Challenge 2 rule (see TileDefinition.swivelRule). */
+export const CC2_SWIVEL_RULE = 'cc2';
+
 /** The fields of a tile that tell which toggle family it belongs to. */
 interface ToggleFamilyFields {
   togglesTo?: string;

@@ -4102,6 +4102,30 @@
         "label": "Bloque ses côtés nord et ouest. Après un passage, elle fait un quart de tour pour fermer le côté par lequel on est entré."
       }
     },
+    "swivel_door_cc2_ne": {
+      "name": "Porte Pivotante CC2 (Nord-Est)",
+      "desc": {
+        "label": "Bloque l'entrée par ses côtés nord et est. En sortir par un côté bloqué la fait pivoter d'un quart de tour (comme dans Chip's Challenge 2) ; sortir par un côté ouvert ne la fait pas bouger."
+      }
+    },
+    "swivel_door_cc2_se": {
+      "name": "Porte Pivotante CC2 (Sud-Est)",
+      "desc": {
+        "label": "Bloque l'entrée par ses côtés sud et est. En sortir par un côté bloqué la fait pivoter d'un quart de tour (comme dans Chip's Challenge 2) ; sortir par un côté ouvert ne la fait pas bouger."
+      }
+    },
+    "swivel_door_cc2_sw": {
+      "name": "Porte Pivotante CC2 (Sud-Ouest)",
+      "desc": {
+        "label": "Bloque l'entrée par ses côtés sud et ouest. En sortir par un côté bloqué la fait pivoter d'un quart de tour (comme dans Chip's Challenge 2) ; sortir par un côté ouvert ne la fait pas bouger."
+      }
+    },
+    "swivel_door_cc2_nw": {
+      "name": "Porte Pivotante CC2 (Nord-Ouest)",
+      "desc": {
+        "label": "Bloque l'entrée par ses côtés nord et ouest. En sortir par un côté bloqué la fait pivoter d'un quart de tour (comme dans Chip's Challenge 2) ; sortir par un côté ouvert ne la fait pas bouger."
+      }
+    },
     "rail_ns": {
       "name": "Rail droit (Nord-Sud)",
       "desc": {

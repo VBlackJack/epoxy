@@ -97,7 +97,7 @@ export function moveBlockTo(
   const w = ctx.world;
   // A clone spawns in place and leaves no cell behind.
   if (block.x !== destX || block.y !== destY) {
-    leaveSwivel(w, block.x, block.y);
+    leaveSwivel(w, block.x, block.y, dir);
     leaveCell(w, block.x, block.y);
   }
   block.x = destX;

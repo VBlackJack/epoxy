@@ -167,13 +167,15 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   }
   if (entityAtTarget) {
     if (entityAtTarget.kind === 'block') {
+      // Pushing a block while leaving a CC2 swivel door through a closed side: the push resolves first, then the door
+      // turns as the player steps off. Likely what CC2 does, but not verified against the game.
       const pushed = attemptPushBlock(ctx, entityAtTarget, dir);
       if (!pushed) {
         if (!fromSlide) AudioManager.playSfx('blocked');
         return false;
       }
     } else if (entityAtTarget.kind === 'monster') {
-      leaveSwivel(w, w.player.x, w.player.y);
+      leaveSwivel(w, w.player.x, w.player.y, dir);
       leaveCell(w, w.player.x, w.player.y);
       w.player.x = targetX;
       w.player.y = targetY;
@@ -185,7 +187,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   const prevX = w.player.x;
   const prevY = w.player.y;
   const hadPullBoots = bootsPullBlocks(w.player.boots);
-  leaveSwivel(w, w.player.x, w.player.y);
+  leaveSwivel(w, w.player.x, w.player.y, dir);
   leaveCell(w, w.player.x, w.player.y);
   w.player.x = targetX;
   w.player.y = targetY;

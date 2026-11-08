@@ -66,7 +66,10 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   chips: ['chip', 'socket'],
   hidden_walls: ['recessed_wall', 'blue_wall_real', 'blue_wall_fake', 'invisible_wall', 'appearing_wall'],
   thin_walls: [...THIN_WALL_SIDES.map((sides) => `thin_wall_${sides}`), SYNTHETIC_CELL_EDGES],
-  swivel_doors: ['swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw'],
+  swivel_doors: [
+    'swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw',
+    'swivel_door_cc2_ne', 'swivel_door_cc2_se', 'swivel_door_cc2_sw', 'swivel_door_cc2_nw'
+  ],
   rails: ['rail_ns', 'rail_ew', 'rail_ne', 'rail_se', 'rail_sw', 'rail_nw', 'rail_switch_a', 'rail_switch_b'],
   transmogrifier: ['transmogrifier'],
   turn_plates: ['turn_plate_cw', 'turn_plate_ccw'],

@@ -295,6 +295,58 @@
       "blockedEdges": ["N", "W"],
       "swivelTurns": { "cw": "swivel_door_ne", "ccw": "swivel_door_sw" }
     },
+    "swivel_door_cc2_ne": {
+      "id": "swivel_door_cc2_ne",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_cc2_ne.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "E"],
+      "swivelTurns": { "cw": "swivel_door_cc2_se", "ccw": "swivel_door_cc2_nw" },
+      "swivelRule": "cc2"
+    },
+    "swivel_door_cc2_se": {
+      "id": "swivel_door_cc2_se",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_cc2_se.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["S", "E"],
+      "swivelTurns": { "cw": "swivel_door_cc2_sw", "ccw": "swivel_door_cc2_ne" },
+      "swivelRule": "cc2"
+    },
+    "swivel_door_cc2_sw": {
+      "id": "swivel_door_cc2_sw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_cc2_sw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["S", "W"],
+      "swivelTurns": { "cw": "swivel_door_cc2_nw", "ccw": "swivel_door_cc2_se" },
+      "swivelRule": "cc2"
+    },
+    "swivel_door_cc2_nw": {
+      "id": "swivel_door_cc2_nw",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.swivel_door_cc2_nw.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "blockedEdges": ["N", "W"],
+      "swivelTurns": { "cw": "swivel_door_cc2_ne", "ccw": "swivel_door_cc2_sw" },
+      "swivelRule": "cc2"
+    },
     "rail_ns": {
       "id": "rail_ns",
       "category": "mechanisms",

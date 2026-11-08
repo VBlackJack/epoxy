@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { CELL_EDGE_BITS, OPPOSITE_DIRECTION } from './coreConstants';
+import { CC2_SWIVEL_RULE, CELL_EDGE_BITS, OPPOSITE_DIRECTION } from './coreConstants';
 import { CompiledLevel, Direction, TileDefinition } from './types';
 
 /** Whether a rail piece closes the side: the tile is a rail and the side is not one of its open sides. */
@@ -33,8 +33,9 @@ function tileEdgeBlocked(fromId: string, toId: string, dir: Direction, beam: boo
   const toTile = ConfigRegistry.getTile(toId);
   const opposite = OPPOSITE_DIRECTION[dir];
 
+  // A CC2 swivel door lets walkers, slides and blocks out through a closed side (the door turns); light and shots still stop.
   if (!beam && (railClosesSide(fromTile, dir) || railClosesSide(toTile, opposite))) return true;
-  if (fromTile.blockedEdges?.includes(dir)) return true;
+  if (fromTile.blockedEdges?.includes(dir) && (beam || fromTile.swivelRule !== CC2_SWIVEL_RULE)) return true;
   if (toTile.blockedEdges?.includes(opposite)) return true;
   if (fromTile.blockedEntryDirections?.includes(opposite)) return true;
   if (toTile.blockedEntryDirections?.includes(dir)) return true;

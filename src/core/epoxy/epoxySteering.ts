@@ -70,7 +70,7 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, dir: Direction): 
     if (getEntityAt(w, nx, ny)) return 'stayed';
   }
 
-  leaveSwivel(w, entity.x, entity.y);
+  leaveSwivel(w, entity.x, entity.y, dir);
   entity.x = nx;
   entity.y = ny;
   entity.dir = dir;
