@@ -1552,7 +1552,7 @@
         "label": "B / F / E / I: Brush, Fill, Eraser, Picker (Alt+click or middle click also picks)"
       },
       "kb_editor_rotate": {
-        "label": "R: Rotate the facing of the selected creature or player start, or turn the selected rail piece to its next starting position"
+        "label": "R: Rotate the facing of the selected creature or player start, turn the selected rail piece to its next starting position, or pick the next variant of a family (no signs, counters, swivel doors, toggle switch)"
       },
       "kb_editor_rotate_in_place": {
         "label": "Shift+R: Turn the creature or turret under the cursor a quarter turn clockwise (a clone machine under it follows), or turns a floating stamp"
@@ -3286,7 +3286,7 @@
           "west": {
             "aria": "Face west"
           },
-          "rotate": "Rotate clockwise (R)"
+          "rotate": "Rotate clockwise, or next variant of the brush in hand (R)"
         }
       },
       "inspector": {
@@ -3581,6 +3581,9 @@
         },
         "picked": {
           "label": "Picked: {name}"
+        },
+        "variant": {
+          "label": "{name} (variant {position} of {count}, R for the next one)"
         },
         "saved": {
           "label": "Level saved to local browser library!"

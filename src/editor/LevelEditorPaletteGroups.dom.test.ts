@@ -25,6 +25,7 @@ import { mountModals } from '../test/domFixture';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { LevelEditor } from './LevelEditor';
 import { MECHANISM_GROUPS } from './paletteGroups';
+import { paletteTilesOf } from './paletteVariants';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
 const GRID_ID = 'editor-palette-grid';
@@ -103,9 +104,12 @@ describe('Mechanisms palette sub-headings', () => {
     openCategory(MECHANISMS_CATEGORY);
     const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
-    expect(gridButtons()).toHaveLength(tiles.length + entities.length);
+    // A variant family has one entry (showing the first variant here), so the count is the standalone tiles plus one per family.
+    const entries = paletteTilesOf(tiles, MECHANISMS_CATEGORY, new Map());
+    expect(entries.length).toBeLessThan(tiles.length);
+    expect(gridButtons()).toHaveLength(entries.length + entities.length);
     const labels = new Set(gridButtons().map((btn) => btn.querySelector('.palette-item-label')?.textContent));
-    for (const tile of tiles) expect(labels.has(t(tile.i18nKey)), tile.id).toBe(true);
+    for (const tile of entries) expect(labels.has(t(tile.i18nKey)), tile.id).toBe(true);
     for (const ent of entities) expect(labels.has(t(ent.i18nKey)), ent.id).toBe(true);
     for (const heading of headings()) expect(heading.hasAttribute('tabindex')).toBe(false);
     expect(gridChildren().filter((child) => child.tagName === 'BUTTON')).toEqual(gridButtons());
