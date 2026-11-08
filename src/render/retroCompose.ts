@@ -384,7 +384,11 @@ const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
   puppet: 'tank',
   skitter: 'teeth',
   lurker: 'blob',
-  wisp: 'glider'
+  wisp: 'glider',
+  floor_mimic: 'teeth',
+  timid_teeth: 'teeth',
+  ghost: 'glider',
+  rover: 'blob'
 };
 
 /** Sleeping monsters have one sprite whatever their facing and walk frame: the faint seam that gives them away. */

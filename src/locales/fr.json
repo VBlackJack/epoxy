@@ -301,7 +301,7 @@
         "label": "Non exporté : {levels} contient un objet que seul Epoxy joue (comme le Ralentisseur, les Bottes de Vitesse ou les Bottes de Clairvoyance), que le format .DAT ne peut pas porter."
       },
       "refused_epoxy_only_monsters": {
-        "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard, un Transmogrificateur, une Plaque tournante, un Tapis Tournant, un Guetteur ou un Feu follet, que le format .DAT ne peut pas porter."
+        "label": "Non exporté : {levels} contient une Marionnette, une Commande de marionnette, un Fuyard, un Transmogrificateur, une Plaque tournante, un Tapis Tournant, un Guetteur, un Feu follet, un Mimétique du sol, des Dents timides, un Fantôme ou un Rôdeur, que le format .DAT ne peut pas porter."
       },
       "refused_cell_underlays": {
         "label": "Non exporté : {levels} cache du terrain sous des portes, des prises ou d'autres tuiles amovibles, que le format .DAT ne peut pas porter."
@@ -5194,6 +5194,30 @@
       "name": "Feu follet (Traverse les Cases)",
       "desc": {
         "label": "Avance tout droit à travers les murs, les portes, l'eau, le feu, la glace et les tapis de force : le terrain n'a aucun effet sur lui et il n'appuie sur aucune plaque. Seuls un mur fin, le bord de la carte ou toute autre entité (monstre, bloc, miroir, tourelle) l'arrêtent : il fait alors demi-tour une fois, et reste sur place s'il est bloqué des deux côtés. Il tue au contact. Un tir, un faisceau laser, une pierre lancée, une explosion ou une égide le détruit. Il ne peut pas être cloné."
+      }
+    },
+    "floor_mimic": {
+      "name": "Mimétique du sol (Ressemble au Sol)",
+      "desc": {
+        "label": "Poursuit le joueur comme les dents, mais quatre fois plus lentement, et se dessine presque comme un simple sol (seule une marque discrète le signale dans l'éditeur). Il tue au contact."
+      }
+    },
+    "timid_teeth": {
+      "name": "Dents timides",
+      "desc": {
+        "label": "Des dents à l'envers : elles fuient Chip et poursuivent Melinda. Les dents ordinaires poursuivent Chip et fuient Melinda. Elles tuent au contact."
+      }
+    },
+    "ghost": {
+      "name": "Fantôme (Traverse les Murs)",
+      "desc": {
+        "label": "Va tout droit, sinon tourne à gauche, à droite ou fait demi-tour. Il traverse les murs, les portes, les serrures et les murs fins, mais pas les murs d'acier, les machines à clones ni l'eau. La glace, les tapis de force, les rails, les pièges, les bombes, le feu et la bave n'ont aucun effet sur lui ; il passe sur les objets sans les ramasser et actionne les boutons qu'il croise. Il tue au contact."
+      }
+    },
+    "rover": {
+      "name": "Rôdeur (Imite les Monstres)",
+      "desc": {
+        "label": "Se déplace tour à tour comme les dents, le planeur, le scarabée, la balle rose, les dents timides, la boule de feu, la paramécie et le marcheur, en changeant après 32 pas décidés. Il tue au contact."
       }
     },
     "skitter": {

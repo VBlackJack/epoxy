@@ -1374,6 +1374,31 @@ export interface EntityDefinition {
   transmogrifiesTo?: string;
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
+  /**
+   * Characters whose player this monster runs from: a chasing monster flees them and a fleeing one chases them
+   * (the CC2 teeth flee Melinda, the CC2 timid teeth flee Chip). Absent: the pattern applies to every character.
+   */
+  fleesCharacters?: PlayerCharacter[];
+  /** A monster that walks into any tile, doors and walls included (a ghost); see `blockedByTiles` and `blockedByHazards` for what still stops it. */
+  passesSolidTiles?: boolean;
+  /** Tile ids a monster that passes solid tiles still cannot enter. */
+  blockedByTiles?: string[];
+  /** Hazards of the destination tile that stop a monster that passes solid tiles. */
+  blockedByHazards?: Array<NonNullable<TileDefinition['hazard']>>;
+  /** A monster that crosses thin walls and other cell edges as if they were not there. */
+  ignoresCellEdges?: boolean;
+  /**
+   * A monster that the floor does not move or hurt: ice and force floors do not carry it, a rail or a swivel door
+   * does not turn it, a trap does not hold it, and a bomb, fire, slime or a transmogrifier does nothing to it.
+   * Buttons and teleporters still work on it.
+   */
+  ignoresFloorEffects?: boolean;
+  /** A monster that walks over items without being stopped by them or picking them up. */
+  passesItems?: boolean;
+  /** A monster that follows the behaviour of these monsters in turn (movement pattern `emulate_cycle`), in this order. */
+  emulates?: string[];
+  /** Step decisions a monster that `emulates` others takes before it moves on to the next behaviour. */
+  emulationSwitchAttempts?: number;
 }
 
 /** How a turret fires and turns. Only `length`, `turn` and `turnPeriodTicks` are required in the config. */
@@ -1901,6 +1926,10 @@ export interface RuntimeEntity {
   isSliding: boolean;
   /** Turrets only: the way the turret fires; `dir` stays the way it was pushed or slides. */
   facing?: Direction;
+  /** Rovers only: index, in the `emulates` list of the definition, of the monster whose behaviour it follows now. */
+  emulatee?: number;
+  /** Rovers only: step decisions taken since the rover last changed behaviour. */
+  emulationMoves?: number;
 }
 
 export interface PlayerState {

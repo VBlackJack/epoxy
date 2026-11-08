@@ -211,11 +211,11 @@ export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, C
   [0x36, same('blob')],
   [0x37, same('teeth')],
   [0x38, same('fireball')],
-  [0x57, reserved('timid_teeth')],
+  [0x57, same('timid_teeth')],
   [0x63, same('puppet', 'yellow_tank')],
-  [0x69, reserved('rover')],
-  [0x82, reserved('floor_mimic')],
-  [0x8b, reserved('ghost')]
+  [0x69, same('rover')],
+  [0x82, same('floor_mimic')],
+  [0x8b, same('ghost')]
 ]);
 
 /** Player actors: Chip, Melinda and their mirror images. */

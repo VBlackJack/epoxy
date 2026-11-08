@@ -173,6 +173,12 @@ export const CC2_UNIMPLEMENTED_SOURCE = 'cc2';
  */
 export const PHASE_LINE_PATTERN = 'phase_line';
 
+/**
+ * Movement pattern of a monster that borrows the behaviour of other monsters in turn (a rover): its definition
+ * lists them in `emulates` and says after how many step decisions it moves on to the next one.
+ */
+export const EMULATE_CYCLE_PATTERN = 'emulate_cycle';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 

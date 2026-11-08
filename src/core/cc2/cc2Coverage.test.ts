@@ -33,7 +33,8 @@ import {
 /** Reserved ids that a mapping plays as an Epoxy element instead of losing. */
 const MAPPED_RESERVED = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock'
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth'
 ];
 
 describe('cc2 coverage table', () => {
@@ -77,9 +78,9 @@ describe('classifyCc2Level', () => {
   });
 
   it('is lost when any element is lost, whatever else the level holds', () => {
-    const coverage = classifyCc2Level(['floor', 'bug', 'ghost', KEY_MULTIPLE_PLAYERS, 'chip']);
+    const coverage = classifyCc2Level(['floor', 'bug', 'time_bomb', KEY_MULTIPLE_PLAYERS, 'chip']);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['ghost', KEY_MULTIPLE_PLAYERS]);
+    expect(coverage.lost).toEqual([KEY_MULTIPLE_PLAYERS, 'time_bomb']);
     expect(coverage.approx).toEqual([]);
   });
 

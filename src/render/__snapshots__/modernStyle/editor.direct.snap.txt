@@ -442,3 +442,7 @@ editor entity over floor skitter 4f2a0e3e9dead92f
 editor entity over floor lurker_dormant 0138f09694af9c9a
 editor entity over floor lurker 8774f8c14d8a4d04
 editor entity over floor wisp 2294bd10d1eb4d56
+editor entity over floor floor_mimic 9b478ab6f0ee332e
+editor entity over floor timid_teeth 3a0934366d2b5d28
+editor entity over floor ghost 6392e13a9c8ba878
+editor entity over floor rover 059ec2b0436bf4c9

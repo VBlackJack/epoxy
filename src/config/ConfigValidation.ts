@@ -20,6 +20,7 @@ import {
   CC2_ID_PREFIX,
   CC2_UNIMPLEMENTED_SOURCE,
   CHASE_PLAYER_PATTERN,
+  EMULATE_CYCLE_PATTERN,
   FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
@@ -1538,6 +1539,7 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   FLEE_PLAYER_PATTERN,
   STATIONARY_PATTERN,
   PHASE_LINE_PATTERN,
+  EMULATE_CYCLE_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',
@@ -1591,6 +1593,95 @@ export function findSteeringConfigErrors(
           }
         }
       }
+    }
+  }
+  return errors;
+}
+
+/** Hazards a tile may carry, as a monster definition may name them in `blockedByHazards`. */
+const MONSTER_HAZARDS: readonly string[] = ['water', 'fire', 'bomb', 'slime'];
+
+/** Boolean fields that only a monster may carry (the ghost and rover fields). */
+const MONSTER_FLAG_FIELDS = ['passesSolidTiles', 'ignoresCellEdges', 'ignoresFloorEffects', 'passesItems'] as const;
+
+/**
+ * Problems of the monster behaviour fields: fleesCharacters lists known characters on a monster that chases or
+ * flees the player; the flag fields are booleans on a monster; blockedByTiles names existing tiles and
+ * blockedByHazards known hazards, both only on a monster that passes solid tiles; emulates lists other existing
+ * monsters (none that emulates itself) and goes with the emulate_cycle pattern and a positive whole
+ * emulationSwitchAttempts. Each entry names the entity.
+ */
+export function findMonsterBehaviourConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): string[] {
+  const errors: string[] = [];
+  for (const entity of Object.values(entities)) {
+    const { id } = entity;
+    for (const field of MONSTER_FLAG_FIELDS) {
+      if (entity[field] === undefined) continue;
+      if (typeof entity[field] !== 'boolean') errors.push(`${id}.${field}: expected a boolean`);
+      if (entity.kind !== 'monster') errors.push(`${id}.${field}: only a monster has this field`);
+    }
+    if (entity.fleesCharacters !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.fleesCharacters: only a monster flees a character`);
+      if (entity.movementPattern !== CHASE_PLAYER_PATTERN && entity.movementPattern !== FLEE_PLAYER_PATTERN) {
+        errors.push(`${id}.fleesCharacters: needs the pattern "${CHASE_PLAYER_PATTERN}" or "${FLEE_PLAYER_PATTERN}"`);
+      }
+      if (!Array.isArray(entity.fleesCharacters)) {
+        errors.push(`${id}.fleesCharacters: expected a list of characters`);
+      } else {
+        for (const character of entity.fleesCharacters) {
+          if (!isPlayerCharacter(character)) errors.push(`${id}.fleesCharacters: unknown character ${String(character)}`);
+        }
+      }
+    }
+    if (entity.blockedByTiles !== undefined) {
+      if (entity.passesSolidTiles !== true) errors.push(`${id}.blockedByTiles: only a monster that passes solid tiles has this field`);
+      if (!Array.isArray(entity.blockedByTiles)) {
+        errors.push(`${id}.blockedByTiles: expected a list of tile ids`);
+      } else {
+        for (const tileId of entity.blockedByTiles) {
+          if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
+            errors.push(`${id}.blockedByTiles: "${String(tileId)}" is not the id of an existing tile`);
+          }
+        }
+      }
+    }
+    if (entity.blockedByHazards !== undefined) {
+      if (entity.passesSolidTiles !== true) errors.push(`${id}.blockedByHazards: only a monster that passes solid tiles has this field`);
+      if (!Array.isArray(entity.blockedByHazards)) {
+        errors.push(`${id}.blockedByHazards: expected a list of hazards`);
+      } else {
+        for (const hazard of entity.blockedByHazards) {
+          if (!MONSTER_HAZARDS.includes(hazard)) errors.push(`${id}.blockedByHazards: unknown hazard ${String(hazard)}`);
+        }
+      }
+    }
+    const cycles = entity.movementPattern === EMULATE_CYCLE_PATTERN;
+    if (cycles !== (entity.emulates !== undefined)) {
+      errors.push(`${id}.emulates: goes with the pattern "${EMULATE_CYCLE_PATTERN}" and nothing else`);
+    }
+    if (entity.emulates !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.emulates: only a monster emulates others`);
+      if (!Array.isArray(entity.emulates) || entity.emulates.length === 0) {
+        errors.push(`${id}.emulates: expected a non-empty list of monster ids`);
+      } else {
+        for (const other of entity.emulates) {
+          const target = typeof other === 'string' ? entities[other] : undefined;
+          if (target === undefined || target.kind !== 'monster') {
+            errors.push(`${id}.emulates: "${String(other)}" is not the id of an existing monster`);
+          } else if (target.emulates !== undefined) {
+            errors.push(`${id}.emulates: "${other}" emulates others itself`);
+          }
+        }
+      }
+      const attempts = entity.emulationSwitchAttempts;
+      if (!Number.isInteger(attempts) || (attempts as number) < 1) {
+        errors.push(`${id}.emulationSwitchAttempts: expected a whole number of at least 1`);
+      }
+    } else if (entity.emulationSwitchAttempts !== undefined) {
+      errors.push(`${id}.emulationSwitchAttempts: only a monster that emulates others has this field`);
     }
   }
   return errors;
