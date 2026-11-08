@@ -18,7 +18,7 @@ import type { Direction } from '../types';
 import { cc3dLevel } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { convertCc3dLevel } from './cc3dToEpoxy';
-import { DifferentialPair, ENTITY_ID_MAP, epoxyIdOf } from './cc3dToEpoxyDifferential';
+import { DifferentialPair, epoxyIdOf } from './cc3dToEpoxyDifferential';
 import type { DiffMismatch } from './cc3dToEpoxyDifferential';
 import { normalizeCell } from './model';
 import type { Cc3dColor, Cc3dTerrain } from './model';
@@ -173,7 +173,7 @@ export function playTimeline(scenario: EvidenceScenario, presses = '', ticks = T
     }
     const a = pair.rig.player;
     const b = pair.epoxy.getPlayer();
-    const linesA = pair.rig.entities.map((e) => `${ENTITY_ID_MAP[e.type] ?? e.type}@${e.x},${e.y}`).sort();
+    const linesA = pair.rig.entities.map((e) => `${pair.epoxyTypeOf(e)}@${e.x},${e.y}`).sort();
     const linesB = pair.epoxy.getEntities().map((e) => `${e.type}@${e.x},${e.y}`).sort();
     bodiesA.push(`${linesA.join(' ')} P${a.x},${a.y}${a.alive ? '' : 'x'}`);
     bodiesB.push(`${linesB.join(' ')} P${b.x},${b.y}${b.alive ? '' : 'x'}`);

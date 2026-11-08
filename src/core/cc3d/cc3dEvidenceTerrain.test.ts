@@ -109,12 +109,13 @@ describe('water', () => {
     });
   });
 
-  it('differs for monsters: a CC3D monster without water immunity refuses the cell, an Epoxy one walks in and drowns', () => {
+  it('is refused by a monster without water immunity, in CC3D and by the Epoxy bouncer alike', () => {
     const t = playTimeline({ rows: bouncerInto('W'), moves: '', glyphs: BOUNCER });
-    expect(t.sameFinal).toBe(false);
-    expect(t.cc3d.final).toContain('pink_ball');
+    expect(t.sameFinal).toBe(true);
+    expect(t.cc3d.final).toContain('bouncer');
     expect(t.cc3d.final).toContain('water');
-    expect(t.epoxy.final).not.toContain('pink_ball');
+    expect(t.epoxy.final).toContain('bouncer');
+    expect(t.epoxy.final).toContain('water');
   });
 });
 
@@ -142,7 +143,7 @@ describe('bomb', () => {
   it('is spent with the monster that enters it', () => {
     const t = playTimeline({ rows: bouncerInto('O'), moves: '', glyphs: BOUNCER });
     expect(t.sameFinal).toBe(true);
-    expect(t.cc3d.final).not.toContain('pink_ball');
+    expect(t.cc3d.final).not.toContain('bouncer');
     expect(t.cc3d.final).not.toContain('bomb');
   });
 });
@@ -178,11 +179,12 @@ describe('turtle', () => {
     });
   });
 
-  it('differs for monsters: a CC3D monster crosses a turtle and sinks it, an Epoxy one refuses it', () => {
+  it('is crossed by a monster, which sinks it behind it, in CC3D and in Epoxy alike', () => {
     const t = playTimeline({ rows: bouncerInto('T'), moves: '', glyphs: BOUNCER });
-    expect(t.sameFinal).toBe(false);
+    expect(t.sameFinal).toBe(true);
     expect(t.cc3d.final).toContain('water');
-    expect(t.epoxy.final).toContain('turtle');
+    expect(t.epoxy.final).toContain('water');
+    expect(t.epoxy.final).not.toContain('turtle');
   });
 });
 
@@ -209,7 +211,7 @@ describe('dirt', () => {
     const t = playTimeline({ rows: bouncerInto('D'), moves: '', glyphs: BOUNCER });
     expect(t.sameFinal).toBe(true);
     expect(t.cc3d.final).toContain('dirt');
-    expect(t.cc3d.final).toContain('pink_ball');
+    expect(t.cc3d.final).toContain('bouncer');
   });
 
   it('differs for blocks: a CC3D block enters dirt and clears it, an Epoxy block is refused', () => {
@@ -254,11 +256,11 @@ describe('slime', () => {
     });
   });
 
-  it('differs for monsters: a CC3D monster refuses slime, an Epoxy one walks in and dies', () => {
+  it('is refused by a monster, in CC3D and by the Epoxy bouncer alike', () => {
     const t = playTimeline({ rows: bouncerInto('L'), moves: '', glyphs: BOUNCER });
-    expect(t.sameFinal).toBe(false);
-    expect(t.cc3d.final).toContain('pink_ball');
-    expect(t.epoxy.final).not.toContain('pink_ball');
+    expect(t.sameFinal).toBe(true);
+    expect(t.cc3d.final).toContain('bouncer');
+    expect(t.epoxy.final).toContain('bouncer');
   });
 });
 
@@ -380,7 +382,7 @@ describe('gravel', () => {
     }
     const t = playTimeline({ rows: bouncerInto('G'), moves: '', glyphs: BOUNCER });
     expect(t.sameFinal).toBe(true);
-    expect(t.cc3d.final).toContain('pink_ball');
+    expect(t.cc3d.final).toContain('bouncer');
   });
 
   it('differs for a reflector: CC3D refuses it, Epoxy admits the mirror', () => {
