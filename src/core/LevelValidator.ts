@@ -770,14 +770,22 @@ export class LevelValidator {
       // pass of a CC3D level, where the walls the player opens widen the way of the movers (an over-approximation).
       this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain);
 
+      // The terrain the last mover flood ran on; the first flood ran before the walk.
+      let lastFloodTerrain = simTerrain.map((row) => row.join(',')).join(';');
       let changed = true;
       let passes = 0;
 
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
-        if (passes > 1 && readsMoversOptimistically && this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain)) {
-          changed = true;
+        if (passes > 1 && readsMoversOptimistically) {
+          // The flood reads the terrain only: it runs again when the terrain differs from the one it last saw.
+          const signature = simTerrain.map((row) => row.join(',')).join(';');
+          if (signature !== lastFloodTerrain) {
+            const floodChanged = this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain);
+            lastFloodTerrain = simTerrain.map((row) => row.join(',')).join(';');
+            if (floodChanged) changed = true;
+          }
         }
         if (stoneCount > 0) {
           for (const row of simItems) {
@@ -2491,6 +2499,8 @@ export class LevelValidator {
       }
       for (const door of mirrorOpened) {
         simTerrain[door.y][door.x] = ConfigRegistry.getTile(simTerrain[door.y][door.x]).transformsToOnUnlock || FLOOR_TILE_ID;
+        terrainChanged = true;
+        tally.changed = true;
       }
     }
     let opensToggleWalls = false;

@@ -1686,7 +1686,7 @@
         "label": "Erreur : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente."
       },
       "keyless_doors": {
-        "label": "Avertissement : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente, la porte reste fermée comme un mur."
+        "label": "Avertissement : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente, {doors, plural, one {la porte reste fermée} other {les portes restent fermées}} comme {doors, plural, one {un mur} other {des murs}}."
       },
       "fewer_keys_than_doors": {
         "label": "Avertissement : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})."

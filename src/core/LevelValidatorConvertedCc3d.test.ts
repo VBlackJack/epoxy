@@ -40,7 +40,8 @@ const TERRAIN_CODES: Record<string, string> = {
   G: 'door_green',
   K: 'floor',
   H: 'thief_keys',
-  I: 'ice'
+  I: 'ice',
+  g: 'gravel'
 };
 
 /**
@@ -112,6 +113,14 @@ describe('LevelValidator movers and channel buttons', () => {
     const pinkBall: EntityPlacement = { type: 'pink_ball', x: 4, y: 4, dir: 'N' };
     expect(unreachable(grid(rows, [bouncer]))).toBe(false);
     expect(unreachable(grid(rows, [pinkBall]))).toBe(true);
+  });
+
+  it('lets a monster cross the tiles its definition passes to a colour button', () => {
+    const rows = ['#######', '#Py..E#', '####Y##', '####g##', '####.##', '#######'];
+    const puppet: EntityPlacement = { type: 'puppet', x: 4, y: 4, dir: 'N' };
+    const bouncer: EntityPlacement = { type: 'bouncer', x: 4, y: 4, dir: 'N' };
+    expect(unreachable(grid(rows, [puppet]))).toBe(false);
+    expect(unreachable(grid(rows, [bouncer]))).toBe(true);
   });
 
   it('lets a monster immune to fire cross it to a colour button, and one that is not stays out', () => {
