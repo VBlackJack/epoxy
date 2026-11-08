@@ -248,6 +248,16 @@ export const EDITOR_CC3D_OVERLAY_ALPHA = 0.9;
 /** Epoxy connections: most colour and level-wide rows listed per mechanism and side, and most such arrows drawn (the rest become outlines). */
 export const EDITOR_CONNECTIONS_MAX_ROWS = 8;
 export const EDITOR_RELATION_MAX_ARROWS = 12;
+/** Gate port tags on the overlay: font size as a fraction of a tile, how far along the wire from its end the tag sits (in tiles), and the stroke behind the glyphs. */
+export const EDITOR_PORT_TAG_FONT_TILE = 0.3;
+export const EDITOR_PORT_TAG_ALONG_TILE = 0.55;
+export const EDITOR_PORT_TAG_STROKE_WIDTH = 3;
+/** Distance in tiles between the lanes of the tags of wires that join the same two cells. */
+export const EDITOR_PORT_TAG_LANE_TILE = 0.28;
+export const EDITOR_PORT_TAG_MIN_TILE_PX = 14;
+export const EDITOR_PORT_TAG_FONT_FAMILY = 'sans-serif';
+export const EDITOR_PORT_TAG_FILL_COLOR = '#ffffff';
+export const EDITOR_PORT_TAG_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.85)';
 /** Epoxy connections: how long the pointer rests on a cell of the map before the Connections section follows it. */
 export const EDITOR_CONNECTIONS_HOVER_DWELL_MS = 300;
 /** Epoxy connections overlay: colour of the arrows and outlines by mechanism (trap, clone, shot and the CC3D teleport and laser colours are reused; the others are white). */

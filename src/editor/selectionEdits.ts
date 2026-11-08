@@ -19,7 +19,7 @@ import { CellEdge, CellUnderlay, CloneLink, Direction, LauncherLink, RailTrackCe
 import { canonicalEdges, removeEdgesWhere, replaceEdges } from './editorCellEdges';
 import { canonicalRailTracks, removeRailTracksWhere, replaceRailTracks } from './editorRailTracks';
 import { cloneMap, EditorMap } from './editorDocument';
-import type { Brush } from './editorTools';
+import { CANOPY_BRUSH_ID, type Brush } from './editorTools';
 import { canonicalLauncherLinks, pruneLauncherLinks, setLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks, pruneSignalLinks, setSignalLinks } from './editorSignalLinks';
 import { canonicalUnderlays, pruneUnderlays, removeUnderlaysWhere, replaceUnderlays } from './editorUnderlays';
@@ -32,7 +32,8 @@ import {
   keepsLauncherLinks,
   mapHeightOf,
   mapWidthOf,
-  syncCloneTemplatesAt
+  syncCloneTemplatesAt,
+  addDefaultRailTracks
 } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
@@ -705,6 +706,8 @@ export type FillRefusal =
   | { reason: 'unavailable'; reasonKey: string }
   /** Thin walls are drawn with the brush: they have no content to fill with. */
   | { reason: 'cell_edge' }
+  /** The canopy is drawn with the brush too: it is a roof over cells, not content to fill with. */
+  | { reason: 'canopy' }
   /** The player start is not content: it places one thing, not a layer of cells. */
   | { reason: 'unsupported' };
 
@@ -712,7 +715,7 @@ export type FillRefusal =
 export function fillBrushRefusal(brush: Brush, ruleset: EditableRuleset): FillRefusal | null {
   switch (brush.kind) {
     case 'cell_edge':
-      return { reason: 'cell_edge' };
+      return { reason: brush.id === CANOPY_BRUSH_ID ? 'canopy' : 'cell_edge' };
     case 'player_start':
       return { reason: 'unsupported' };
     case 'terrain':
@@ -759,6 +762,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
   const map = cloneMap(source);
   let droppedLinks = 0;
   let anyHidden = false;
+  const filledCells: Array<{ x: number; y: number }> = [];
   let borderSkipped = 0;
   let skipped = 0;
   const clonerTemplates: ClonerTemplateChange[] = [];
@@ -772,6 +776,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
         const previous = map.terrain[y][x];
         if (previous === brush.id) continue;
         map.terrain[y][x] = brush.id;
+        filledCells.push({ x, y });
         const hidden = hidesShotDevice(map, x, y);
         anyHidden ||= hidden;
         droppedLinks += dropLinksAt(map, x, y, keepsLauncherLinks(previous, brush.id) || hidden);
@@ -795,8 +800,9 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     }
   }
   const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
-  // A cell that stops being a track cell loses its tracks.
+  // A cell that stops being a track cell loses its tracks; a cell that becomes one starts with the default tracks.
   if (brush.kind === 'terrain' && map.railTracks) replaceRailTracks(map, map.railTracks);
+  if (brush.kind === 'terrain') addDefaultRailTracks(map, brush.id, filledCells);
   if (anyHidden) droppedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return {
     map,

@@ -73,7 +73,7 @@ import {
 } from './testFromHere';
 import { CheckState, CheckSummary, summarizeValidation } from './checkSummary';
 import { issueCell, issueRows, issuesAtCell, stripSeverityPrefix } from './issueList';
-import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
+import { cloneDocument, displayLayersOf, EditorDocument, EditorMap, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
   DRAFT_VERSION,
   type DraftOffer,
@@ -139,8 +139,10 @@ import { layoutModeForSize } from './editorLayout';
 import {
   applyTool,
   Brush,
+  CANOPY_BRUSH_ID,
   CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
+  isCanopyBrush,
   EDITOR_TOOLS,
   EditorTool,
   MESSAGE_LINKS_REMOVED,
@@ -156,8 +158,11 @@ import {
   SectionState,
   serializeSectionState
 } from './inspectorSections';
-import { hasCellEdges } from './editorCellEdges';
+import { CanopyMode, hasCanopyAt, hasCellEdges } from './editorCellEdges';
 import { nextRailPiece } from './railRotation';
+import { CellSection } from './cellPanel';
+import { RailTrackPanel } from './railTrackPanel';
+import { rotateRailTracksAt } from './railTrackEdits';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
 import { pruneSignalLinks } from './editorSignalLinks';
@@ -179,6 +184,7 @@ import {
   CHANNEL_NAME_KEYS,
   type ConnectionList,
   type ConnectionRow,
+  type ConnectionSwap,
   type ConnectionUnlink,
   type ConnectionView,
   type ConnectionLink,
@@ -189,6 +195,10 @@ import {
   systemNameKey
 } from './connectionRows';
 import { deviceOverlayFor } from './deviceOverlay';
+import type { DeviceOverlayTags } from './deviceOverlay';
+import { gateKindOfTile, PORT_ROLE_LABEL_KEYS, SIGNAL_PORT_KEYS } from './signalPortRoles';
+import type { WirePortRoles } from './signalPortRoles';
+import { swapGatePorts } from './signalPortEdits';
 import { datLinkCapNotice } from './datLinkCap';
 import {
   CC3D_MECHANISM_HELP_ROWS,
@@ -239,7 +249,7 @@ import {
   winRuleAvailability
 } from './paletteAvailability';
 import { JUNCTION_NO_SWITCH } from '../render/railArt';
-import { arrangeMechanismSections, entityMechanismGroup, isHiddenFromPalette, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { searchPalette, type SearchableEntry } from './paletteSearch';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
@@ -300,6 +310,14 @@ import {
   EDITOR_RELATION_COLORS,
   EDITOR_CC3D_BADGE_RADIUS_TILE,
   EDITOR_CLONER_BADGE_BACKING,
+  EDITOR_PORT_TAG_ALONG_TILE,
+  EDITOR_PORT_TAG_FILL_COLOR,
+  EDITOR_PORT_TAG_FONT_FAMILY,
+  EDITOR_PORT_TAG_LANE_TILE,
+  EDITOR_PORT_TAG_FONT_TILE,
+  EDITOR_PORT_TAG_MIN_TILE_PX,
+  EDITOR_PORT_TAG_OUTLINE_COLOR,
+  EDITOR_PORT_TAG_STROKE_WIDTH,
   EDITOR_CLONER_BADGE_TILE,
   EDITOR_CC3D_LINK_COLORS,
   EDITOR_CC3D_OVERLAY_ALPHA,
@@ -382,6 +400,7 @@ const SEPARATOR_BETWEEN_MESSAGES = ' ';
 const SEPARATOR_BETWEEN_PARTS = ', ';
 /** Status keys of a selection fill that cannot go ahead (their texts live in the locale files). */
 const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cell_edge';
+const MESSAGE_FILL_REFUSED_CANOPY = 'editor.selection.status.fill_refused_canopy';
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
 const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
@@ -398,6 +417,8 @@ const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
 const LAYERS_CELL_ID = 'editor-layers-cell';
 const CONNECTIONS_SECTION_ID = 'editor-connections-section';
+const CELL_SECTION_ID = 'editor-cell-section';
+const CELL_BODY_ID = 'editor-cell-body';
 const CONNECTIONS_CELL_ID = 'editor-connections-cell';
 const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
 const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
@@ -560,6 +581,8 @@ interface StaticLayer {
 
 /** One pointer stroke or key press: the document it started from, and whether it changed anything. */
 interface Stroke {
+  /** Canopy brush: what the stroke does to every cell it crosses, fixed by its first cell. */
+  canopyMode?: CanopyMode;
   base: EditorDocument;
   changed: boolean;
   forceErase: boolean;
@@ -769,6 +792,8 @@ export class LevelEditor {
   private connectionsDwellTimer: ReturnType<typeof setTimeout> | null = null;
   /** True while the pointer is over the section: its list must not change under it. */
   private connectionsPointerInside = false;
+  /** The Cell section of the inspector: the settings of the picked cell that the palette cannot carry. */
+  private cellSection: CellSection | null = null;
   /** CC3D palette state: the selected entry, its category and the attributes the choosers hold. */
   private cc3dEntryId: string = 'layer:wall';
   private cc3dCategory: Cc3dCategoryId = 'blockers';
@@ -910,6 +935,7 @@ export class LevelEditor {
     this.bindPaletteChrome();
     this.bindInspectorSections();
     this.bindConnectionsEvents();
+    this.bindCellSection();
     this.renderIssues();
     this.bindLayoutEvents();
     this.bindDraftEvents();
@@ -1065,7 +1091,7 @@ export class LevelEditor {
    */
   private sideToolActive(): boolean {
     if (this.isCc3d()) return this.tool === 'brush' && this.cc3dEntry()?.action === 'panel';
-    return this.tool === 'brush' && this.brush.kind === 'cell_edge';
+    return this.tool === 'brush' && this.brush.kind === 'cell_edge' && this.brush.id === CELL_EDGE_BRUSH_ID;
   }
 
   /** The selected CC3D palette entry, or null when the id names none. */
@@ -1740,7 +1766,7 @@ export class LevelEditor {
     };
 
     // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
-    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true && !isHiddenFromPalette(candidate))) {
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true)) {
       add(
         { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
         t(tile.i18nKey),
@@ -1760,6 +1786,9 @@ export class LevelEditor {
     }
 
     if (category === TERRAIN_CATEGORY) {
+      add({ kind: 'cell_edge', id: CANOPY_BRUSH_ID }, t('editor.palette.tools.canopy'), () =>
+        this.renderer.renderIconToDataUrl('canopy', CANOPY_BRUSH_ID)
+      );
       add({ kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID }, t('editor.palette.tools.cell_edge'), () =>
         this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
       );
@@ -1858,7 +1887,7 @@ export class LevelEditor {
       this.announceFillChoice(refusal ? this.fillRefusalMessage(refusal) : null, this.brushLabel(brush));
     } else {
       // The thin wall keeps its own status, which already says how to use it; every other entry says what it does and needs.
-      if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
+      if (brush.kind === 'cell_edge' && brush.id === CELL_EDGE_BRUSH_ID) this.setStatusText(t('editor.palette.status.cell_edge_mode'));
       else {
         const description = paletteDescription(brush.kind, brush.id, t);
         if (description !== undefined) this.setStatusText(nameWithDescription(this.brushLabel(brush), description));
@@ -2021,6 +2050,42 @@ export class LevelEditor {
     this.afterDirectionChange();
   }
 
+  /** Turns the tracks of the track cell on the keyboard cursor cell (else the last hovered one); false when that cell holds none. */
+  private rotateTrackCellInPlace(): boolean {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const turned = cell ? rotateRailTracksAt(this.doc, cell.x, cell.y) : null;
+    if (!cell || turned === null) return false;
+    return this.commitCellEdit(turned, [{ key: 'editor.rail_tracks.status.rotated.label', params: { x: cell.x, y: cell.y } }]);
+  }
+
+  /** Mounts the Cell section of the inspector, with the panels that fill it. */
+  private bindCellSection(): void {
+    const section = byId(CELL_SECTION_ID);
+    const body = byId(CELL_BODY_ID);
+    if (!section || !body) return;
+    const panels = [new RailTrackPanel({ commit: (map, messages) => this.commitCellEdit(map, messages) }, () => this.doc)];
+    this.cellSection = new CellSection(section, body, panels, () => {
+      if (!this.disposed) this.render();
+    });
+  }
+
+  /** Brings the Cell section in line with the picked cell, the document and the language. */
+  private refreshCellSection(): void {
+    if (this.stroke) return;
+    this.cellSection?.update(this.doc, this.connectionsSubject(), `${this.loadGeneration}:${this.docRevision}:${i18n.getLocale()}`);
+  }
+
+  /** Puts a map edited by a Cell section panel in the document as one history step. Returns whether it was applied. */
+  private commitCellEdit(map: EditorMap, messages: ToolMessage[] = []): boolean {
+    if (this.stroke) return false;
+    const before = this.doc;
+    this.doc = withEditedMap(this.doc, map);
+    this.recordChange(before);
+    this.render();
+    this.announce(messages);
+    return true;
+  }
+
   /**
    * Turns the creature or turret on the keyboard cursor cell (else the last hovered one) a quarter turn clockwise, as
    * one history step. A clone machine under it copies the new facing.
@@ -2140,7 +2205,7 @@ export class LevelEditor {
       case 'rotate_in_place':
         // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
         if (this.pasting && this.floatingStamp) this.turnStamp();
-        else this.rotateEntityInPlace();
+        else if (!this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -3721,6 +3786,7 @@ export class LevelEditor {
     this.resetTouch();
     this.disposed = true;
     this.resetConnectionsPointer();
+    this.cellSection?.dispose();
     this.cancelCellSpeech();
     this.cancelSearchCount();
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
@@ -4942,6 +5008,7 @@ export class LevelEditor {
    * never changes under the keyboard.
    */
   private refreshConnections(): void {
+    this.refreshCellSection();
     const section = byId(CONNECTIONS_SECTION_ID);
     if (!section || this.stroke || this.connectionsDrawing) return;
     const cc3d = this.isCc3d();
@@ -5080,10 +5147,18 @@ export class LevelEditor {
   /** The words of a row: the other cell's name and place, how they are wired, which mechanism, which colour. */
   private connectionRowText(row: ConnectionRow): string {
     const channel = row.channel === undefined ? [] : [CHANNEL_NAME_KEYS[row.channel] ? t(CHANNEL_NAME_KEYS[row.channel]) : row.channel];
-    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(row.systemNameKey ?? systemNameKey(row.system)), ...channel].join(
+    const ports = row.ports ? [this.portRolesText(row.ports)] : [];
+    const detail = [t(KIND_NAME_KEYS[row.fallback ? 'fallback' : row.kind]), t(row.systemNameKey ?? systemNameKey(row.system)), ...channel, ...ports].join(
       t(LIST_SEPARATOR_KEY)
     );
     return t(CONNECTIONS_ROW_KEY, { name: t(row.name.key, row.name.params), x: row.x, y: row.y, detail });
+  }
+
+  /** The words for the ports a signal wire joins: the output it leaves, the input it enters, or both. */
+  private portRolesText(ports: WirePortRoles): string {
+    const out = ports.out === undefined ? undefined : t(PORT_ROLE_LABEL_KEYS[ports.out]);
+    const input = ports.in === undefined ? undefined : t(PORT_ROLE_LABEL_KEYS[ports.in]);
+    return out !== undefined && input !== undefined ? t(SIGNAL_PORT_KEYS.both, { output: out, input }) : (out ?? input ?? '');
   }
 
   private connectionRowItem(row: ConnectionRow): HTMLLIElement {
@@ -5120,7 +5195,44 @@ export class LevelEditor {
       });
       item.appendChild(btn);
     }
+    for (const swap of row.swaps ?? []) item.appendChild(this.swapPortsButton(swap));
     return item;
+  }
+
+  /** The Swap ports button of a row: turns the ports of one side of the data latch or counter the wire joins. */
+  private swapPortsButton(swap: ConnectionSwap): HTMLButtonElement {
+    const name = t(connectionCellName(this.doc, swap.cell.x, swap.cell.y).key);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hud-btn small';
+    btn.dataset.action = 'swap-ports';
+    btn.textContent = t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapActionInput : SIGNAL_PORT_KEYS.swapActionOutput);
+    btn.setAttribute(
+      'aria-label',
+      t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapAriaInput : SIGNAL_PORT_KEYS.swapAriaOutput, { name, x: swap.cell.x, y: swap.cell.y })
+    );
+    btn.addEventListener('click', () => {
+      btn.focus({ preventScroll: true });
+      this.swapGatePortsAt(swap);
+    });
+    return btn;
+  }
+
+  /** Swaps the ports of one side of a gate, as one undoable edit, and says so. */
+  private swapGatePortsAt(swap: ConnectionSwap): void {
+    if (this.stroke || this.isCc3d()) return;
+    const base = this.doc;
+    const result = swapGatePorts(base, swap.cell, swap.side);
+    if (!result.changed) {
+      this.connectionsKey = '';
+      this.render();
+      return;
+    }
+    this.doc = withEditedMap(base, result.map);
+    this.recordChange(base);
+    const name = connectionCellName(base, swap.cell.x, swap.cell.y);
+    this.setStatusText(t(SIGNAL_PORT_KEYS.swapDone, { name: t(name.key, name.params), x: swap.cell.x, y: swap.cell.y }));
+    this.render();
   }
 
   private markConnectionRow(cell: { x: number; y: number } | null): void {
@@ -5539,8 +5651,13 @@ export class LevelEditor {
       side,
       x,
       y,
-      forceErase: stroke.forceErase
+      forceErase: stroke.forceErase,
+      canopyMode: stroke.canopyMode
     });
+    // The first cell of a canopy stroke decides whether the stroke puts the roof on or takes it off.
+    if (stroke.canopyMode === undefined && !stroke.forceErase && this.tool === 'brush' && isCanopyBrush(this.brush)) {
+      stroke.canopyMode = hasCanopyAt(outcome.map, x, y) ? 'set' : 'clear';
+    }
     if (outcome.changed) {
       this.doc = withEditedMap(this.doc, outcome.map);
       this.docRevision++;
@@ -5766,6 +5883,8 @@ export class LevelEditor {
         return { key: refusal.reasonKey };
       case 'cell_edge':
         return { key: MESSAGE_FILL_REFUSED_CELL_EDGE };
+      case 'canopy':
+        return { key: MESSAGE_FILL_REFUSED_CANOPY };
       case 'unsupported':
         return { key: MESSAGE_FILL_REFUSED_ENTRY };
     }
@@ -6638,6 +6757,42 @@ export class LevelEditor {
     this.ctx.fill();
   }
 
+  /** The port tags of a signal wire: the output port beside its start, the input port beside its head. */
+  private drawPortTags(from: { x: number; y: number }, to: { x: number; y: number }, tags: DeviceOverlayTags, lane: number, s: number): void {
+    if (s < EDITOR_PORT_TAG_MIN_TILE_PX) return;
+    const c = EDITOR_TILE_CENTER_OFFSET;
+    const x0 = (from.x + c) * s;
+    const y0 = (from.y + c) * s;
+    const x1 = (to.x + c) * s;
+    const y1 = (to.y + c) * s;
+    const length = Math.hypot(x1 - x0, y1 - y0);
+    if (length === 0) return;
+    const along = Math.min(EDITOR_PORT_TAG_ALONG_TILE * s, length / 2);
+    const ux = (x1 - x0) / length;
+    const uy = (y1 - y0) / length;
+    // Tags of wires between the same two cells sit on separate lanes beside the arrow, never on top of each other.
+    const side = EDITOR_PORT_TAG_LANE_TILE * s * (lane + 1);
+    const nx = -uy * side;
+    const ny = ux * side;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.font = `bold ${EDITOR_PORT_TAG_FONT_TILE * s}px ${EDITOR_PORT_TAG_FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = EDITOR_PORT_TAG_STROKE_WIDTH;
+    ctx.strokeStyle = EDITOR_PORT_TAG_OUTLINE_COLOR;
+    ctx.fillStyle = EDITOR_PORT_TAG_FILL_COLOR;
+    const place = (key: string, x: number, y: number): void => {
+      const text = t(key);
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+    };
+    if (tags.from) place(tags.from, x0 + ux * along + nx, y0 + uy * along + ny);
+    if (tags.to) place(tags.to, x1 - ux * along + nx, y1 - uy * along + ny);
+    ctx.restore();
+  }
+
   /** A bar on one side of a cell: the side a click in the thin wall mode would toggle. */
   private drawSideHint(cell: { x: number; y: number }, side: Direction, s: number): void {
     const x0 = cell.x * s;
@@ -6732,9 +6887,12 @@ export class LevelEditor {
       const key = `${cell.x},${cell.y}`;
       if (drawn.has(key)) continue;
       drawn.add(key);
-      const overlay = deviceOverlayFor(deviceRelations(this.doc, cell.x, cell.y), cell);
+      const overlay = deviceOverlayFor(deviceRelations(this.doc, cell.x, cell.y), cell, (point) => gateKindOfTile(this.doc.terrain[point.y]?.[point.x]));
       for (const target of overlay.highlights) this.outlineCell(target.x, target.y, EDITOR_RELATION_COLORS[target.system], s);
-      for (const arrow of overlay.arrows) this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
+      for (const arrow of overlay.arrows) {
+        this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
+        if (arrow.tags) this.drawPortTags(arrow.from, arrow.to, arrow.tags, arrow.lane ?? 0, s);
+      }
     }
     if (rowCell) this.outlineCell(rowCell.x, rowCell.y, EDITOR_HOVER_OUTLINE_COLOR, s, EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH);
     this.ctx.restore();

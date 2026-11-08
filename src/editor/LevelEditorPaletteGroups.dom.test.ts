@@ -24,7 +24,7 @@ import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { mountModals } from '../test/domFixture';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { LevelEditor } from './LevelEditor';
-import { isHiddenFromPalette, MECHANISM_GROUPS } from './paletteGroups';
+import { MECHANISM_GROUPS } from './paletteGroups';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
 const GRID_ID = 'editor-palette-grid';
@@ -101,7 +101,7 @@ describe('Mechanisms palette sub-headings', () => {
 
   it('keeps every entry reachable in the DOM order, with headings that cannot take focus', () => {
     openCategory(MECHANISMS_CATEGORY);
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY && !isHiddenFromPalette(tile));
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
     const entities = Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
     expect(gridButtons()).toHaveLength(tiles.length + entities.length);
     const labels = new Set(gridButtons().map((btn) => btn.querySelector('.palette-item-label')?.textContent));

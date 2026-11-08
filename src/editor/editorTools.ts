@@ -16,7 +16,8 @@
 
 import { Direction } from '../core/types';
 import { clonerTemplateMessage } from './cellDescription';
-import { EditorMap } from './editorDocument';
+import { CanopyMode, hasCanopyAt, toggleCanopyAt } from './editorCellEdges';
+import { cloneMap, EditorMap } from './editorDocument';
 import {
   eraseCell,
   floodFillTerrain,
@@ -36,6 +37,9 @@ export type BrushKind = 'terrain' | 'item' | 'entity' | 'player_start' | 'cell_e
 
 /** Id of the thin wall entry of the Epoxy palette (the CC3D palettes keep their own 'panel' entry). */
 export const CELL_EDGE_BRUSH_ID = 'cell_edge';
+
+/** Id of the canopy entry of the Epoxy palette: a cell_edge brush that edits the roof flag instead of a side. */
+export const CANOPY_BRUSH_ID = 'canopy';
 
 /** What the brush tool places: a palette entry. */
 export interface Brush {
@@ -66,6 +70,8 @@ export interface ToolInput {
   y: number;
   /** True for the secondary button: it erases whatever the tool is. */
   forceErase?: boolean;
+  /** Canopy brush only: a drag puts the canopy on (or takes it off) every cell it crosses, as its first cell did. */
+  canopyMode?: CanopyMode;
 }
 
 export interface ToolOutcome {
@@ -96,8 +102,27 @@ function fromEdit(result: MapEditResult, messages: ToolMessage[] = [], underlays
 }
 
 function eraseOutcome(input: ToolInput): ToolOutcome {
-  const result = eraseCell(input.map, input.x, input.y);
+  let result = eraseCell(input.map, input.x, input.y);
+  // A cell that holds only a canopy has nothing else to clear, so the eraser takes the roof off itself.
+  if (hasCanopyAt(result.map, input.x, input.y)) {
+    const map = cloneMap(result.map);
+    toggleCanopyAt(map, input.x, input.y, 'clear');
+    result = { ...result, map, changed: true };
+  }
   return fromEdit(result, result.playerStartKept ? [{ key: MESSAGE_START_KEPT }] : [], MESSAGE_UNDERLAYS_ERASED);
+}
+
+/** True when the brush is the canopy entry. */
+export function isCanopyBrush(brush: Brush): boolean {
+  return brush.kind === 'cell_edge' && brush.id === CANOPY_BRUSH_ID;
+}
+
+/** Edits the canopy flag of a cell; a CC3D map has none. */
+function paintCanopy(source: EditorMap, x: number, y: number, mode: CanopyMode): ToolOutcome {
+  if (source.cc3d) return { map: source, changed: false, messages: [] };
+  const map = cloneMap(source);
+  if (!toggleCanopyAt(map, x, y, mode)) return { map: source, changed: false, messages: [] };
+  return { map, changed: true, messages: [] };
 }
 
 /**
@@ -125,6 +150,7 @@ export function applyTool(input: ToolInput): ToolOutcome {
     case 'player_start':
       return fromEdit(paintPlayerStart(map, x, y, dir));
     case 'cell_edge':
+      if (brush.id === CANOPY_BRUSH_ID) return paintCanopy(map, x, y, input.canopyMode ?? 'toggle');
       return fromEdit(toggleCellEdge(map, x, y, input.side ?? dir));
     default:
       return { map, changed: false, messages: [] };
@@ -135,7 +161,7 @@ export function applyTool(input: ToolInput): ToolOutcome {
 export function continuesOnDrag(tool: EditorTool, brush: Brush, forceErase: boolean): boolean {
   if (forceErase || tool === 'eraser') return true;
   if (tool !== 'brush') return false;
-  return brush.kind !== 'cell_edge';
+  return brush.kind !== 'cell_edge' || brush.id === CANOPY_BRUSH_ID;
 }
 
 /** What the picker takes from a cell. */

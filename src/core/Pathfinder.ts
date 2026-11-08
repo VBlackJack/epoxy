@@ -16,7 +16,17 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, MELINDA_CHARACTER, THIEF_PAYMENT_ITEM_IDS } from './coreConstants';
+import {
+  BLOCK_TARGET_TILE_ID,
+  channelOfButtonAction,
+  MELINDA_CHARACTER,
+  OPPOSITE_DIRECTION,
+  RAILROAD_SIGN_ITEM_ID,
+  RAIL_DEFAULT_ENTRY,
+  RAIL_TRACK_COUNT,
+  RAIL_TRACK_SIDES,
+  THIEF_PAYMENT_ITEM_IDS
+} from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, isRemovableTop } from './Underlays';
@@ -145,8 +155,41 @@ export class Pathfinder {
       tile.slideType !== undefined && !hasBoot(node, tile.protectedByItem) && !(melinda && tile.slideType === 'ice');
     const movesPlayerOnItsOwn = (tile: TileDefinition, node: AStarNode): boolean =>
       Boolean(tile.isTeleporter) || slidesOn(tile, node);
+    // CC2 tracks, as they stand now (a switch keeps the segment it has): per track cell the open sides pairs and the side the
+    // last actor came in by. The railroad sign holder ignores them.
+    const railOpen = new Map<number, readonly (readonly [Direction, Direction])[]>();
+    const railEntry = new Map<number, Direction>();
+    const railState = engine.getRailState();
+    if (railState !== undefined && !player.boots.has(RAILROAD_SIGN_ITEM_ID)) {
+      const masks = new Map<number, number>();
+      for (const cell of engine.getLevel().railTracks ?? []) masks.set(cell.y * width + cell.x, cell.mask);
+      for (const [cell, active, entry] of railState) {
+        const mask = masks.get(cell) ?? 0;
+        const open: (readonly [Direction, Direction])[] = [];
+        for (let track = 0; track < RAIL_TRACK_COUNT; track++) {
+          if (active === -1 ? (mask & (1 << track)) !== 0 : active === track) open.push(RAIL_TRACK_SIDES[track]);
+        }
+        railOpen.set(cell, open);
+        railEntry.set(cell, entry ?? RAIL_DEFAULT_ENTRY);
+      }
+    }
+    /** The side a node came in by: the side of its last move, or the track cell's own record at the start. */
+    const entrySide = (node: AStarNode): Direction | undefined =>
+      node.moveDir !== null ? OPPOSITE_DIRECTION[node.moveDir] : railEntry.get(node.y * width + node.x);
+    /** Whether the tracks stop the step from the node towards `dir`: the cell left or the cell entered refuses it. */
+    const railStepRefused = (node: AStarNode, dir: Direction, nx: number, ny: number): boolean => {
+      if (railOpen.size === 0) return false;
+      const leaving = railOpen.get(node.y * width + node.x);
+      if (leaving !== undefined) {
+        const entry = entrySide(node);
+        if (entry === dir || !leaving.some(([a, b]) => (a === entry && b === dir) || (b === entry && a === dir))) return true;
+      }
+      const entering = railOpen.get(ny * width + nx);
+      return entering !== undefined && !entering.some((sides) => sides.includes(OPPOSITE_DIRECTION[dir]));
+    };
     const stateKey = (node: AStarNode): string =>
-      `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${node.tokensLeft},${JSON.stringify(node.keysUsed)}`;
+      `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${node.tokensLeft},${JSON.stringify(node.keysUsed)}` +
+      (railOpen.has(node.y * width + node.x) ? `,${entrySide(node)}` : '');
 
     const openList = new NodeHeap();
     openList.push({
@@ -195,6 +238,7 @@ export class Pathfinder {
         const isTarget = nx === targetX && ny === targetY;
 
         if (isEdgeBlockedAt(terrain, edgeMask, curr.x, curr.y, nx, ny, dir)) continue;
+        if (railStepRefused(curr, dir, nx, ny)) continue;
 
         const keyCoord = `${nx},${ny}`;
         if (monsterPositions.has(keyCoord)) continue;

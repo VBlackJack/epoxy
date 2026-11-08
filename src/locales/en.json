@@ -1713,6 +1713,15 @@
       "signal_gate_no_input": {
         "label": "Error: A signal gate at ({x}, {y}) ({count} in all) has no input link."
       },
+      "signal_dlatch_no_clock": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has no clock link, so it never captures its data."
+      },
+      "signal_dlatch_no_data": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has a clock link but no data link, so it can only store off."
+      },
+      "signal_counter_no_up": {
+        "label": "Warning: A counter at ({x}, {y}) ({count} in all) is wired to count down only but its underflow output goes nowhere, so it can never do anything."
+      },
       "signal_cycle": {
         "label": "Error: Signal links loop back on themselves at ({x}, {y}) ({count} cells in all). Signals cannot loop."
       },
@@ -1811,6 +1820,9 @@
       },
       "rail_switch_no_button": {
         "label": "Info: A rail switch at ({x}, {y}) ({count} in all) never changes: no green button exists on this level."
+      },
+      "rail_track_empty": {
+        "label": "Warning: The track cell at ({x}, {y}) has no track segment, so nobody can enter it."
       },
       "exit_on_receivers_level": {
         "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers."
@@ -1926,7 +1938,62 @@
     }
   },
   "editor": {
+    "rail_tracks": {
+      "heading": "Track cell at ({x}, {y})",
+      "segments": {
+        "label": "Track segments"
+      },
+      "segment": {
+        "ne": {
+          "label": "Bend, north to east"
+        },
+        "se": {
+          "label": "Bend, south to east"
+        },
+        "sw": {
+          "label": "Bend, south to west"
+        },
+        "nw": {
+          "label": "Bend, north to west"
+        },
+        "ew": {
+          "label": "Straight, east to west"
+        },
+        "ns": {
+          "label": "Straight, north to south"
+        }
+      },
+      "empty": {
+        "note": "This cell has no track segment, so nobody can enter it. Switch a segment on."
+      },
+      "active": {
+        "legend": "Open segment (switch)",
+        "none": {
+          "label": "No switch"
+        }
+      },
+      "clear": {
+        "action": "Clear"
+      },
+      "rotate": {
+        "hint": "Press Shift+R to turn the tracks a quarter turn."
+      },
+      "status": {
+        "rotated": {"label": "Tracks at ({x}, {y}) turned a quarter turn."},
+        "segment_on": {"label": "Track segment switched on at ({x}, {y}): {segment}."},
+        "segment_off": {"label": "Track segment switched off at ({x}, {y}): {segment}."},
+        "switch": {"label": "Open segment of the switch at ({x}, {y}): {segment}."},
+        "switch_none": {"label": "The track cell at ({x}, {y}) has no switch."},
+        "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
+      }
+    },
     "cell_speech": {
+      "port_input": {
+        "label": "{role} input from ({x}, {y})"
+      },
+      "port_output": {
+        "label": "{role} output to ({x}, {y})"
+      },
       "list_separator": {
         "label": ", "
       },
@@ -1994,6 +2061,42 @@
         "w": {
           "label": "west"
         }
+      }
+    },
+    "signal_ports": {
+      "data": {
+        "label": "data",
+        "tag": "D"
+      },
+      "clock": {
+        "label": "clock",
+        "tag": "CK"
+      },
+      "count_up": {
+        "label": "count up",
+        "tag": "+"
+      },
+      "count_down": {
+        "label": "count down",
+        "tag": "-"
+      },
+      "overflow": {
+        "label": "overflow",
+        "tag": "OV"
+      },
+      "underflow": {
+        "label": "underflow",
+        "tag": "UN"
+      },
+      "both": {
+        "label": "{output} > {input}"
+      },
+      "swap": {
+        "action_input": "Swap inputs",
+        "action_output": "Swap outputs",
+        "aria_input": "Swap the input ports of {name} ({x}, {y})",
+        "aria_output": "Swap the output ports of {name} ({x}, {y})",
+        "done": "Ports swapped on {name} ({x}, {y})."
       }
     },
     "connections": {
@@ -2671,7 +2774,8 @@
         "fill_hint": "Shift+F fills the selection with {name}.",
         "filled": "Filled {width} x {height} cells with {name}.",
         "fill_start_kept": "The player start cell was left alone.",
-        "fill_refused_cell_edge": "Thin walls cannot fill a selection: draw them with the brush.",
+        "fill_refused_canopy": "A canopy cannot fill a selection: draw it with the brush.",
+        "fill_refused_cell_edge":"Thin walls cannot fill a selection: draw them with the brush.",
         "fill_refused_entry": "This entry cannot fill a selection.",
         "fill_refused_attributes": "This entry needs a valid colour or setting: choose it in the palette options."
       }
@@ -3191,6 +3295,7 @@
           "level": "Level",
           "rules": "Rules",
           "issues": "Issues",
+          "cell": "Cell",
           "size": "Size",
           "generate": "Generate"
         }
@@ -3453,6 +3558,12 @@
         },
         "player_start_desc": {
           "label": "Where the player begins the level. There is only one: placing it again moves it."
+        },
+        "canopy": {
+          "label": "Canopy"
+        },
+        "canopy_desc": {
+          "label": "A roof over a cell. It blocks bugs and rovers, and a blob stays between canopies. Click or drag to add or remove it; the eraser clears it. Thin walls on the cell are kept."
         },
         "cell_edge_desc": {
           "label": "A thin wall on one side of a cell. Click near a side to add or remove it (keyboard: the side of the direction control)."
