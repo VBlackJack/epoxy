@@ -257,6 +257,21 @@ export const PHASE_LINE_PATTERN = 'phase_line';
  */
 export const EMULATE_CYCLE_PATTERN = 'emulate_cycle';
 
+/**
+ * Movement pattern of a monster that draws one direction at random each time it may move and waits when the drawn way
+ * is blocked, without spending the rest of its step (the CC3D omni).
+ */
+export const RANDOM_DRAW_PATTERN = 'random_draw';
+
+/**
+ * Movement pattern of a monster that goes straight on and, when that way is blocked, draws one direction at random
+ * and waits when the drawn way is blocked too, without spending the rest of its step (the CC3D walker).
+ */
+export const FORWARD_ELSE_DRAW_PATTERN = 'forward_else_draw';
+
+/** Id of the turtle tile: a floor that sinks into water behind whoever leaves it. */
+export const TURTLE_TILE_ID = 'turtle';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 

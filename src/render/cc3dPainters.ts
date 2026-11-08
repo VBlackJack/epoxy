@@ -178,7 +178,7 @@ export const CC3D_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   cc3d_golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
 };
 
-/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark, the floor mimic plain teeth (drawn nearly invisible), the timid teeth teeth with a yellow mark, the ghost a glider with a gray mark and the rover a blob with a brown mark. */
+/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark, the floor mimic plain teeth (drawn nearly invisible), the timid teeth teeth with a yellow mark, the ghost a glider with a gray mark and the rover a blob with a brown mark. The CC3D monsters are the monster they resemble with a mark (the babies half size, unmarked): the bouncer a pink ball with a blue mark, the snappy and the nibble teeth with a red and a green mark, the blinky a glider with a red mark, the limpy a paramecium and the limpa a bug with a green mark, the omni a blob with a green mark, the legs a walker with a green and a red mark (as in CC3D), the screamer a fireball with a blue mark, the CC3D walker a walker with a yellow mark. */
 export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' },
   lurker: { base: 'blob', scale: FULL_SCALE, badge: 'orange' },
@@ -186,7 +186,20 @@ export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   floor_mimic: { base: 'teeth', scale: FULL_SCALE, badge: null },
   timid_teeth: { base: 'teeth', scale: FULL_SCALE, badge: 'yellow' },
   ghost: { base: 'glider', scale: FULL_SCALE, badge: 'gray' },
-  rover: { base: 'blob', scale: FULL_SCALE, badge: 'brown' }
+  rover: { base: 'blob', scale: FULL_SCALE, badge: 'brown' },
+  bouncer: { base: 'pink_ball', scale: FULL_SCALE, badge: 'blue' },
+  snappy: { base: 'teeth', scale: FULL_SCALE, badge: 'red' },
+  nibble: { base: 'teeth', scale: FULL_SCALE, badge: 'green' },
+  blinky: { base: 'glider', scale: FULL_SCALE, badge: 'red' },
+  baby_blinky: { base: 'glider', scale: BABY_SCALE, badge: null },
+  limpy: { base: 'paramecium', scale: FULL_SCALE, badge: 'green' },
+  limpa: { base: 'bug', scale: FULL_SCALE, badge: 'green' },
+  omni: { base: 'blob', scale: FULL_SCALE, badge: 'green' },
+  legs_green: { base: 'walker', scale: FULL_SCALE, badge: 'green' },
+  legs_red: { base: 'walker', scale: FULL_SCALE, badge: 'red' },
+  screamer: { base: 'fireball', scale: FULL_SCALE, badge: 'blue' },
+  baby_screamer: { base: 'fireball', scale: BABY_SCALE, badge: null },
+  walker_3d: { base: 'walker', scale: FULL_SCALE, badge: 'yellow' }
 };
 
 /** What the painters need from the renderer. */

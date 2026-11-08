@@ -821,6 +821,9 @@
     ],
     "cycleItem": [
       "KeyC"
+    ],
+    "swapPlayer": [
+      "KeyV"
     ]
   },
   "palette": {

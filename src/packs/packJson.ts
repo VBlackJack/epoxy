@@ -75,11 +75,13 @@ function packFileVersion(levels: readonly CompiledLevel[]): number {
   // A block chain push is refused by a build that does not know it, so a level that can chain needs format 13 too.
   // A canopy is a flag an older build drops from the cell edges, so a level that holds one needs format 13 as well.
   // A signal link that names a port is read without it by an older build, so such a level needs format 13 as well.
+  // A level with several players is played with one by an older build, so it needs format 13 too.
   const characterVersion = levels.some(
     (level) =>
       (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER) ||
       usesBlockChains(level) ||
       usesSignalPorts(level) ||
+      (level.extraPlayers?.length ?? 0) > 0 ||
       levelHasCanopy(level)
   )
     ? PACK_JSON_VERSION_V13

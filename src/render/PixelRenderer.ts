@@ -527,6 +527,12 @@ const MONSTER_FRAME_TICKS = 10;
 const WALK_FRAMES = 2;
 /** Below this distance (in tiles) from its cell, a sprite counts as standing still. */
 const MOVING_EPSILON_TILES = 0.02;
+/** The ring drawn under the controlled player of a level with several: opacity, stroke and ellipse as fractions of the cell. */
+const CONTROLLED_RING_ALPHA = 0.75;
+const CONTROLLED_RING_WIDTH_RATIO = 0.06;
+const CONTROLLED_RING_CENTER_Y_RATIO = 0.82;
+const CONTROLLED_RING_RADIUS_X_RATIO = 0.4;
+const CONTROLLED_RING_RADIUS_Y_RATIO = 0.14;
 
 /** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
 const LIGHT_MARGIN_TILES = 2;
@@ -1671,6 +1677,8 @@ export class PixelRenderer {
     const spritePx = lowRes ? originX + Math.round((this.visualPlayerPos.x - region.x0) * unit) : playerPx;
     const spritePy = lowRes ? originY + Math.round((this.visualPlayerPos.y - region.y0) * unit) : playerPy;
     this.playerCharacter = engine.getPlayerCharacter?.() ?? engine.getLevel().character ?? DEFAULT_PLAYER_CHARACTER;
+    // With other players on the map, a ring under the controlled one tells which one the keys move.
+    if ((engine.getParkedPlayers?.()?.length ?? 0) > 0) this.drawControlledRing(sceneCtx, spritePx, spritePy, unit);
     this.drawPlayer(
       sceneCtx,
       spritePx,
@@ -7086,6 +7094,37 @@ export class PixelRenderer {
     ctx.lineTo(x, y + r);
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
+  }
+
+  /** A thin ring under the controlled player of a level with several. */
+  private drawControlledRing(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.save();
+    ctx.globalAlpha = CONTROLLED_RING_ALPHA;
+    ctx.strokeStyle = this.pal().objectiveHalo;
+    ctx.lineWidth = Math.max(1, size * CONTROLLED_RING_WIDTH_RATIO);
+    ctx.beginPath();
+    ctx.ellipse(
+      x + size / 2,
+      y + size * CONTROLLED_RING_CENTER_Y_RATIO,
+      size * CONTROLLED_RING_RADIUS_X_RATIO,
+      size * CONTROLLED_RING_RADIUS_Y_RATIO,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** The picture of a player of `character` for the HUD; the renderer's own character is left as it was. */
+  public renderPlayerPortrait(character: PlayerCharacter): string {
+    const previous = this.playerCharacter;
+    this.playerCharacter = character;
+    try {
+      return this.renderIconToDataUrl('player', '');
+    } finally {
+      this.playerCharacter = previous;
+    }
   }
 
   /** The picture of a palette entry; the 'canopy' kind is a floor cell under the roof the editor draws (its id is unused). */
