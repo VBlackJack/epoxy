@@ -20,6 +20,7 @@ import {
   CompiledLevel,
   Direction,
   LitCharge,
+  PlayerCharacter,
   PlayerState,
   RuntimeEntity,
   Shot,
@@ -69,6 +70,8 @@ export interface PlayEngine {
   getEntities(): RuntimeEntity[];
   getPlayer(): PlayerState;
   getLevel(): CompiledLevel;
+  /** Optional. The character the player is now (a transmogrifier switches it); an engine without characters omits it and the level's character applies. */
+  getPlayerCharacter?(): PlayerCharacter;
   /**
    * Optional. The cells a laser beam crosses right now (empty without lasers).
    * Derived state, never part of a snapshot; an engine without lasers omits it.

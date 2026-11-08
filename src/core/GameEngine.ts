@@ -26,6 +26,8 @@ import {
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
+  PLAYER_CHARACTER_KEY_PREFIX,
+  DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
   SWIVEL_ENTRY_KEY_PREFIX,
   TIMER_PAUSE_KEY_PREFIX,
@@ -86,6 +88,7 @@ import {
   Direction,
   GridPoint,
   LitCharge,
+  PlayerCharacter,
   PlayerState,
   RuntimeEntity,
   Shot,
@@ -320,6 +323,19 @@ export class GameEngine {
     return this.w.coveredToggleBits !== 0 ? this.w.toggleParity : undefined;
   }
 
+  /** The character the player is now (the level's character until a transmogrifier switches it). */
+  public getPlayerCharacter(): PlayerCharacter {
+    return this.w.playerCharacter;
+  }
+
+  /**
+   * The player's character while a transmogrifier made it differ from the level's; undefined otherwise, so nothing about it
+   * reaches a level whose player never crossed one, its hash or its search keys.
+   */
+  public getPlayerCharacterSwitch(): PlayerCharacter | undefined {
+    return this.w.playerCharacter !== (this.w.level.character ?? DEFAULT_PLAYER_CHARACTER) ? this.w.playerCharacter : undefined;
+  }
+
   /** Arrivals counted on turning force floors; undefined on a level without one, so nothing about it reaches a level without one. */
   public getForceCycleTurn(): number | undefined {
     return this.w.hasForceCycle ? this.w.forceCycleTurn : undefined;
@@ -365,6 +381,8 @@ export class GameEngine {
     if (parity !== undefined) parts.push(`${TOGGLE_PARITY_KEY_PREFIX}${parity}`);
     const forceCycleTurn = this.getForceCycleTurn();
     if (forceCycleTurn !== undefined) parts.push(`${FORCE_CYCLE_KEY_PREFIX}${forceCycleTurn % FORCE_CYCLE_ORDER.length}`);
+    const switched = this.getPlayerCharacterSwitch();
+    if (switched !== undefined) parts.push(`${PLAYER_CHARACTER_KEY_PREFIX}${switched}`);
     if (this.w.hasToggleClock) parts.push(`${TIMER_PAUSE_KEY_PREFIX}${this.w.timerPaused ? 1 : 0}`);
     if (this.w.litCharges.length > 0) parts.push(`${LIT_CHARGE_KEY_PREFIX}${litChargesStateKey(this.w, this.ticksElapsed)}`);
     if (spent !== undefined) parts.push(`${SPENT_REVEAL_KEY_PREFIX}${spent.join(',')}`);
@@ -660,6 +678,8 @@ export class GameEngine {
       ...(this.w.coveredToggleBits !== 0 ? { toggleParity: this.w.toggleParity } : {}),
       // Only a level with a turning force floor counts arrivals on it.
       ...(this.w.hasForceCycle ? { forceCycleTurn: this.w.forceCycleTurn } : {}),
+      // Only a player a transmogrifier switched has a character to put back.
+      ...(this.getPlayerCharacterSwitch() !== undefined ? { playerCharacter: this.w.playerCharacter } : {}),
       // Only a level with a toggle clock can hold its timer.
       ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -720,6 +740,7 @@ export class GameEngine {
     this.w.shots = (snap.shots ?? []).map((shot) => ({ ...shot }));
     this.w.toggleParity = snap.toggleParity ?? 0;
     this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
+    this.w.playerCharacter = snap.playerCharacter ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER;
     this.w.timerPaused = snap.timerPaused ?? false;
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));

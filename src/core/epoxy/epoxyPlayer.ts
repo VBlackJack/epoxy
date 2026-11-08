@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -298,6 +298,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     w.terrain[y][x] = tile.transformsToOnStep;
     tile = ConfigRegistry.getTile(w.terrain[y][x]);
   }
+
+  // A transmogrifier turns the player into the other character on arrival (Lexy's Labyrinth tiletypes.js `transmogrifier`).
+  if (tile.transmogrifies) w.playerCharacter = transmogrifiedCharacter(w.playerCharacter);
 
   const itemId = w.items[y][x];
   if (itemId) {

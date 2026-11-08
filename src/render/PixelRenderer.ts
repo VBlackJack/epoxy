@@ -1670,7 +1670,7 @@ export class PixelRenderer {
     }
     const spritePx = lowRes ? originX + Math.round((this.visualPlayerPos.x - region.x0) * unit) : playerPx;
     const spritePy = lowRes ? originY + Math.round((this.visualPlayerPos.y - region.y0) * unit) : playerPy;
-    this.playerCharacter = engine.getLevel().character ?? DEFAULT_PLAYER_CHARACTER;
+    this.playerCharacter = engine.getPlayerCharacter?.() ?? engine.getLevel().character ?? DEFAULT_PLAYER_CHARACTER;
     this.drawPlayer(
       sceneCtx,
       spritePx,

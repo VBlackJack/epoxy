@@ -37,12 +37,13 @@ import {
   DEFAULT_PLAYER_CHARACTER,
   ICE_TILE_ID,
   MELINDA_CHARACTER,
+  transmogrifiedCharacter,
   toggleWallOtherForm
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
 import { relativeTo } from './lynx/directions';
-import { hasTokenContent, isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId } from './RulesetFeatures';
+import { hasTokenContent, isArrowBlockEntityType, isPhasingEntityType, isSteeredEntityType, isSteeringTileId, isTransmogrifierTileId } from './RulesetFeatures';
 import { cellEdgeMask, isEdgeBlockedAt, isEdgeBlockedBetween } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { registryTileLookup } from './epoxy/epoxySignals';
@@ -347,7 +348,8 @@ export class LevelValidator {
     if (checkedLevel.ruleset === 'cc3d' && checkedLevel.cc3d) return cc3dValidationReport(checkedLevel);
     // The walk reads the green chips and bombs of a level with a green button as chips (see mergeGreenItems).
     const level = mergeGreenItems(checkedLevel);
-    const character = level.character ?? DEFAULT_PLAYER_CHARACTER;
+    // A transmogrifier lets the player be either character: every rule that depends on the character is read optimistically.
+    const characters = this.possibleCharacters(level);
     const issues: ValidationIssue[] = [];
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
@@ -487,7 +489,7 @@ export class LevelValidator {
     const mirrorKeys = new Set(
       level.entities
         .map((e) => ConfigRegistry.getEntityDef(e.type))
-        .filter((def) => def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER))
+        .filter((def) => def?.mirrorsCharacter !== undefined && characters.includes(def.mirrorsCharacter))
         .map((def) => def?.mirrorKey)
         .filter((key): key is string => key !== undefined)
     );
@@ -538,13 +540,13 @@ export class LevelValidator {
     }
 
     const holdDoorOpenable = this.openableHoldDoorColors(level);
-    const bootBits = this.buildBootBits(character);
+    const bootBits = this.buildBootBits(characters);
     const maskCount = 1 << bootBits.size;
     // A level that places a toll token may pay any thief once, so the walk takes no thief as stealing (an
     // over-approximation: it never reports a false unreachable, at the price of missing a robbery the token covers).
     const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
     // A character who never slides on ice holds the boots that stop the slide for good.
-    const iceBoots = character === MELINDA_CHARACTER ? ConfigRegistry.getTile(ICE_TILE_ID).protectedByItem : undefined;
+    const iceBoots = characters.includes(MELINDA_CHARACTER) ? ConfigRegistry.getTile(ICE_TILE_ID).protectedByItem : undefined;
     const hasBoot: BootCheck = (boots, bootId) => {
       if (bootId !== undefined && bootId === iceBoots) return true;
       const bit = bootId ? bootBits.get(bootId) : undefined;
@@ -1023,7 +1025,7 @@ export class LevelValidator {
               continue;
             }
             // A sign of the other character is a wall, and dirt or gravel asks Melinda for her boots.
-            if (this.characterBars(nextTile, character, curr.boots, bootBits)) continue;
+            if (this.characterBars(nextTile, characters, curr.boots, bootBits)) continue;
 
             // A barrier against a held item is passable here: the item can be put down
             // before it and fetched later, so reachability stays optimistic about it. That covers the no-signs
@@ -1698,15 +1700,17 @@ export class LevelValidator {
   }
 
   /** One bit per boot type of the tile config, in a stable order. */
-  private static buildBootBits(character: PlayerCharacter = DEFAULT_PLAYER_CHARACTER): Map<string, number> {
+  private static buildBootBits(characters: readonly PlayerCharacter[] = [DEFAULT_PLAYER_CHARACTER]): Map<string, number> {
     const bits = new Map<string, number>();
     const tiles = Object.values(ConfigRegistry.getTiles().tiles);
     // Only boots that some tile names as protection change what the player survives; the others (slow-time) would only grow the state space.
     const protectingBootIds = new Set(tiles.map((t) => t.protectedByItem).filter((id): id is string => id !== undefined));
-    // The boots a tile asks of this character count too (Melinda's hiking boots); no other character tracks them.
+    // The boots a tile asks of these characters count too (Melinda's hiking boots); no other character tracks them.
     for (const tile of tiles) {
-      const needed = tile.bootsForCharacter?.[character];
-      if (needed !== undefined) protectingBootIds.add(needed);
+      for (const character of characters) {
+        const needed = tile.bootsForCharacter?.[character];
+        if (needed !== undefined) protectingBootIds.add(needed);
+      }
     }
     const bootIds = tiles
       .filter((t) => t.collectible === 'boot' && protectingBootIds.has(t.id))
@@ -1721,12 +1725,28 @@ export class LevelValidator {
    * Whether a tile stops the character: a sign of the other character is a wall, and dirt or gravel asks Melinda for hiking
    * boots, which count as held when the boots mask has them (the mask grows over the walk, so the answer is optimistic).
    */
-  private static characterBars(tile: TileDefinition, character: PlayerCharacter, boots: number, bootBits: Map<string, number>): boolean {
-    if (tile.characterOnly !== undefined && tile.characterOnly !== character) return true;
-    const needed = tile.bootsForCharacter?.[character];
-    if (needed === undefined) return false;
-    const bit = bootBits.get(needed);
-    return bit === undefined || (boots & bit) === 0;
+  private static characterBars(tile: TileDefinition, characters: readonly PlayerCharacter[], boots: number, bootBits: Map<string, number>): boolean {
+    // With several possible characters the tile bars only when it bars every one of them.
+    return characters.every((character) => {
+      if (tile.characterOnly !== undefined && tile.characterOnly !== character) return true;
+      const needed = tile.bootsForCharacter?.[character];
+      if (needed === undefined) return false;
+      const bit = bootBits.get(needed);
+      return bit === undefined || (boots & bit) === 0;
+    });
+  }
+
+  /**
+   * The characters the player may be during the level: the level's character, and the other one when the level places a
+   * transmogrifier (on the terrain or hidden under a removable top), which switches the player on arrival.
+   */
+  private static possibleCharacters(level: CompiledLevel): PlayerCharacter[] {
+    const own = level.character ?? DEFAULT_PLAYER_CHARACTER;
+    const underlays = underlayMap(level);
+    const placed =
+      level.terrain.some((row) => row.some((id) => isTransmogrifierTileId(id))) ||
+      (underlays !== null && [...underlays.values()].some((id) => isTransmogrifierTileId(id)));
+    return placed ? [own, transmogrifiedCharacter(own)] : [own];
   }
 
   /**
@@ -2321,6 +2341,7 @@ export class LevelValidator {
     if (width === 0) return;
     const reached = new Uint8Array(width * height);
     const pressed = new Uint8Array(width * height);
+    const possibleCharacters = this.possibleCharacters(level);
     for (const entity of level.entities) {
       const def = ConfigRegistry.getEntityDef(entity.type);
       const kind = def?.kind;
@@ -2350,7 +2371,7 @@ export class LevelValidator {
             (dest.hazard === undefined || def.blockedByHazards?.includes(dest.hazard) !== true);
           // A mirror player walks the terrain its character walks (doors of its key colour open to it): the flood
           // reads every tile the player may enter as open, an over-approximation that never turns a level unwinnable.
-          const mirrored = def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
+          const mirrored = def?.mirrorsCharacter !== undefined && possibleCharacters.includes(def.mirrorsCharacter) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
           // A fish gate is read as open to a monster or a block (an over-approximation: it opens once the chips are in).
           const opensToMovers = dest.fishGate === true;
           if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers) : dest.passableByBlock !== true && !opensToMovers) continue;
@@ -2769,8 +2790,8 @@ export class LevelValidator {
     const terrain = level.terrain.map((row) => [...row]);
     const picked = new Set<string>();
     const ownedKeys: Record<string, number> = {};
-    const character = level.character ?? DEFAULT_PLAYER_CHARACTER;
-    const bootBits = this.buildBootBits(character);
+    const characters = this.possibleCharacters(level);
+    const bootBits = this.buildBootBits(characters);
     let boots = NO_BOOTS;
     const blockTypes = new Set(
       Object.values(ConfigRegistry.getMonsters().entities)
@@ -2842,7 +2863,7 @@ export class LevelValidator {
           } else if (!nextTile.passableByPlayer) {
             continue;
           }
-          if (this.characterBars(ConfigRegistry.getTile(terrain[ny][nx]), character, boots, bootBits)) continue;
+          if (this.characterBars(ConfigRegistry.getTile(terrain[ny][nx]), characters, boots, bootBits)) continue;
           const tileHere = ConfigRegistry.getTile(terrain[ny][nx]);
           // A jet the player can switch off (its other form is walkable) is no barrier: a bypass through it is real.
           const switchable = toggleWallOtherForm(tileHere);

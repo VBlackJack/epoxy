@@ -2092,6 +2092,8 @@ export interface UndoSnapshot {
   swivelEntry?: [number, Direction][];
   /** The state of the track cells: [cell index, active segment or -1 without a switch, side the last actor came in by]; written only on a level that has track cells. */
   railState?: [number, number, Direction][];
+  /** The player's character after a transmogrifier switched it; written only while it differs from the level's, absent otherwise. */
+  playerCharacter?: PlayerCharacter;
   /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
   timerPaused?: boolean;
   /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */

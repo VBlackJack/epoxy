@@ -44,6 +44,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- A transmogrifier now also switches the player between Chip and Melinda when stepped on (CC2 rule), with Melinda's rules (no sliding on ice, hiking boots on dirt and gravel, gender signs, teeth fleeing her) following the current character; undo restores it. The validator treats a level with a transmogrifier as playable by either character. No bundled level or stored solution changes.
 - CC2 import: green chips and bombs, steel walls, hiking boots and the male and female signs now play as their Epoxy elements (exact), a level whose only player is Melinda is imported with the melinda character, green chips count toward the chips required, and a steel wall next to dynamite is approximate instead of lost.
 - CC2 import: purple walls and floors, toggle switches, black buttons, gray buttons (as the 5 x 5 area button), and traps and flame jets that a wire reaches now play as their Epoxy wired forms and are linked by signal wires instead of being lost; the wired trap, wired flame jet and gray button are reported as approximate.
 - Epoxy rules: an ice block pushed into water now turns the water into ice (as in Chip's Challenge 2) instead of vanishing and leaving the water; an ice block pushed into fire still melts it into water. Lynx and CC3D rules are unchanged, and the validator counts an ice block as a filler for water.
