@@ -1821,6 +1821,9 @@
       "rail_switch_no_button": {
         "label": "Info: A rail switch at ({x}, {y}) ({count} in all) never changes: no green button exists on this level."
       },
+      "rail_track_empty": {
+        "label": "Warning: The track cell at ({x}, {y}) has no track segment, so nobody can enter it."
+      },
       "exit_on_receivers_level": {
         "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers."
       },
@@ -1935,6 +1938,55 @@
     }
   },
   "editor": {
+    "rail_tracks": {
+      "heading": "Track cell at ({x}, {y})",
+      "segments": {
+        "label": "Track segments"
+      },
+      "segment": {
+        "ne": {
+          "label": "Bend, north to east"
+        },
+        "se": {
+          "label": "Bend, south to east"
+        },
+        "sw": {
+          "label": "Bend, south to west"
+        },
+        "nw": {
+          "label": "Bend, north to west"
+        },
+        "ew": {
+          "label": "Straight, east to west"
+        },
+        "ns": {
+          "label": "Straight, north to south"
+        }
+      },
+      "empty": {
+        "note": "This cell has no track segment, so nobody can enter it. Switch a segment on."
+      },
+      "active": {
+        "legend": "Open segment (switch)",
+        "none": {
+          "label": "No switch"
+        }
+      },
+      "clear": {
+        "action": "Clear"
+      },
+      "rotate": {
+        "hint": "Press Shift+R to turn the tracks a quarter turn."
+      },
+      "status": {
+        "rotated": {"label": "Tracks at ({x}, {y}) turned a quarter turn."},
+        "segment_on": {"label": "Track segment switched on at ({x}, {y}): {segment}."},
+        "segment_off": {"label": "Track segment switched off at ({x}, {y}): {segment}."},
+        "switch": {"label": "Open segment of the switch at ({x}, {y}): {segment}."},
+        "switch_none": {"label": "The track cell at ({x}, {y}) has no switch."},
+        "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
+      }
+    },
     "cell_speech": {
       "port_input": {
         "label": "{role} input from ({x}, {y})"
@@ -3243,6 +3295,7 @@
           "level": "Level",
           "rules": "Rules",
           "issues": "Issues",
+          "cell": "Cell",
           "size": "Size",
           "generate": "Generate"
         }

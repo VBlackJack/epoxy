@@ -73,7 +73,7 @@ import {
 } from './testFromHere';
 import { CheckState, CheckSummary, summarizeValidation } from './checkSummary';
 import { issueCell, issueRows, issuesAtCell, stripSeverityPrefix } from './issueList';
-import { cloneDocument, displayLayersOf, EditorDocument, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
+import { cloneDocument, displayLayersOf, EditorDocument, EditorMap, EditorMetadata, sameDocument, withCc3d, withEditedMap } from './editorDocument';
 import {
   DRAFT_VERSION,
   type DraftOffer,
@@ -160,6 +160,9 @@ import {
 } from './inspectorSections';
 import { CanopyMode, hasCanopyAt, hasCellEdges } from './editorCellEdges';
 import { nextRailPiece } from './railRotation';
+import { CellSection } from './cellPanel';
+import { RailTrackPanel } from './railTrackPanel';
+import { rotateRailTracksAt } from './railTrackEdits';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
 import { pruneSignalLinks } from './editorSignalLinks';
@@ -246,7 +249,7 @@ import {
   winRuleAvailability
 } from './paletteAvailability';
 import { JUNCTION_NO_SWITCH } from '../render/railArt';
-import { arrangeMechanismSections, entityMechanismGroup, isHiddenFromPalette, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
+import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { searchPalette, type SearchableEntry } from './paletteSearch';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
@@ -414,6 +417,8 @@ const LAYERS_SECTION_ID = 'editor-layers-section';
 const LAYERS_LIST_ID = 'editor-layers-list';
 const LAYERS_CELL_ID = 'editor-layers-cell';
 const CONNECTIONS_SECTION_ID = 'editor-connections-section';
+const CELL_SECTION_ID = 'editor-cell-section';
+const CELL_BODY_ID = 'editor-cell-body';
 const CONNECTIONS_CELL_ID = 'editor-connections-cell';
 const CONNECTIONS_LISTS_ID = 'editor-connections-lists';
 const CONNECTIONS_CONTROLS_ID = 'editor-connections-controls';
@@ -787,6 +792,8 @@ export class LevelEditor {
   private connectionsDwellTimer: ReturnType<typeof setTimeout> | null = null;
   /** True while the pointer is over the section: its list must not change under it. */
   private connectionsPointerInside = false;
+  /** The Cell section of the inspector: the settings of the picked cell that the palette cannot carry. */
+  private cellSection: CellSection | null = null;
   /** CC3D palette state: the selected entry, its category and the attributes the choosers hold. */
   private cc3dEntryId: string = 'layer:wall';
   private cc3dCategory: Cc3dCategoryId = 'blockers';
@@ -928,6 +935,7 @@ export class LevelEditor {
     this.bindPaletteChrome();
     this.bindInspectorSections();
     this.bindConnectionsEvents();
+    this.bindCellSection();
     this.renderIssues();
     this.bindLayoutEvents();
     this.bindDraftEvents();
@@ -1758,7 +1766,7 @@ export class LevelEditor {
     };
 
     // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
-    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true && !isHiddenFromPalette(candidate))) {
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true)) {
       add(
         { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
         t(tile.i18nKey),
@@ -2042,6 +2050,42 @@ export class LevelEditor {
     this.afterDirectionChange();
   }
 
+  /** Turns the tracks of the track cell on the keyboard cursor cell (else the last hovered one); false when that cell holds none. */
+  private rotateTrackCellInPlace(): boolean {
+    const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
+    const turned = cell ? rotateRailTracksAt(this.doc, cell.x, cell.y) : null;
+    if (!cell || turned === null) return false;
+    return this.commitCellEdit(turned, [{ key: 'editor.rail_tracks.status.rotated.label', params: { x: cell.x, y: cell.y } }]);
+  }
+
+  /** Mounts the Cell section of the inspector, with the panels that fill it. */
+  private bindCellSection(): void {
+    const section = byId(CELL_SECTION_ID);
+    const body = byId(CELL_BODY_ID);
+    if (!section || !body) return;
+    const panels = [new RailTrackPanel({ commit: (map, messages) => this.commitCellEdit(map, messages) }, () => this.doc)];
+    this.cellSection = new CellSection(section, body, panels, () => {
+      if (!this.disposed) this.render();
+    });
+  }
+
+  /** Brings the Cell section in line with the picked cell, the document and the language. */
+  private refreshCellSection(): void {
+    if (this.stroke) return;
+    this.cellSection?.update(this.doc, this.connectionsSubject(), `${this.loadGeneration}:${this.docRevision}:${i18n.getLocale()}`);
+  }
+
+  /** Puts a map edited by a Cell section panel in the document as one history step. Returns whether it was applied. */
+  private commitCellEdit(map: EditorMap, messages: ToolMessage[] = []): boolean {
+    if (this.stroke) return false;
+    const before = this.doc;
+    this.doc = withEditedMap(this.doc, map);
+    this.recordChange(before);
+    this.render();
+    this.announce(messages);
+    return true;
+  }
+
   /**
    * Turns the creature or turret on the keyboard cursor cell (else the last hovered one) a quarter turn clockwise, as
    * one history step. A clone machine under it copies the new facing.
@@ -2161,7 +2205,7 @@ export class LevelEditor {
       case 'rotate_in_place':
         // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
         if (this.pasting && this.floatingStamp) this.turnStamp();
-        else this.rotateEntityInPlace();
+        else if (!this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();
@@ -3742,6 +3786,7 @@ export class LevelEditor {
     this.resetTouch();
     this.disposed = true;
     this.resetConnectionsPointer();
+    this.cellSection?.dispose();
     this.cancelCellSpeech();
     this.cancelSearchCount();
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
@@ -4963,6 +5008,7 @@ export class LevelEditor {
    * never changes under the keyboard.
    */
   private refreshConnections(): void {
+    this.refreshCellSection();
     const section = byId(CONNECTIONS_SECTION_ID);
     if (!section || this.stroke || this.connectionsDrawing) return;
     const cc3d = this.isCc3d();
