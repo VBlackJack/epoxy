@@ -16,6 +16,18 @@
 
 import type { Direction } from '../types';
 
+/** Suffix that makes the id of a converted level differ from the id of its CC3D source. */
+export const CONVERTED_ID_SUFFIX = '~epoxy';
+
+/**
+ * Whether the level is a CC3D level converted to Epoxy. In CC3D the exit is never gated by the chips (arrival on it
+ * completes the level); the fish gate only closes a way. A converted level keeps that rule, so its sockets are optional
+ * gates and an exit reachable without one is a design of the source, not a mistake.
+ */
+export function isConvertedCc3dLevel(level: { id: string }): boolean {
+  return level.id.endsWith(CONVERTED_ID_SUFFIX);
+}
+
 /** Step durations in engine ticks (the game runs at 20 ticks per second). */
 export const STEP_TICKS = {
   /** The player, pushed blocks and most monsters. */

@@ -26,6 +26,7 @@ import type {
 } from '../types';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { entityPressesPlate } from '../epoxy/epoxyWorld';
+import { CONVERTED_ID_SUFFIX } from './cc3dConstants';
 import { cc3dLinks, holdDoorWanted, indicesWithLayer } from './cc3dLinks';
 import { turnClockwise } from './cc3dWorld';
 import { displayTerrainId } from './display';
@@ -52,8 +53,7 @@ import type { Cc3dCell, Cc3dColor, Cc3dItem, Cc3dItemKind, Cc3dLevel, Cc3dMob, C
  * What Epoxy cannot hold is dropped, and every drop is named in the report next to the coverage verdicts.
  */
 
-/** Suffix that makes the id of the converted level differ from the id of its CC3D source. */
-export const CONVERTED_ID_SUFFIX = '~epoxy';
+export { CONVERTED_ID_SUFFIX };
 
 const EPOXY_RULESET = 'epoxy';
 const PLAIN_FLOOR: Cc3dTerrainKind = 'floor';
