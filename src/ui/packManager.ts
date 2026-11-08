@@ -28,6 +28,8 @@ import { choiceDialog } from './choiceDialog';
 import { canShareNatively, copyShareLink, makeShareLink, shareEncodeErrorMessage, shareLinkNatively } from './shareActions';
 import { confirmDialog } from './confirmDialog';
 import { describeConversion, showConvertReport } from './convertReportDialog';
+import { collectCc2Sources, hasCc2Levels } from './cc2Export';
+import { cc2CoverageBadge } from './cc2Display';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
 import { askSaveInto } from './saveIntoDialog';
@@ -135,6 +137,8 @@ function countText(count: number): string {
 /** Controller of the "My packs" modal: the library, the selected pack and its levels. */
 export class PackManager {
   private selectedId: string | null = null;
+  /** Pack the "include CC2 source" box was last shown for, so the box starts off for each pack. */
+  private cc2SourcePackId: string | null = null;
   /** Level whose "Copy or move" panel is open. */
   private transferLevelId: string | null = null;
   private renaming = false;
@@ -316,7 +320,7 @@ export class PackManager {
     });
     byId('packs-export-json-btn')?.addEventListener('click', () => {
       const pack = this.selectedPack();
-      if (pack) this.exportJson(pack);
+      if (pack) void this.exportJsonWithOptions(pack);
     });
     byId('packs-export-ccl-btn')?.addEventListener('click', () => {
       const pack = this.selectedPack();
@@ -410,6 +414,14 @@ export class PackManager {
     return blank;
   }
 
+  /** The engine badges of a level row and, for a level imported from CC2, its coverage badge. */
+  private levelBadges(row: LevelRow, level: CompiledLevel | undefined): HTMLElement {
+    const wrap = this.badgesElement(row.badges);
+    const coverage = level ? cc2CoverageBadge(level) : null;
+    if (coverage) wrap.appendChild(coverage);
+    return wrap;
+  }
+
   private badgesElement(badges: readonly EngineBadge[]): HTMLElement {
     const wrap = document.createElement('span');
     wrap.className = 'packs-badges';
@@ -463,6 +475,7 @@ export class PackManager {
       badges.innerHTML = '';
       badges.appendChild(this.badgesElement(selectedRow.badges));
     }
+    this.renderCc2SourceOption(pack);
 
     const actions = buildPackActions(pack.levels, (level) => datRefusalReason(level) === null);
     const play = byId<HTMLButtonElement>('packs-play-btn');
@@ -481,6 +494,15 @@ export class PackManager {
       this.setDisabledReason(exportCcl, !actions.canExportCcl, 'app.export.none_exportable.label');
     }
     this.renderShareControls(pack);
+  }
+
+  /** The "include CC2 source" box: shown for a pack that holds CC2 levels, and off again whenever another pack is selected. */
+  private renderCc2SourceOption(pack: LevelPack): void {
+    const box = byId('packs-export-cc2-source-box');
+    const checkbox = byId<HTMLInputElement>('packs-export-cc2-source');
+    box?.classList.toggle(HIDDEN_CLASS, !hasCc2Levels(pack.levels));
+    if (checkbox && this.cc2SourcePackId !== pack.id) checkbox.checked = false;
+    this.cc2SourcePackId = pack.id;
   }
 
   /** The share buttons: hidden where links cannot be made, disabled with a reason while the pack is empty. */
@@ -647,7 +669,7 @@ export class PackManager {
       thumbnail,
       number,
       title,
-      this.badgesElement(row.badges),
+      this.levelBadges(row, level),
       actions
     );
     if (!row.canEdit && row.editBlockedReasonKey) {
@@ -1048,9 +1070,15 @@ export class PackManager {
     this.host.playPack(packId, levelIndex);
   }
 
-  private exportJson(pack: LevelPack): void {
+  /** The pack file; the raw CC2 sources go in only when the player ticked the box of a pack that holds CC2 levels. */
+  private async exportJsonWithOptions(pack: LevelPack): Promise<void> {
+    const include = byId<HTMLInputElement>('packs-export-cc2-source')?.checked === true && hasCc2Levels(pack.levels);
+    this.exportJson(pack, include ? await collectCc2Sources(pack.levels) : undefined);
+  }
+
+  private exportJson(pack: LevelPack, cc2Sources?: Readonly<Record<string, string>>): void {
     const name = this.host.packDisplayName(pack);
-    const text = ConfigRegistry.exportPackJson(pack.id, name);
+    const text = ConfigRegistry.exportPackJson(pack.id, name, false, cc2Sources);
     if (text === null) return;
     downloadBlob(new Blob([text], { type: MIME_JSON }), packFileName(name, pack.id));
     this.host.notify(t('app.packs.manager.toast.exported.label', { name }));

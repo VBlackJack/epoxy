@@ -31,9 +31,13 @@ import {
 } from './cc2Coverage';
 
 /** Reserved ids that a mapping plays as an Epoxy element instead of losing. */
-const MAPPED_RESERVED = ['helmet', 'steel_wall'];
+const MAPPED_RESERVED = ['helmet', 'steel_wall', 'extra_chip'];
 
 describe('cc2 coverage table', () => {
+  it('plays the extra chip as an exact chip', () => {
+    expect(CC2_COVERAGE.extra_chip.level).toBe('exact');
+  });
+
   it('has an entry for every reserved id', () => {
     for (const id of PACK_JSON_VERSION_V12_IDS) {
       const key = cc2KeyOfReservedId(id);
