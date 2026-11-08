@@ -80,8 +80,8 @@ describe('classifyCc2Level', () => {
   it('is lost when any element is lost, whatever else the level holds', () => {
     const coverage = classifyCc2Level(['floor', 'bug', 'time_bomb', KEY_MULTIPLE_PLAYERS, 'chip']);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual([KEY_MULTIPLE_PLAYERS, 'time_bomb']);
-    expect(coverage.approx).toEqual([]);
+    expect(coverage.lost).toEqual(['time_bomb']);
+    expect(coverage.approx).toEqual([KEY_MULTIPLE_PLAYERS]);
   });
 
   it('reads the structural keys', () => {
