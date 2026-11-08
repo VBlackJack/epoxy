@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- CC2 import: railroad track curves were rotated by one bit (every imported curve pointed the wrong way) and are now read in the CC2 order; logic gate modifiers now decode the diode (played as a one-input OR) and the counter-clockwise latch instead of reporting unknown gates. The CC2 latch is a data latch, so latch gates are marked approximate.
 - Share links: a pack holding imported Chip's Challenge 2 levels can no longer be shared by link (the button is disabled with an explanation), and an incoming link carrying such levels is refused; the converted levels stay on this device. The JSON and .ccl downloads are unchanged.
 - CC2 import: a no-sign over a key or boots now plays as the matching forbid tile (empty no-signs as plain floor), and the pink button plays as the held pressure plate instead of the pulse button.
 - Validator: fewer false "exit unreachable" reports. A green button, a bomb or a block cloner button that a monster or block can reach counts as triggered (toggle walls open, bomb removed, clone granted).
