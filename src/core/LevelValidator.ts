@@ -589,8 +589,9 @@ export class LevelValidator {
 
       // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
       // depends on its type: a dirt block fills water, an ice block melts fire and turns water into ice, a mirror
-      // refuses water. A hazard is accepted when the stock can cover it on its own: nothing is spent, because a block
-      // can be pushed back out of the way and the walk does not order the hazards it meets (an over-approximation).
+      // refuses water. A hazard is accepted when the stock can cover it on its own and nothing is spent: the walk
+      // meets hazards in no particular order, so a running total would charge blocks to dead-end branches. This
+      // over-approximates: one block may cover several hazards here.
       const blockStock = new Map<string, number>();
       const stockBlocks = (type: string, count: number): void => {
         blockStock.set(type, (blockStock.get(type) ?? 0) + count);
@@ -985,7 +986,7 @@ export class LevelValidator {
               }
             }
 
-            // Ice and force floors carry the player: follow the slide to where it really ends
+            // Ice carries the player to where the slide really ends; a force floor ends the slide on its cell
             const landedTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
             if (landedTile.slideType && !hasBoot(nextBoots, landedTile.protectedByItem)) {
               const slide = this.simulateSlide(
