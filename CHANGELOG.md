@@ -8,7 +8,6 @@ versions follow Semantic Versioning.
 ### Fixed
 
 - Validator: monsters and blocks pressing colour and flame buttons, puppets and golems crossing gravel, sand, turtles or fire, and walls they open are now part of the reach walk, so fewer playable levels are reported unwinnable (native levels included, only errors can disappear). On levels converted from Chuck's Challenge 3D, movers may stop an ice slide, a key thief no longer takes the keys in the walk, and a door no key opens is a warning. Converted CC3D levels with validator errors: 82 to 37. Both locales.
-
 - CC2 import: a no-sign over the railroad sign plays as a new item-layer sign; a no-sign on a wall, a chip or a bomb is dropped (it could not stop anyone: chips and bombs are never held, a wall blocks anyway). No official or community CC2 level is lost any more.
 - Validator: levels converted from Chuck's Challenge 3D no longer get the "socket bypass" error, since there the exit takes no chips and a socket only closes a way; on the 769 community levels the error count falls from 125 to 0. Native levels keep the check.
 - Validator and hints follow CC2 railroad tracks: the reach walk enters a track cell only through an open side and leaves only along a segment joining the entry side (any segment may be the active one, and a reachable railroad sign opens every track), and hints no longer plan steps the tracks refuse. No-signs stay passable for the validator, since the item can be set down.
