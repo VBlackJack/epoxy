@@ -276,3 +276,18 @@ export const PLAYTEST_FORMAT_ID = 'epoxy-playtest';
 export const PLAYTEST_FORMAT_VERSION = 1;
 /** Start of the playtest export file name; the export date follows. */
 export const PLAYTEST_FILE_BASE = 'epoxy-playtest';
+
+/** File extensions of a Chip's Challenge 2 level and of its game script. */
+export const CC2_LEVEL_EXTENSION = '.c2m';
+export const CC2_SCRIPT_EXTENSION = '.c2g';
+
+/** IndexedDB database and store holding the raw bytes of the CC2 files an imported pack was made from, keyed by SHA-256. */
+export const CC2_SOURCE_DB_NAME = 'epoxy_cc2_sources_db';
+export const CC2_SOURCE_STORE_NAME = 'cc2_sources';
+export const CC2_SOURCE_DB_VERSION = 1;
+
+/** Name of the optional pack file field that carries the raw CC2 sources, base64 by SHA-256. */
+export const CC2_SOURCES_FIELD = 'cc2Sources';
+
+/** Length of a lower case hex SHA-256 digest. */
+export const SHA256_HEX_LENGTH = 64;

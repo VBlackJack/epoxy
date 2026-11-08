@@ -51,8 +51,10 @@
               <button id="btn-header-packs" class="nav-btn" type="button" data-i18n="app.packs.manager.open_btn.action"></button>
               <button id="btn-procedural-pack" class="nav-btn" type="button" data-i18n="app.header.procedural_btn.action"></button>
               <button id="btn-import-pack" class="nav-btn" type="button" data-i18n="app.packs.import_btn.action" data-i18n-title="app.packs.import_formats.label"></button>
+              <button id="btn-import-folder" class="nav-btn" type="button" data-i18n="cc2.import.folder.button.label" data-i18n-title="cc2.import.folder.hint.label"></button>
               <button id="btn-delete-imported-packs" class="nav-btn hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
-              <input id="pack-file-input" type="file" multiple accept=".dat,.ccl,.json,.har,.xsb,.sok,.xml" class="hidden" />
+              <input id="pack-file-input" type="file" multiple accept=".dat,.ccl,.json,.har,.xsb,.sok,.xml,.c2m,.c2g" class="hidden" />
+              <input id="pack-folder-input" type="file" webkitdirectory multiple class="hidden" />
             </div>
             <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
               <span id="procedural-seed-label" class="procedural-seed-label"></span>
@@ -205,6 +207,9 @@
                   <strong data-i18n="hud.messages.hint_prefix.label"></strong>
                   <span id="hint-text"></span>
                 </div>
+
+                <!-- Banner of a level imported from CC2 that holds mechanics Epoxy does not play -->
+                <div id="cc2-banner" class="cc2-banner hidden" role="status" tabindex="0" aria-expanded="false"></div>
 
                 <!-- Status Toast Banner -->
                 <div id="status-toast" class="status-toast hidden" role="status" aria-live="polite"></div>
@@ -397,7 +402,7 @@
               <button id="editor-export-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_json.action"></button>
               <button id="editor-export-ccl-btn" class="hud-btn small" type="button" data-i18n="editor.toolbar.export_ccl.action"></button>
               <button id="editor-export-xml-btn" class="hud-btn small hidden" type="button" data-i18n="editor.toolbar.export_xml.action"></button>
-              <input id="editor-import-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok,.xml" class="hidden" />
+              <input id="editor-import-input" type="file" accept=".dat,.ccl,.json,.xsb,.sok,.xml,.c2m" class="hidden" />
             </div>
             <span class="editor-toolbar-separator" role="separator" aria-orientation="vertical"></span>
             <div class="editor-toolbar-group" role="group" data-i18n-aria-label="editor.layout.group.edit.label">
@@ -915,6 +920,13 @@
                   <button id="packs-share-copy-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.share.copy.action"></button>
                   <button id="packs-share-more-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.share.share.action"></button>
                   <button id="packs-delete-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.detail.delete.action"></button>
+                </div>
+                <div id="packs-export-cc2-source-box" class="packs-export-source hidden">
+                  <label for="packs-export-cc2-source">
+                    <input id="packs-export-cc2-source" type="checkbox" aria-describedby="packs-export-cc2-source-hint" />
+                    <span data-i18n="cc2.export.include_source.label"></span>
+                  </label>
+                  <span id="packs-export-cc2-source-hint" class="hint-text" data-i18n="cc2.export.include_source.hint"></span>
                 </div>
                 <p id="packs-share-hint" class="hint-text hidden" data-i18n="app.packs.share.hint.label"></p>
                 <p id="packs-share-status" class="share-preview-status" role="status"></p>

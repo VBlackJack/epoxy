@@ -405,6 +405,9 @@ describe('chips and metadata', () => {
       put(4, 0, { code: 0x2b }, { code: FLOOR_CODE })
     ]);
     expect(level.chipsRequired).toBe(2);
+    expect(level.items[0][4]).toBe('chip');
+    expect(level.cc2?.coverage.lost).not.toContain('extra_chip');
+    expect(report.exact).toContain('extra_chip');
     expect(report.warnings).toEqual([]);
     const noSocket = convert([put(1, 0, { code: CHIP }, { code: FLOOR_CODE })]);
     expect(noSocket.level.chipsRequired).toBe(0);
