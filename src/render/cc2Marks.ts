@@ -77,6 +77,21 @@ function disc(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: num
   ctx.arc(cx, cy, radius, 0, TAU);
 }
 
+/** The dot in the upper right corner of a monster: centre and radius, in tiles. */
+const MONSTER_DOT = { x: 0.8, y: 0.2, radius: 0.12, line: 0.03 } as const;
+
+/** A coloured dot in the upper right corner of a monster, telling a CC2 look-alike from the monster it is drawn as. */
+export function paintMonsterDot(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  ctx.fillStyle = colours.fill;
+  disc(ctx, x + size * MONSTER_DOT.x, y + size * MONSTER_DOT.y, size * MONSTER_DOT.radius);
+  ctx.fill();
+  ctx.strokeStyle = colours.edge;
+  ctx.lineWidth = lineWidth(size, MONSTER_DOT.line);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** The round badge on the lower right corner of an item. */
 function paintBadgeBase(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
   ctx.fillStyle = colours.fill;

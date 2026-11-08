@@ -127,6 +127,19 @@ describe('terrain, items and entities', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
+  it('plays the floor mimic, timid teeth, ghost and rover as Epoxy monsters, two exact and two approximate', () => {
+    const { level, coverage } = convert([
+      put(1, 0, actorTile(0x82, DIR_E), { code: FLOOR_CODE }),
+      put(2, 0, actorTile(0x57, DIR_E), { code: FLOOR_CODE }),
+      put(3, 0, actorTile(0x8b, DIR_E), { code: FLOOR_CODE }),
+      put(4, 0, actorTile(0x69, DIR_E), { code: FLOOR_CODE })
+    ]);
+    expect(level.entities.map((entity) => entity.type)).toEqual(['floor_mimic', 'timid_teeth', 'ghost', 'rover']);
+    expect(coverage.verdict).toBe('approx');
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['ghost', 'rover']);
+  });
+
   it('maps approximate elements to Epoxy ids and says so', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x46 }), put(2, 0, { code: 0x10 }), put(3, 0, { code: 0x68 }, { code: FLOOR_CODE })]);
     expect(level.terrain[0][1]).toBe('force_cycle');
@@ -140,13 +153,13 @@ describe('terrain, items and entities', () => {
     const { level, coverage, report } = convert([
       put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }),
       put(2, 0, { code: 0x62 }, { code: FLOOR_CODE }),
-      put(3, 0, actorTile(0x8b, DIR_W), { code: FLOOR_CODE })
+      put(3, 0, actorTile(0x65, DIR_W), { code: FLOOR_CODE })
     ]);
     expect(level.items[0][1]).toBe('cc2_steel_foil');
     expect(level.items[0][2]).toBe('cc2_lightning_bolt');
-    expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_ghost', dir: 'W' }]);
+    expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_mirror_chip', dir: 'W' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['ghost', 'lightning_bolt', 'steel_foil']);
+    expect(coverage.lost).toEqual(['lightning_bolt', 'mirror_chip', 'steel_foil']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });

@@ -94,13 +94,15 @@ const EXACT_KEYS: readonly string[] = [
 
 /**
  * Monsters and blocks: the mechanic exists, so the key is exact. Epoxy ids: bug, fireball, glider, paramecium, tank,
- * pink_ball, teeth, walker, blob; dirt_block, ice_block, arrow_block_* (directional blocks).
+ * pink_ball, teeth, walker, blob; timid_teeth, floor_mimic; dirt_block, ice_block, arrow_block_* (directional blocks).
+ * Teeth flee Melinda and timid teeth flee Chip (chasing the other), as in CC2. The floor mimic is a chaser four times
+ * slower than the ordinary monsters.
  * Chain pushing (an ice or directional block pushing a line of blocks) is an Epoxy rule; a block that slides on ice or a
  * force floor still stops at the first block it meets, where CC2 may push it along [unverified].
  */
 const MECHANIC_KEYS: readonly string[] = [
   'bug', 'fireball', 'glider', 'paramecium', 'tank', 'pink_ball', 'teeth', 'walker', 'blob',
-  'dirt_block', 'ice_block', 'arrow_block'
+  'dirt_block', 'ice_block', 'arrow_block', 'timid_teeth', 'floor_mimic'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
@@ -171,6 +173,12 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   green_wall: 'Epoxy plays the solid green wall as a plain wall [unverified].',
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
+  // Epoxy: ghost.
+  ghost:
+    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; the exact CC2 item and button rules are [unverified].',
+  // Epoxy: rover.
+  rover:
+    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Which CC2 tics count as one decision, what the rover pushes and where it may walk (it enters exits and sockets in CC2) are [unverified].',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
   [KEY_WIRE]: WIRED_REASON,
@@ -190,7 +198,8 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 /** Reserved ids whose key is classified by a mapping above instead of being lost. */
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female'
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female',
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };

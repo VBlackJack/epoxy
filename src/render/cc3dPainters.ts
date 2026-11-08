@@ -178,11 +178,15 @@ export const CC3D_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   cc3d_golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
 };
 
-/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark. */
+/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark, the floor mimic plain teeth (drawn nearly invisible), the timid teeth teeth with a yellow mark, the ghost a glider with a gray mark and the rover a blob with a brown mark. */
 export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' },
   lurker: { base: 'blob', scale: FULL_SCALE, badge: 'orange' },
-  wisp: { base: 'glider', scale: FULL_SCALE, badge: 'teleportRing' }
+  wisp: { base: 'glider', scale: FULL_SCALE, badge: 'teleportRing' },
+  floor_mimic: { base: 'teeth', scale: FULL_SCALE, badge: null },
+  timid_teeth: { base: 'teeth', scale: FULL_SCALE, badge: 'yellow' },
+  ghost: { base: 'glider', scale: FULL_SCALE, badge: 'gray' },
+  rover: { base: 'blob', scale: FULL_SCALE, badge: 'brown' }
 };
 
 /** What the painters need from the renderer. */

@@ -163,6 +163,22 @@ entity wisp dir=N tick=3 1d37424152aa4558
 entity wisp dir=E tick=3 bcfc361cd2a2932d
 entity wisp dir=S tick=3 4798aca3e6a8df8e
 entity wisp dir=W tick=3 11520cd07dd488ae
+entity floor_mimic dir=N tick=3 105954e820c87ac0
+entity floor_mimic dir=E tick=3 627e5812099e2f68
+entity floor_mimic dir=S tick=3 8cf6ead7645a5f4a
+entity floor_mimic dir=W tick=3 818192cffc2fb7b2
+entity timid_teeth dir=N tick=3 feb2d6df09d13844
+entity timid_teeth dir=E tick=3 9e81209ef47b7c92
+entity timid_teeth dir=S tick=3 c05d603f02f21a9a
+entity timid_teeth dir=W tick=3 0609c834b26e07d5
+entity ghost dir=N tick=3 70d02aea214850f5
+entity ghost dir=E tick=3 b87f5c6abfbdd7b8
+entity ghost dir=S tick=3 07e770df107e5b65
+entity ghost dir=W tick=3 d6d15cac60635af9
+entity rover dir=N tick=3 7486772bbf7c4e23
+entity rover dir=E tick=3 b7fd069cd9187208
+entity rover dir=S tick=3 b2a0eda87ee5d3b2
+entity rover dir=W tick=3 b57e99f116a66a20
 item key_red tick=13 0cd5609bc173c274
 item key_blue tick=13 bd244a7a799c8c58
 item key_yellow tick=13 a080d374756dc853
@@ -328,6 +344,22 @@ entity wisp dir=N tick=13 47e53cd4a15ba98a
 entity wisp dir=E tick=13 985e4db081e0efe1
 entity wisp dir=S tick=13 ca1e13fcf90720dd
 entity wisp dir=W tick=13 39cd3a374abdbfce
+entity floor_mimic dir=N tick=13 b6bacf244a3e1aad
+entity floor_mimic dir=E tick=13 ae95c3192d8cba34
+entity floor_mimic dir=S tick=13 86f31bdeac6e7732
+entity floor_mimic dir=W tick=13 4121a62288311225
+entity timid_teeth dir=N tick=13 dbfd6bfa28ede1a4
+entity timid_teeth dir=E tick=13 3be6593303711716
+entity timid_teeth dir=S tick=13 81343aaeb2c0fa8c
+entity timid_teeth dir=W tick=13 2cb845f07e0bf6d0
+entity ghost dir=N tick=13 523de9e6fbdd409b
+entity ghost dir=E tick=13 bedffcb4d5b5082c
+entity ghost dir=S tick=13 582dc0dbe4f1ff07
+entity ghost dir=W tick=13 4f9230e61e407f2f
+entity rover dir=N tick=13 85bb1b1b3d6b7734
+entity rover dir=E tick=13 3a9dd7f0644e7082
+entity rover dir=S tick=13 915c7d2325d31d73
+entity rover dir=W tick=13 abbed4c0e24e8608
 player dir=N inWater=false alive=true frame=0 hop=0 ff9810949f0db8b7
 player dir=N inWater=false alive=true frame=0 hop=0.3 b299bd45efec4a08
 player dir=N inWater=false alive=true frame=1 hop=0 bbd0b03094aa7ab3
