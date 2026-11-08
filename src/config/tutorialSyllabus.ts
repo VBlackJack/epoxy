@@ -113,7 +113,7 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   dirt_blocks: ['dirt_block'],
   ice_blocks: ['ice_block'],
   block_targets: ['block_target', SYNTHETIC_WIN_TARGETS],
-  arrow_blocks: ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee'],
+  arrow_blocks: ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_none'],
   colour_blocks: [...COLOURS.map((c) => `color_block_${c}`), ...COLOURS.map((c) => `floating_block_${c}`)],
   pull_boots: ['boots_pull', 'no_sign_boots_pull'],
   bugs: ['bug', 'paramecium'],

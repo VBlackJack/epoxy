@@ -5349,6 +5349,12 @@
         "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
+    "arrow_block_none": {
+      "name": "Locked Arrow Block",
+      "desc": {
+        "label": "A block with no arrow: no push moves it, whether from the player, a monster or another block. It still slides when it rides ice or a force floor."
+      }
+    },
     "ice_block": {
       "name": "Sliding Ice Block",
       "desc": {

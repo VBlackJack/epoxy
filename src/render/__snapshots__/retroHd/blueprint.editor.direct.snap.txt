@@ -538,3 +538,4 @@ editor entity over floor floor_mimic 8519d370608128cb
 editor entity over floor timid_teeth aedf0cd36b8bb3ea
 editor entity over floor ghost 7319cfbe917b9167
 editor entity over floor rover b21d0068850e8b2e
+editor entity over floor arrow_block_none 37d65d929c3c3334

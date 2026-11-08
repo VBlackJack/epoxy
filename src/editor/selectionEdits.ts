@@ -56,6 +56,8 @@ export interface ClipEdge {
   dx: number;
   dy: number;
   sides: Direction[];
+  /** A canopy covers the cell. */
+  canopy?: true;
 }
 
 /** The terrain hidden under one cell of a clip, positioned relative to the clip's top-left cell. */
@@ -212,7 +214,7 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, type: e.type, dir: e.dir }));
   const edges: ClipEdge[] = (map.cellEdges ?? [])
     .filter((e) => rectContains(rect, e.x, e.y))
-    .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides] }));
+    .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) }));
   const underlays: ClipUnderlay[] = (map.underlays ?? [])
     .filter((u) => rectContains(rect, u.x, u.y))
     .map((u) => ({ dx: u.x - rect.x, dy: u.y - rect.y, terrain: u.terrain }));
@@ -390,7 +392,7 @@ function stampClip(
     const y = originY + e.dy;
     if (!writtenCells.has(`${x},${y}`)) continue;
     if (ruleset === 'lynx') skipped++;
-    else pastedEdges.push({ x, y, sides: [...e.sides] });
+    else pastedEdges.push({ x, y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) });
   }
   if (keptEdges.length !== (map.cellEdges?.length ?? 0) || pastedEdges.length > 0) replaceEdges(map, [...keptEdges, ...pastedEdges]);
   const keptUnderlays = (map.underlays ?? []).filter((u) => !writtenCells.has(`${u.x},${u.y}`));

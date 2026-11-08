@@ -369,6 +369,12 @@ export const CELL_EDGE_BITS: Readonly<Record<Direction, number>> = {
   W: 8
 };
 
+/** Bit of the canopy flag in the mask of a level's cell edges: a roof over the cell, not a side (see cellEdgeMask). */
+export const CELL_EDGE_CANOPY_BIT = 16;
+
+/** Entity id of the arrow block that shows no arrow: no push moves it (the one block allowed an empty pushArrows list). */
+export const LOCKED_ARROW_BLOCK_ID = 'arrow_block_none';
+
 /** Order in which the sides of a cell edge are stored and listed. */
 export const CELL_EDGE_SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
 
