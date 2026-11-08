@@ -53,7 +53,7 @@ import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
 import type { MagePose } from './runewardCharacter';
 import { WIRED_BASE_TILE } from '../../wiredArt';
-import { variantEntityPainters, variantItemPainters, variantTilePainters } from './runewardCc2';
+import { mirrorEntityPainters, variantEntityPainters, variantItemPainters, variantTilePainters } from './runewardCc2';
 import { WIRED_TILES, withWiredMark } from './runewardWired';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
@@ -356,7 +356,7 @@ const BASE_ENTITY_PAINTERS: Readonly<Record<string, RunewardEntityPainter>> = { 
 export const RUNEWARD_PAINTERS: RunewardPainters = {
   tiles: { ...BASE_TILE_PAINTERS, ...variantTilePainters(BASE_TILE_PAINTERS) },
   items: { ...BASE_ITEM_PAINTERS, ...variantItemPainters(BASE_ITEM_PAINTERS) },
-  entities: { ...BASE_ENTITY_PAINTERS, ...variantEntityPainters(BASE_ENTITY_PAINTERS) },
+  entities: { ...BASE_ENTITY_PAINTERS, ...variantEntityPainters(BASE_ENTITY_PAINTERS), ...mirrorEntityPainters() },
   player: paintPlayer,
   shot: monsters.SHOT,
   animatedTiles: new Set<string>([...ANIMATED_TILE_IDS, ...devices.ANIMATED, TURTLE_TILE_ID, ...Object.keys(WIRED_BASE_TILE).filter((id) => devices.ANIMATED.has(WIRED_BASE_TILE[id]))])

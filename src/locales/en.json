@@ -5519,6 +5519,18 @@
         "label": "Moves like teeth, glider, bug, pink ball, timid teeth, fireball, paramecium and walker in turn, changing after 32 steps decided. It kills on contact."
       }
     },
+    "mirror_chip": {
+      "name": "Mirror Chip",
+      "desc": {
+        "label": "Copies every move Chip tries to make, even a blocked one, and does nothing while Melinda is the player. It follows Chip's rules: it opens green doors without using the key, slides on ice, pushes blocks, takes keys and boots on its way, presses buttons, and dies in water, fire and bombs (the level goes on). Touching it kills the player, whoever moves into the other."
+      }
+    },
+    "mirror_melinda": {
+      "name": "Mirror Melinda",
+      "desc": {
+        "label": "Copies every move Melinda tries to make, even a blocked one, and does nothing while Chip is the player. It follows Melinda's rules: it opens yellow doors without using the key, does not slide on ice, is stopped by dirt and gravel, pushes blocks, takes keys and boots on its way, presses buttons, and dies in water, fire and bombs (the level goes on). Touching it kills the player, whoever moves into the other."
+      }
+    },
     "skitter": {
       "name": "Skitter",
       "desc": {

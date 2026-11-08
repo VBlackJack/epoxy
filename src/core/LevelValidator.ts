@@ -477,8 +477,16 @@ export class LevelValidator {
         });
       }
     }
+    // A mirror of the level's character opens the doors of its own key colour without a key: such doors are not left without one.
+    const mirrorKeys = new Set(
+      level.entities
+        .map((e) => ConfigRegistry.getEntityDef(e.type))
+        .filter((def) => def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER))
+        .map((def) => def?.mirrorKey)
+        .filter((key): key is string => key !== undefined)
+    );
     for (const [keyId, doors] of Object.entries(keepingDoorCounts)) {
-      if ((keyCounts[keyId] || 0) === 0) {
+      if ((keyCounts[keyId] || 0) === 0 && !mirrorKeys.has(keyId)) {
         issues.push({
           severity: 'error',
           i18nKey: 'validator.issues.no_matching_key.label',
@@ -2271,6 +2279,8 @@ export class LevelValidator {
       const seen = new Uint8Array(width * height);
       const queue: GridPoint[] = [{ x: entity.x, y: entity.y }];
       seen[entity.y * width + entity.x] = 1;
+      // Doors a mirror player opens on its way: they stay open for the player who follows.
+      const mirrorOpened: GridPoint[] = [];
       for (let head = 0; head < queue.length; head++) {
         const { x, y } = queue[head];
         reached[y * width + x] = 1;
@@ -2287,10 +2297,17 @@ export class LevelValidator {
             def?.passesSolidTiles === true &&
             def.blockedByTiles?.includes(destId) !== true &&
             (dest.hazard === undefined || def.blockedByHazards?.includes(dest.hazard) !== true);
-          if (kind === 'monster' ? !(dest.passableByMonster || ghostly) : dest.passableByBlock !== true) continue;
+          // A mirror player walks the terrain its character walks (doors of its key colour open to it): the flood
+          // reads every tile the player may enter as open, an over-approximation that never turns a level unwinnable.
+          const mirrored = def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
+          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored) : dest.passableByBlock !== true) continue;
+          if (mirrored && dest.requiredKey !== undefined) mirrorOpened.push({ x: nx, y: ny });
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
         }
+      }
+      for (const door of mirrorOpened) {
+        simTerrain[door.y][door.x] = ConfigRegistry.getTile(simTerrain[door.y][door.x]).transformsToOnUnlock || FLOOR_TILE_ID;
       }
     }
     let opensToggleWalls = false;

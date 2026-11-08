@@ -1688,7 +1688,7 @@ const MONSTER_FLAG_FIELDS = [
  * flees the player; the flag fields are booleans on a monster; blockedByTiles names existing tiles and
  * blockedByHazards known hazards, both only on a monster that passes solid tiles; emulates lists other existing
  * monsters (none that emulates itself) and goes with the emulate_cycle pattern and a positive whole
- * emulationSwitchAttempts. Each entry names the entity.
+ * emulationSwitchAttempts; mirrorsCharacter names a known character on a stationary monster and mirrorKey an existing key. Each entry names the entity.
  */
 export function findMonsterBehaviourConfigErrors(
   tiles: Record<string, TileDefinition>,
@@ -1736,6 +1736,20 @@ export function findMonsterBehaviourConfigErrors(
           if (!MONSTER_HAZARDS.includes(hazard)) errors.push(`${id}.blockedByHazards: unknown hazard ${String(hazard)}`);
         }
       }
+    }
+    if (entity.mirrorsCharacter !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.mirrorsCharacter: only a monster mirrors a character`);
+      if (!isPlayerCharacter(entity.mirrorsCharacter)) errors.push(`${id}.mirrorsCharacter: unknown character ${String(entity.mirrorsCharacter)}`);
+      if (entity.movementPattern !== STATIONARY_PATTERN) {
+        errors.push(`${id}.mirrorsCharacter: a mirror moves only with the player, so it needs the pattern "${STATIONARY_PATTERN}"`);
+      }
+      if (entity.steeredBy !== undefined) errors.push(`${id}.mirrorsCharacter: a mirror is not steered by a pad`);
+      const key = entity.mirrorKey;
+      if (key !== undefined && (typeof key !== 'string' || tiles[key]?.collectible !== 'key')) {
+        errors.push(`${id}.mirrorKey: "${String(key)}" is not the id of an existing key`);
+      }
+    } else if (entity.mirrorKey !== undefined) {
+      errors.push(`${id}.mirrorKey: only a mirror player has this field`);
     }
     const cycles = entity.movementPattern === EMULATE_CYCLE_PATTERN;
     if (cycles !== (entity.emulates !== undefined)) {

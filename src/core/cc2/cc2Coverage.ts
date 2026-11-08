@@ -121,6 +121,10 @@ const MECHANIC_KEYS: readonly string[] = [
   'dirt_block', 'ice_block', 'arrow_block', 'timid_teeth', 'floor_mimic'
 ];
 
+/** What the two mirror players share: how Epoxy plays them and where it differs from CC2 [unverified]. */
+const MIRROR_REASON =
+  'Epoxy plays the mirror player as a monster that copies each move the player attempts (a blocked one too) while the player is the character it mirrors, and does nothing otherwise. It obeys the terrain rules of its character, pushes blocks, presses buttons, takes keys, boots and other items on its way (chips stay), reveals no wall by touching it (Lexy can_reveal_walls is not modelled), dies in water, fire and bombs without ending the level, and kills the player on contact, as the Lexy Labyrinth engine does. Known differences: it steps at once with the player, where CC2 moves it at its own pace; it keeps no inventory (it opens only the doors of its own key colour); a trapped player does not move it; the floors it ignores are rails, turning force floors and teleport rules other than the plain ones [unverified].';
+
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
   button_green: GREEN_BUTTON_REASON,
@@ -203,6 +207,9 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: ghost.
   ghost:
     'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; Known difference: a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
+  // Epoxy: mirror_chip and mirror_melinda.
+  mirror_chip: `${MIRROR_REASON} Mirror Chip opens green doors and slides on ice.`,
+  mirror_melinda: `${MIRROR_REASON} Mirror Melinda opens yellow doors, does not slide on ice and is stopped by dirt and gravel.`,
   // Epoxy: rover.
   rover:
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
@@ -228,7 +235,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
-  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'track_junction', 'railroad_sign'
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'track_junction', 'railroad_sign', 'mirror_chip', 'mirror_melinda'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };

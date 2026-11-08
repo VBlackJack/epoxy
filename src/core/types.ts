@@ -1420,6 +1420,13 @@ export interface EntityDefinition {
   emulates?: string[];
   /** Step decisions a monster that `emulates` others takes before it moves on to the next behaviour. */
   emulationSwitchAttempts?: number;
+  /**
+   * A mirror player: it copies each move the player attempts while the player is this character, with that
+   * character's own rules (a mirror Chip slides on ice, a mirror Melinda does not and is stopped by dirt and gravel).
+   */
+  mirrorsCharacter?: PlayerCharacter;
+  /** The key item a mirror player opens doors with without using it up (its own colour of key, as in CC2). */
+  mirrorKey?: string;
 }
 
 /** How a turret fires and turns. Only `length`, `turn` and `turnPeriodTicks` are required in the config. */
