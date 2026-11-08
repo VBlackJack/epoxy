@@ -1549,6 +1549,134 @@
       ],
       "outline": false
     },
+    "purple_wall": {
+      "legend": {"k": "teleport.0", "K": "teleport.1", "j": "teleport.2"},
+      "rows": [
+        "oooooooooooooooo",
+        "okkkkkkkkkkkkkKo",
+        "okKKKKKKKKKKKKjo",
+        "okKKKKKkkKKKKKjo",
+        "okKKKKkKKkKKKKjo",
+        "okKKKkKKKKkKKKjo",
+        "okKKkKKKKKKkKKjo",
+        "okKkKKKKKKKKkKjo",
+        "okKkKKKKKKKKkKjo",
+        "okKKkKKKKKKkKKjo",
+        "okKKKkKKKKkKKKjo",
+        "okKKKKkKKkKKKKjo",
+        "okKKKKKkkKKKKKjo",
+        "okKKKKKKKKKKKKjo",
+        "oKjjjjjjjjjjjjjo",
+        "oooooooooooooooo"
+      ],
+      "outline": false
+    },
+    "purple_floor": {
+      "legend": {"k": "teleport.0", "K": "teleport.1"},
+      "rows": [
+        "................",
+        "................",
+        "....KK..KK..KK..",
+        "................",
+        "..K..........K..",
+        "..K..........K..",
+        ".......kk.......",
+        "......k..k......",
+        "..K...k..k...K..",
+        "..K....kk....K..",
+        "................",
+        "................",
+        "..K..........K..",
+        "..K.KK..KK..KK..",
+        "................",
+        "................"
+      ],
+      "outline": false
+    },
+    "toggle_switch_off": {
+      "rows": [
+        "................",
+        "................",
+        "...oooooooooo...",
+        "..o4444444444o..",
+        "..oUUU4444444o..",
+        "..oUUU4444444o..",
+        "..oUUU4444444o..",
+        "..o44W4444444o..",
+        "..o444W444444o..",
+        "..o444W444444o..",
+        "..o444W444444o..",
+        "..o4444WW4444o..",
+        "..o4444444444o..",
+        "...oooooooooo...",
+        "................",
+        "................"
+      ],
+      "outline": false
+    },
+    "toggle_switch_on": {
+      "rows": [
+        "................",
+        "................",
+        "...oooooooooo...",
+        "..o4444444444o..",
+        "..o4444444RRRo..",
+        "..o4444444RRRo..",
+        "..o4444444RRRo..",
+        "..o4444444W44o..",
+        "..o444444W444o..",
+        "..o44444W4444o..",
+        "..o44444W4444o..",
+        "..o4444WW4444o..",
+        "..o4444444444o..",
+        "...oooooooooo...",
+        "................",
+        "................"
+      ],
+      "outline": false
+    },
+    "black_button": {
+      "rows": [
+        "................",
+        ".....oooooo.....",
+        "....oo3333oo....",
+        "...o33333333o...",
+        "..o333oUoo333o..",
+        ".oo33oUoooo33oo.",
+        ".o33oUoooooo33o.",
+        ".o33oUoooooo33o.",
+        ".o33oooooooo33o.",
+        ".o33oooooooo33o.",
+        ".oo33oooooo33oo.",
+        "..o333oooo333o..",
+        "...o33333333o...",
+        "....oo3333oo....",
+        ".....oooooo.....",
+        "................"
+      ],
+      "outline": false
+    },
+    "button_gray_area": {
+      "rows": [
+        "................",
+        ".....oooooo.....",
+        "..S.oo3333oo.S..",
+        "...o33333333o...",
+        "..o333feff333o..",
+        ".oo33feffff33oo.",
+        ".o33feffffff33o.",
+        ".o33feffffff33o.",
+        ".o33ffffffff33o.",
+        ".o33ffffffff33o.",
+        ".oo33ffffff33oo.",
+        "..o333ffff333o..",
+        "...o33333333o...",
+        "..S.oo3333oo.S..",
+        ".....oooooo.....",
+        "................"
+      ],
+      "outline": false
+    },
     "relay_pad_lit": {
       "legend": {"k": "teleport.0", "K": "teleport.1", "j": "teleport.2"},
       "rows": [

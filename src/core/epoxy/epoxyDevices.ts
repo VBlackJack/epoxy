@@ -28,6 +28,7 @@ import {
   GREEN_TOGGLE_PARITY_BIT,
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
+  PULSE_WIRED_ACTION,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
 } from '../coreConstants';
@@ -36,7 +37,7 @@ import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } 
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
-import { fireLaunchers } from './epoxyShots';
+import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
 import {
   EpoxyContext,
@@ -46,7 +47,8 @@ import {
   isInBounds,
   killPlayer,
   mapWidth,
-  removeEntity
+  removeEntity,
+  signalSinkOn
 } from './epoxyWorld';
 
 /** Hard cap on live entities, so a cloner wired to a held button cannot flood the grid. */
@@ -86,6 +88,8 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     if (!steerMonsters(ctx, w.player.dir)) return false;
   } else if (action === FIRE_LAUNCHERS_ACTION) {
     if (!fireLaunchers(ctx, bx, by)) return false;
+  } else if (action === PULSE_WIRED_ACTION) {
+    if (!pulseWiredDevices(ctx, bx, by)) return false;
   } else if (action === 'trigger_cloner') {
     const links = w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
     if (links.length > 0) {
@@ -120,6 +124,74 @@ export function flipCellAt(w: EpoxyWorld, x: number, y: number): void {
   AudioManager.playSfx(HOLD_DOOR_SFX);
 }
 
+/**
+ * Flips one wired cell (a purple wall, a purple floor or a wired flame jet) to the other form of its tile, as a signal asks
+ * on every change of its input. The cell changes whoever stands on it. A cell whose tile has no other form is left as it
+ * is. A flame jet that lights burns what stands on it, as the orange button does. The toggle parity is not touched, and the
+ * lasers are retraced.
+ */
+export function flipWiredCellAt(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  const next = ConfigRegistry.getTile(w.terrain[y][x]).wireTogglesTo;
+  if (next === undefined) return;
+  w.terrain[y][x] = next;
+  w.beamDirty = true;
+  AudioManager.playSfx(HOLD_DOOR_SFX);
+  if (ConfigRegistry.getTile(next).hazard === 'fire') {
+    burnPlayerIfFlamesLit(ctx);
+    burnEntitiesOnFire(ctx);
+  }
+}
+
+/**
+ * A gray area button works: every wired device (a sink of the signal network, or an unlinked purple tile, wired jet, wired trap, launcher or clone machine) within GRAY_BUTTON_RADIUS cells of the
+ * button, the square 5 by 5 around it, is pulsed once, with no wire from the button. A flip tile flips once, a
+ * launcher or a clone machine fires once (under the usual caps), and a level sink (a hold door, a relay pad, a wired
+ * trap) is held on for the next settle only. Devices come in the evaluation order of the network. Returns false when
+ * a shot or a clone killed the player.
+ */
+function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
+  const w = ctx.world;
+  const runtime = w.signals;
+  const width = mapWidth(w);
+  const handled = new Set<number>();
+  if (runtime !== undefined) {
+    for (const index of runtime.network.sinkIndexes) {
+      const cell = runtime.network.nodes[index].cell;
+      const x = cell % width;
+      const y = Math.floor(cell / width);
+      if (Math.abs(x - bx) > GRAY_BUTTON_RADIUS || Math.abs(y - by) > GRAY_BUTTON_RADIUS) continue;
+      handled.add(cell);
+      const fires = runtime.defs.get(index)?.fires;
+      if (fires === 'flip') flipCellAt(w, x, y);
+      else if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
+      else if (fires === 'launcher') {
+        if (!fireLauncherAt(ctx, x, y)) return false;
+      } else if (fires === 'cloner') {
+        if (!fireClonerAt(ctx, x, y)) return false;
+      } else runtime.areaPending.add(cell);
+      if (!w.player.alive) return false;
+    }
+  }
+  // A device with no wire is pulsed too: the button needs no wire and neither does what it reaches.
+  for (let y = Math.max(0, by - GRAY_BUTTON_RADIUS); y <= Math.min(w.terrain.length - 1, by + GRAY_BUTTON_RADIUS); y++) {
+    for (let x = Math.max(0, bx - GRAY_BUTTON_RADIUS); x <= Math.min(width - 1, bx + GRAY_BUTTON_RADIUS); x++) {
+      const cell = y * width + x;
+      if (handled.has(cell)) continue;
+      const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+      if (tile.wireTogglesTo !== undefined) flipWiredCellAt(ctx, x, y);
+      else if (tile.wiredTrap === true) runtime?.areaPending.add(cell);
+      else if (tile.shotLauncher !== undefined) {
+        if (!fireLauncherAt(ctx, x, y)) return false;
+      } else if (tile.isCloneMachine === true) {
+        if (!fireClonerAt(ctx, x, y)) return false;
+      }
+      if (!w.player.alive) return false;
+    }
+  }
+  return true;
+}
+
 /** Records one press of a toggle family, when the level hides a wall of that family under a removable top. */
 function flipToggleParity(w: EpoxyWorld, bit: number): void {
   if ((w.coveredToggleBits & bit) !== 0) w.toggleParity ^= bit;
@@ -147,7 +219,7 @@ export function setPoweredCells(ctx: EpoxyContext): boolean {
     const tile = ConfigRegistry.getTile(w.terrain[y][x]);
     // The cell may hold another terrain by now (nothing replaces a pad today): leave it alone.
     if (tile.relayPad === undefined || tile.relayTwin === undefined) continue;
-    if ((tile.relayPad === 'lit') === runtime.state.lastOutputs[index]) continue;
+    if ((tile.relayPad === 'lit') === signalSinkOn(w, index)) continue;
     w.terrain[y][x] = tile.relayTwin;
     changed = true;
   }

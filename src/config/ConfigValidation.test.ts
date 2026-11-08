@@ -357,8 +357,8 @@ describe('findSignalConfigErrors', () => {
     expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'pulse' }))).toEqual([]);
   });
 
-  it('refuses a source other than held or pulse and a gate that is not one of the five', () => {
-    expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'toggle' as 'held' }))).toHaveLength(1);
+  it('refuses a source other than held, pulse, inverted or toggle and a gate that is not one of the five', () => {
+    expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'sticky' as 'held' }))).toHaveLength(1);
     expect(findSignalConfigErrors(withTile('signal_gate_and', { signalGate: 'nand' as 'and' })).join()).toContain('signalGate');
   });
 

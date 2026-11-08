@@ -32,7 +32,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -670,7 +670,7 @@ function terrainsReachableFrom(tile: TileDefinition, lookup: TerrainTileLookup):
  * wall, dirt), when the underlay is itself a removable top, a plate, a hold door or a toggle wall (except
  * under a key door or a socket, which nothing turns back into: there a socket, dirt, a blue fake wall, a
  * plate, a hold door and a green or colour toggle wall are kept, never a key door and never the top's own
- * id), when the underlay is a rail or a relay pad, or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes
+ * id), when the underlay is a rail, a relay pad or a wired device, or when the underlay can turn back into the cell's top (dirt over water: a block sunk there makes
  * dirt again; the engine reveals a cell at most once anyway, this keeps the level model simple). The first
  * entry of a cell wins, and the entries are sorted by row, then column.
  * Returns null when none is left.
@@ -698,6 +698,8 @@ export function normalizeUnderlays(
       if (tile.railSides !== undefined) continue;
       // A relay pad swaps its form where it lies as the signals change: nothing reveals it, so it is never hidden.
       if (tile.relayPad !== undefined) continue;
+      // A wired device follows the signals where it lies, and nothing reveals it: it is never hidden either.
+      if (isWiredDevice(tile)) continue;
       // Under a door or a socket (which nothing turns back into) the engine also plays a socket, dirt, a blue
       // fake wall and the live devices; under any other top an underlay stays a plain, static terrain.
       const widened = isOpeningTop(top) && id !== topId && isRemovableUnderlay(tile);
@@ -1295,11 +1297,15 @@ export function findFacingTurnConfigErrors(tiles: Record<string, TileDefinition>
   return errors;
 }
 
+/** The source kinds a signal source tile may declare. */
+const SIGNAL_SOURCE_VALUES: readonly unknown[] = ['held', 'pulse', 'inverted', 'toggle'];
+
 /** The gate logics a signal gate tile may declare. */
 const SIGNAL_GATE_VALUES: readonly unknown[] = ['and', 'or', 'not', 'xor', 'latch'];
 
 /**
- * Problems of the signal fields of tiles.json: a source is 'held' or 'pulse'; a gate is one of the five logics; the
+ * Problems of the signal fields of tiles.json: a source is 'held', 'pulse', 'inverted' or 'toggle' (a toggle source names its
+ * other form); a gate is one of the five logics; the
  * latch start flag is true and sits on a latch; all of them belong to a terrain tile, a tile has one signal
  * role only (never mixed with a plate colour, a hold door or a laser receiver), and a gate is impassable.
  */
@@ -1316,8 +1322,24 @@ export function findSignalConfigErrors(tiles: Record<string, TileDefinition>): s
       errors.push(`${id}.signalLatchStartsOn: only a latch gate may start on`);
     }
     if (!hasSource && !hasGate) continue;
-    if (hasSource && tile.signalSource !== 'held' && tile.signalSource !== 'pulse') {
-      errors.push(`${id}.signalSource: expected "held" or "pulse"`);
+    if (hasSource && !SIGNAL_SOURCE_VALUES.includes(tile.signalSource)) {
+      errors.push(`${id}.signalSource: expected "held", "pulse", "inverted" or "toggle"`);
+    }
+    if (tile.signalSource === 'toggle') {
+      // A toggle switch has two forms, on and off, each naming the other back.
+      const twin = typeof tile.signalToggleTwin === 'string' ? tiles[tile.signalToggleTwin] : undefined;
+      if (
+        typeof tile.signalToggleOn !== 'boolean' ||
+        twin === undefined ||
+        twin.signalSource !== 'toggle' ||
+        twin.signalToggleTwin !== id ||
+        twin.signalToggleOn === tile.signalToggleOn ||
+        twin.layer !== 'terrain'
+      ) {
+        errors.push(`${id}.signalToggleTwin: a toggle source names a boolean signalToggleOn and the terrain of its other form, which names it back with the opposite value`);
+      }
+    } else if (tile.signalToggleOn !== undefined || tile.signalToggleTwin !== undefined) {
+      errors.push(`${id}.signalToggleTwin: only a toggle source has a powered form and a twin`);
     }
     if (hasGate && !SIGNAL_GATE_VALUES.includes(tile.signalGate)) {
       errors.push(`${id}.signalGate: expected "and", "or", "not", "xor" or "latch"`);
@@ -1663,6 +1685,53 @@ export function findRelayPadConfigErrors(tiles: Record<string, TileDefinition>):
     }
   }
   return errors;
+}
+
+/**
+ * Problems of the wired device fields: `wireTogglesTo` names a terrain that names this tile back (a purple wall, a purple
+ * floor or a wired flame jet, which no button of the toggle families touches, so the tile carries neither togglesTo nor
+ * flameTogglesTo nor a channel); `wiredTrap` sits on a trap; the gray area button is a plain terrain button. Each entry
+ * names the tile.
+ */
+export function findWiredDeviceConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.wireTogglesTo !== undefined) {
+      const twin = typeof tile.wireTogglesTo === 'string' ? tiles[tile.wireTogglesTo] : undefined;
+      if (twin === undefined || twin.wireTogglesTo !== id || twin.layer !== 'terrain') {
+        errors.push(`${id}.wireTogglesTo: expected the id of the terrain of the other form, which names this tile back`);
+      }
+      if (tile.layer !== 'terrain') errors.push(`${id}.wireTogglesTo: a wired flip tile is a terrain`);
+      if (
+        tile.togglesTo !== undefined ||
+        tile.flameTogglesTo !== undefined ||
+        tile.toggleChannel !== undefined ||
+        tile.channelTogglesTo !== undefined ||
+        tile.relayPad !== undefined
+      ) {
+        errors.push(`${id}.wireTogglesTo: a wired flip tile is in none of the button toggle families`);
+      }
+    }
+    if (tile.wiredTrap !== undefined && (tile.wiredTrap !== true || tile.isTrap !== true || tile.layer !== 'terrain')) {
+      errors.push(`${id}.wiredTrap: expected true, on a terrain trap`);
+    }
+    if (tile.buttonAction === PULSE_WIRED_ACTION && tile.layer !== 'terrain') {
+      errors.push(`${id}.buttonAction: a gray area button is a terrain`);
+    }
+  }
+  return errors;
+}
+
+/** True for a tile that follows the signals at run time (a toggle switch, a black button, a wired flip tile or trap, a gray area button): nothing reveals one, so it is never hidden. */
+function isWiredDevice(tile: TileDefinition): boolean {
+  return (
+    tile.wireTogglesTo !== undefined ||
+    tile.wiredTrap === true ||
+    tile.signalSource === 'toggle' ||
+    tile.signalSource === 'inverted' ||
+    tile.buttonAction === PULSE_WIRED_ACTION
+  );
 }
 
 /** Problems of the revealsHiddenWalls field: true when present, carried by boots only. Each entry names the tile. */

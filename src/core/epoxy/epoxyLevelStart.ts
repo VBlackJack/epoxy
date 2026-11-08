@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS } from '../coreConstants';
+import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, PULSE_WIRED_ACTION } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
 import { CompiledLevel } from '../types';
@@ -87,7 +87,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.swivelEntry.clear();
   buildLevelLookups(w);
   const signalSpec = compileSignalSpec(level, registryTileLookup);
-  w.signals = signalSpec === undefined ? undefined : createSignalRuntime(signalSpec);
+  // A level with a gray area button needs a runtime even with no wire, to hold the devices the button reaches on.
+  const needsRuntime = signalSpec === undefined && level.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).buttonAction === PULSE_WIRED_ACTION));
+  w.signals = signalSpec !== undefined ? createSignalRuntime(signalSpec) : needsRuntime ? createSignalRuntime({ nodes: [], links: [] }) : undefined;
   // The signals settle first, from a fresh beam trace, so a door never starts in a form its signals would undo.
   w.beamDirty = true;
   settleWorldSignals(w, true);

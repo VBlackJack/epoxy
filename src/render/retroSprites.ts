@@ -177,6 +177,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   'thin_n', 'thin_e', 'thin_s', 'thin_w',
   'recessed_wall', 'blue_wall', 'blue_wall_fake_marker', 'hidden_wall_marker', 'appearing_wall_marker',
   'dirt', 'slime', 'gravel', 'socket', 'hint', 'thief', 'thief_keys', 'block_target', 'clone_machine', 'transmogrifier', 'turn_plate_cw', 'turn_plate_ccw', 'pocket_gate_pad', 'relay_pad_dark', 'relay_pad_lit',
+  'purple_wall', 'purple_floor', 'toggle_switch_off', 'toggle_switch_on', 'black_button', 'button_gray_area',
   ...RETRO_SIGNAL_TILES.flatMap((id) => [id, `${id}${RETRO_SIGNAL_LIT_SUFFIX}`]),
   'forbid_sign', 'door', 'button', 'toggle_wall_closed', 'toggle_wall_open', 'trap_open', 'trap_closed',
   'flame_jet_nozzle', 'turtle', 'ice', 'ice_nw', 'ice_ne', 'ice_sw', 'ice_se',

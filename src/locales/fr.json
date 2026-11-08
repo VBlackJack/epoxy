@@ -4639,6 +4639,60 @@
         "label": "Change d'état à chaque fois que son entrée se met à envoyer un signal ; démarre allumée. Nécessite : des liens de signal en entrée et en sortie."
       }
     },
+    "purple_wall": {
+      "name": "Mur violet",
+      "desc": {
+        "label": "Un mur qui devient un sol violet chaque fois que le signal relié change, qu'il se mette à émettre ou qu'il s'arrête. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "purple_floor": {
+      "name": "Sol violet",
+      "desc": {
+        "label": "Un sol qui devient un mur violet chaque fois que le signal relié change, qu'il se mette à émettre ou qu'il s'arrête. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "toggle_switch_off": {
+      "name": "Interrupteur (éteint)",
+      "desc": {
+        "label": "N'émet aucun signal. Chaque fois que quelque chose marche dessus, il s'allume. Nécessite : un lien de signal vers une porte logique ou un dispositif."
+      }
+    },
+    "toggle_switch_on": {
+      "name": "Interrupteur (allumé)",
+      "desc": {
+        "label": "Émet un signal. Chaque fois que quelque chose marche dessus, il s'éteint. Nécessite : un lien de signal vers une porte logique ou un dispositif."
+      }
+    },
+    "black_button": {
+      "name": "Bouton noir",
+      "desc": {
+        "label": "Émet un signal en permanence, sauf tant que quelque chose se tient dessus. Nécessite : un lien de signal vers une porte logique ou un dispositif."
+      }
+    },
+    "button_gray_area": {
+      "name": "Bouton d'impulsion gris",
+      "desc": {
+        "label": "Chaque fois que quelque chose marche dessus, il active tous les dispositifs reliés situés à deux cases ou moins (une zone de 5 x 5), sans fil depuis le bouton : les cases à bascule basculent, les lanceurs et les machines à cloner tirent une fois, et les portes à plaque, les pastilles relais et les pièges reliés s'ouvrent un court instant."
+      }
+    },
+    "trap_wired": {
+      "name": "Piège mécanique à signal",
+      "desc": {
+        "label": "Retient ce qui y entre, et s'ouvre tant que le signal relié est actif ou qu'un bouton brun est tenu. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "flame_jet_wired_off": {
+      "name": "Jet de flammes à signal (éteint)",
+      "desc": {
+        "label": "Inoffensif tant qu'il est éteint. Il s'allume chaque fois que le signal relié change. Le bouton orange n'y touche pas. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "flame_jet_wired_on": {
+      "name": "Jet de flammes à signal (allumé)",
+      "desc": {
+        "label": "Brûle le joueur sauf s'il porte des bottes anti-feu ; seuls les monstres ignifugés y entrent. Il s'éteint chaque fois que le signal relié change. Le bouton orange n'y touche pas. Nécessite : un lien de signal vers lui."
+      }
+    },
     "hold_door_red_closed": {
       "name": "Porte à Plaque Rouge (Fermée)",
       "desc": {

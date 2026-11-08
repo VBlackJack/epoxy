@@ -126,6 +126,7 @@ export const RETRO_SPRITE_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'turtle',
   'fire',
   'flame_jet_on',
+  'flame_jet_wired_on',
   'exit',
   'teleport',
   'teleport_red',

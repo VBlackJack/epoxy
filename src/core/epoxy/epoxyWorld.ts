@@ -297,6 +297,9 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasShots = w.hasLaunchers || w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).collectible === 'stone'));
 }
 
+/** Sound played when an actor arrives on a toggle switch. */
+const TOGGLE_SWITCH_SFX = 'button';
+
 /** Monster step factor when no held boots slow the monsters. */
 const NORMAL_MONSTER_SLOWDOWN = 1;
 
@@ -445,7 +448,7 @@ export function holdColorsOpen(w: EpoxyWorld): Map<ChannelColor, boolean> {
   if (w.signals !== undefined) {
     for (const index of w.signals.network.sinkIndexes) {
       const color = w.signals.defs.get(index)?.color;
-      if (color !== undefined) open.set(color, (open.get(color) ?? true) && w.signals.state.lastOutputs[index]);
+      if (color !== undefined) open.set(color, (open.get(color) ?? true) && signalSinkOn(w, index));
     }
   }
   return open;
@@ -485,9 +488,32 @@ export function leaveCell(w: EpoxyWorld, x: number, y: number): void {
   }
 }
 
+/**
+ * Whether a level sink of the signal network is on now: its input is on, or a gray area button holds it on for this
+ * settle. `index` is the node index (the order of the state arrays); a flip or firing sink never asks.
+ */
+export function signalSinkOn(w: EpoxyWorld, index: number): boolean {
+  const runtime = w.signals;
+  if (runtime === undefined) return false;
+  return runtime.state.lastOutputs[index] || runtime.lit.has(runtime.network.nodes[index].cell);
+}
+
+/** Whether the cell holds a wired trap whose signal is on now (see signalSinkOn). */
+function isWiredTrapPowered(w: EpoxyWorld, tx: number, ty: number): boolean {
+  const runtime = w.signals;
+  if (runtime === undefined) return false;
+  const cell = ty * mapWidth(w) + tx;
+  // A gray area button holds a trap on whether or not a wire ends on it.
+  if (runtime.lit.has(cell)) return true;
+  const index = runtime.network.indexOfCell.get(cell);
+  return index !== undefined && runtime.defs.get(index)?.powers === true && signalSinkOn(w, index);
+}
+
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
   const tile = ConfigRegistry.getTile(w.terrain[ty]?.[tx]);
   if (!tile.isTrap) return false;
+  // A wired trap is also open while its signal is on, besides while a brown button is held.
+  if (tile.wiredTrap === true && isWiredTrapPowered(w, tx, ty)) return false;
 
   const specificLinks = w.trapLinksByTrap.get(cellKey(tx, ty));
   if (specificLinks && specificLinks.length > 0) {
@@ -533,18 +559,29 @@ export function entityPressesPlate(type: string, kind: 'block' | 'monster', colo
 /**
  * Records an arrival on a cell for the pulse buttons of the signal network: the player, or a monster or block
  * that presses plates (the entity argument; null for the player). The next settle reads it and clears it. Does
- * nothing on a level without pulse buttons, or on a cell that is not one.
+ * nothing on a level without pulse buttons or toggle switches, or on a cell that is neither. A toggle switch flips
+ * to its other form on every such arrival, at once.
  */
 export function notePulseArrival(w: EpoxyWorld, x: number, y: number, entity: RuntimeEntity | null): void {
   const runtime = w.signals;
-  if (runtime === undefined || runtime.pulseCells.size === 0) return;
   const cell = y * mapWidth(w) + x;
-  if (!runtime.pulseCells.has(cell)) return;
+  const isPulse = runtime?.pulseCells.has(cell) === true;
+  // An unwired toggle switch still changes form (only the level reading needs the network), so the tile decides.
+  const isToggle = ConfigRegistry.getTile(w.terrain[y][x]).signalSource === 'toggle';
+  if (!isPulse && !isToggle) return;
   if (entity !== null) {
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(entity.type)?.plateColor ?? 'red';
     if (!entityPressesPlate(entity.type, entity.kind, ownColor)) return;
   }
-  runtime.pending.add(cell);
+  if (isPulse) runtime?.pending.add(cell);
+  // A toggle switch becomes its other form at every arrival; the next settle reads the new level as a change.
+  if (isToggle) {
+    const twin = ConfigRegistry.getTile(w.terrain[y][x]).signalToggleTwin;
+    if (twin !== undefined) {
+      w.terrain[y][x] = twin;
+      AudioManager.playSfx(TOGGLE_SWITCH_SFX);
+    }
+  }
 }
 
 export function killPlayer(ctx: EpoxyContext, reasonKey: string, sfxId: string): void {

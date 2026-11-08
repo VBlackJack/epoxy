@@ -240,6 +240,27 @@ export const PACK_JSON_VERSION_V12_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 13 (see
+ * PACK_JSON_VERSION_V13_IDS): the wired devices of the Chip's Challenge 2 family (purple wall and floor, toggle switch,
+ * black button, gray area button, wired trap, wired flame jet). An older build would read them as floor, so it must
+ * refuse the file.
+ */
+export const PACK_JSON_VERSION_V13 = 13;
+
+/** Ids that only exist from pack format 13; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
+  'purple_wall',
+  'purple_floor',
+  'toggle_switch_off',
+  'toggle_switch_on',
+  'black_button',
+  'button_gray_area',
+  'trap_wired',
+  'flame_jet_wired_off',
+  'flame_jet_wired_on'
+]);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -249,14 +270,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V9, ids: PACK_JSON_VERSION_V9_IDS },
   { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS },
   { version: PACK_JSON_VERSION_V11, ids: PACK_JSON_VERSION_V11_IDS },
-  { version: PACK_JSON_VERSION_V12, ids: PACK_JSON_VERSION_V12_IDS }
+  { version: PACK_JSON_VERSION_V12, ids: PACK_JSON_VERSION_V12_IDS },
+  { version: PACK_JSON_VERSION_V13, ids: PACK_JSON_VERSION_V13_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 12.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 13.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V12;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V13;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

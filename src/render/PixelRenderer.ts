@@ -23,6 +23,14 @@ import { WARD } from './wardShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
 import { paintRailPiece } from './railArt';
 import { paintRelayPad, paintWiredMark } from './relayArt';
+import {
+  WIRED_BASE_TILE,
+  WIRED_LIT_JET_TILE,
+  WIRED_SHAPE_OF_TILE,
+  WIRED_TRAP_TILE,
+  paintWiredDevice,
+  type WiredColours
+} from './wiredArt';
 import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
@@ -257,6 +265,7 @@ const MODERN_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'force_random',
   'force_cycle',
   'flame_jet_on',
+  'flame_jet_wired_on',
   'exit',
   'teleport',
   'teleport_red',
@@ -274,6 +283,7 @@ const RETRO_ANIMATED_TILES: ReadonlySet<string> = new Set([
   'water',
   'fire',
   'flame_jet_on',
+  'flame_jet_wired_on',
   'exit',
   'teleport',
   'teleport_red',
@@ -2098,7 +2108,7 @@ export class PixelRenderer {
             continue;
           }
         }
-        const isClosedTrap = tileId === 'trap' ? engine.isCellClosedTrap(mx, my) : false;
+        const isClosedTrap = tileId === 'trap' || tileId === WIRED_TRAP_TILE ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
       }
@@ -2195,7 +2205,7 @@ export class PixelRenderer {
     ctx.setLineDash(LINK_DASH_PATTERN);
   }
 
-  /** A plug on every flip tile (a green toggle wall or a rail switch) a signal link ends on, shown whether or not the wires are. */
+  /** A plug on every flip tile (a green toggle wall, a rail switch or a purple wall) and every wired trap a signal link ends on, shown whether or not the wires are. */
   private drawWiredFlipMarks(
     ctx: CanvasRenderingContext2D,
     engine: PlayEngine,
@@ -2213,7 +2223,9 @@ export class PixelRenderer {
       const cell = link.toY * this.blockCellsWidth + link.toX;
       if (seen.has(cell) || this.isBlockCovered(link.toX, link.toY)) continue;
       const tileId = terrain[link.toY]?.[link.toX];
-      if (tileId === undefined || ConfigRegistry.getTile(tileId).togglesTo === undefined) continue;
+      if (tileId === undefined) continue;
+      const target = ConfigRegistry.getTile(tileId);
+      if (target.togglesTo === undefined && target.wireTogglesTo === undefined && target.wiredTrap !== true) continue;
       seen.add(cell);
       this.drawWiredMark(ctx, (link.toX - camX) * tilePixelSize, (link.toY - camY) * tilePixelSize, tilePixelSize);
     }
@@ -2418,6 +2430,14 @@ export class PixelRenderer {
       // Outside Runeward, a rail piece is the floor of the style with a track drawn over it.
       this.drawTile(ctx, FLOOR_TILE_ID, x, y, size, isEditor, isClosedTrap, pass, neighbours);
       if (pass !== 'animated') this.paintRailTrack(ctx, tileId, railSides, x, y, size);
+      return;
+    }
+    // A wired trap or flame jet is the plain device with the plug of a wired cell on it, in every style but Runeward.
+    const wiredBase = WIRED_BASE_TILE[tileId];
+    if (wiredBase !== undefined) {
+      this.drawTile(ctx, wiredBase, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      // A static pass of a lit jet holds the floor only: the plug goes on with the animated overlay.
+      if (pass === 'all' || pass === 'animated' || tileId !== WIRED_LIT_JET_TILE) this.drawWiredMark(ctx, x, y, size);
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
@@ -3270,6 +3290,15 @@ export class PixelRenderer {
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, false);
         break;
 
+      case 'purple_wall':
+      case 'purple_floor':
+      case 'toggle_switch_off':
+      case 'toggle_switch_on':
+      case 'black_button':
+      case 'button_gray_area':
+        this.paintWiredTile(ctx, tileId, x, y, size, false);
+        break;
+
       case 'transmogrifier':
         this.paintTransmogrifier(ctx, x, y, size, false);
         break;
@@ -3741,6 +3770,21 @@ export class PixelRenderer {
       ? { housing: ring, ring, mark: pal.teleportCore, fill: ring }
       : { housing: pal.wallTop, ring: pal.wallBase, mark: pal.wallTop, fill: pal.wallBase };
     paintRelayPad(ctx, x, y, size, lit, colours, { crisp: !neon, glow: neon ? ring : undefined });
+  }
+
+  /** A wired device (purple wall or floor, toggle switch, black button, gray pulse button) in the palette of the flat or the neon style. */
+  private paintWiredTile(ctx: CanvasRenderingContext2D, tileId: string, x: number, y: number, size: number, neon: boolean): void {
+    const shape = WIRED_SHAPE_OF_TILE[tileId];
+    if (shape === undefined) return;
+    const pal = this.pal();
+    const purple = neon ? pal.modernTeleportRing : pal.teleportRing;
+    const colours: WiredColours =
+      shape === 'purple_wall' || shape === 'purple_floor'
+        ? { fill: purple, edge: pal.wallShadow, light: pal.teleportCore, accent: shape === 'purple_wall' ? pal.teleportCore : purple, lit: pal.yellow }
+        : shape === 'gray_button'
+          ? { fill: pal.gray, edge: pal.wallShadow, light: pal.floorHighlight, accent: pal.orange, lit: pal.yellow }
+          : { fill: pal.modernButtonBase, edge: pal.wallBase, light: pal.gravelBase, accent: pal.gravelBase, lit: pal.yellow };
+    paintWiredDevice(ctx, shape, x, y, size, colours, { crisp: !neon, glow: neon ? pal.yellow : undefined });
   }
 
   /** The wired mark of a cell a signal link ends on, in the palette of the active style. */
@@ -4683,6 +4727,15 @@ export class PixelRenderer {
       case 'signal_latch_off':
       case 'signal_latch_on':
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, true);
+        break;
+
+      case 'purple_wall':
+      case 'purple_floor':
+      case 'toggle_switch_off':
+      case 'toggle_switch_on':
+      case 'black_button':
+      case 'button_gray_area':
+        this.paintWiredTile(ctx, tileId, x, y, size, true);
         break;
 
       case 'transmogrifier':

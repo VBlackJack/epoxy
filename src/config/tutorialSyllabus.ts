@@ -125,6 +125,17 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   not_xor_gates: ['signal_gate_not', 'signal_gate_xor'],
   latches: ['signal_latch_off', 'signal_latch_on'],
   relay_pads: ['relay_pad_dark', 'relay_pad_lit'],
+  wired_devices: [
+    'purple_wall',
+    'purple_floor',
+    'toggle_switch_off',
+    'toggle_switch_on',
+    'black_button',
+    'button_gray_area',
+    'trap_wired',
+    'flame_jet_wired_off',
+    'flame_jet_wired_on'
+  ],
   light_beams: [
     'laser_emitter_n',
     'laser_emitter_e',
@@ -266,6 +277,7 @@ export const PENDING: readonly string[] = [
   'not_xor_gates',
   'latches',
   'relay_pads',
+  'wired_devices',
   'light_beams',
   'laser_gates',
   'one_sided_mirrors',

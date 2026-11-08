@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
-import { fireClonerAt, flipCellAt } from './epoxyDevices';
+import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth } from './epoxyWorld';
@@ -45,6 +45,12 @@ export interface SignalRuntime {
   pending: Set<number>;
   /** Pulse buttons holding a press for the next settle (the one-bit carry: never a counter). */
   carry: Set<number>;
+  /** Cell indexes of the toggle switches of the network. Static for the level. */
+  toggleCells: ReadonlySet<number>;
+  /** Level sinks a gray area button pulsed since the last settle. The settle moves them to `lit` and clears this. */
+  areaPending: Set<number>;
+  /** Level sinks a gray area button holds on for the current settle only: the next settle replaces the set. */
+  lit: Set<number>;
 }
 
 /** The fields of a sink def that name what the sink is. A sink has exactly one of them set. */
@@ -76,8 +82,11 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
     }
   }
   const pulseCells = new Set<number>();
+  const toggleCells = new Set<number>();
   for (const index of network.sourceIndexes) {
-    if (defs.get(index)?.sample === 'pulse') pulseCells.add(network.nodes[index].cell);
+    const sample = defs.get(index)?.sample;
+    if (sample === 'pulse') pulseCells.add(network.nodes[index].cell);
+    else if (sample === 'toggle') toggleCells.add(network.nodes[index].cell);
   }
   return {
     network,
@@ -86,7 +95,10 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
     edgeCounts: { rising: 0, falling: 0 },
     pulseCells,
     pending: new Set<number>(),
-    carry: new Set<number>()
+    carry: new Set<number>(),
+    toggleCells,
+    areaPending: new Set<number>(),
+    lit: new Set<number>()
   };
 }
 
@@ -134,7 +146,12 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
     const y = Math.floor(cell / width);
     const def = runtime.defs.get(index) as SignalNodeDef;
     if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
-    else levels.set(cell, def.sample === 'receiver' ? lit.has(cell) : cellOccupied(w, x, y));
+    else if (def.sample === 'receiver') levels.set(cell, lit.has(cell));
+    // A black button is powered unless something presses it.
+    else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y));
+    // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
+    else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
+    else levels.set(cell, cellOccupied(w, x, y));
   }
   return levels;
 }
@@ -154,6 +171,9 @@ export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): Signa
   runtime.state = result.state;
   // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
   runtime.pending.clear();
+  // A gray area button holds its level sinks on for this settle only: the set read now is the next settle's to replace.
+  runtime.lit = new Set(runtime.areaPending);
+  runtime.areaPending.clear();
   for (const edge of result.edges) {
     if (edge.rising) runtime.edgeCounts.rising++;
     else runtime.edgeCounts.falling++;
@@ -186,7 +206,7 @@ export function poweredSignalCellsOf(w: EpoxyWorld): ReadonlySet<number> | undef
   if (runtime === undefined) return undefined;
   const powered = new Set<number>();
   runtime.network.nodes.forEach((node, index) => {
-    if (runtime.state.lastOutputs[index]) powered.add(node.cell);
+    if (runtime.state.lastOutputs[index] || runtime.lit.has(node.cell)) powered.add(node.cell);
   });
   return powered;
 }
@@ -200,7 +220,8 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * Fires the launchers, clone machines and flip tiles whose sink rose at the last settle, in evaluation order: a
  * launcher shoots and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile
  * check, the entity cap); a flip tile swaps to its other form. Call it after the settle and the hold doors. Stops as
- * soon as the player is dead or the level is completed. Only a rising edge fires: a falling edge does nothing.
+ * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
+ * wired flame jet), which flips on a falling edge too.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
   const w = ctx.world;
@@ -209,13 +230,16 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[])
   const width = mapWidth(w);
   for (const edge of edges) {
     if (!w.player.alive || w.levelCompleted) return;
-    if (!edge.rising) continue;
     const index = runtime.network.indexOfCell.get(edge.cell);
     const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
     if (fires === undefined) continue;
     const x = edge.cell % width;
     const y = Math.floor(edge.cell / width);
-    if (fires === 'flip') flipCellAt(w, x, y);
+    // A wired flip tile follows every change of its input; every other sink fires on the rising edge only.
+    // UNVERIFIED (low confidence): that a wired flame jet also flips on the falling edge is not confirmed against CC2.
+    if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
+    else if (!edge.rising) continue;
+    else if (fires === 'flip') flipCellAt(w, x, y);
     else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
   }
 }
@@ -223,10 +247,18 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[])
 /** A copy of the pulse memory of the world's network, for a snapshot or a hash; undefined when nothing is pending or carried. */
 export function copySignalPulses(w: EpoxyWorld): SignalPulseState | undefined {
   const runtime = w.signals;
-  if (runtime === undefined || (runtime.pending.size === 0 && runtime.carry.size === 0)) return undefined;
+  if (
+    runtime === undefined ||
+    (runtime.pending.size === 0 && runtime.carry.size === 0 && runtime.areaPending.size === 0 && runtime.lit.size === 0)
+  ) {
+    return undefined;
+  }
+  const ascending = (cells: ReadonlySet<number>): number[] => [...cells].sort((a, b) => a - b);
   return {
-    pending: [...runtime.pending].sort((a, b) => a - b),
-    carry: [...runtime.carry].sort((a, b) => a - b)
+    pending: ascending(runtime.pending),
+    carry: ascending(runtime.carry),
+    ...(runtime.areaPending.size > 0 ? { area: ascending(runtime.areaPending) } : {}),
+    ...(runtime.lit.size > 0 ? { lit: ascending(runtime.lit) } : {})
   };
 }
 
@@ -236,4 +268,6 @@ export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | un
   if (runtime === undefined) return;
   runtime.pending = new Set(pulses?.pending ?? []);
   runtime.carry = new Set(pulses?.carry ?? []);
+  runtime.areaPending = new Set(pulses?.area ?? []);
+  runtime.lit = new Set(pulses?.lit ?? []);
 }
