@@ -1118,6 +1118,32 @@
       "laserTransparent": true,
       "collectible": "boot"
     },
+    "steel_foil": {
+      "id": "steel_foil",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.steel_foil.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "turnsWallsTo": { "wall": "steel_wall" }
+    },
+    "toggle_clock": {
+      "id": "toggle_clock",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.toggle_clock.name",
+      "laserTransparent": true,
+      "togglesTimer": true,
+      "blocksBlocks": true
+    },
+    "bribe": {
+      "id": "bribe",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.bribe.name",
+      "laserTransparent": true,
+      "collectible": "token"
+    },
     "score_10": {
       "id": "score_10",
       "category": "items",
@@ -2267,6 +2293,22 @@
       "i18nKey": "tiles.no_sign_toll_token.name",
       "laserTransparent": true,
       "forbiddenItem": "toll_token"
+    },
+    "no_sign_steel_foil": {
+      "id": "no_sign_steel_foil",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_steel_foil.name",
+      "laserTransparent": true,
+      "forbiddenItem": "steel_foil"
+    },
+    "no_sign_bribe": {
+      "id": "no_sign_bribe",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_bribe.name",
+      "laserTransparent": true,
+      "forbiddenItem": "bribe"
     }
   }
 }

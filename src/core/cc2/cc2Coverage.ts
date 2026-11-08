@@ -54,14 +54,12 @@ const GREEN_BUTTON_REASON =
   'Epoxy plays the green button as CC2 does: it flips the toggle walls and swaps every green chip with a green bomb and back.';
 const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
-const PLACEHOLDER_REASON =
-  'Epoxy has no equivalent: the converter keeps the cell as the cc2_unknown placeholder, so the level is not playable as imported.';
 const NO_SIGN_REASON =
   'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
 const NO_SIGN_ITEM_REASON =
   'Epoxy plays a no-sign over a carried item as a sign on the item layer: the item is not placed so it cannot be picked up, a player carrying it cannot enter the cell, and the terrain under it keeps working. Monsters and blocks carry nothing, so they pass, as in Lexy\'s Labyrinth (no_sign in tiletypes.js) [unverified against CC2 itself].';
 const NO_SIGN_BONUS_REASON =
-  'A no-sign over a bonus flag or a stopwatch bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth [unverified against CC2 itself].';
+  'A no-sign over a bonus flag, a stopwatch or the toggle clock bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth [unverified against CC2 itself].';
 const EXTRA_CHIP_REASON =
   'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =
@@ -70,6 +68,12 @@ const GREEN_CHIP_REASON =
   'Epoxy plays the green chip as an item that counts toward the socket and swaps with the green button. That CC2 counts green chips toward the chips required is medium confidence.';
 const MELINDA_PLAYER_REASON =
   'Epoxy plays a level whose only player is Melinda with its melinda character: no slide on ice, hiking boots for dirt and gravel.';
+const BRIBE_REASON =
+  'Epoxy plays the bribe as a counted item that every thief takes instead of what it steals, spent even when the thief had nothing to take (the rule of the Lexy Labyrinth engine; whether the CC2 key thief also accepts it is medium confidence).';
+const STEEL_FOIL_REASON =
+  'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
+const TOGGLE_CLOCK_REASON =
+  'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 
@@ -94,19 +98,21 @@ const EXACT_KEYS: readonly string[] = [
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player',
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button'
 ];
 
 /**
  * Monsters and blocks: the mechanic exists, so the key is exact. Epoxy ids: bug, fireball, glider, paramecium, tank,
- * pink_ball, teeth, walker, blob; dirt_block, ice_block, arrow_block_* (directional blocks).
+ * pink_ball, teeth, walker, blob; timid_teeth, floor_mimic; dirt_block, ice_block, arrow_block_* (directional blocks).
+ * Teeth flee Melinda and timid teeth flee Chip (chasing the other), as in CC2. The floor mimic is a chaser four times
+ * slower than the ordinary monsters.
  * Chain pushing (an ice or directional block pushing a line of blocks) is an Epoxy rule; a block that slides on ice or a
  * force floor still stops at the first block it meets, where CC2 may push it along [unverified].
  */
 const MECHANIC_KEYS: readonly string[] = [
   'bug', 'fireball', 'glider', 'paramecium', 'tank', 'pink_ball', 'teeth', 'walker', 'blob',
-  'dirt_block', 'ice_block', 'arrow_block'
+  'dirt_block', 'ice_block', 'arrow_block', 'timid_teeth', 'floor_mimic'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
@@ -115,12 +121,17 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   steel_wall: STEEL_WALL_REASON,
   extra_chip: EXTRA_CHIP_REASON,
   green_chip: GREEN_CHIP_REASON,
+  bribe: BRIBE_REASON,
   melinda_player: MELINDA_PLAYER_REASON,
   gender_sign_male: GENDER_SIGN_REASON,
   gender_sign_female: GENDER_SIGN_REASON
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
+  // Epoxy: steel_foil.
+  steel_foil: STEEL_FOIL_REASON,
+  // Epoxy: toggle_clock.
+  toggle_clock: TOGGLE_CLOCK_REASON,
   // Epoxy: steel_wall next to dynamite.
   [KEY_STEEL_WALL_DESTROYER]:
     'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist blasts, but the dynamite itself is approximate [unverified].',
@@ -181,6 +192,12 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   green_wall: 'Epoxy plays the solid green wall as a plain wall [unverified].',
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
+  // Epoxy: ghost.
+  ghost:
+    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; Known difference: a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
+  // Epoxy: rover.
+  rover:
+    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
   [KEY_DATA_LATCH]: 'A CC2 latch is a data latch (its memory follows the first input while the second is on); Epoxy plays it as its toggle latch, which flips on each pulse [unverified].',
@@ -193,15 +210,15 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_CANOPY]:
     'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
   arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
-  bribe: PLACEHOLDER_REASON,
-  no_sign: 'A no-sign over a chip, a bomb or a placeholder item (railroad sign, lightning bolt, steel foil, clock), or over a wall, has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
+  no_sign: 'A no-sign over a chip, a bomb, a placeholder item (railroad sign, lightning bolt) or a wall has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };
 
 /** Reserved ids whose key is classified by a mapping above instead of being lost. */
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female'
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };

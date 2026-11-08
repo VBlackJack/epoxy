@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, TOKEN_ITEM_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, THIEF_PAYMENT_ITEM_IDS } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, isRemovableTop } from './Underlays';
@@ -40,7 +40,7 @@ interface AStarNode {
   moveDir: Direction | null;
   /** Boots were taken by a thief earlier on this path. */
   bootsStolen: boolean;
-  /** Toll tokens still held on this path; each pays one thief that would take the boots. */
+  /** Toll tokens and bribes still held on this path; each pays one thief that would take the boots (a bribe is also spent at a thief with nothing to take, which the planner does not count). */
   tokensLeft: number;
   /** Keys consumed by doors earlier on this path, per key id. */
   keysUsed: Record<string, number>;
@@ -155,7 +155,7 @@ export class Pathfinder {
       parent: null,
       moveDir: null,
       bootsStolen: false,
-      tokensLeft: player.keys[TOKEN_ITEM_ID] || 0,
+      tokensLeft: [...THIEF_PAYMENT_ITEM_IDS].reduce((sum, id) => sum + (player.keys[id] || 0), 0),
       keysUsed: {}
     });
     const bestG = new Map<string, number>();

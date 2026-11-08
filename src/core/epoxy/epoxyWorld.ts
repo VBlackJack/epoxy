@@ -105,6 +105,12 @@ export interface EpoxyWorld {
   litCharges: LitCharge[];
   /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
   hasForceCycle: boolean;
+  /** True when the level places a toggle clock; fixed for the level. Only such a level counts paused ticks. */
+  hasToggleClock: boolean;
+  /** True while a toggle clock holds the level timer; false at load. */
+  timerPaused: boolean;
+  /** Ticks the level timer stood paused so far; they do not count toward the time spent. 0 at load. */
+  pausedTicks: number;
   chipsRemaining: number;
   /** Seconds gained from stopwatch items in this level, net of penalties. */
   extraTimeSeconds: number;
@@ -204,6 +210,9 @@ export function createEpoxyWorld(): EpoxyWorld {
     forceCycleTurn: 0,
     litCharges: [],
     hasForceCycle: false,
+    hasToggleClock: false,
+    timerPaused: false,
+    pausedTicks: 0,
     chipsRemaining: 0,
     extraTimeSeconds: 0,
     levelBonusPoints: 0,
@@ -266,6 +275,9 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.forceCycleTurn = 0;
   w.litCharges = [];
   w.hasForceCycle = false;
+  w.hasToggleClock = false;
+  w.timerPaused = false;
+  w.pausedTicks = 0;
   w.trapLinksByTrap.clear();
   for (const link of w.trapLinks) {
     const key = cellKey(link.trapX, link.trapY);
@@ -300,6 +312,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
       }
     }
   }
+  w.hasToggleClock = w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).togglesTimer === true));
   // A level that places a hurl stone has shots too, though it may have no launcher.
   w.hasShots = w.hasLaunchers || w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).collectible === 'stone'));
 }

@@ -2199,6 +2199,8 @@ export class LevelValidator {
    * triggered: a green button opens the closed toggle walls, a red button grants its block cloner, and a bomb is
    * set off. A monster that does not press plates (pressesPlates false) still sets off bombs but works no button.
    * Accepted over-approximations: the flood walks past bombs, and a block used up on a bomb keeps flooding.
+   * A ghost sets off no bomb in play, yet the flood removes the bombs it reaches: that can only turn a level the
+   * walk finds winnable into a false winnable, never the reverse.
    * The player need not reach those cells, so this runs before the reach walk and never makes a reachable
    * exit unreachable.
    */
@@ -2232,8 +2234,15 @@ export class LevelValidator {
           const nx = x + DIRECTION_VECTORS[dir].dx;
           const ny = y + DIRECTION_VECTORS[dir].dy;
           if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny * width + nx]) continue;
-          const dest = ConfigRegistry.getTile(simTerrain[ny][nx]);
-          if (kind === 'monster' ? !dest.passableByMonster : dest.passableByBlock !== true) continue;
+          const destId = simTerrain[ny][nx];
+          const dest = ConfigRegistry.getTile(destId);
+          // A monster that walks through solid tiles (a ghost) reaches every cell but the ones it is barred from.
+          const ghostly =
+            kind === 'monster' &&
+            def?.passesSolidTiles === true &&
+            def.blockedByTiles?.includes(destId) !== true &&
+            (dest.hazard === undefined || def.blockedByHazards?.includes(dest.hazard) !== true);
+          if (kind === 'monster' ? !(dest.passableByMonster || ghostly) : dest.passableByBlock !== true) continue;
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
         }

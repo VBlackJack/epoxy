@@ -358,6 +358,12 @@ editor tile green_bomb closed=true 97fd49c3477831fe
 editor tile green_bomb closed=false 01c3396b391bc600
 editor tile hiking_boots closed=true bb8298495a4f6510
 editor tile hiking_boots closed=false bcf62469f15dc175
+editor tile steel_foil closed=true 56adddc7be4921e6
+editor tile steel_foil closed=false 9dc383f11ac6934d
+editor tile toggle_clock closed=true 24aef6255262052e
+editor tile toggle_clock closed=false e7d0da43296598c4
+editor tile bribe closed=true 8b6e5859f50385ba
+editor tile bribe closed=false ac014a2df0f193f2
 editor tile score_10 closed=true f6de9bdaadc78f74
 editor tile score_10 closed=false c10caace43006158
 editor tile score_100 closed=true fe39b2704a8264ba
@@ -406,6 +412,10 @@ editor tile no_sign_hurl_stone closed=true db3db967e56e0b28
 editor tile no_sign_hurl_stone closed=false 82068ea8b6832776
 editor tile no_sign_toll_token closed=true da4e375973f32000
 editor tile no_sign_toll_token closed=false adafd9b25c2e24d1
+editor tile no_sign_steel_foil closed=true d1f394e3e2322422
+editor tile no_sign_steel_foil closed=false 6e03946dc9000523
+editor tile no_sign_bribe closed=true 0172a04bf04cda4b
+editor tile no_sign_bribe closed=false 7dd6eb71e50e74bb
 editor item over floor key_red e2a2848e53115fc8
 editor item over floor key_blue c6a1f5debf3fe97d
 editor item over floor key_yellow b809ecc977723e4d
@@ -429,6 +439,9 @@ editor item over floor bomb 8816e00d5aca2f37
 editor item over floor green_chip 8390f5870c5e0ff9
 editor item over floor green_bomb 108385c36244e27c
 editor item over floor hiking_boots 3d876e7832d9911d
+editor item over floor steel_foil 215952d1ba41ceea
+editor item over floor toggle_clock 2e544cacc39e5da0
+editor item over floor bribe 3b4565981276d3d4
 editor item over floor score_10 41cd6090f7e6fe4c
 editor item over floor score_100 90bc0f431aad081f
 editor item over floor score_1000 fc223ae8476cbe0e
@@ -453,6 +466,8 @@ editor item over floor no_sign_charge aedb23b8b0099327
 editor item over floor no_sign_pocket_gate b93d69a3c511bbac
 editor item over floor no_sign_hurl_stone 0eb7508eca938f12
 editor item over floor no_sign_toll_token 892617201ebac57f
+editor item over floor no_sign_steel_foil d7b1c18bcc255dcf
+editor item over floor no_sign_bribe 34682a59db7ade1f
 editor entity over floor dirt_block a77c9908074cb07f
 editor entity over floor arrow_block_one bc53fa6fff67271b
 editor entity over floor arrow_block_line 8f523baab6863cc9
@@ -487,3 +502,7 @@ editor entity over floor skitter 626f215db91bd290
 editor entity over floor lurker_dormant bc190b6f4402d78e
 editor entity over floor lurker e30e011d5c5c5cda
 editor entity over floor wisp 0e7d4730e6641029
+editor entity over floor floor_mimic 8519d370608128cb
+editor entity over floor timid_teeth aedf0cd36b8bb3ea
+editor entity over floor ghost 7319cfbe917b9167
+editor entity over floor rover b21d0068850e8b2e

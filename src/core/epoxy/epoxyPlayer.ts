@@ -22,6 +22,7 @@ import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID 
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
+import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
@@ -155,6 +156,8 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   const updatedTargetTile = ConfigRegistry.getTile(w.terrain[targetY][targetX]);
   const itemOnTarget = w.items[targetY][targetX];
   if (!canPlayerEnter(w, updatedTargetTile, itemOnTarget)) {
+    // Bumping a plain wall with the steel foil turns it into a steel wall; the step is refused all the same.
+    foilBumpedWall(w, targetX, targetY);
     // A barrier against an item the player carries (terrain, or a no-sign on the item layer): solid until the item is dropped elsewhere.
     if (
       updatedTargetTile.passableByPlayer &&
@@ -285,6 +288,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   const itemId = w.items[y][x];
   if (itemId) {
     const itemDef = ConfigRegistry.getTile(itemId);
+    if (itemDef.togglesTimer) toggleTimerOnStep(w);
     if (itemDef.hazard === 'bomb') {
       w.items[y][x] = null;
       ctx.emitVisual('explosion', x, y, 'red');
@@ -320,7 +324,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'key';
   const takesBoots = tile.stealsBoots === true && w.player.boots.size > 0;
   const takesKeys = tile.stealsKeys === true && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id));
-  if ((takesBoots || takesKeys) && spendTollToken(w)) {
+  if (bribeThief(w, tile)) {
+    // A bribe pays any thief visit, even one with nothing to take: the thief takes nothing.
+  } else if ((takesBoots || takesKeys) && spendTollToken(w)) {
     // One token pays for the whole visit: the thief takes nothing.
     w.statusBannerKey = 'hud.messages.thief_paid';
     AudioManager.playSfx('item');

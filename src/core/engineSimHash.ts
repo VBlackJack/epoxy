@@ -94,6 +94,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           toggleParity: engine.getToggleParity(),
           // Undefined (and so left out of the hash) on a level without a turning force floor.
           forceCycleTurn: engine.getForceCycleTurn?.(),
+          // Undefined (and so left out of the hash) on a level without a toggle clock.
+          timerPaused: engine.isTimerPaused?.(),
           // Undefined (and so left out of the hash) while no blast charge is lit.
           litCharges: engine.getLitCharges?.(),
           // Undefined (and so left out of the hash) on a level without a signal network.

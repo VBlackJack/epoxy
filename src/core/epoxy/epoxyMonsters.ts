@@ -26,9 +26,10 @@ import {
   STATIONARY_PATTERN
 } from '../coreConstants';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { Direction, RelativeTurn, RuntimeEntity } from '../types';
+import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
+import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { followRail } from './epoxyRails';
 import { absorbMonsterContact } from './epoxyWard';
@@ -45,6 +46,7 @@ import {
   killPlayer,
   monsterSlowdown,
   notePulseArrival,
+  playerCharacterOf,
   removeEntity
 } from './epoxyWorld';
 
@@ -89,17 +91,27 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
 
   // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
   const phases = def?.movementPattern === PHASE_LINE_PATTERN;
-  if (!phases && isCellClosedTrap(w, entity.x, entity.y)) {
+  // A monster the floor does not affect (a ghost) is not held by a trap and turns no swivel door either.
+  const floorFree = def?.ignoresFloorEffects === true;
+  if (!phases && !floorFree && isCellClosedTrap(w, entity.x, entity.y)) {
     return true;
   }
 
-  const chosenDir = chooseMonsterDirection(w, entity);
-  if (!chosenDir) return true;
+  // A rover decides each step with the behaviour of the monster it is imitating just now. Each decision is counted,
+  // except while it slides (Lexy decides nothing then).
+  const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
+  const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+  const chosenDir = chooseMonsterDirection(w, entity, behaviour);
+  if (!chosenDir) {
+    // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
+    if (def?.emulates !== undefined) entity.cooldownTicks = 0;
+    return true;
+  }
 
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
-  if (!phases) leaveSwivel(w, entity.x, entity.y, chosenDir);
+  if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, chosenDir);
   entity.x = nx;
   entity.y = ny;
   entity.dir = chosenDir;
@@ -136,9 +148,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const nx = entity.x;
   const ny = entity.y;
   const def = ConfigRegistry.getEntityDef(entity.type);
-  enterSwivel(w, nx, ny, entity.dir);
-  // A rail turns the monster to the open side it did not come in by, so a forward move follows a bend.
-  followRail(w, entity);
+  const floorFree = def?.ignoresFloorEffects === true;
+  if (!floorFree) {
+    enterSwivel(w, nx, ny, entity.dir);
+    // A rail turns the monster to the open side it did not come in by, so a forward move follows a bend.
+    followRail(w, entity);
+  }
 
   if (w.player.x === nx && w.player.y === ny && w.player.alive) {
     // A ward destroys the monster that touches the player; the player lives.
@@ -156,28 +171,31 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   const destItem = w.items[ny][nx];
 
-  if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
-    w.items[ny][nx] = null;
-    removeEntity(w, entity.uid);
-    AudioManager.playSfx('bomb');
-    return true;
-  }
+  // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
+  if (!floorFree) {
+    if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
+      w.items[ny][nx] = null;
+      removeEntity(w, entity.uid);
+      AudioManager.playSfx('bomb');
+      return true;
+    }
 
-  if (destTile.hazard === 'water' && !def?.immuneToWater) {
-    removeEntity(w, entity.uid);
-    AudioManager.playSfx('splash');
-    return true;
-  }
-  if (destTile.hazard === 'fire' && !def?.immuneToFire) {
-    removeEntity(w, entity.uid);
-    AudioManager.playSfx('burn');
-    return true;
-  }
+    if (destTile.hazard === 'water' && !def?.immuneToWater) {
+      removeEntity(w, entity.uid);
+      AudioManager.playSfx('splash');
+      return true;
+    }
+    if (destTile.hazard === 'fire' && !def?.immuneToFire) {
+      removeEntity(w, entity.uid);
+      AudioManager.playSfx('burn');
+      return true;
+    }
 
-  if (destTile.hazard === 'slime') {
-    removeEntity(w, entity.uid);
-    AudioManager.playSfx('splash');
-    return true;
+    if (destTile.hazard === 'slime') {
+      removeEntity(w, entity.uid);
+      AudioManager.playSfx('splash');
+      return true;
+    }
   }
 
   // A transmogrifier swaps the kind of the monster for its pair; only `type` changes (uid, position, facing,
@@ -185,14 +203,14 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // and a cell holds one terrain, so the kind that arrived is the one the water, fire, bomb and shot checks
   // above judged, and no hazard of the new kind can share the cell. From the next step on the new kind's
   // rules apply.
-  if (destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
+  if (!floorFree && destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
     entity.type = def.transmogrifiesTo;
   }
 
   notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
-  const cycleDir = forceCycleArrival(w, destTile);
+  const cycleDir = floorFree ? undefined : forceCycleArrival(w, destTile);
   if (cycleDir) entity.dir = cycleDir;
 
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
@@ -206,15 +224,28 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   return true;
 }
 
-function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Direction | null {
-  const def = ConfigRegistry.getEntityDef(monster.type);
+/**
+ * The direction a monster steps in, or null. `def` is the definition whose behaviour decides: the monster's own,
+ * or for a rover the one it is imitating just now (the monster's own definition still rules what it may enter).
+ */
+function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
   if (!def) return null;
 
   // A phasing monster ignores the tile it stands on: no sliding, no forcing, no turning floor.
   if (def.movementPattern === PHASE_LINE_PATTERN) return chooseWispDirection(w, monster);
 
   const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
-  if (currentTile.slideType === 'ice') {
+  // A monster the floor does not carry (a ghost) is neither slid nor forced; on ice it cannot turn either, so it
+  // goes straight on and, when blocked, turns round.
+  const floorFree = ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true;
+  if (floorFree) {
+    if (currentTile.slideType === 'ice') {
+      if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
+      // Blocked on ice, a ghost turns round (it moves on the next step); it cannot choose another way.
+      monster.dir = OPPOSITE_DIRECTION[monster.dir];
+      return null;
+    }
+  } else if (currentTile.slideType === 'ice') {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
     if (canMonsterEnter(w, monster, slideDir)) return slideDir;
     const bounce = OPPOSITE_DIRECTION[slideDir];
@@ -223,11 +254,11 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
   }
 
   // A turning force floor sets the facing on arrival (see resolveMonsterArrival); the monster keeps pushing that way.
-  if (currentTile.forceCycle === true) {
+  if (!floorFree && currentTile.forceCycle === true) {
     return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
   }
 
-  if (currentTile.slideType === 'force' && currentTile.forceDirection) {
+  if (!floorFree && currentTile.slideType === 'force' && currentTile.forceDirection) {
     const forceDir =
       currentTile.forceDirection === 'RANDOM'
         ? ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
@@ -247,7 +278,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity): Directio
       if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
     }
     // A fleeing monster tries the same axes away from the player; a blocked axis is tried only when it is not lined up.
-    if (def.movementPattern === FLEE_PLAYER_PATTERN) {
+    // A monster that flees one character (teeth flee Melinda) does the opposite of its pattern while she is the player.
+    const fleesPlayer = (def.movementPattern === FLEE_PLAYER_PATTERN) !== (def.fleesCharacters?.includes(playerCharacterOf(w)) === true);
+    if (fleesPlayer) {
       for (let i = 0; i < candidates.length; i++) candidates[i] = OPPOSITE_DIRECTION[candidates[i]];
     }
     for (const c of candidates) {
@@ -322,20 +355,28 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
   const nx = monster.x + vec.dx;
   const ny = monster.y + vec.dy;
   if (!isInBounds(w, nx, ny)) return false;
-  if (isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
-
-  const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   const def = ConfigRegistry.getEntityDef(monster.type);
+  if (def?.ignoresCellEdges !== true && isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+
+  const destTileId = w.terrain[ny][nx];
+  const destTile = ConfigRegistry.getTile(destTileId);
+
+  // A monster that walks through solid tiles (a ghost) is stopped only by the tiles and hazards its definition names.
+  const passesSolid =
+    def?.passesSolidTiles === true &&
+    def.blockedByTiles?.includes(destTileId) !== true &&
+    (destTile.hazard === undefined || def.blockedByHazards?.includes(destTile.hazard) !== true);
+  if (def?.passesSolidTiles === true && !passesSolid) return false;
 
   // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
-  const passesTile = def?.passesTiles?.includes(w.terrain[ny][nx]) === true;
-  if (!destTile.passableByMonster && !passesTile && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
+  const passesTile = def?.passesTiles?.includes(destTileId) === true;
+  if (!destTile.passableByMonster && !passesTile && !passesSolid && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
     return false;
   }
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;
 
   const itemId = w.items[ny][nx];
-  if (itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
+  if (def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 
