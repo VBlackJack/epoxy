@@ -299,6 +299,10 @@ export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
   'arrow_block_none',
   'dynamite',
   'dynamite_lit',
+  // The fish gate and the teleporters of the CC3D exit orders.
+  'fish_gate',
+  'teleport_forward',
+  'teleport_turning',
   // The item-layer no-signs: one per item a player can carry.
   ...NO_SIGN_ITEM_IDS.map((id) => `${NO_SIGN_ITEM_PREFIX}${id}`)
 ]);

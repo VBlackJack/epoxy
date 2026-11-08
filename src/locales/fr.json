@@ -3785,8 +3785,8 @@
         "label": "Epoxy tire la direction au hasard au lieu d'un cycle fixe."
       },
       "socket": {
-        "name": "Prise",
-        "label": "Les prises d'Epoxy ne réagissent qu'au joueur."
+        "name": "Prise bleue",
+        "label": "Epoxy joue la prise bleue comme sa porte des poissons : fermée tant qu'il reste une puce, puis ouverte au joueur, à un bloc ou à un monstre, et le premier qui entre la change en sol, comme dans CC3D."
       },
       "slime": {
         "name": "Gelée",
@@ -3802,11 +3802,11 @@
       },
       "teleport_blue": {
         "name": "Téléporteur bleu",
-        "label": "La cible (le téléporteur bleu précédent dans l'ordre de lecture) est la même, mais la sortie diffère : le joueur Epoxy sort d'abord dans sa direction, puis dans l'ordre fixe nord, est, sud, ouest, là où CC3D sort uniquement vers l'avant ; les blocs et les monstres d'Epoxy sortent uniquement vers l'avant."
+        "label": "Epoxy joue le téléporteur bleu comme son téléporteur avant : la cible est le téléporteur bleu précédent dans l'ordre de lecture, et la sortie du joueur, d'un bloc ou d'un monstre se fait uniquement vers l'avant, comme dans CC3D."
       },
       "teleport_red": {
         "name": "Téléporteur rouge",
-        "label": "La cible (le téléporteur rouge précédent dans l'ordre de lecture) est la même, mais la sortie diffère : le joueur Epoxy sort d'abord dans sa direction, puis dans l'ordre fixe nord, est, sud, ouest, là où CC3D essaie l'avant, la droite, la gauche, l'arrière ; les blocs et les monstres d'Epoxy sortent uniquement vers l'avant."
+        "label": "Epoxy joue le téléporteur rouge comme son téléporteur tournant : la cible est le téléporteur rouge précédent dans l'ordre de lecture, et la sortie du joueur, d'un bloc ou d'un monstre se fait vers l'avant, puis la droite, puis la gauche, puis l'arrière, comme dans CC3D."
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
@@ -4875,6 +4875,24 @@
       "name": "Téléporteur Bleu",
       "desc": {
         "label": "Ne s'enchaîne qu'avec les téléporteurs bleus. Nécessite : un autre téléporteur bleu."
+      }
+    },
+    "fish_gate": {
+      "name": "Porte des Poissons",
+      "desc": {
+        "label": "Fermée tant qu'il reste une puce. Dès que la dernière puce est prise, le joueur, un bloc ou un monstre peut y entrer, et le premier qui le fait la change en sol. Nécessite : des puces à ramasser."
+      }
+    },
+    "teleport_forward": {
+      "name": "Téléporteur Avant",
+      "desc": {
+        "label": "S'enchaîne uniquement avec les autres téléporteurs avant, et fait sortir le joueur, un bloc ou un monstre du précédent dans l'ordre de lecture, tout droit uniquement. Nécessite : un autre téléporteur avant."
+      }
+    },
+    "teleport_turning": {
+      "name": "Téléporteur Tournant",
+      "desc": {
+        "label": "S'enchaîne uniquement avec les autres téléporteurs tournants, et fait sortir le joueur, un bloc ou un monstre du précédent dans l'ordre de lecture : tout droit, sinon à droite, sinon à gauche, sinon en arrière. Nécessite : un autre téléporteur tournant."
       }
     },
     "teleport_yellow": {

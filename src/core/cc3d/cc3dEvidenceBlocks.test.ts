@@ -164,8 +164,8 @@ describe.each(CC3D_COLORS)('colour block %s', (color) => {
     });
   });
 
-  it('differs at an open blue gate: CC3D lets the block in and clears the gate, Epoxy refuses it', () => {
-    expectDisagree(scenario(`@${glyph}S.`, 'E'), 'player', (pair) => {
+  it('enters an open blue gate and clears it, as the Epoxy fish gate does', () => {
+    expectAgree(scenario(`@${glyph}S.`, 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
@@ -175,9 +175,10 @@ describe.each(CC3D_COLORS)('colour block %s', (color) => {
 describe('dirt block', () => {
   sharedCases('dirt block', 'K');
 
-  it('differs at an open blue gate: CC3D lets the block in and clears the gate, Epoxy refuses it', () => {
-    expectDisagree(scenario('@KS.', 'E'), 'player', (pair) => {
+  it('enters an open blue gate and clears it, as the Epoxy fish gate does', () => {
+    expectAgree(scenario('@KS.', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
+      expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
   });
 
@@ -244,9 +245,10 @@ describe('ice block', () => {
     });
   });
 
-  it('differs at an open blue gate: CC3D lets the block in and clears the gate, Epoxy refuses it', () => {
-    expectDisagree(scenario('@ZS..', 'E'), 'player', (pair) => {
+  it('enters an open blue gate and clears it, as the Epoxy fish gate does', () => {
+    expectAgree(scenario('@ZS..', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
+      expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
   });
 

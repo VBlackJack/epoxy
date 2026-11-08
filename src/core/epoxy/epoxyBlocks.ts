@@ -28,10 +28,12 @@ import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import {
   EpoxyContext,
   EpoxyWorld,
+  consumeFishGate,
   getEntityAt,
   isCellClosedTrap,
   isEdgeBlocked,
   isInBounds,
+  isOpenFishGate,
   killPlayer,
   leaveCell,
   notePulseArrival,
@@ -144,7 +146,7 @@ export function isCanBlockEnter(
   if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
 
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
-  if (!destTile.passableByBlock) return false;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile)) return false;
   // An item that bars blocks (the toggle clock) keeps them out of its cell.
   const destItem = w.items[destY][destX];
   if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
@@ -221,6 +223,10 @@ export function moveBlockTo(
     AudioManager.playSfx('burn');
     return;
   }
+
+  // The first block into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does not
+  // judge it again on what shows (a block that clears a gate over water stays on the water), so neither does Epoxy.
+  if (isOpenFishGate(w, tile)) consumeFishGate(ctx, destX, destY);
 
   // A turn plate turns the arrows of an arrow block that arrives on it; a destroyed block never gets here.
   if (tile.facingTurn !== undefined && blockDef?.pushArrows !== undefined) {
