@@ -4346,7 +4346,7 @@
     "transmogrifier": {
       "name": "Transmogrifier",
       "desc": {
-        "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)."
+        "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker). The player who steps on it switches between Chip and Melinda."
       }
     },
     "turn_plate_cw": {

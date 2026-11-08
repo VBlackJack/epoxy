@@ -4346,7 +4346,7 @@
     "transmogrifier": {
       "name": "Transmogrificateur",
       "desc": {
-        "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur)."
+        "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur). Le joueur qui marche dessus passe de Chip à Melinda, et inversement."
       }
     },
     "turn_plate_cw": {
