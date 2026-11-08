@@ -16,7 +16,7 @@
 
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
-import { IMPORTED_PACK_RULESET } from '../config/constants';
+import { CC2_LEVEL_EXTENSION, IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { i18n, t } from '../i18n/I18nManager';
 import { nameWithDescription, paletteDescription } from './paletteDescriptions';
@@ -256,6 +256,8 @@ import {
   SaveSource
 } from './saveTarget';
 import { packNameFromFile } from '../ui/cc3dImport';
+import { convertC2mBytes } from '../ui/cc2Import';
+import { Cc2SourceStorage } from '../storage/Cc2SourceStorage';
 import { formatMegabytes, isImportSizeAllowed } from '../ui/importLimits';
 import {
   EDITOR_AUTO_CHECK_TIMEOUT_MS,
@@ -7114,6 +7116,14 @@ export class LevelEditor {
     try {
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
         levels = DatCodec.decodeBuffer(await file.arrayBuffer(), baseName, IMPORTED_PACK_RULESET);
+      } else if (lower.endsWith(CC2_LEVEL_EXTENSION)) {
+        const converted = await convertC2mBytes(new Uint8Array(await file.arrayBuffer()), { file: file.name, order: 1 });
+        if (!(await Cc2SourceStorage.putAll([converted.source]))) {
+          const notKept = t('cc2.import.sources_not_kept.label');
+          this.setStatusText(notKept);
+          this.hooks.onNotify(notKept);
+        }
+        levels = [converted.level];
       } else if (XSB_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
         const decoded = decodeXsbCollection(await file.text(), baseName);
         levels = decoded.levels;

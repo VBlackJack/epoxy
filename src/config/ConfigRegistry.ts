@@ -110,6 +110,8 @@ import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
 import { readSharedPack, SharedPackResult } from '../packs/shareLink';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
+import { Cc2SourceStorage, Cc2SourceRecord } from '../storage/Cc2SourceStorage';
+import { base64ToBytes, cc2SourceHashes, sha256OfBytes } from '../storage/cc2Sources';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
 
 /** Top-level keys each config file must define. */
@@ -200,6 +202,21 @@ export interface PackResult extends PackOperationResult {
 /** Result of an operation that produces a level. */
 export interface LevelResult extends PackOperationResult {
   level?: CompiledLevel;
+}
+
+/** Keeps the raw CC2 sources of a pack file in the local sidecar; an entry whose bytes do not hash to its key is dropped. */
+async function storeCc2Sources(sources: Readonly<Record<string, string>>): Promise<void> {
+  const records: Cc2SourceRecord[] = [];
+  for (const [hash, text] of Object.entries(sources)) {
+    const bytes = base64ToBytes(text);
+    if (!bytes) continue;
+    try {
+      if ((await sha256OfBytes(bytes)) === hash) records.push({ sha256: hash, bytes });
+    } catch {
+      // No digest in this context: the source cannot be verified, so it is not kept.
+    }
+  }
+  await Cc2SourceStorage.putAll(records);
 }
 
 export type ImportPackJsonResult =
@@ -1207,10 +1224,21 @@ class ConfigRegistryService {
 
   /** Deletes any pack that is not built in. The active pack falls back to the campaign. */
   public async deletePack(packId: string): Promise<PackOperationResult> {
-    if (!this.findStoredPack(packId)) return FAILED;
+    const removed = this.findStoredPack(packId);
+    if (!removed) return FAILED;
     this.storedPacks = this.storedPacks.filter((p) => p.id !== packId);
     if (this.activePackId === packId) this.resetActivePack();
-    return { ok: true, persisted: await this.persistDeletion(packId) };
+    const persisted = await this.persistDeletion(packId);
+    await this.releaseCc2Sources(removed);
+    return { ok: true, persisted };
+  }
+
+  /** Drops the stored CC2 sources of a deleted pack that no remaining pack still names. */
+  private async releaseCc2Sources(removed: LevelPack): Promise<void> {
+    const hashes = cc2SourceHashes(removed.levels);
+    if (hashes.length === 0) return;
+    const kept = new Set(this.storedPacks.flatMap((pack) => cc2SourceHashes(pack.levels)));
+    await Cc2SourceStorage.deleteMany(hashes.filter((hash) => !kept.has(hash)));
   }
 
   public async deleteImportedPack(packId: string): Promise<PackOperationResult> {
@@ -1304,10 +1332,21 @@ class ConfigRegistryService {
    * The pack as a shareable file, or null for an unknown or empty pack. The caller passes the
    * display name (the translated label of a pack that has an i18n key); it defaults to the pack name.
    */
-  public exportPackJson(packId: string, displayName?: string, compact = false): string | null {
+  public exportPackJson(
+    packId: string,
+    displayName?: string,
+    compact = false,
+    cc2Sources?: Readonly<Record<string, string>>
+  ): string | null {
     const pack = this.getAllPacks().find((p) => p.id === packId);
     return pack && pack.levels.length > 0
-      ? serializePack(displayName?.trim() || pack.name, pack.levels, { author: pack.author, description: pack.description }, compact)
+      ? serializePack(
+          displayName?.trim() || pack.name,
+          pack.levels,
+          { author: pack.author, description: pack.description },
+          compact,
+          cc2Sources
+        )
       : null;
   }
 
@@ -1346,6 +1385,8 @@ class ConfigRegistryService {
       metadata: { author: parsed.author, description: parsed.description },
       sourceHash: options.sourceHash
     });
+    // A share link never brings raw sources, even a forged one that carries the field.
+    if (parsed.cc2Sources && options.sourceHash === undefined) await storeCc2Sources(parsed.cc2Sources);
     return { ok: true, pack, persisted };
   }
 

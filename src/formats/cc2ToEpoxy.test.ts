@@ -175,10 +175,45 @@ describe('terrain, items and entities', () => {
     expect(coverage.lost).toEqual(['gender_sign_male']);
   });
 
-  it('flags the hidden sign marker as lost and keeps the cell', () => {
-    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: WALL })]);
+  it('keeps the cell and loses the key when a no-sign sits on a wall', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: 0x26 }, { code: WALL })]);
     expect(level.terrain[0][1]).toBe('wall');
     expect(coverage.lost).toEqual(['no_sign']);
+  });
+
+  it('loses a no-sign over an item that has no forbid tile', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: 0x2a }, { code: FLOOR_CODE })]);
+    expect(level.terrain[0][1]).toBe('floor');
+    expect(coverage.lost).toEqual(['no_sign']);
+  });
+
+  it('turns a no-sign over a key into a forbid tile with no item', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: 0x27 }, { code: FLOOR_CODE })]);
+    expect(level.terrain[0][1]).toBe('forbid_key_blue');
+    expect(level.items[0][1]).toBeNull();
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['no_sign_key']);
+  });
+
+  it('turns a no-sign over boots into the matching forbid tile', () => {
+    const cells = [
+      put(1, 0, { code: 0x7f }, { code: 0x3b }, { code: FLOOR_CODE }),
+      put(2, 0, { code: 0x7f }, { code: 0x3c }, { code: FLOOR_CODE }),
+      put(3, 0, { code: 0x7f }, { code: 0x3d }, { code: FLOOR_CODE }),
+      put(4, 0, { code: 0x7f }, { code: 0x3e }, { code: FLOOR_CODE })
+    ];
+    const { level, coverage } = convert(cells);
+    expect(level.terrain[0].slice(1, 5)).toEqual([
+      'forbid_boots_ice', 'forbid_boots_force', 'forbid_boots_fire', 'forbid_boots_water'
+    ]);
+    expect(level.items[0].slice(1, 5)).toEqual([null, null, null, null]);
+    expect(coverage.approx).toEqual(['no_sign_boots']);
+  });
+
+  it('plays an empty no-sign as the plain floor, exactly', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: FLOOR_CODE })]);
+    expect(level.terrain[0][1]).toBe('floor');
+    expect(coverage.verdict).toBe('exact');
   });
 
   it('plays a custom floor and a custom wall as plain ones, exactly', () => {
@@ -405,6 +440,9 @@ describe('chips and metadata', () => {
       put(4, 0, { code: 0x2b }, { code: FLOOR_CODE })
     ]);
     expect(level.chipsRequired).toBe(2);
+    expect(level.items[0][4]).toBe('chip');
+    expect(level.cc2?.coverage.lost).not.toContain('extra_chip');
+    expect(report.exact).toContain('extra_chip');
     expect(report.warnings).toEqual([]);
     const noSocket = convert([put(1, 0, { code: CHIP }, { code: FLOOR_CODE })]);
     expect(noSocket.level.chipsRequired).toBe(0);
@@ -499,10 +537,15 @@ describe('wires', () => {
 
   it('emits signal links and marks the level approximate', () => {
     const { level, coverage } = wired();
-    expect(level.terrain[0][0]).toBe('signal_button');
+    expect(level.terrain[0][0]).toBe('signal_plate');
     expect(level.signalLinks).toEqual([{ fromX: 0, fromY: 0, toX: 3, toY: 0 }]);
     expect(coverage.verdict).toBe('approx');
     expect(coverage.approx).toEqual(['wire']);
+  });
+
+  it('plays the held pink button as the pressure plate, not the pulse button', () => {
+    const { level } = wired();
+    expect(level.terrain[0][0]).not.toBe('signal_button');
   });
 
   it('marks tunnels', () => {

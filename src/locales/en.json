@@ -896,7 +896,7 @@
         "action": "Import a pack..."
       },
       "import_formats": {
-        "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Diggy's Adventure floors (floors_*.json, .har), Chuck's Challenge 3D levels (.xml)."
+        "label": "Chip's Challenge packs (.dat, .ccl), Sokoban collections (.xsb, .sok), Epoxy levels (.json), Diggy's Adventure floors (floors_*.json, .har), Chuck's Challenge 3D levels (.xml). Chip's Challenge 2 levels (.c2m, .c2g)."
       },
       "export_dat_btn": {
         "action": "Export Pack (.CCL)"
@@ -6111,9 +6111,18 @@
         "order_appended": {
           "label": "{count, plural, one {# level is} other {# levels are}} not in the game script and added at the end."
         },
+        "too_large": {
+          "label": "{count, plural, one {# file was} other {# files were}} over the size limit and skipped."
+        },
+        "warnings": {
+          "label": "{count, plural, one {# converter warning was} other {# converter warnings were}} raised while converting."
+        },
         "mechanics": {
           "label": "Mechanics Epoxy does not play: {mechanics}."
         }
+      },
+      "sources_not_kept": {
+        "label": "The original CC2 files could not be stored on this device, so an export with the CC2 source option will not include them. The levels were imported."
       },
       "error": {
         "unreadable": {

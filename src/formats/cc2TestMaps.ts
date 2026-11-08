@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import type { Cc2Cell, Cc2Map, Cc2Tile } from './cc2Model';
+import { encodeC2m } from './C2mEncoder';
+import type { Cc2Cell, Cc2File, Cc2Map, Cc2Tile } from './cc2Model';
 
 /** Builders of synthetic CC2 maps for tests: no licensed data, only codes the format documents. */
 
@@ -54,4 +55,18 @@ export function put(x: number, y: number, ...tiles: Cc2Tile[]): Placement {
 /** Placement of a player on a floor. */
 export function player(x: number, y: number, dir = 2, code = 0x16): Placement {
   return put(x, y, actorTile(code, dir), { code: FLOOR_CODE });
+}
+
+/** The bytes of a .c2m file holding the map and, when given, a title: a synthetic file, never licensed data. */
+export function c2mFileBytes(map: Cc2Map, title?: string): Uint8Array {
+  const file: Cc2File = {
+    sections: [
+      ...(title !== undefined
+        ? [{ kind: 'text' as const, tag: 'TITL', text: title, terminated: true, extra: NO_TAIL }]
+        : []),
+      { kind: 'map' as const, tag: 'PACK' as const, map }
+    ],
+    trailing: NO_TAIL
+  };
+  return encodeC2m(file);
 }

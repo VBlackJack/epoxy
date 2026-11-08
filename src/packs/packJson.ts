@@ -15,6 +15,7 @@
  */
 
 import {
+  CC2_SOURCES_FIELD,
   PACK_JSON_FORMAT,
   PACK_JSON_MAX_VERSION,
   PACK_JSON_VERSION,
@@ -36,6 +37,7 @@ import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat } from '../core
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
+import { isSha256Hex } from '../storage/cc2Sources';
 import { Clock, generateLevelId, normalizePackName, renumberLevels } from './userPacks';
 
 /** Indent of the pack file written for people; a share link writes it compact. */
@@ -45,7 +47,7 @@ const PACK_JSON_INDENT = 2;
 export type PackJsonError = 'malformed' | 'format' | 'version' | 'name' | 'no_levels';
 
 export type PackJsonResult =
-  | ({ ok: true; name: string; levels: CompiledLevel[] } & PackMetadata)
+  | ({ ok: true; name: string; levels: CompiledLevel[]; cc2Sources?: Record<string, string> } & PackMetadata)
   | { ok: false; error: PackJsonError };
 
 /** The pack file: a format marker, a version, the pack name and its levels as stored. */
@@ -57,6 +59,8 @@ export interface PackJsonFile {
   author?: string;
   /** Optional description; absent in files written before the field existed. */
   description?: string;
+  /** Optional raw CC2 source files, base64 by SHA-256, written only when the player opts in to include them. */
+  cc2Sources?: Record<string, string>;
   levels: CompiledLevel[];
 }
 
@@ -79,7 +83,8 @@ export function serializePack(
   name: string,
   levels: readonly CompiledLevel[],
   metadata: PackMetadata = {},
-  compact = false
+  compact = false,
+  cc2Sources?: Readonly<Record<string, string>>
 ): string {
   const file: PackJsonFile = {
     format: PACK_JSON_FORMAT,
@@ -87,9 +92,21 @@ export function serializePack(
     name,
     ...(metadata.author ? { author: metadata.author } : {}),
     ...(metadata.description ? { description: metadata.description } : {}),
+    ...(cc2Sources && Object.keys(cc2Sources).length > 0 ? { [CC2_SOURCES_FIELD]: { ...cc2Sources } } : {}),
     levels: [...levels]
   };
   return compact ? JSON.stringify(file) : JSON.stringify(file, null, PACK_JSON_INDENT);
+}
+
+/** The raw CC2 sources of a pack file, kept only for the hashes some level names; undefined when none is usable. */
+function readCc2Sources(value: unknown, levels: readonly CompiledLevel[]): Record<string, string> | undefined {
+  if (!isRecord(value)) return undefined;
+  const wanted = new Set(levels.flatMap((level) => (level.cc2 ? [level.cc2.sha256] : [])));
+  const kept: Record<string, string> = {};
+  for (const [hash, text] of Object.entries(value)) {
+    if (wanted.has(hash) && isSha256Hex(hash) && typeof text === 'string') kept[hash] = text;
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }
 
 /**
@@ -134,10 +151,12 @@ export function parsePackJson(
     reserved.add(id);
     return { ...lvl, id };
   });
+  const cc2Sources = readCc2Sources(parsed[CC2_SOURCES_FIELD], levels);
   return {
     ok: true,
     name,
     levels: renumberLevels(levels),
+    ...(cc2Sources ? { cc2Sources } : {}),
     ...(limits ? clampPackMetadata(parsed, limits) : {})
   };
 }
