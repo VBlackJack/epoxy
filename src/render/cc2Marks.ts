@@ -102,6 +102,11 @@ function disc(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: num
 /** The dot in the upper right corner of a monster: centre and radius, in tiles. */
 const MONSTER_DOT = { x: 0.8, y: 0.2, radius: 0.12, line: 0.03 } as const;
 
+/** Colours of the dot a mirror player wears: a pale glass blue, so it reads as a reflection in every style. */
+export const MIRROR_MARK_COLOURS: MarkColours = { fill: '#bfe6ff', edge: '#2c5f8a', ink: '#ffffff' };
+/** How much of its own colour a mirror player keeps: it is drawn as the player seen through glass. */
+export const MIRROR_PLAYER_ALPHA = 0.72;
+
 /** A coloured dot in the upper right corner of a monster, telling a CC2 look-alike from the monster it is drawn as. */
 export function paintMonsterDot(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
   ctx.save();

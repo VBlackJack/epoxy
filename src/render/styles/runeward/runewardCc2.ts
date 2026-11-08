@@ -18,10 +18,14 @@
  * Painters of the Chip's Challenge 2 look-alikes in the Runeward style: the green chip and bomb, the hiking boots, the
  * steel wall and the gender signs are the Runeward painter of the tile they resemble with the shared mark drawn over it
  * (see cc2Variants.ts), in the colours of the Runeward art. The floor mimic, timid teeth, ghost and rover are the Runeward
- * painter of the monster they resemble, seen through or with a coloured dot.
+ * painter of the monster they resemble, seen through or with a coloured dot. The mirror players are the Runeward mage seen
+ * through glass, with Melinda's bow on the mirror Melinda and a pale dot on both.
  */
 
-import { paintMonsterDot } from '../../cc2Marks';
+import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonsterDot } from '../../cc2Marks';
+import { completePose } from './runewardCharacter';
+import { runewardClockMs } from './runewardEnv';
+import { paintMage } from './runewardPainters';
 import { CC2_ITEM_VARIANTS, CC2_TERRAIN_VARIANTS, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
 import type { RunewardEntityPainter, RunewardItemPainter, RunewardTilePainter } from './runewardTiles';
 
@@ -93,6 +97,26 @@ export function variantEntityPainters(base: Readonly<Record<string, RunewardEnti
       const edge = art.ink ? art.ink.line : art.shadow.color;
       const fill = variant.dot === 'yellow' ? art.keys.yellow.main : variant.dot === 'red' ? art.keys.red.main : art.wall.topLight;
       paintMonsterDot(ctx, x, y, size, { fill, edge, ink: fill });
+    };
+  }
+  return painters;
+}
+
+/** The mirror players by entity id; true for the one drawn with Melinda's bow. */
+const MIRROR_PLAYERS: Readonly<Record<string, boolean>> = { mirror_chip: false, mirror_melinda: true };
+
+/** The mirror players: the Runeward mage standing on the cell, seen through glass, with a pale dot. */
+export function mirrorEntityPainters(): Record<string, RunewardEntityPainter> {
+  const painters: Record<string, RunewardEntityPainter> = {};
+  for (const [id, withBow] of Object.entries(MIRROR_PLAYERS)) {
+    painters[id] = (ctx, dir, x, y, size, env) => {
+      ctx.save();
+      ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : OPAQUE) * MIRROR_PLAYER_ALPHA;
+      ctx.translate(x, y);
+      paintMage(ctx, size, env.art, completePose({ dir, inWater: false, alive: true, frame: 0, hop: 0 }), runewardClockMs(env));
+      ctx.restore();
+      if (withBow) paintMelindaBow(ctx, x, y, size, dir);
+      paintMonsterDot(ctx, x, y, size, MIRROR_MARK_COLOURS);
     };
   }
   return painters;

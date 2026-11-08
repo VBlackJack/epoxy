@@ -28,6 +28,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
+import { steerMirrors } from './epoxyMirrors';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
@@ -60,6 +61,16 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): bool
 }
 
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
+  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
+  const w = ctx.world;
+  // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
+  // They copy the requested direction, before any track redirect of the player's own cell.
+  if (w.player.alive && !w.levelCompleted) steerMirrors(ctx, requestedDir);
+  return moved;
+}
+
+/** The player's own step toward `requestedDir`: the track redirect, the checks of the cell ahead, the push of a block and the arrival. */
+function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
   // On a Chip's Challenge 2 track cell a step the tracks refuse is turned onto the track (the identity elsewhere).
   const rail = playerRailActor(w);

@@ -229,6 +229,8 @@ export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, C
   [0x38, same('fireball')],
   [0x57, same('timid_teeth')],
   [0x63, same('puppet', 'yellow_tank')],
+  [0x65, same('mirror_chip')],
+  [0x66, same('mirror_melinda')],
   [0x69, same('rover')],
   [0x82, same('floor_mimic')],
   [0x8b, same('ghost')]
@@ -238,13 +240,9 @@ export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, C
 export const CC2_CODE_MELINDA = 0x56;
 /** Coverage key of a level whose only player is Melinda: Epoxy plays it with the melinda character. */
 export const KEY_MELINDA_PLAYER = 'melinda_player';
-export const CC2_CODE_MIRROR_CHIP = 0x65;
-export const CC2_CODE_MIRROR_MELINDA = 0x66;
-/** Reserved entities for the players Epoxy does not drive. */
+/** Reserved entities for the players Epoxy does not drive (the mirror players are Epoxy monsters, see ENTITY_MAP). */
 export const RESERVED_PLAYER_ENTITIES: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
-  [CC2_CODE_MELINDA, reserved('melinda')],
-  [CC2_CODE_MIRROR_CHIP, reserved('mirror_chip')],
-  [CC2_CODE_MIRROR_MELINDA, reserved('mirror_melinda')]
+  [CC2_CODE_MELINDA, reserved('melinda')]
 ]);
 
 /** Terrain-coded gender signs: the male sign stops Melinda, the female sign stops Chip (terrain tiles in Epoxy). */

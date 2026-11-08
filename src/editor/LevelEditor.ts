@@ -139,8 +139,10 @@ import { layoutModeForSize } from './editorLayout';
 import {
   applyTool,
   Brush,
+  CANOPY_BRUSH_ID,
   CELL_EDGE_BRUSH_ID,
   continuesOnDrag,
+  isCanopyBrush,
   EDITOR_TOOLS,
   EditorTool,
   MESSAGE_LINKS_REMOVED,
@@ -156,7 +158,7 @@ import {
   SectionState,
   serializeSectionState
 } from './inspectorSections';
-import { hasCellEdges } from './editorCellEdges';
+import { CanopyMode, hasCanopyAt, hasCellEdges } from './editorCellEdges';
 import { nextRailPiece } from './railRotation';
 import { hasUnderlays, hiddenTerrainClosed, setUnderlayAt, underlayAt } from './editorUnderlays';
 import { pruneLauncherLinks } from './editorLauncherLinks';
@@ -395,6 +397,7 @@ const SEPARATOR_BETWEEN_MESSAGES = ' ';
 const SEPARATOR_BETWEEN_PARTS = ', ';
 /** Status keys of a selection fill that cannot go ahead (their texts live in the locale files). */
 const MESSAGE_FILL_REFUSED_CELL_EDGE = 'editor.selection.status.fill_refused_cell_edge';
+const MESSAGE_FILL_REFUSED_CANOPY = 'editor.selection.status.fill_refused_canopy';
 const MESSAGE_FILL_REFUSED_ENTRY = 'editor.selection.status.fill_refused_entry';
 const MESSAGE_FILL_REFUSED_ATTRIBUTES = 'editor.selection.status.fill_refused_attributes';
 const NO_COORDS_TEXT = '--';
@@ -573,6 +576,8 @@ interface StaticLayer {
 
 /** One pointer stroke or key press: the document it started from, and whether it changed anything. */
 interface Stroke {
+  /** Canopy brush: what the stroke does to every cell it crosses, fixed by its first cell. */
+  canopyMode?: CanopyMode;
   base: EditorDocument;
   changed: boolean;
   forceErase: boolean;
@@ -1078,7 +1083,7 @@ export class LevelEditor {
    */
   private sideToolActive(): boolean {
     if (this.isCc3d()) return this.tool === 'brush' && this.cc3dEntry()?.action === 'panel';
-    return this.tool === 'brush' && this.brush.kind === 'cell_edge';
+    return this.tool === 'brush' && this.brush.kind === 'cell_edge' && this.brush.id === CELL_EDGE_BRUSH_ID;
   }
 
   /** The selected CC3D palette entry, or null when the id names none. */
@@ -1773,6 +1778,9 @@ export class LevelEditor {
     }
 
     if (category === TERRAIN_CATEGORY) {
+      add({ kind: 'cell_edge', id: CANOPY_BRUSH_ID }, t('editor.palette.tools.canopy'), () =>
+        this.renderer.renderIconToDataUrl('canopy', CANOPY_BRUSH_ID)
+      );
       add({ kind: 'cell_edge', id: CELL_EDGE_BRUSH_ID }, t('editor.palette.tools.cell_edge'), () =>
         this.renderer.renderIconToDataUrl('tile', CELL_EDGE_ICON_TILE)
       );
@@ -1871,7 +1879,7 @@ export class LevelEditor {
       this.announceFillChoice(refusal ? this.fillRefusalMessage(refusal) : null, this.brushLabel(brush));
     } else {
       // The thin wall keeps its own status, which already says how to use it; every other entry says what it does and needs.
-      if (brush.kind === 'cell_edge') this.setStatusText(t('editor.palette.status.cell_edge_mode'));
+      if (brush.kind === 'cell_edge' && brush.id === CELL_EDGE_BRUSH_ID) this.setStatusText(t('editor.palette.status.cell_edge_mode'));
       else {
         const description = paletteDescription(brush.kind, brush.id, t);
         if (description !== undefined) this.setStatusText(nameWithDescription(this.brushLabel(brush), description));
@@ -5597,8 +5605,13 @@ export class LevelEditor {
       side,
       x,
       y,
-      forceErase: stroke.forceErase
+      forceErase: stroke.forceErase,
+      canopyMode: stroke.canopyMode
     });
+    // The first cell of a canopy stroke decides whether the stroke puts the roof on or takes it off.
+    if (stroke.canopyMode === undefined && !stroke.forceErase && this.tool === 'brush' && isCanopyBrush(this.brush)) {
+      stroke.canopyMode = hasCanopyAt(outcome.map, x, y) ? 'set' : 'clear';
+    }
     if (outcome.changed) {
       this.doc = withEditedMap(this.doc, outcome.map);
       this.docRevision++;
@@ -5824,6 +5837,8 @@ export class LevelEditor {
         return { key: refusal.reasonKey };
       case 'cell_edge':
         return { key: MESSAGE_FILL_REFUSED_CELL_EDGE };
+      case 'canopy':
+        return { key: MESSAGE_FILL_REFUSED_CANOPY };
       case 'unsupported':
         return { key: MESSAGE_FILL_REFUSED_ENTRY };
     }

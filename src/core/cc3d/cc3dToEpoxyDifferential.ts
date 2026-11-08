@@ -39,15 +39,17 @@ const UINT32_RANGE = 4294967296;
 export interface DiffMismatch {
   /** Moves played when the mismatch was found (0 = at load). */
   move: number;
-  field: 'player' | 'alive' | 'complete' | 'chips' | 'keys' | 'cells' | 'settle';
+  field: 'player' | 'alive' | 'complete' | 'chips' | 'keys' | 'cells' | 'settle' | 'entities' | 'items';
   detail: string;
 }
 
 /** CC3D display ids that name another Epoxy id; every other CC3D display id is also the Epoxy id. */
-function epoxyIdOf(displayId: string): string {
+export function epoxyIdOf(displayId: string): string {
   if (displayId === 'cc3d_socket_red') return 'socket';
   if (displayId === 'cc3d_sand') return 'gravel';
   if (displayId === 'force_random') return 'force_cycle';
+  // The converter moves a bomb layer to the item grid (see compare with `items`), so the terrain below is floor.
+  if (displayId === 'bomb') return 'floor';
   const hold = /^cc3d_hold_door_(\w+)$/.exec(displayId);
   if (hold) return `hold_door_${hold[1]}`;
   const toggle = /^cc3d_toggle_door_(\w+)$/.exec(displayId);
@@ -57,6 +59,45 @@ function epoxyIdOf(displayId: string): string {
   const plate = /^cc3d_plate_(\w+)$/.exec(displayId);
   if (plate) return `pressure_plate_${plate[1]}`;
   return displayId;
+}
+
+/** CC3D display ids of mobs that name another Epoxy entity type. */
+export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
+  cc3d_golem_yellow: 'puppet',
+  cc3d_legs_green: 'fireball',
+  cc3d_legs_red: 'glider',
+  cc3d_baby_blinky: 'glider',
+  cc3d_baby_screamer: 'fireball',
+  cc3d_reflector_lu: 'one_sided_mirror_sw',
+  cc3d_reflector_dl: 'one_sided_mirror_nw',
+  cc3d_reflector_ur: 'one_sided_mirror_se',
+  cc3d_reflector_rd: 'one_sided_mirror_ne',
+  cc3d_bot_static: 'turret_fixed',
+  cc3d_bot_cw: 'turret_cw',
+  cc3d_bot_ccw: 'turret_ccw',
+  cc3d_bot_multi: 'turret_multi',
+  cc3d_block_red: 'color_block_red',
+  cc3d_block_green: 'color_block_green',
+  cc3d_block_blue: 'color_block_blue',
+  cc3d_block_yellow: 'color_block_yellow'
+};
+/** CC3D display ids of items that name another Epoxy item id. */
+const ITEM_ID_MAP: Readonly<Record<string, string>> = { stopwatch_bonus: 'slow_time', cc3d_fish_extra: 'chip' };
+const BOMB_ID = 'bomb';
+
+/** What stands where, as sorted `type@x,y` strings. */
+function entityLines(entities: ReadonlyArray<{ type: string; x: number; y: number }>, map: (type: string) => string): string[] {
+  return entities.map((e) => `${map(e.type)}@${e.x},${e.y}`).sort();
+}
+
+/** Epoxy shows a floating colour block as a terrain tile of this prefix, where CC3D keeps the block as a mob on water. */
+const FLOATING_BLOCK_PREFIX = 'floating_block_';
+
+interface FloatingProbe {
+  x: number;
+  y: number;
+  color?: string;
+  floating: boolean;
 }
 
 function nonZero(keys: Record<string, number>): Record<string, number> {
@@ -125,8 +166,19 @@ export class DifferentialPair {
     );
   }
 
-  /** The first field on which the engines differ, or null. */
-  public compare(): DiffMismatch | null {
+  /** The CC3D colour blocks that float on water now, by cell (read from the simulation, which the engine keeps private). */
+  private floatingBlocks(): ReadonlyMap<string, string> {
+    const sim = (this.rig.engine as unknown as { sim: { world: { mobs: FloatingProbe[] } } | null }).sim;
+    const found = new Map<string, string>();
+    for (const mob of sim?.world.mobs ?? []) if (mob.floating && mob.color !== undefined) found.set(`${mob.x},${mob.y}`, mob.color);
+    return found;
+  }
+
+  /**
+   * The first field on which the engines differ, or null. `entities` also compares the blocks and monsters (type
+   * and cell), `items` the item grids (a CC3D bomb layer counts as the item `bomb`, as the converter plays it).
+   */
+  public compare(options: { entities?: boolean; items?: boolean } = {}): DiffMismatch | null {
     const at = (field: DiffMismatch['field'], detail: string): DiffMismatch => ({ move: this.moves, field, detail });
     if (!this.cc3dSettled && !this.epoxySettled) {
       this.looping = true;
@@ -149,11 +201,30 @@ export class DifferentialPair {
     if (keysA !== keysB) return at('keys', `cc3d ${keysA} epoxy ${keysB}`);
     const terrainA = this.rig.engine.getTerrain();
     const terrainB = this.epoxy.getTerrain();
+    const floating = this.floatingBlocks();
     for (let y = 0; y < terrainA.length; y++) {
       for (let x = 0; x < terrainA[y].length; x++) {
-        const mapped = epoxyIdOf(terrainA[y][x]);
+        const floatingColor = floating.get(`${x},${y}`);
+        const mapped = floatingColor === undefined ? epoxyIdOf(terrainA[y][x]) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
         if (mapped !== terrainB[y][x]) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
+    }
+    if (options.items) {
+      const itemsA = this.rig.engine.getItems();
+      const itemsB = this.epoxy.getItems();
+      for (let y = 0; y < itemsA.length; y++) {
+        for (let x = 0; x < itemsA[y].length; x++) {
+          const raw = itemsA[y][x];
+          const mapped = raw === null ? (terrainA[y][x] === BOMB_ID ? BOMB_ID : null) : (ITEM_ID_MAP[raw] ?? raw);
+          if (mapped !== itemsB[y][x]) return at('items', `${x},${y} cc3d ${String(mapped)} epoxy ${String(itemsB[y][x])}`);
+        }
+      }
+    }
+    if (options.entities) {
+      const resting = this.rig.entities.filter((e) => !(e.type in ENTITY_ID_MAP && floating.has(`${e.x},${e.y}`)));
+      const linesA = entityLines(resting, (type) => ENTITY_ID_MAP[type] ?? type);
+      const linesB = entityLines(this.epoxy.getEntities(), (type) => type);
+      if (linesA.join(';') !== linesB.join(';')) return at('entities', `cc3d ${linesA.join(' ')} epoxy ${linesB.join(' ')}`);
     }
     return null;
   }
