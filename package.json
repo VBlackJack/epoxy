@@ -25,6 +25,7 @@
     "forge:sokoban": "vitest run --config vitest.report.config.ts tools/sokobanForge.report.ts",
     "import:sokoban": "vitest run --config vitest.report.config.ts tools/sokobanImport.report.ts",
     "import:cc2": "vitest run --config vitest.report.config.ts tools/cc2Import.report.ts",
+    "report:cc2replay": "vitest run --config vitest.report.config.ts tools/cc2Replay.report.ts",
     "import:diggy": "vitest run --config vitest.report.config.ts tools/diggyImport.report.ts",
     "annotate:pieces": "vitest run --config vitest.report.config.ts tools/annotatePieces.report.ts",
     "report:hub": "vitest run --config vitest.report.config.ts tools/hubAreaStudy.report.ts",
