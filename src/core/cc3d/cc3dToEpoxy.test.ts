@@ -303,6 +303,16 @@ const STRUCTURAL_CASES: StructuralCase[] = [
       expect(result.level.chipsRequired).toBe(0);
       expect(lostKeys(result)).toContain('laser_shooter_covered');
     }
+  },
+  {
+    key: 'gravel_with_reflector',
+    build: () => convertRows(['#######', '#@Gr..#', '#######'], { r: { mob: { kind: 'reflector', mirror: 'LU' } } }),
+    check: (result) => {
+      expect(result.level.terrain[CELL_Y][CELL_X]).toBe('gravel');
+      expect(result.level.entities.map((e) => e.type)).toEqual(['one_sided_mirror_sw']);
+      expect(result.report.approx.map((e) => e.key)).toContain('gravel_with_reflector');
+      expect(result.report.exact).toContain('gravel');
+    }
   }
 ];
 
