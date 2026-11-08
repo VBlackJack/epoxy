@@ -1099,6 +1099,13 @@ export interface TileDefinition {
   railSides?: Direction[];
   /** A swivel door: the tile the cell turns into after a quarter turn clockwise and counter-clockwise. */
   swivelTurns?: { cw: string; ccw: string };
+  /**
+   * 'cc2' on a swivel door that follows the Chip's Challenge 2 rule: its closed sides stop entering only, and leaving
+   * through a closed side pushes the door round (clockwise when the side clockwise of the exit is closed too, else
+   * counter-clockwise); leaving through an open side does not turn it. Absent: the Epoxy rule (closed sides stop both,
+   * the door turns behind the actor to close the side it came in by).
+   */
+  swivelRule?: 'cc2';
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
   /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */

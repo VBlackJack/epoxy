@@ -242,7 +242,7 @@ export const PACK_JSON_VERSION_V12_IDS: ReadonlySet<string> = new Set([
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 13 (see
  * PACK_JSON_VERSION_V13_IDS): the wired devices of the Chip's Challenge 2 family (purple wall and floor, toggle switch,
- * black button, gray area button, wired trap, wired flame jet). An older build would read them as floor, so it must
+ * black button, gray area button, wired trap, wired flame jet, Chip's Challenge 2 swivel doors). An older build would read them as floor, so it must
  * refuse the file.
  */
 export const PACK_JSON_VERSION_V13 = 13;
@@ -257,7 +257,11 @@ export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
   'button_gray_area',
   'trap_wired',
   'flame_jet_wired_off',
-  'flame_jet_wired_on'
+  'flame_jet_wired_on',
+  'swivel_door_cc2_ne',
+  'swivel_door_cc2_se',
+  'swivel_door_cc2_sw',
+  'swivel_door_cc2_nw'
 ]);
 
 /**

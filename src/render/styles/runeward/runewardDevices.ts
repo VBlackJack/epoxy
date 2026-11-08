@@ -778,7 +778,10 @@ const THIN_WALL_IDS: readonly string[] = [
   'thin_wall_nw', 'thin_wall_sw', 'thin_wall_ns', 'thin_wall_ew', 'thin_wall_nes', 'thin_wall_new',
   'thin_wall_nsw', 'thin_wall_esw', 'thin_wall_nesw'
 ];
-const SWIVEL_IDS: readonly string[] = ['swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw'];
+const SWIVEL_IDS: readonly string[] = [
+  'swivel_door_ne', 'swivel_door_se', 'swivel_door_sw', 'swivel_door_nw',
+  'swivel_door_cc2_ne', 'swivel_door_cc2_se', 'swivel_door_cc2_sw', 'swivel_door_cc2_nw'
+];
 const RAIL_IDS: readonly string[] = [
   'rail_ns', 'rail_ew', 'rail_ne', 'rail_se', 'rail_sw', 'rail_nw', 'rail_switch_a', 'rail_switch_b'
 ];

@@ -32,7 +32,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -1032,8 +1032,12 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
   const errors: string[] = [];
   for (const tile of Object.values(tiles)) {
     const turns = tile.swivelTurns;
-    if (turns === undefined) continue;
     const { id } = tile;
+    if (tile.swivelRule !== undefined && tile.swivelRule !== CC2_SWIVEL_RULE) errors.push(`${id}.swivelRule: expected '${CC2_SWIVEL_RULE}' or absent`);
+    if (turns === undefined) {
+      if (tile.swivelRule !== undefined) errors.push(`${id}.swivelRule: only a swivel door has a swivel rule`);
+      continue;
+    }
     if (!isRecord(turns) || typeof turns.cw !== 'string' || typeof turns.ccw !== 'string') {
       errors.push(`${id}.swivelTurns: expected { cw, ccw } tile ids`);
       continue;
@@ -1051,6 +1055,7 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
         continue;
       }
       if (target.swivelTurns === undefined) errors.push(`${id}.swivelTurns.${field}: ${target.id} is not a swivel door`);
+      else if (target.swivelRule !== tile.swivelRule) errors.push(`${id}.swivelTurns.${field}: ${target.id} must follow the same swivel rule as ${id}`);
       const expected = rotatedEdgesKey(tile.blockedEdges ?? [], clockwise);
       if ([...(target.blockedEdges ?? [])].sort().join('') !== expected) {
         errors.push(`${id}.swivelTurns.${field}: ${target.id} must close the sides ${id} closes turned a quarter turn`);

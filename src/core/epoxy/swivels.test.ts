@@ -233,7 +233,7 @@ describe('swivel doors: rotation table', () => {
       const w = world(engine);
       w.swivelEntry.set(cellKey(CENTER, CENTER), entry);
       w.beamDirty = false;
-      leaveSwivel(w, CENTER, CENTER);
+      leaveSwivel(w, CENTER, CENTER, 'N');
       expect(terrainAt(engine, CENTER, CENTER), `${from} entered by ${entry}`).toBe(to);
       expect(ConfigRegistry.getTile(to).blockedEdges, `${from} entered by ${entry}`).toContain(entry);
       expect(w.beamDirty).toBe(true);
@@ -243,7 +243,7 @@ describe('swivel doors: rotation table', () => {
 
   it('does not turn a door nobody entered', () => {
     const engine = load(room({ terrain: [[CENTER, CENTER, NE]] }));
-    leaveSwivel(world(engine), CENTER, CENTER);
+    leaveSwivel(world(engine), CENTER, CENTER, 'N');
     expect(terrainAt(engine, CENTER, CENTER)).toBe(NE);
   });
 });
@@ -409,7 +409,7 @@ describe('swivel doors: light and shots', () => {
     // An actor came in by the west side and leaves: the door turns to close it and the beam stops short.
     const w = world(engine);
     w.swivelEntry.set(cellKey(CENTER, CENTER), 'W');
-    leaveSwivel(w, CENTER, CENTER);
+    leaveSwivel(w, CENTER, CENTER, 'N');
     expect(terrainAt(engine, CENTER, CENTER)).toBe(NW);
     expect(beamKeys(engine)).not.toContain(`${CENTER},${CENTER}`);
   });

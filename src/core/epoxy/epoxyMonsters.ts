@@ -99,7 +99,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
-  if (!phases) leaveSwivel(w, entity.x, entity.y);
+  if (!phases) leaveSwivel(w, entity.x, entity.y, chosenDir);
   entity.x = nx;
   entity.y = ny;
   entity.dir = chosenDir;

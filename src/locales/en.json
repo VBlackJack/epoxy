@@ -4102,6 +4102,30 @@
         "label": "Blocks its north and west sides. After something passes through, it turns a quarter turn so the side it came in by closes."
       }
     },
+    "swivel_door_cc2_ne": {
+      "name": "Swivel Door CC2 (North-East)",
+      "desc": {
+        "label": "Blocks entering through its north and east sides. Leaving through a blocked side pushes it round a quarter turn (as in Chip's Challenge 2); leaving through an open side leaves it as it is."
+      }
+    },
+    "swivel_door_cc2_se": {
+      "name": "Swivel Door CC2 (South-East)",
+      "desc": {
+        "label": "Blocks entering through its south and east sides. Leaving through a blocked side pushes it round a quarter turn (as in Chip's Challenge 2); leaving through an open side leaves it as it is."
+      }
+    },
+    "swivel_door_cc2_sw": {
+      "name": "Swivel Door CC2 (South-West)",
+      "desc": {
+        "label": "Blocks entering through its south and west sides. Leaving through a blocked side pushes it round a quarter turn (as in Chip's Challenge 2); leaving through an open side leaves it as it is."
+      }
+    },
+    "swivel_door_cc2_nw": {
+      "name": "Swivel Door CC2 (North-West)",
+      "desc": {
+        "label": "Blocks entering through its north and west sides. Leaving through a blocked side pushes it round a quarter turn (as in Chip's Challenge 2); leaving through an open side leaves it as it is."
+      }
+    },
     "rail_ns": {
       "name": "Straight Rail (North-South)",
       "desc": {

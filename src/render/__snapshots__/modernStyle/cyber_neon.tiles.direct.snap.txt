@@ -305,6 +305,18 @@ tile swivel_door_sw closed=true shadowMask=128 hash=1 355b6c485b59879f
 tile swivel_door_nw closed=true isolated f399034442572ecc
 tile swivel_door_nw closed=true shadowMask=65 hash=1 df83b3ee59862d8f
 tile swivel_door_nw closed=true shadowMask=128 hash=1 64b65bb641a30b71
+tile swivel_door_cc2_ne closed=true isolated cdbab817dc77647a
+tile swivel_door_cc2_ne closed=true shadowMask=65 hash=1 36894bf0559a0e6b
+tile swivel_door_cc2_ne closed=true shadowMask=128 hash=1 b94c0eb65a3d0773
+tile swivel_door_cc2_se closed=true isolated 9134b20244724b6e
+tile swivel_door_cc2_se closed=true shadowMask=65 hash=1 9d799940a74664e6
+tile swivel_door_cc2_se closed=true shadowMask=128 hash=1 7e4b32c00015047f
+tile swivel_door_cc2_sw closed=true isolated 32be586c294c0324
+tile swivel_door_cc2_sw closed=true shadowMask=65 hash=1 dd21588b5b9a4a4d
+tile swivel_door_cc2_sw closed=true shadowMask=128 hash=1 1917099509d1e249
+tile swivel_door_cc2_nw closed=true isolated 3dc34a511db04038
+tile swivel_door_cc2_nw closed=true shadowMask=65 hash=1 afcbb83613d2293e
+tile swivel_door_cc2_nw closed=true shadowMask=128 hash=1 d6556ff7331ca875
 tile rail_ns closed=true isolated 74d7c8d7640ae892
 tile rail_ns closed=true shadowMask=65 hash=1 2a0697fe17df4bb4
 tile rail_ns closed=true shadowMask=128 hash=1 62e173c9e4cb97cc
