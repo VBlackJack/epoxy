@@ -19,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor: a Second Player tool places extra player starts (up to 7, facing from the direction control, R or Shift+R turns them); the Cell inspector picks each one's character (Chip or Melinda) or removes it; extras follow every edit (eraser, cut, paste, move, resize, undo) and the level settings show the player count. Epoxy rules only. Both locales.
 - Playing levels with several players: V (rebindable in the game config) or the new touch button swaps to the next player; the HUD shows the controlled character with its portrait, how many players remain and how many are out; a ring marks the controlled player; swaps are announced and replayed. Both locales.
 - Levels with several players: packs store them (format 13), the CC2 import places every player (CC2 multi-player levels are now approximate instead of lost), stored solutions can contain a swap (letter P), and the validator floods from every start, reports a player who cannot reach an exit, and warns about two starts on one cell. Both locales.
 - Chuck's Challenge 3D monsters as Epoxy monsters (Epoxy rules, pack format 13): bouncer, snappy, nibble, blinky and baby blinky, limpy, limpa, omni (leaves a slime trail), CC3D walker, green and red legs, screamer and baby screamer, each with its own movement and immunities; baby monsters and legs press plates. The CC3D conversion uses them instead of look-alike Epoxy monsters. Editor palette, drawings in every style, both locales.

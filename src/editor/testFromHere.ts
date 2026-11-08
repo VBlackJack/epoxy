@@ -92,13 +92,18 @@ export function startCellProblem(
 /**
  * A copy of the level that starts on `cell`, facing the way the saved start
  * faces. Nothing is shared with the source, so the editor's level is never
- * touched by the test.
+ * touched by the test. The other players of a level with several keep their starts, so the test plays the
+ * whole team; the one that stood on the chosen cell gives it up to the main player.
  */
 export function levelStartingAt(level: CompiledLevel, cell: GridCell): CompiledLevel {
   const copy = structuredClone(level);
   copy.playerStart = { x: cell.x, y: cell.y, dir: level.playerStart.dir };
   // The chosen cell is a start of its own, so an imported level without one becomes playable from there
   delete copy.missingStart;
+  if (copy.extraPlayers) {
+    copy.extraPlayers = copy.extraPlayers.filter((p) => p.x !== cell.x || p.y !== cell.y);
+    if (copy.extraPlayers.length === 0) delete copy.extraPlayers;
+  }
   if (copy.cc3d) {
     const dir = level.cc3d?.player.dir;
     copy.cc3d.player = dir === undefined ? { x: cell.x, y: cell.y } : { x: cell.x, y: cell.y, dir };

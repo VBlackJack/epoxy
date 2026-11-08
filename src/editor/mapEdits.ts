@@ -27,6 +27,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
+import { extraPlayerAt, removeExtraPlayersWhere, replaceExtraPlayers, translateExtraPlayers } from './editorExtraPlayers';
 import { removeRailTracksWhere, replaceRailTracks, translateRailTracks } from './editorRailTracks';
 import { defaultRailTrackCell } from './railTrackEdits';
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
@@ -97,6 +98,8 @@ export interface ResizeReport {
   droppedUnderlays: number;
   /** True when the player start had to be moved to stay inside the new map. */
   playerStartMoved: boolean;
+  /** Starts of other players that lost their cell: cropped away, turned to wall by the new border, or taken by the moved main start; absent from a report that dropped none. */
+  droppedExtraPlayers?: number;
   /** True when the outer ring of the new map was set to wall. */
   borderKept: boolean;
 }
@@ -252,10 +255,11 @@ export function paintEntity(source: EditorMap, x: number, y: number, type: strin
   return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false, ...(synced ? { clonerTemplates: [synced] } : {}) };
 }
 
-/** Moves the player start. */
+/** Moves the player start. A cell that holds the start of another player is refused: two starts never share a cell. */
 export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: Direction): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
   if (!inGrid(source, x, y)) return unchanged(source);
+  if (extraPlayerAt(source, x, y)) return unchanged(source);
   const start = source.playerStart;
   if (start.x === x && start.y === y && start.dir === dir) return unchanged(source);
   const map = cloneMap(source);
@@ -265,8 +269,8 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
 }
 
 /**
- * Erases a cell: floor terrain, no item, no entity, no link, no thin wall, no hidden terrain. The player start
- * is never erased; when it sits on the cell the result reports `playerStartKept`.
+ * Erases a cell: floor terrain, no item, no entity, no link, no thin wall, no hidden terrain, no other player's start.
+ * The main player start is never erased; when it sits on the cell the result reports `playerStartKept`.
  */
 export function eraseCell(source: EditorMap, x: number, y: number): MapEditResult {
   if (source.cc3d) return unchanged(source); // a CC3D map is edited through cc3dEdits only
@@ -276,6 +280,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
     source.terrain[y][x] === FLOOR_TILE_ID &&
     source.items[y][x] === null &&
     !source.entities.some((e) => e.x === x && e.y === y) &&
+    extraPlayerAt(source, x, y) === undefined &&
     edgesAt(source, x, y).length === 0 &&
     underlayAt(source, x, y) === undefined &&
     !source.trapLinks.some((l) => (l.buttonX === x && l.buttonY === y) || (l.trapX === x && l.trapY === y)) &&
@@ -290,6 +295,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
   removeEdgesWhere(map, (ex, ey) => ex === x && ey === y);
   const removedUnderlays = removeUnderlaysWhere(map, (ux, uy) => ux === x && uy === y);
   removeRailTracksWhere(map, (rx, ry) => rx === x && ry === y);
+  removeExtraPlayersWhere(map, (px, py) => px === x && py === y);
   const removedLinks = dropLinksAt(map, x, y);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept };
 }
@@ -838,6 +844,7 @@ export function resizeMap(
   const droppedSignalLinks = (source.signalLinks?.length ?? 0) - signalLinks.length;
   if (droppedSignalLinks > 0) report.droppedSignalLinks = droppedSignalLinks;
 
+  const extraPlayers = translateExtraPlayers(source.extraPlayers ?? [], dx, dy, newWidth, newHeight).filter((p) => alive(p.x, p.y));
   const kept = translateEdges(source.cellEdges ?? [], dx, dy, newWidth, newHeight).filter((e) => alive(e.x, e.y));
   report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
 
@@ -851,6 +858,10 @@ export function resizeMap(
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
   // The track cells move with their cells; the editor does not edit them.
   replaceRailTracks(resized, translateRailTracks(source.railTracks ?? [], dx, dy, newWidth, newHeight).filter((t) => alive(t.x, t.y)));
+  // The other players move with their cells; the main start, kept inside the new map, may take the cell of one of them.
+  replaceExtraPlayers(resized, extraPlayers);
+  const droppedExtraPlayers = (source.extraPlayers?.length ?? 0) - (resized.extraPlayers?.length ?? 0);
+  if (droppedExtraPlayers > 0) report.droppedExtraPlayers = droppedExtraPlayers;
   return {
     map: resized,
     width: newWidth,
