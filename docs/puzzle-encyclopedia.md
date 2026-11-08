@@ -620,3 +620,10 @@ To build a full 15x15 to 25x25 sanctuary level by chaining archetypes from this 
 1. **Hub-and-Wings Layout**: Place a central sanctuary hall containing the final vault gate (`hold_door_*_closed`, `laser_gate_*_closed`, or `socket` + `exit`), flanked by 2 to 4 wing chambers that each house one archetype (`boulder_sluice`, `grappling_alcove`, `prism_slalom`, `rail_switchyard`, `tank_convoy`).
 2. **Tool Progression Chain**: Place `boots_pull`, `pocket_gate`, `hurl_stone`, or `charge` as the reward of an early wing, unlocking recessed boulders, remote switches, or barricades in subsequent wings.
 3. **Procedural Sanctuary Pieces (`public/configs/motifs.json`)**: 10 Tier-5 `sanctuary_*` pieces (`sanctuary_sluice_double_trench`, `sanctuary_alchemy_fire_water_sluice`, `sanctuary_counterweight_trap_bridge`, `sanctuary_glacier_corner_sluice`, `sanctuary_conveyor_sluice`, `sanctuary_portal_ferry_sluice`, `sanctuary_toggle_parity_sluice`, `sanctuary_thief_fire_sluice`, `sanctuary_tank_reversal_bridge`, `sanctuary_trap_release_sluice`) bring these sanctuary mechanisms directly into procedural packs and Endless mode.
+
+
+---
+
+## 13. Mechanisms Reference
+
+The mechanisms added after these archetypes (Chip's Challenge 2 track cells, canopy, chain pushing, dynamite, logic gates and ports, new monsters, mirror players and several players; Chuck's Challenge 3D fish gate, teleporters and monsters; wired devices) are described for level authors, with how to place and configure each in the editor, in the [Mechanisms Reference](./mechanisms.md) ([version française](./fr/mechanisms.md)). They are Epoxy-rules mechanisms stored with pack format 13.

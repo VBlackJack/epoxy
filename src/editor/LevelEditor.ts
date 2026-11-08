@@ -206,6 +206,7 @@ import type { WirePortRoles } from './signalPortRoles';
 import { swapGatePorts } from './signalPortEdits';
 import { datLinkCapNotice } from './datLinkCap';
 import {
+  AUTHORING_HELP_ROWS,
   CC3D_MECHANISM_HELP_ROWS,
   MECHANISM_HELP_ROWS,
   MECHANISMS_HELP_CC3D_TOP_LAYER_KEY,
@@ -5065,6 +5066,20 @@ export class LevelEditor {
       how.textContent = ` ${t(row.howKey, row.params)}${unlinked}`;
       item.append(name, how);
       list.appendChild(item);
+    }
+    // Track cells, gate ports, chain push, canopy and several players exist under Epoxy rules only.
+    if (!lynx) {
+      for (const row of AUTHORING_HELP_ROWS) {
+        const item = document.createElement('li');
+        item.dataset.authoring = row.id;
+        const name = document.createElement('strong');
+        name.className = MECHANISMS_HELP_NAME_CLASS;
+        name.textContent = t(row.nameKey);
+        const how = document.createElement('span');
+        how.textContent = ` ${t(row.howKey)}`;
+        item.append(name, how);
+        list.appendChild(item);
+      }
     }
     if (keys) keys.textContent = t(MECHANISMS_HELP_KEYS_KEY);
     if (lynxLine) lynxLine.textContent = t(MECHANISMS_HELP_LYNX_KEY);

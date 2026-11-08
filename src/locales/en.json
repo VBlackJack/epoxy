@@ -2434,6 +2434,28 @@
         "lynx": {
           "label": "Lynx levels: only trap and clone links exist, one per button; a brown or red button with no link does nothing, and its trap or clone machine stays shut."
         },
+        "authoring": {
+          "track": {
+            "name": "Track cells",
+            "label": "Pick a track cell in the Rails group. The Cell section toggles its six segments and picks the open segment of its switch; Shift+R turns the tracks a quarter turn. Something enters only through a side a segment opens and leaves along a segment that joins its entry side."
+          },
+          "ports": {
+            "name": "Gate ports",
+            "label": "A data latch takes data and clock links, a counter takes count up and count down links. The Connections rows name each link's role and Swap inputs or Swap outputs exchanges them. The validator warns about a data latch with no clock or data."
+          },
+          "chain": {
+            "name": "Chain push",
+            "label": "Nothing to place: an ice block pushes ice and arrow blocks, an arrow block pushes dirt, ice and arrow blocks, so a line moves in one push. A wall, the map edge or a sliding block ahead refuses the whole push."
+          },
+          "canopy": {
+            "name": "Canopy",
+            "label": "Use the Canopy brush in the Terrain tab: click toggles a cell, a drag repeats the first cell's choice, the eraser clears it, and thin walls are kept. It stops bugs and rovers."
+          },
+          "players": {
+            "name": "Several players",
+            "label": "Use the Second Player tool to place up to 7 more starts; pick each one's character or remove it in the Cell section, and turn it with R or Shift+R. One player is controlled at a time and V swaps to the next; each keeps its own keys and tools, chips are shared, and every player must reach an exit."
+          }
+        },
         "cc3d": {
           "trap": {
             "name": "Trap control and trap",
