@@ -63,9 +63,11 @@ import {
   KEY_NO_SIGN_BONUS,
   KEY_NO_SIGN_EMPTY,
   KEY_NO_SIGN_ITEM,
+  KEY_NO_SIGN_NO_EFFECT,
   NO_SIGN_BLOCKED_TERRAIN,
   NO_SIGN_FORBID_MAP,
   NO_SIGN_INERT_ITEMS,
+  NO_SIGN_NEVER_CARRIED_ITEMS,
   TERRAIN_MAP,
   UNKNOWN_ID,
   UNKNOWN_KEY,
@@ -457,7 +459,10 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           itemId = null;
           keys.add(forbid.key);
         } else if (itemId === null) keys.add(KEY_NO_SIGN_EMPTY);
-        else if (
+        else if (NO_SIGN_BLOCKED_TERRAIN.has(terrainId) || NO_SIGN_NEVER_CARRIED_ITEMS.has(itemId)) {
+          // A wall stops everyone and no player carries a chip or a bomb: the sign bars nobody, so it is dropped.
+          keys.add(KEY_NO_SIGN_NO_EFFECT);
+        } else if (
           NO_SIGN_ITEM_IDS.includes(itemId) &&
           !NO_SIGN_BLOCKED_TERRAIN.has(terrainId) &&
           !terrainId.startsWith(CC2_ID_PREFIX)

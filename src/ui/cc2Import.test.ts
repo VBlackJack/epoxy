@@ -16,7 +16,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PACK_JSON_VERSION_V12 } from '../config/constants';
-import { c2mFileBytes, makeMap, player, put } from '../formats/cc2TestMaps';
+import { c2mFileBytes, makeMap, modTile, player, put } from '../formats/cc2TestMaps';
 import { parseC2gScript } from '../formats/C2gScript';
 import { serializePack } from '../packs/packJson';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -35,9 +35,9 @@ import type { Cc2ImportFile } from './cc2Import';
 
 const MAX_BYTES = 1 << 20;
 /** A no-sign over a wall has no Epoxy equivalent, so a level that holds one keeps the cell and loses the key. */
-const NO_SIGN_CODE = 0x7f;
-const NO_SIGN_OVER_CODE = 0x26;
-const WALL_CODE = 0x02;
+/** A logic gate with a mode the importer does not know: it keeps a placeholder and loses the key. */
+const UNKNOWN_GATE_CODE = 0x5c;
+const UNKNOWN_GATE_MODE = 0x44;
 const PURPLE_WALL = 0x73;
 const FORMAT = (bytes: number): string => String(bytes);
 
@@ -58,7 +58,7 @@ function scriptFile(path: string, text: string): Cc2ImportFile {
 
 /** A level whose title tells which file it came from. */
 function levelFile(path: string, title: string, broken = false): Cc2ImportFile {
-  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, { code: NO_SIGN_CODE }, { code: NO_SIGN_OVER_CODE }, { code: WALL_CODE })] : [])]);
+  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, modTile(UNKNOWN_GATE_CODE, UNKNOWN_GATE_MODE))] : [])]);
   return fileOf(path, c2mFileBytes(map, title));
 }
 
@@ -158,7 +158,7 @@ describe('building the pack', () => {
     expect(result.levels.map((l) => l.number)).toEqual([1, 2, 3]);
     expect(result.levels.map((l) => l.cc2?.file)).toEqual(['b.c2m', 'a.c2m', 'c.c2m']);
     expect(result.summary).toMatchObject({ levelCount: 3, exact: 2, lost: 1, skipped: 0, appended: 1 });
-    expect(result.summary.lostKeys).toEqual(['no_sign']);
+    expect(result.summary.lostKeys).toEqual(['unknown']);
     expect(result.sources).toHaveLength(3);
   });
 

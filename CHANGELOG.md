@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- CC2 import: a no-sign over the railroad sign plays as a new item-layer sign; a no-sign on a wall, a chip or a bomb is dropped (it could not stop anyone: chips and bombs are never held, a wall blocks anyway). No official or community CC2 level is lost any more.
 - Validator: levels converted from Chuck's Challenge 3D no longer get the "socket bypass" error, since there the exit takes no chips and a socket only closes a way; on the 769 community levels the error count falls from 125 to 0. Native levels keep the check.
 - Validator and hints follow CC2 railroad tracks: the reach walk enters a track cell only through an open side and leaves only along a segment joining the entry side (any segment may be the active one, and a reachable railroad sign opens every track), and hints no longer plan steps the tracks refuse. No-signs stay passable for the validator, since the item can be set down.
 - CC3D conversion coverage is now measured: differential tests play the same scenario on the CC3D engine and on the converted Epoxy level, and promote bomb, plain gravel, trap, trap control, clone machine and switch, and the blue golem control to exact; every other approximate element now names the measured differences. Gravel next to a reflector is its own approximate key.

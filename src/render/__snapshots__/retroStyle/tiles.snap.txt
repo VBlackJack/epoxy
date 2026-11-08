@@ -1158,6 +1158,11 @@ tile theme=cyber_neon id=teleport_turning d1ea095bec548e69
 tile theme=arctic_lab id=teleport_turning bdf7d4185795aba7
 tile theme=magma_core id=teleport_turning e701dcc9e1b80108
 tile theme=lynx_lcd id=teleport_turning 2e9d32536fdf6769
+tile theme=default id=no_sign_railroad_sign d262fd2c0def2cd6
+tile theme=cyber_neon id=no_sign_railroad_sign d02678f80d060636
+tile theme=arctic_lab id=no_sign_railroad_sign 50915daebf97b004
+tile theme=magma_core id=no_sign_railroad_sign 750b042407e6d30a
+tile theme=lynx_lcd id=no_sign_railroad_sign 7fda5dbc487f0e88
 wall theme=default masks 588c602b4a574bd7
 wall theme=cyber_neon masks 56fce8a2126ac0b7
 wall theme=arctic_lab masks 01bf9f425febfdc0

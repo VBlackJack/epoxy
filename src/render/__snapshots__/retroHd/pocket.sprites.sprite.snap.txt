@@ -56,6 +56,7 @@ item no_sign_lightning_bolt tick=3 43a6012f72909dfb
 item dynamite tick=3 160091e2c634d462
 item dynamite_lit tick=3 8ff523d3068438f1
 item no_sign_dynamite tick=3 b4ec51859d502f8b
+item no_sign_railroad_sign tick=3 f7d9ec336d82c80d
 entity dirt_block dir=N tick=3 eaf86d1f9bd8fe68
 entity dirt_block dir=E tick=3 01c0a4eff1f68218
 entity dirt_block dir=S tick=3 f49a202bbe0fa6d5
@@ -334,6 +335,7 @@ item no_sign_lightning_bolt tick=13 6f00b878dd4c6568
 item dynamite tick=13 454e6a4326ca3094
 item dynamite_lit tick=13 8a275e1f60575806
 item no_sign_dynamite tick=13 f2f45e331db8a70f
+item no_sign_railroad_sign tick=13 30d5ce84d9295de4
 entity dirt_block dir=N tick=13 9437fc6d3dd78f5d
 entity dirt_block dir=E tick=13 7fa0fa1e7099cdb8
 entity dirt_block dir=S tick=13 3ec72e89443b295d

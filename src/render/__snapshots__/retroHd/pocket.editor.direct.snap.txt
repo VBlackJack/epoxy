@@ -462,6 +462,8 @@ editor tile dynamite_lit closed=true bd4513a48de4f94c
 editor tile dynamite_lit closed=false 3ec6ced85b990bbd
 editor tile no_sign_dynamite closed=true 039d6b8b00716dca
 editor tile no_sign_dynamite closed=false b50a2d4b22ac349d
+editor tile no_sign_railroad_sign closed=true 51f0e56cccab3d4a
+editor tile no_sign_railroad_sign closed=false 60f776a7365df74d
 editor item over floor key_red 9d52f7dda39357fb
 editor item over floor key_blue 030af7dfbb7f1eba
 editor item over floor key_yellow 104a9731d101ec34
@@ -520,6 +522,7 @@ editor item over floor no_sign_lightning_bolt 2379ed4af946f7be
 editor item over floor dynamite fa85840da9c06c91
 editor item over floor dynamite_lit 660c92946594a23b
 editor item over floor no_sign_dynamite 57f3948c899ba8fe
+editor item over floor no_sign_railroad_sign 228e69dbffb48582
 editor entity over floor dirt_block 424050c09e8a0007
 editor entity over floor arrow_block_one f3c1551acfe4f27c
 editor entity over floor arrow_block_line e1e7bcbbe49ec576

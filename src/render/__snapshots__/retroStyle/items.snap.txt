@@ -288,6 +288,11 @@ item theme=cyber_neon id=no_sign_dynamite a66d8d3c5f1e022c
 item theme=arctic_lab id=no_sign_dynamite 59f4afade800fa35
 item theme=magma_core id=no_sign_dynamite 774c88f7456626d8
 item theme=lynx_lcd id=no_sign_dynamite 7d589796d77db778
+item theme=default id=no_sign_railroad_sign 8c541e7757984e25
+item theme=cyber_neon id=no_sign_railroad_sign 03b06ab631233185
+item theme=arctic_lab id=no_sign_railroad_sign 50ebf9b17c895b7f
+item theme=magma_core id=no_sign_railroad_sign 6328a6550bab4b77
+item theme=lynx_lcd id=no_sign_railroad_sign bbd2df05342e223f
 label theme=default text=10 15b0080dbd9a4fa8
 label theme=cyber_neon text=10 68afb3b3076d2abc
 label theme=arctic_lab text=10 1dc98bf0e0d05135

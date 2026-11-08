@@ -4684,6 +4684,12 @@
         "label": "No-sign for the item \"Lightning Bolt\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
       }
     },
+    "no_sign_railroad_sign": {
+      "name": "No Sign: Railroad Sign",
+      "desc": {
+        "label": "No-sign for the item \"Railroad Sign\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
     "door_red": {
       "name": "Red Door"
     },

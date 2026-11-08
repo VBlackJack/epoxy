@@ -40,7 +40,7 @@ export const NO_SIGN_ITEM_PREFIX = 'no_sign_';
 /**
  * The items a player can carry, hence the items a no-sign can name (one `no_sign_<item>` tile each, in the item layer):
  * the four keys, every pair of boots and boot-like item (the steel foil too), the blast charge, the dynamite, the pocket gate, the hurl stone,
- * the toll token, the bribe and the lightning bolt.
+ * the toll token, the bribe, the lightning bolt and the railroad sign.
  */
 export const NO_SIGN_ITEM_IDS: readonly string[] = [
   'key_red',
@@ -64,7 +64,8 @@ export const NO_SIGN_ITEM_IDS: readonly string[] = [
   'toll_token',
   'steel_foil',
   'bribe',
-  'lightning_bolt'
+  'lightning_bolt',
+  'railroad_sign'
 ];
 
 /** Item id of the Chip's Challenge 2 steel foil: boots that turn a bumped wall into a steel wall. */

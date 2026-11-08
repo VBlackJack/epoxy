@@ -58,6 +58,8 @@ const NO_SIGN_ITEM_REASON =
   'Epoxy plays a no-sign over a carried item as a sign on the item layer: the item is not placed so it cannot be picked up, a player carrying it cannot enter the cell, and the terrain under it keeps working. Blocks carry nothing, so they pass; monsters do not enter a cell that holds an item, as in CC2. The bar follows Lexy\'s Labyrinth (no_sign in tiletypes.js) [unverified against CC2 itself].';
 const NO_SIGN_BONUS_REASON =
   'A no-sign over a bonus flag, a stopwatch or the toggle clock bars nobody, since no player ever carries one: Epoxy drops the item so it cannot be picked up, as the sign does in Lexy\'s Labyrinth; the cell is then open to monsters (and, for the clock, to blocks), which an item would have kept out [unverified against CC2 itself].';
+const NO_SIGN_NO_EFFECT_REASON =
+  'A no-sign bars only an actor that already carries the item shown under it (Lexy\'s Labyrinth no_sign.blocks in tiletypes.js). On a wall everyone is stopped anyway, and no player carries a chip or a bomb (chips are counted, a bomb is not an item), so Epoxy drops the sign and keeps the wall, chip or bomb working as usual. Not modelled: a sign that would also stop the chip or bomb from being taken or set off, and a wall destroyed later that would uncover the sign [unverified against CC2 itself].';
 const EXTRA_CHIP_REASON =
   'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =
@@ -154,6 +156,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   no_sign_boots: NO_SIGN_REASON,
   // Epoxy: no_sign_<item> on the item layer, for every item a player can carry.
   no_sign_item: NO_SIGN_ITEM_REASON,
+  // Epoxy: the sign is dropped, the wall, chip or bomb stays.
+  no_sign_no_effect: NO_SIGN_NO_EFFECT_REASON,
   // Epoxy: the bonus or time item is dropped.
   no_sign_bonus: NO_SIGN_BONUS_REASON,
   // Epoxy: button_gray_area.
@@ -228,7 +232,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
 };
 
 const LOST_ENTRIES: Readonly<Record<string, string>> = {
-  no_sign: 'A no-sign over a chip, a bomb, a placeholder item (the railroad sign) or a wall has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
+  no_sign: 'A no-sign over an item that has no Epoxy sign tile (and is not a wall, chip or bomb) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };
 

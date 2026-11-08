@@ -210,16 +210,28 @@ describe('terrain, items and entities', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
-  it('keeps the cell and loses the key when a no-sign sits on a wall', () => {
-    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: 0x26 }, { code: WALL })]);
-    expect(level.terrain[0][1]).toBe('wall');
-    expect(coverage.lost).toEqual(['no_sign']);
+  it('drops a no-sign on a wall or a steel wall and keeps the cell, approximately', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x7f }, { code: 0x26 }, { code: WALL }),
+      put(2, 0, { code: 0x7f }, { code: 0x26 }, { code: STEEL_WALL })
+    ]);
+    expect(level.terrain[0].slice(1, 3)).toEqual(['wall', 'steel_wall']);
+    expect(level.items[0].slice(1, 3)).toEqual(['key_red', 'key_red']);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['no_sign_no_effect']);
   });
 
-  it('loses a no-sign over an item that has no forbid tile', () => {
-    const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: 0x2a }, { code: FLOOR_CODE })]);
-    expect(level.terrain[0][1]).toBe('floor');
-    expect(coverage.lost).toEqual(['no_sign']);
+  it('drops a no-sign over a chip or a bomb, which no player carries, and keeps the item', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x7f }, { code: 0x2a }, { code: FLOOR_CODE }),
+      put(2, 0, { code: 0x7f }, { code: 0x40 }, { code: FLOOR_CODE }),
+      put(3, 0, { code: 0x7f }, { code: 0x84 }, { code: FLOOR_CODE }),
+      put(4, 0, { code: 0x7f }, { code: 0x83 }, { code: FLOOR_CODE })
+    ]);
+    expect(level.terrain[0].slice(1, 5)).toEqual(['floor', 'floor', 'floor', 'floor']);
+    expect(level.items[0].slice(1, 5)).toEqual(['chip', 'bomb', 'green_chip', 'green_bomb']);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['no_sign_no_effect']);
   });
 
   it('turns a no-sign over a key into a forbid tile with no item', () => {
@@ -284,7 +296,7 @@ describe('terrain, items and entities', () => {
     expect(coverage.approx).toEqual(expect.arrayContaining(['no_sign_item', 'no_sign_bonus']));
   });
 
-  it('drops a bonus item under a no-sign and loses a no-sign over a placeholder item', () => {
+  it('drops a bonus item under a no-sign and signs the lightning bolt and the railroad sign', () => {
     const bonus = convert([put(1, 0, { code: 0x7f }, { code: 0x7a }, { code: FLOOR_CODE })]);
     expect(bonus.level.items[0][1]).toBeNull();
     expect(bonus.coverage.lost).toEqual([]);
@@ -293,7 +305,9 @@ describe('terrain, items and entities', () => {
     expect(bolt.level.items[0][1]).toBe('no_sign_lightning_bolt');
     expect(bolt.coverage.approx).toContain('no_sign_item');
     const railroad = convert([put(1, 0, { code: 0x7f }, { code: 0x6f }, { code: FLOOR_CODE })]);
-    expect(railroad.coverage.lost).toContain('no_sign');
+    expect(railroad.level.items[0][1]).toBe('no_sign_railroad_sign');
+    expect(railroad.coverage.lost).toEqual([]);
+    expect(railroad.coverage.approx).toContain('no_sign_item');
   });
 
   it('plays an empty no-sign as the plain floor, exactly', () => {

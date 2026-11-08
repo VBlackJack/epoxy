@@ -174,8 +174,8 @@ describe('dynamite: configuration', () => {
     }
     expect(isEpoxyOnlyItemId(DYNAMITE)).toBe(true);
     const ids = Object.keys(ConfigRegistry.getTiles().tiles);
-    // The CC3D tiles (fish gate and the two teleporters of the CC3D exit orders) were appended after them.
-    expect(ids.slice(-6)).toEqual([DYNAMITE, LIT, 'no_sign_dynamite', 'fish_gate', 'teleport_forward', 'teleport_turning']);
+    // The CC3D tiles (fish gate and the two teleporters of the CC3D exit orders) were appended after them, then the no-sign of the railroad sign.
+    expect(ids.slice(-7)).toEqual([DYNAMITE, LIT, 'no_sign_dynamite', 'fish_gate', 'teleport_forward', 'teleport_turning', 'no_sign_railroad_sign']);
   });
 
   it('spares exactly the blast-proof wall, the socket and the logic gates among the terrain', () => {
