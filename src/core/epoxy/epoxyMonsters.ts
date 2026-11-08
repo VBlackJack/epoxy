@@ -46,10 +46,12 @@ import {
   EpoxyContext,
   EpoxyWorld,
   applyRelativeTurn,
+  consumeFishGate,
   getEntityAt,
   isCellClosedTrap,
   isEdgeBlocked,
   isInBounds,
+  isOpenFishGate,
   killPlayer,
   leaveCell,
   mapWidth,
@@ -235,6 +237,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree && destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
     entity.type = def.transmogrifiesTo;
   }
+
+  // The first monster into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does
+  // not judge it again on what shows, so neither does Epoxy. A monster that walks through solid tiles leaves it shut.
+  if (def?.passesSolidTiles !== true && isOpenFishGate(w, destTile)) consumeFishGate(ctx, nx, ny);
 
   notePulseArrival(w, nx, ny, entity);
 
@@ -461,7 +467,13 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
 
   // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
   const passesTile = def?.passesTiles?.includes(destTileId) === true || (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
-  if (!destTile.passableByMonster && !passesTile && !passesSolid && !(destTile.hazard === 'fire' && def?.immuneToFire)) {
+  if (
+    !destTile.passableByMonster &&
+    !passesTile &&
+    !passesSolid &&
+    !(destTile.hazard === 'fire' && def?.immuneToFire) &&
+    !isOpenFishGate(w, destTile)
+  ) {
     return false;
   }
   if (destTile.hazard === 'fire' && def?.avoidsFire) return false;

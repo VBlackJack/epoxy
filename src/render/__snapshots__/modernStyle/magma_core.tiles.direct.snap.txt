@@ -743,3 +743,12 @@ tile shot_trigger closed=true shadowMask=128 hash=1 1bdf3b3cfff5eb5b
 tile rail_junction closed=true isolated 66de26bb95c2c18f
 tile rail_junction closed=true shadowMask=65 hash=1 ee7ee13e17af1ffd
 tile rail_junction closed=true shadowMask=128 hash=1 c3c8355caab41cac
+tile fish_gate closed=true isolated 401e720867c4ca89
+tile fish_gate closed=true shadowMask=65 hash=1 bdcfebebcf5f45f3
+tile fish_gate closed=true shadowMask=128 hash=1 254a8b9c53b0e66c
+tile teleport_forward closed=true isolated a1122c81c37a51a0
+tile teleport_forward closed=true shadowMask=65 hash=1 9db5ed4972e19db0
+tile teleport_forward closed=true shadowMask=128 hash=1 369e5683aceb33f7
+tile teleport_turning closed=true isolated 20abc25d1498a15e
+tile teleport_turning closed=true shadowMask=65 hash=1 9ddeb91df9f2da7e
+tile teleport_turning closed=true shadowMask=128 hash=1 6309f58f83d97648

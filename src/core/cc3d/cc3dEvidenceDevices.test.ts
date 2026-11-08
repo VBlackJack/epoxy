@@ -207,12 +207,21 @@ describe('blue golem', () => {
     }
   });
 
-  it('differs at an open blue gate and at an appearing wall: CC3D golems open them, Epoxy ones are refused', () => {
-    for (const cells of ['.B..S.', '.B..Q.']) {
-      const t = playTimeline({ rows: corridor(cells), moves: '', glyphs: GLYPHS });
-      expect(t.sameFinal).toBe(false);
-      expect(t.cc3d.terrain.length).toBeGreaterThan(t.epoxy.terrain.length);
-    }
+  it('enters an open blue gate and clears it, as the Epoxy fish gate does', () => {
+    const t = playTimeline({ rows: corridor('.B..S.'), moves: '', glyphs: GLYPHS });
+    expect(t.sameFinal).toBe(true);
+    expect(t.cc3d.terrain.length).toBeGreaterThan(1);
+    expect(t.epoxy.terrain.length).toBeGreaterThan(1);
+    // The gate is floor at the end, in both engines.
+    expect(t.cc3d.terrain[0]).toContain('fish_gate');
+    expect(t.cc3d.final).not.toContain('fish_gate');
+    expect(t.epoxy.final).not.toContain('fish_gate');
+  });
+
+  it('differs at an appearing wall: CC3D golems open it, Epoxy ones are refused', () => {
+    const t = playTimeline({ rows: corridor('.B..Q.'), moves: '', glyphs: GLYPHS });
+    expect(t.sameFinal).toBe(false);
+    expect(t.cc3d.terrain.length).toBeGreaterThan(t.epoxy.terrain.length);
   });
 
   it('differs on contact: a CC3D golem stops next to the player, an Epoxy one steps onto his cell', () => {

@@ -64,6 +64,10 @@ const BRIBE_NOTE = { halfWidth: 0.13, halfHeight: 0.085, line: 0.025, coin: 0.03
 const DYNAMITE_STICKS = { count: 3, halfHeight: 0.1, width: 0.045, spacing: 0.07 } as const;
 /** The track inside a railroad sign badge: half length of the rails, their distance from the centre, the sleeper count and half length, and the line width, in tiles. */
 const RAIL_BADGE = { halfLength: 0.12, rail: 0.04, sleepers: 3, sleeperHalf: 0.075, line: 0.025 } as const;
+/** The fish inside a fish gate badge: half body length, half body height, tail reach and half tail height, and the line width, in tiles. */
+const FISH_BADGE = { halfBody: 0.085, halfHeight: 0.05, tailReach: 0.06, tailHalf: 0.045, line: 0.022 } as const;
+/** The arrows inside a teleporter badge: half length of the shaft, size of the head, length of the sideways leg of the turning arrow, and line width, in tiles. */
+const EXIT_ARROW = { halfShaft: 0.1, head: 0.055, sideways: 0.1, line: 0.03 } as const;
 /** The rivets of a steel wall: inset from the corner, radius, and the inset of the plate outline, in tiles. */
 const RIVETS = { inset: 0.17, radius: 0.055, plateInset: 0.09, line: 0.03 } as const;
 /** The plate of a gender sign: half width, half height, corner radius and line width, in tiles. */
@@ -292,6 +296,86 @@ export function paintRailBadge(ctx: CanvasRenderingContext2D, x: number, y: numb
     ctx.lineTo(at, cy + size * RAIL_BADGE.sleeperHalf);
   }
   ctx.stroke();
+  ctx.restore();
+}
+
+/** A fish gate: the badge holds a small fish, swimming left, over the chip socket. */
+export function paintFishBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  const body = size * FISH_BADGE.halfBody;
+  const tail = size * FISH_BADGE.tailReach;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, FISH_BADGE.line);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.ellipse(cx - tail / 2, cy, body, size * FISH_BADGE.halfHeight, 0, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - tail / 2 + body * HALF, cy);
+  ctx.lineTo(cx - tail / 2 + body + tail, cy - size * FISH_BADGE.tailHalf);
+  ctx.lineTo(cx - tail / 2 + body + tail, cy + size * FISH_BADGE.tailHalf);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The head of an exit arrow at (tipX, tipY), pointing up when `rightward` is false and right when it is true. */
+function paintExitArrowHead(ctx: CanvasRenderingContext2D, tipX: number, tipY: number, head: number, rightward: boolean): void {
+  ctx.beginPath();
+  if (rightward) {
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - head, tipY - head);
+    ctx.lineTo(tipX - head, tipY + head);
+  } else {
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - head, tipY + head);
+    ctx.lineTo(tipX + head, tipY + head);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A forward teleporter: the badge holds an arrow that points straight ahead, the only way out. */
+export function paintForwardBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  const shaft = size * EXIT_ARROW.halfShaft;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, EXIT_ARROW.line);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + shaft);
+  ctx.lineTo(cx, cy - shaft);
+  ctx.stroke();
+  paintExitArrowHead(ctx, cx, cy - shaft, size * EXIT_ARROW.head, false);
+  ctx.restore();
+}
+
+/** A turning teleporter: the badge holds an arrow that goes ahead, then bends to the side, for the exits tried in turn. */
+export function paintTurningBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  const shaft = size * EXIT_ARROW.halfShaft;
+  const side = size * EXIT_ARROW.sideways;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, EXIT_ARROW.line);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - side / 2, cy + shaft);
+  ctx.lineTo(cx - side / 2, cy - shaft / 2);
+  ctx.lineTo(cx + side / 2, cy - shaft / 2);
+  ctx.stroke();
+  paintExitArrowHead(ctx, cx + side / 2, cy - shaft / 2, size * EXIT_ARROW.head, true);
   ctx.restore();
 }
 

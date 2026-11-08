@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -116,6 +116,11 @@ export interface EpoxyWorld {
   hasForceCycle: boolean;
   /** True when the level places a toggle clock; fixed for the level. Only such a level counts paused ticks. */
   hasToggleClock: boolean;
+  /**
+   * The character the player is now: the level's character at load, switched Chip <-> Melinda each time the player
+   * arrives on a transmogrifier (Lexy's Labyrinth `transmogrifier.on_arrive` turns `player` into `player2` and back).
+   */
+  playerCharacter: PlayerCharacter;
   /** True while a toggle clock holds the level timer; false at load. */
   timerPaused: boolean;
   /** Ticks the level timer stood paused so far; they do not count toward the time spent. 0 at load. */
@@ -222,6 +227,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasDynamite: false,
     hasForceCycle: false,
     hasToggleClock: false,
+    playerCharacter: DEFAULT_PLAYER_CHARACTER,
     timerPaused: false,
     pausedTicks: 0,
     chipsRemaining: 0,
@@ -288,6 +294,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasDynamite = w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
   w.hasForceCycle = false;
   w.hasToggleClock = false;
+  w.playerCharacter = w.level.character ?? DEFAULT_PLAYER_CHARACTER;
   w.timerPaused = false;
   w.pausedTicks = 0;
   w.trapLinksByTrap.clear();
@@ -470,6 +477,25 @@ export function takeRevealedTerrain(w: EpoxyWorld, x: number, y: number): string
   return revealed;
 }
 
+/** Whether a tile is a fish gate that lets every mover in now: no chip is left to collect. */
+export function isOpenFishGate(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return tile.fishGate === true && w.chipsRemaining <= 0;
+}
+
+/**
+ * A block or monster has entered an open fish gate: the gate turns into what it hid, or into its unlock terrain, the
+ * way it does under the player (same sound and visual). The caller judges the arrival on what shows afterwards.
+ * Does nothing on any other cell.
+ */
+export function consumeFishGate(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (!isOpenFishGate(w, tile)) return;
+  w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
+  AudioManager.playSfx('socket');
+  ctx.emitVisual('unlock', x, y, 'yellow');
+}
+
 /** The open (true) or closed (false) form of a hold door of the colour in plain sight, undefined when none is. */
 function visibleHoldDoorForm(w: EpoxyWorld, color: ChannelColor): boolean | undefined {
   for (const door of w.holdDoors) {
@@ -555,9 +581,9 @@ function barsCarriedItem(w: EpoxyWorld, itemId: string | null | undefined): bool
   return barred !== undefined && holdsItem(w, barred);
 }
 
-/** The character the level is played with: Chip unless the level names another. */
+/** The character the player is now: the level's character (Chip unless the level names another) until a transmogrifier switches it. */
 export function playerCharacterOf(w: EpoxyWorld): PlayerCharacter {
-  return w.level.character ?? DEFAULT_PLAYER_CHARACTER;
+  return w.playerCharacter;
 }
 
 /**

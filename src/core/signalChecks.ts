@@ -35,6 +35,13 @@ import type { ChannelColor, CompiledLevel, GridPoint, SignalLinkSpec, SignalNode
 
 type Params = Record<string, string | number>;
 
+/** The input ports of the gates with ordered ports: a data latch reads data on the first and its clock on the second; a counter counts up on the first. */
+const SIGNAL_DATA_PORT = 0;
+const SIGNAL_CLOCK_PORT = 1;
+const SIGNAL_COUNT_UP_PORT = 0;
+/** The output port of a counter that carries the underflow level. */
+const SIGNAL_UNDERFLOW_PORT = 1;
+
 /** True when the level is played by the Epoxy rules, the only ones with signals. */
 function isEpoxyLevel(level: CompiledLevel): boolean {
   return level.ruleset !== 'lynx' && level.ruleset !== 'cc3d';
@@ -362,9 +369,23 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
     inputs.set(link.to, (inputs.get(link.to) ?? 0) + 1);
   }
 
+  // The input ports each gate is wired on (a wire with no port text enters the first input).
+  const inputPorts = new Map<number, Set<number>>();
+  for (const link of spec.links) {
+    const ports = inputPorts.get(link.to) ?? new Set<number>();
+    ports.add(parseSignalPort(link.port).in ?? 0);
+    inputPorts.set(link.to, ports);
+  }
+
+  // The counters whose underflow output (the second output) has a wire.
+  const underflowUsed = new Set<number>(spec.links.filter((link) => parseSignalPort(link.port).out === SIGNAL_UNDERFLOW_PORT).map((link) => link.from));
+
   const multiSinks: GridPoint[] = [];
   const notBad: GridPoint[] = [];
   const noInput: GridPoint[] = [];
+  const latchNoClock: GridPoint[] = [];
+  const latchNoData: GridPoint[] = [];
+  const counterNoUp: GridPoint[] = [];
   const sinkCellsByColor = new Map<ChannelColor, GridPoint[]>();
   for (const node of spec.nodes) {
     const count = inputs.get(node.cell) ?? 0;
@@ -375,6 +396,17 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
       if (count !== 1) notBad.push(cellOf(node.cell));
     } else if (node.kind !== 'source' && count === 0) {
       noInput.push(cellOf(node.cell));
+    } else if (node.kind === 'dlatch' || node.kind === 'counter') {
+      // A gate with ordered ports and some input, but not the one that makes it work: a data latch needs data (first
+      // input) and a clock (second); a counter that is only wired to count down never counts up.
+      const ports = inputPorts.get(node.cell) ?? new Set<number>();
+      if (node.kind === 'dlatch') {
+        if (!ports.has(SIGNAL_CLOCK_PORT)) latchNoClock.push(cellOf(node.cell));
+        if (!ports.has(SIGNAL_DATA_PORT)) latchNoData.push(cellOf(node.cell));
+      } else if (!ports.has(SIGNAL_COUNT_UP_PORT) && !underflowUsed.has(node.cell)) {
+        // Counting down only is a valid countdown when the underflow output (out1) is wired; unported outputs are the overflow, which never fires then.
+        counterNoUp.push(cellOf(node.cell));
+      }
     }
   }
   if (multiSinks.length > 0) {
@@ -395,6 +427,16 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
   }
   if (noInput.length > 0) {
     issues.push({ severity: 'error', i18nKey: 'validator.issues.signal_gate_no_input.label', params: located(noInput) });
+  }
+
+  if (latchNoClock.length > 0) {
+    issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_dlatch_no_clock.label', params: located(latchNoClock) });
+  }
+  if (latchNoData.length > 0) {
+    issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_dlatch_no_data.label', params: located(latchNoData) });
+  }
+  if (counterNoUp.length > 0) {
+    issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_counter_no_up.label', params: located(counterNoUp) });
   }
 
   const network = buildSignalNetwork(spec.nodes, spec.links);

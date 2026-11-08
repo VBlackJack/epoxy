@@ -32,7 +32,8 @@ import {
   keepsLauncherLinks,
   mapHeightOf,
   mapWidthOf,
-  syncCloneTemplatesAt
+  syncCloneTemplatesAt,
+  addDefaultRailTracks
 } from './mapEdits';
 import { EditableRuleset, entityAvailability, tileAvailability } from './paletteAvailability';
 
@@ -761,6 +762,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
   const map = cloneMap(source);
   let droppedLinks = 0;
   let anyHidden = false;
+  const filledCells: Array<{ x: number; y: number }> = [];
   let borderSkipped = 0;
   let skipped = 0;
   const clonerTemplates: ClonerTemplateChange[] = [];
@@ -774,6 +776,7 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
         const previous = map.terrain[y][x];
         if (previous === brush.id) continue;
         map.terrain[y][x] = brush.id;
+        filledCells.push({ x, y });
         const hidden = hidesShotDevice(map, x, y);
         anyHidden ||= hidden;
         droppedLinks += dropLinksAt(map, x, y, keepsLauncherLinks(previous, brush.id) || hidden);
@@ -797,8 +800,9 @@ export function fillRect(source: EditorMap, rect: CellRect, brush: Brush, dir: D
     }
   }
   const droppedUnderlays = brush.kind === 'terrain' ? pruneUnderlays(map) : 0;
-  // A cell that stops being a track cell loses its tracks.
+  // A cell that stops being a track cell loses its tracks; a cell that becomes one starts with the default tracks.
   if (brush.kind === 'terrain' && map.railTracks) replaceRailTracks(map, map.railTracks);
+  if (brush.kind === 'terrain') addDefaultRailTracks(map, brush.id, filledCells);
   if (anyHidden) droppedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return {
     map,

@@ -1085,6 +1085,12 @@ export interface TileDefinition {
   transformsToOnStep?: string;
   revealsToOnTouch?: string;
   requiresAllChips?: boolean;
+  /**
+   * A fish gate (also needs requiresAllChips): once no chip is left, every mover may enter it, the player, monsters and
+   * blocks alike, and the first one to do so turns it into what it hid, or into its unlock terrain. Without the flag a
+   * chip socket admits the player only.
+   */
+  fishGate?: boolean;
   transformsToOnUnlock?: string;
   isLevelExit?: boolean;
   showsHint?: boolean;
@@ -1201,6 +1207,12 @@ export interface TileDefinition {
   isTeleporter?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
+  /**
+   * The sides a mover may leave this teleporter by, in order, counted from the way it was facing when it entered: only
+   * ahead, or ahead, right, left, back. Absent on a native teleporter, which keeps the player's own order (ahead, then
+   * north, east, south, west) and sends blocks and monsters ahead only.
+   */
+  teleportExitOrder?: TeleportExitOrder;
   /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
   portableTeleporter?: boolean;
   /**
@@ -1676,6 +1688,9 @@ export interface EntityPlacement {
  */
 export type WinRule = 'exit' | 'targets' | 'receivers';
 
+/** The exit orders a teleporter tile may name (see TileDefinition.teleportExitOrder). */
+export type TeleportExitOrder = 'forward_only' | 'forward_right_left_back';
+
 /** The character a level is played with (Epoxy ruleset only); absent on a level means Chip. */
 export type PlayerCharacter = 'chip' | 'melinda';
 
@@ -2097,6 +2112,8 @@ export interface UndoSnapshot {
   swivelEntry?: [number, Direction][];
   /** The state of the track cells: [cell index, active segment or -1 without a switch, side the last actor came in by]; written only on a level that has track cells. */
   railState?: [number, number, Direction][];
+  /** The player's character after a transmogrifier switched it; written only while it differs from the level's, absent otherwise. */
+  playerCharacter?: PlayerCharacter;
   /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
   timerPaused?: boolean;
   /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */

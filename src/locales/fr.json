@@ -1713,6 +1713,15 @@
       "signal_gate_no_input": {
         "label": "Erreur : une porte logique en ({x}, {y}) (au total : {count}) n'a aucun lien en entrée."
       },
+      "signal_dlatch_no_clock": {
+        "label": "Attention : un verrou de données en ({x}, {y}) (au total : {count}) n'a aucun lien d'horloge, il ne mémorise donc jamais sa donnée."
+      },
+      "signal_dlatch_no_data": {
+        "label": "Attention : un verrou de données en ({x}, {y}) (au total : {count}) a un lien d'horloge mais aucun lien de donnée, il ne peut donc mémoriser que l'état éteint."
+      },
+      "signal_counter_no_up": {
+        "label": "Attention : un compteur en ({x}, {y}) (au total : {count}) ne compte qu'en descendant mais sa sortie de dépassement bas ne mène nulle part, il ne peut donc rien faire."
+      },
       "signal_cycle": {
         "label": "Erreur : des liens de signal bouclent sur eux-mêmes en ({x}, {y}) (au total : {count} cases). Un signal ne peut pas boucler."
       },
@@ -1811,6 +1820,9 @@
       },
       "rail_switch_no_button": {
         "label": "Info : un aiguillage en ({x}, {y}) (au total : {count}) ne change jamais : le niveau ne contient pas de bouton vert."
+      },
+      "rail_track_empty": {
+        "label": "Avertissement : la cellule de rails en ({x}, {y}) n'a aucun segment de rails, personne ne peut donc y entrer."
       },
       "exit_on_receivers_level": {
         "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs."
@@ -1926,7 +1938,62 @@
     }
   },
   "editor": {
+    "rail_tracks": {
+      "heading": "Cellule de rails en ({x}, {y})",
+      "segments": {
+        "label": "Segments de rails"
+      },
+      "segment": {
+        "ne": {
+          "label": "Virage, du nord vers l'est"
+        },
+        "se": {
+          "label": "Virage, du sud vers l'est"
+        },
+        "sw": {
+          "label": "Virage, du sud vers l'ouest"
+        },
+        "nw": {
+          "label": "Virage, du nord vers l'ouest"
+        },
+        "ew": {
+          "label": "Droit, de l'est à l'ouest"
+        },
+        "ns": {
+          "label": "Droit, du nord au sud"
+        }
+      },
+      "empty": {
+        "note": "Cette cellule n'a aucun segment de rails : personne ne peut y entrer. Activez un segment."
+      },
+      "active": {
+        "legend": "Segment ouvert (aiguillage)",
+        "none": {
+          "label": "Pas d'aiguillage"
+        }
+      },
+      "clear": {
+        "action": "Effacer"
+      },
+      "rotate": {
+        "hint": "Appuyez sur Maj+R pour tourner les rails d'un quart de tour."
+      },
+      "status": {
+        "rotated": {"label": "Rails en ({x}, {y}) tournés d'un quart de tour."},
+        "segment_on": {"label": "Segment de rails activé en ({x}, {y}) : {segment}."},
+        "segment_off": {"label": "Segment de rails désactivé en ({x}, {y}) : {segment}."},
+        "switch": {"label": "Segment ouvert de l'aiguillage en ({x}, {y}) : {segment}."},
+        "switch_none": {"label": "La cellule de rails en ({x}, {y}) n'a pas d'aiguillage."},
+        "cleared": {"label": "Rails en ({x}, {y}) effacés."}
+      }
+    },
     "cell_speech": {
+      "port_input": {
+        "label": "entrée {role} depuis ({x}, {y})"
+      },
+      "port_output": {
+        "label": "sortie {role} vers ({x}, {y})"
+      },
       "list_separator": {
         "label": ", "
       },
@@ -1994,6 +2061,42 @@
         "w": {
           "label": "l'ouest"
         }
+      }
+    },
+    "signal_ports": {
+      "data": {
+        "label": "donnée",
+        "tag": "D"
+      },
+      "clock": {
+        "label": "horloge",
+        "tag": "H"
+      },
+      "count_up": {
+        "label": "comptage +",
+        "tag": "+"
+      },
+      "count_down": {
+        "label": "comptage -",
+        "tag": "-"
+      },
+      "overflow": {
+        "label": "dépassement haut",
+        "tag": "DH"
+      },
+      "underflow": {
+        "label": "dépassement bas",
+        "tag": "DB"
+      },
+      "both": {
+        "label": "{output} > {input}"
+      },
+      "swap": {
+        "action_input": "Échanger les entrées",
+        "action_output": "Échanger les sorties",
+        "aria_input": "Échanger les ports d'entrée de {name} ({x}, {y})",
+        "aria_output": "Échanger les ports de sortie de {name} ({x}, {y})",
+        "done": "Ports échangés sur {name} ({x}, {y})."
       }
     },
     "connections": {
@@ -3192,6 +3295,7 @@
           "level": "Niveau",
           "rules": "Règles",
           "issues": "Problèmes",
+          "cell": "Cellule",
           "size": "Taille",
           "generate": "Générer"
         }
@@ -3678,8 +3782,8 @@
         "label": "Epoxy tire la direction au hasard au lieu d'un cycle fixe."
       },
       "socket": {
-        "name": "Prise",
-        "label": "Les prises d'Epoxy ne réagissent qu'au joueur."
+        "name": "Prise bleue",
+        "label": "Epoxy joue la prise bleue comme sa porte des poissons : fermée tant qu'il reste une puce, puis ouverte au joueur, à un bloc ou à un monstre, et le premier qui entre la change en sol, comme dans CC3D."
       },
       "slime": {
         "name": "Gelée",
@@ -3695,11 +3799,11 @@
       },
       "teleport_blue": {
         "name": "Téléporteur bleu",
-        "label": "La cible (le téléporteur bleu précédent dans l'ordre de lecture) est la même, mais la sortie diffère : le joueur Epoxy sort d'abord dans sa direction, puis dans l'ordre fixe nord, est, sud, ouest, là où CC3D sort uniquement vers l'avant ; les blocs et les monstres d'Epoxy sortent uniquement vers l'avant."
+        "label": "Epoxy joue le téléporteur bleu comme son téléporteur avant : la cible est le téléporteur bleu précédent dans l'ordre de lecture, et la sortie du joueur, d'un bloc ou d'un monstre se fait uniquement vers l'avant, comme dans CC3D."
       },
       "teleport_red": {
         "name": "Téléporteur rouge",
-        "label": "La cible (le téléporteur rouge précédent dans l'ordre de lecture) est la même, mais la sortie diffère : le joueur Epoxy sort d'abord dans sa direction, puis dans l'ordre fixe nord, est, sud, ouest, là où CC3D essaie l'avant, la droite, la gauche, l'arrière ; les blocs et les monstres d'Epoxy sortent uniquement vers l'avant."
+        "label": "Epoxy joue le téléporteur rouge comme son téléporteur tournant : la cible est le téléporteur rouge précédent dans l'ordre de lecture, et la sortie du joueur, d'un bloc ou d'un monstre se fait vers l'avant, puis la droite, puis la gauche, puis l'arrière, comme dans CC3D."
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
@@ -4242,7 +4346,7 @@
     "transmogrifier": {
       "name": "Transmogrificateur",
       "desc": {
-        "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur)."
+        "label": "Change un monstre qui arrive dessus en son jumeau (scarabée et paramécie, planeur et boule de feu, traqueur et fuyard, balle rose et marcheur). Le joueur qui marche dessus passe de Chip à Melinda, et inversement."
       }
     },
     "turn_plate_cw": {
@@ -4768,6 +4872,24 @@
       "name": "Téléporteur Bleu",
       "desc": {
         "label": "Ne s'enchaîne qu'avec les téléporteurs bleus. Nécessite : un autre téléporteur bleu."
+      }
+    },
+    "fish_gate": {
+      "name": "Porte des Poissons",
+      "desc": {
+        "label": "Fermée tant qu'il reste une puce. Dès que la dernière puce est prise, le joueur, un bloc ou un monstre peut y entrer, et le premier qui le fait la change en sol. Nécessite : des puces à ramasser."
+      }
+    },
+    "teleport_forward": {
+      "name": "Téléporteur Avant",
+      "desc": {
+        "label": "S'enchaîne uniquement avec les autres téléporteurs avant, et fait sortir le joueur, un bloc ou un monstre du précédent dans l'ordre de lecture, tout droit uniquement. Nécessite : un autre téléporteur avant."
+      }
+    },
+    "teleport_turning": {
+      "name": "Téléporteur Tournant",
+      "desc": {
+        "label": "S'enchaîne uniquement avec les autres téléporteurs tournants, et fait sortir le joueur, un bloc ou un monstre du précédent dans l'ordre de lecture : tout droit, sinon à droite, sinon à gauche, sinon en arrière. Nécessite : un autre téléporteur tournant."
       }
     },
     "teleport_yellow": {

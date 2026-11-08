@@ -1713,6 +1713,15 @@
       "signal_gate_no_input": {
         "label": "Error: A signal gate at ({x}, {y}) ({count} in all) has no input link."
       },
+      "signal_dlatch_no_clock": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has no clock link, so it never captures its data."
+      },
+      "signal_dlatch_no_data": {
+        "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has a clock link but no data link, so it can only store off."
+      },
+      "signal_counter_no_up": {
+        "label": "Warning: A counter at ({x}, {y}) ({count} in all) is wired to count down only but its underflow output goes nowhere, so it can never do anything."
+      },
       "signal_cycle": {
         "label": "Error: Signal links loop back on themselves at ({x}, {y}) ({count} cells in all). Signals cannot loop."
       },
@@ -1811,6 +1820,9 @@
       },
       "rail_switch_no_button": {
         "label": "Info: A rail switch at ({x}, {y}) ({count} in all) never changes: no green button exists on this level."
+      },
+      "rail_track_empty": {
+        "label": "Warning: The track cell at ({x}, {y}) has no track segment, so nobody can enter it."
       },
       "exit_on_receivers_level": {
         "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers."
@@ -1926,7 +1938,62 @@
     }
   },
   "editor": {
+    "rail_tracks": {
+      "heading": "Track cell at ({x}, {y})",
+      "segments": {
+        "label": "Track segments"
+      },
+      "segment": {
+        "ne": {
+          "label": "Bend, north to east"
+        },
+        "se": {
+          "label": "Bend, south to east"
+        },
+        "sw": {
+          "label": "Bend, south to west"
+        },
+        "nw": {
+          "label": "Bend, north to west"
+        },
+        "ew": {
+          "label": "Straight, east to west"
+        },
+        "ns": {
+          "label": "Straight, north to south"
+        }
+      },
+      "empty": {
+        "note": "This cell has no track segment, so nobody can enter it. Switch a segment on."
+      },
+      "active": {
+        "legend": "Open segment (switch)",
+        "none": {
+          "label": "No switch"
+        }
+      },
+      "clear": {
+        "action": "Clear"
+      },
+      "rotate": {
+        "hint": "Press Shift+R to turn the tracks a quarter turn."
+      },
+      "status": {
+        "rotated": {"label": "Tracks at ({x}, {y}) turned a quarter turn."},
+        "segment_on": {"label": "Track segment switched on at ({x}, {y}): {segment}."},
+        "segment_off": {"label": "Track segment switched off at ({x}, {y}): {segment}."},
+        "switch": {"label": "Open segment of the switch at ({x}, {y}): {segment}."},
+        "switch_none": {"label": "The track cell at ({x}, {y}) has no switch."},
+        "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
+      }
+    },
     "cell_speech": {
+      "port_input": {
+        "label": "{role} input from ({x}, {y})"
+      },
+      "port_output": {
+        "label": "{role} output to ({x}, {y})"
+      },
       "list_separator": {
         "label": ", "
       },
@@ -1994,6 +2061,42 @@
         "w": {
           "label": "west"
         }
+      }
+    },
+    "signal_ports": {
+      "data": {
+        "label": "data",
+        "tag": "D"
+      },
+      "clock": {
+        "label": "clock",
+        "tag": "CK"
+      },
+      "count_up": {
+        "label": "count up",
+        "tag": "+"
+      },
+      "count_down": {
+        "label": "count down",
+        "tag": "-"
+      },
+      "overflow": {
+        "label": "overflow",
+        "tag": "OV"
+      },
+      "underflow": {
+        "label": "underflow",
+        "tag": "UN"
+      },
+      "both": {
+        "label": "{output} > {input}"
+      },
+      "swap": {
+        "action_input": "Swap inputs",
+        "action_output": "Swap outputs",
+        "aria_input": "Swap the input ports of {name} ({x}, {y})",
+        "aria_output": "Swap the output ports of {name} ({x}, {y})",
+        "done": "Ports swapped on {name} ({x}, {y})."
       }
     },
     "connections": {
@@ -3192,6 +3295,7 @@
           "level": "Level",
           "rules": "Rules",
           "issues": "Issues",
+          "cell": "Cell",
           "size": "Size",
           "generate": "Generate"
         }
@@ -3678,8 +3782,8 @@
         "label": "Epoxy draws the direction at random instead of a fixed cycle."
       },
       "socket": {
-        "name": "Socket",
-        "label": "Epoxy sockets only react to the player."
+        "name": "Blue socket",
+        "label": "Epoxy plays the blue socket as its fish gate: shut while a chip is left, then open to the player, a block or a monster, and the first to enter turns it into floor, as in CC3D."
       },
       "slime": {
         "name": "Slime",
@@ -3695,11 +3799,11 @@
       },
       "teleport_blue": {
         "name": "Blue teleport",
-        "label": "The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only."
+        "label": "Epoxy plays the blue teleporter as its forward teleporter: the target is the previous blue teleporter in reading order, and the exit of the player, a block or a monster is forward only, as in CC3D."
       },
       "teleport_red": {
         "name": "Red teleport",
-        "label": "The target (the previous red teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D tries forward, right, left, back; Epoxy blocks and monsters leave forward only."
+        "label": "Epoxy plays the red teleporter as its turning teleporter: the target is the previous red teleporter in reading order, and the exit of the player, a block or a monster is forward, then right, then left, then back, as in CC3D."
       },
       "appearing_wall": {
         "name": "Appearing wall",
@@ -4242,7 +4346,7 @@
     "transmogrifier": {
       "name": "Transmogrifier",
       "desc": {
-        "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker)."
+        "label": "Swaps a monster that arrives on it for its paired kind (bug and paramecium, glider and fireball, teeth and skitter, pink ball and walker). The player who steps on it switches between Chip and Melinda."
       }
     },
     "turn_plate_cw": {
@@ -4768,6 +4872,24 @@
       "name": "Blue Teleporter",
       "desc": {
         "label": "Chains only with blue teleporters. Needs: another blue teleporter."
+      }
+    },
+    "fish_gate": {
+      "name": "Fish Gate",
+      "desc": {
+        "label": "Shut while a chip is left. Once the last chip is in, the player, a block or a monster may enter it, and the first to do so turns it into floor. Needs: chips to collect."
+      }
+    },
+    "teleport_forward": {
+      "name": "Forward Teleporter",
+      "desc": {
+        "label": "Chains only with other forward teleporters, and sends the player, a block or a monster out of the previous one in reading order, straight ahead only. Needs: another forward teleporter."
+      }
+    },
+    "teleport_turning": {
+      "name": "Turning Teleporter",
+      "desc": {
+        "label": "Chains only with other turning teleporters, and sends the player, a block or a monster out of the previous one in reading order: straight ahead, else to the right, else to the left, else back. Needs: another turning teleporter."
       }
     },
     "teleport_yellow": {

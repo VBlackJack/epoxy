@@ -31,6 +31,7 @@ import {
   isPocketGateTileId,
   isStoneTileId,
   isTokenTileId,
+  isTransmogrifierTileId,
   isWardTileId
 } from './RulesetFeatures';
 import { allowedPushDirs } from './epoxy/epoxyArrowBlocks';
@@ -256,7 +257,8 @@ export class BlockPuzzleSolver {
         this.playerOk[k] = plain && unlocked && tile.passableByPlayer === true && !monsters.has(k) ? 1 : 0;
         this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
         this.plateTurn[k] = tile.facingTurn ?? 0;
-        this.blockUnmodelled[k] = !plain && tile.passableByBlock === true ? 1 : 0;
+        // A fish gate opens to a block once the chips are in, which the search does not play.
+        this.blockUnmodelled[k] = (!plain && tile.passableByBlock === true) || tile.fishGate === true ? 1 : 0;
         const isGoal = coversTargets ? terrain[y][x] === BLOCK_TARGET_TILE_ID : tile.buttonAction === 'hold_trap';
         if (isGoal && !lightsReceivers) this.buttons.push(k);
       }
@@ -398,6 +400,8 @@ export class BlockPuzzleSolver {
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
     // Melinda walks differently from Chip (ice, dirt, gravel, signs): the search models Chip only.
     if (engine.getLevel().character !== undefined) return null;
+    // A transmogrifier would switch the character mid-search: the search models one character only.
+    if (engine.getTerrain().some((row) => row.some((id) => isTransmogrifierTileId(id)))) return null;
     // Signal wiring changes the board as the player moves: the search does not model it.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;

@@ -46,6 +46,9 @@ export interface DiffMismatch {
 /** CC3D display ids that name another Epoxy id; every other CC3D display id is also the Epoxy id. */
 export function epoxyIdOf(displayId: string): string {
   if (displayId === 'cc3d_socket_red') return 'socket';
+  if (displayId === 'socket') return 'fish_gate';
+  if (displayId === 'teleport_blue') return 'teleport_forward';
+  if (displayId === 'teleport_red') return 'teleport_turning';
   if (displayId === 'cc3d_sand') return 'gravel';
   if (displayId === 'force_random') return 'force_cycle';
   // The converter moves a bomb layer to the item grid (see compare with `items`), so the terrain below is floor.
@@ -140,7 +143,7 @@ export class DifferentialPair {
     this.rig = new Cc3dRig(source, seed);
     this.epoxy = new GameEngine();
     this.epoxy.loadLevel(converted, seed);
-    this.hasSocket = converted.terrain.some((row) => row.includes('socket'));
+    this.hasSocket = converted.terrain.some((row) => row.includes('socket') || row.includes('fish_gate'));
   }
 
   /**
