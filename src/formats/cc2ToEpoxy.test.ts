@@ -94,7 +94,7 @@ describe('mapping tables', () => {
     }
     for (const mapping of RESERVED_PLAYER_ENTITIES.values()) expect(entities[mapping.id]).toBeDefined();
     for (const [code, mapping] of GENDER_SIGN_MAP) {
-      expect(tiles[mapping.id]?.layer).toBe('item');
+      expect(tiles[mapping.id]?.layer).toBe('terrain');
       expect(cc2TileInfo(code)?.layer).toBe(Cc2Layer.Terrain);
     }
     for (const mapping of [TRACK_JUNCTION, NAND_GATE, COUNTER_GATE]) expect(tiles[mapping.id]).toBeDefined();
@@ -139,14 +139,14 @@ describe('terrain, items and entities', () => {
   it('keeps reserved ids for what Epoxy lacks', () => {
     const { level, coverage, report } = convert([
       put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }),
-      put(2, 0, { code: 0x84 }, { code: FLOOR_CODE }),
+      put(2, 0, { code: 0x62 }, { code: FLOOR_CODE }),
       put(3, 0, actorTile(0x8b, DIR_W), { code: FLOOR_CODE })
     ]);
     expect(level.items[0][1]).toBe('cc2_steel_foil');
-    expect(level.items[0][2]).toBe('cc2_green_chip');
+    expect(level.items[0][2]).toBe('cc2_lightning_bolt');
     expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_ghost', dir: 'W' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['ghost', 'green_chip', 'steel_foil']);
+    expect(coverage.lost).toEqual(['ghost', 'lightning_bolt', 'steel_foil']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -166,11 +166,20 @@ describe('terrain, items and entities', () => {
     expect(coverage.lost).toEqual(['bribe']);
   });
 
-  it('turns a gender sign into a floor with the reserved sign as its item', () => {
-    const { level, coverage } = convert([put(1, 0, { code: 0x5a })]);
-    expect(level.terrain[0][1]).toBe('floor');
-    expect(level.items[0][1]).toBe('cc2_gender_sign_male');
-    expect(coverage.lost).toEqual(['gender_sign_male']);
+  it('maps the CC2 wave 1 elements to their Epoxy ids, exactly', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x5a }),
+      put(2, 0, { code: 0x5b }),
+      put(3, 0, { code: STEEL_WALL }),
+      put(4, 0, { code: 0x84 }, { code: FLOOR_CODE }),
+      put(5, 0, { code: 0x83 }, { code: FLOOR_CODE }),
+      put(0, 1, { code: 0x59 }, { code: FLOOR_CODE }),
+      put(1, 1, { code: 0x1f })
+    ]);
+    expect(level.terrain[0].slice(1, 4)).toEqual(['sign_chip_only', 'sign_melinda_only', 'steel_wall']);
+    expect(level.items[0].slice(4, 6)).toEqual(['green_chip', 'green_bomb']);
+    expect(level.items[1][0]).toBe('hiking_boots');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
   it('keeps the cell and loses the key when a no-sign sits on a wall', () => {
@@ -229,10 +238,11 @@ describe('terrain, items and entities', () => {
     expect(coverage.approx).toContain('track');
   });
 
-  it('loses a steel wall only next to dynamite', () => {
+  it('approximates a steel wall only next to dynamite', () => {
     expect(convert([put(1, 0, { code: STEEL_WALL })]).coverage.verdict).toBe('exact');
     const withDynamite = convert([put(1, 0, { code: STEEL_WALL }), put(2, 0, { code: DYNAMITE }, { code: FLOOR_CODE })]);
-    expect(withDynamite.coverage.lost).toEqual(['steel_wall_with_destroyer']);
+    expect(withDynamite.coverage.lost).toEqual([]);
+    expect(withDynamite.coverage.approx).toEqual(['dynamite', 'steel_wall_with_destroyer']);
   });
 });
 
@@ -287,10 +297,20 @@ describe('players', () => {
     expect(coverage.lost).toEqual(['melinda', 'mirror_chip', 'multiple_players']);
   });
 
-  it('loses a level whose only player is Melinda', () => {
+  it('plays a level whose only player is Melinda with her character, exactly', () => {
     const { level, coverage } = convertCc2Map(makeMap(3, 3, [player(1, 1, DIR_N, MELINDA)]), OPTIONS);
     expect(level.playerStart).toEqual({ x: 1, y: 1, dir: 'N' });
-    expect(coverage.lost).toEqual(['melinda']);
+    expect(level.character).toBe('melinda');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('leaves Chip as the default character, and loses two players or a mirror player', () => {
+    expect(convertCc2Map(makeMap(3, 3, [player(1, 1, DIR_N)]), OPTIONS).level.character).toBeUndefined();
+    const pair = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N), player(3, 1, DIR_N, MELINDA)]), OPTIONS);
+    expect(pair.level.character).toBeUndefined();
+    expect(pair.coverage.lost).toEqual(['melinda', 'multiple_players']);
+    const mirror = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N, MELINDA), player(3, 1, DIR_N, MIRROR_CHIP)]), OPTIONS);
+    expect(mirror.coverage.lost).toEqual(['mirror_chip']);
   });
 
   it('warns about a level with no player', () => {
@@ -490,7 +510,7 @@ describe('cloners and links', () => {
 });
 
 describe('chips and metadata', () => {
-  it('counts only the computer chips, and only where a socket asks for them', () => {
+  it('counts the computer chips and the green chips (not the extra chip), and only where a socket asks for them', () => {
     const { level, report } = convert([
       put(5, 0, { code: 0x2c }),
       put(1, 0, { code: CHIP }, { code: FLOOR_CODE }),
@@ -498,7 +518,7 @@ describe('chips and metadata', () => {
       put(3, 0, { code: 0x84 }, { code: FLOOR_CODE }),
       put(4, 0, { code: 0x2b }, { code: FLOOR_CODE })
     ]);
-    expect(level.chipsRequired).toBe(2);
+    expect(level.chipsRequired).toBe(3);
     expect(level.items[0][4]).toBe('chip');
     expect(level.cc2?.coverage.lost).not.toContain('extra_chip');
     expect(report.exact).toContain('extra_chip');
