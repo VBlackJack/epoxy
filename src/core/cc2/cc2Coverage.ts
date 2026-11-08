@@ -192,6 +192,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
+  [KEY_CANOPY]:
+    'A canopy is a flag on the thin wall of a cell (0x10): Epoxy keeps it with the cell edges, hides the cell under a roof, and bugs and rovers cannot enter it (blobs do not step from one canopy to another). Known difference: the CC2 canopy also shields what lies under it from fire, which Epoxy does not model.',
   [KEY_DATA_LATCH]: 'A CC2 latch is a data latch (its memory follows the first input while the second is on); Epoxy plays it as its toggle latch, which flips on each pulse [unverified].',
   [KEY_WIRE]: WIRED_REASON,
   [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
@@ -199,9 +201,6 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
 
 const LOST_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_MULTIPLE_PLAYERS]: 'Epoxy has one player: a level with several players keeps the first and loses the others.',
-  [KEY_CANOPY]:
-    'A canopy is a flag on the thin wall of a cell (0x10), not a terrain: Epoxy has no canopy, so the flag is dropped and the cell keeps its real terrain.',
-  arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
   no_sign: 'A no-sign over an item other than a key or boots (or over a cell that is not plain floor) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };

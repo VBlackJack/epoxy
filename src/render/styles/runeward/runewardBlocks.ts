@@ -469,7 +469,7 @@ function blockColour(id: string, art: Art): RunewardKeyColour | null {
 }
 
 const COLOUR_BLOCK_IDS: readonly string[] = ['color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow'];
-const ARROW_BLOCK_IDS: readonly string[] = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee'];
+const ARROW_BLOCK_IDS: readonly string[] = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_none'];
 const MIRROR_IDS: readonly string[] = ['mirror_slash', 'mirror_backslash'];
 const ONE_SIDED_MIRROR_IDS: readonly string[] = [
   'one_sided_mirror_ne', 'one_sided_mirror_nw', 'one_sided_mirror_se', 'one_sided_mirror_sw'

@@ -1387,6 +1387,10 @@ export interface EntityDefinition {
   blockedByHazards?: Array<NonNullable<TileDefinition['hazard']>>;
   /** A monster that crosses thin walls and other cell edges as if they were not there. */
   ignoresCellEdges?: boolean;
+  /** A monster that cannot enter a cell under a canopy (the CC2 bug and rover). */
+  blockedByCanopy?: boolean;
+  /** A monster that cannot step from a cell under a canopy into another one (the CC2 blob). */
+  blockedBetweenCanopies?: boolean;
   /**
    * A monster that the floor does not move or hurt: ice and force floors do not carry it, a rail or a swivel door
    * does not turn it, a trap does not hold it, and a bomb, fire, slime or a transmogrifier does nothing to it.
@@ -1736,8 +1740,13 @@ export interface LevelsConfig {
 export interface CellEdge {
   x: number;
   y: number;
-  /** The blocked sides of the cell; a step across a blocked side is stopped from either cell. */
+  /** The blocked sides of the cell; a step across a blocked side is stopped from either cell. May be empty when `canopy` is set. */
   sides: Direction[];
+  /**
+   * A CC2 canopy covers the cell: what lies under it is hidden, and bugs and rovers cannot enter it. Written only
+   * when true; a canopy on a cell with no thin wall is an entry with no side.
+   */
+  canopy?: true;
 }
 
 /**

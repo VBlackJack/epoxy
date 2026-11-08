@@ -44,7 +44,7 @@ export function canonicalEdges(edges: readonly CellEdge[] | undefined, terrain: 
 /** Deep copy of a list of thin walls; undefined when it is absent or empty. */
 export function cloneEdges(edges: readonly CellEdge[] | undefined): CellEdge[] | undefined {
   if (!edges || edges.length === 0) return undefined;
-  return edges.map((entry) => ({ x: entry.x, y: entry.y, sides: [...entry.sides] }));
+  return edges.map((entry) => ({ x: entry.x, y: entry.y, sides: [...entry.sides], ...(entry.canopy === true ? { canopy: true as const } : {}) }));
 }
 
 /** True when the map carries at least one thin wall. */
@@ -123,8 +123,11 @@ function commit(map: CellEdgeHolder, edges: readonly CellEdge[]): void {
 
 /** Sets the blocked sides of one cell (an empty list clears them). The map is changed in place. */
 export function setEdgesAt(map: CellEdgeHolder, x: number, y: number, sides: readonly Direction[]): void {
+  const own = (map.cellEdges ?? []).find((e) => e.x === x && e.y === y);
   const others = (map.cellEdges ?? []).filter((e) => !(e.x === x && e.y === y));
-  commit(map, sides.length > 0 ? [...others, { x, y, sides: [...sides] }] : others);
+  // The canopy of the cell stays: only its thin walls change.
+  const canopy = own?.canopy === true ? { canopy: true as const } : {};
+  commit(map, sides.length > 0 || own?.canopy === true ? [...others, { x, y, sides: [...sides], ...canopy }] : others);
 }
 
 /** Removes the edges of every cell the predicate accepts; returns how many cells lost theirs. The map is changed in place. */
@@ -143,7 +146,7 @@ export function withoutCells(map: CellEdgeHolder, rect: EdgeRect): number {
 /** The edges moved by a step; entries leaving the grid are dropped. */
 export function translate(edges: readonly CellEdge[], dx: number, dy: number, width: number, height: number): CellEdge[] {
   return edges
-    .map((e) => ({ x: e.x + dx, y: e.y + dy, sides: [...e.sides] }))
+    .map((e) => ({ x: e.x + dx, y: e.y + dy, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) }))
     .filter((e) => e.x >= 0 && e.y >= 0 && e.x < width && e.y < height);
 }
 
@@ -159,7 +162,7 @@ export function differingEdgeCells(
 ): Array<{ x: number; y: number }> {
   const sidesOf = (edges: readonly CellEdge[] | undefined): Map<string, string> => {
     const map = new Map<string, string>();
-    for (const e of edges ?? []) map.set(`${e.x},${e.y}`, [...e.sides].sort().join(''));
+    for (const e of edges ?? []) map.set(`${e.x},${e.y}`, [...e.sides].sort().join('') + (e.canopy === true ? '+' : ''));
     return map;
   };
   const was = sidesOf(before);
