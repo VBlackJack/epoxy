@@ -603,7 +603,8 @@ describe('steering: clones and the shared entry rules', () => {
 
   it('keeps passesTiles and steeredBy out of every other monster', () => {
     for (const [id, def] of Object.entries(ConfigRegistry.getMonsters().entities)) {
-      if (id === PUPPET) continue;
+      // The puppet and the CC3D yellow golem, which is steered the same way.
+      if (id === PUPPET || id === 'golem_yellow') continue;
       expect(def.passesTiles, id).toBeUndefined();
       expect(def.steeredBy, id).toBeUndefined();
     }

@@ -106,7 +106,8 @@ const GOLEM_BLUE_REASON =
   'Epoxy plays the blue golem as a monster of its own: straight on, never turning by itself, stopping at walls and at everything that blocks a monster, turning round at its control, a four-tick step, carried by ice and force floors, refusing water, fire and slime, entering turtles and sinking the one it leaves, pressing plates and switches.' +
   ' Measured in cc3dEvidenceDevices.test.ts against the CC3D engine, state by state, in corridors with each of these, with a second golem, a golem control, an open blue gate and a clone machine. What differs without changing the path: a golem reaching the player stands next to him in CC3D and on his cell in Epoxy, and entering ice or a force floor is a fast step in CC3D and a normal one in Epoxy, and the Epoxy golem makes its first step three ticks after the CC3D one.' +
   " A CC3D golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).";
-const SAND_REASON = 'Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not.';
+const SAND_REASON =
+  'Epoxy plays CC3D sand as its own sand floor: the player, every block and the yellow golem may enter it, other monsters may not (cc3dEvidenceYellowGolem.test.ts, cc3dEvidenceMonsters.test.ts).';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
 const SOCKET_RED_STACKED_REASON = 'CC3D re-plans a red socket against the layer below it, which Epoxy does not model [unverified].';
 const FISH_EXTRA_REASON = 'Epoxy plays the extra fish as a chip. The chips needed count the plain fish only, and every fish of either kind lowers the count, as CC3D does [unverified].';
@@ -114,9 +115,12 @@ const GRAVEL_REASON = 'Epoxy gravel admits mirrors, where CC3D gravel refuses re
 const BOT_REASON =
   'Epoxy plays a bot as a turret: the beam and its turn period are close to CC3D, with a beam length and a period that are guesses, and Epoxy makes no turn at the first step.';
 const GOLEM_YELLOW_REASON =
-  'Epoxy plays the yellow golem as a puppet that steps at once when the player ends a move on the control, where CC3D walks it a step; it enters Epoxy gravel, which stands for both CC3D sand (the golem enters it) and CC3D gravel (the golem is stopped by it); entry order along a line of puppets differs [unverified].';
+  'Epoxy plays the yellow golem as a monster of its own, steered by the puppet control: it stands still and, each time the player ends a move on a control, takes one step the way he moved, front first along that direction, pushing one block, stopped by walls, dirt, gravel, the exit, the gates, items, monsters and a second block, not carried by ice or force floors (a random force floor does not turn it), walking over sand and turtles (sinking the one it leaves), lost in water, fire, slime and bombs, pressing plates and switches.' +
+  ' Measured in cc3dEvidenceYellowGolem.test.ts against the CC3D engine, state by state after each press, in corridors with each of these, with a line of golems, a golem on another row, a clone machine copy, a teleport and a plate, and with a player pressing every 4 to 8 ticks.' +
+  ' What differs without changing the path: a CC3D golem walks its cell in four ticks, from a tick after the player settles, where the Epoxy one steps in the tick of the press; a CC3D golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).' +
+  ` The blocks it pushes carry the gaps of the Epoxy blocks: ${BLOCK_GAPS} The CC3D engine reads some of these rules from play only [unverified].`;
 const GOLEM_CONTROL_YELLOW_REASON =
-  'Epoxy plays the yellow golem control as the puppet control: only the player works it, and a puppet or block entering it does nothing, as in CC3D; the order of the steps differs [unverified].';
+  'Epoxy plays the yellow golem control as the puppet control: only the player works it, and a golem or block entering it does nothing, as in CC3D (cc3dEvidenceYellowGolem.test.ts). The control is the puppet control, so it also steers the Epoxy puppets.';
 const LASER_CONTROLLER_REASON =
   'Epoxy plays the laser controller as its shot trigger, linked to the shooters it fires (the nearest shooter in CC3D); any mob works it in CC3D, and Epoxy lets whatever steps on it work it; in Epoxy a trigger hidden under a removable top acts only once revealed [unverified].';
 const LASER_SHOOTER_REASON =
@@ -204,19 +208,19 @@ const EXACT_KEYS: readonly string[] = [
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
-  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'teleport_blue', 'teleport_red',
+  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR,
   // A stack Epoxy holds exactly: see classifyStack.
   KEY_STACKED_TERRAIN,
   // The CC3D monsters that have an Epoxy monster of their own, measured by cc3dEvidenceMonsters.test.ts.
-  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble', 'golem_blue'
+  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble', 'golem_blue', 'golem_yellow'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
   force_random:
-    'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force are not turned: the blinky and the screamer are not turned in Epoxy either (cc3dEvidenceMonsters.test.ts), the yellow golem still is; this entry is kept exact for the floor itself [unverified for the golem].',
+    'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force are not turned: the blinky, the screamer and the yellow golem are not turned in Epoxy either (cc3dEvidenceMonsters.test.ts, cc3dEvidenceYellowGolem.test.ts).',
   sand: SAND_REASON,
   fish_extra: FISH_EXTRA_REASON,
   socket: FISH_GATE_REASON,
@@ -239,7 +243,9 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   baby_screamer: BABY_SCREAMER_REASON,
   snappy: SNAPPY_REASON,
   nibble: NIBBLE_REASON,
-  golem_blue: GOLEM_BLUE_REASON
+  golem_blue: GOLEM_BLUE_REASON,
+  golem_yellow: GOLEM_YELLOW_REASON,
+  golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON
 };
 
 const APPROX_ENTRIES: Record<string, string> = {
@@ -277,8 +283,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   bot_cw: BOT_REASON,
   bot_ccw: BOT_REASON,
   bot_multi: BOT_REASON,
-  golem_yellow: GOLEM_YELLOW_REASON,
-  golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
   laser_controller: LASER_CONTROLLER_REASON,
   laser_shooter: LASER_SHOOTER_REASON
 };

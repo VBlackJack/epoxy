@@ -1685,6 +1685,9 @@
       "no_matching_key": {
         "label": "Erreur : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente."
       },
+      "keyless_doors": {
+        "label": "Avertissement : {doors, plural, one {# porte nécessite} other {# portes nécessitent}} {key} mais aucune clé correspondante n'est présente, {doors, plural, one {la porte reste fermée} other {les portes restent fermées}} comme {doors, plural, one {un mur} other {des murs}}."
+      },
       "fewer_keys_than_doors": {
         "label": "Avertissement : {doors, plural, one {# porte} other {# portes}} pour seulement {keys, plural, one {# clé} other {# clés}} ({key})."
       },
@@ -3785,7 +3788,7 @@
       },
       "sand": {
         "name": "Sable",
-        "label": "Epoxy joue le sable de CC3D comme son gravier : le joueur et tous les blocs peuvent y entrer, pas les monstres."
+        "label": "Epoxy joue le sable de CC3D comme son propre sol de sable : le joueur, tous les blocs et le golem jaune peuvent y entrer, pas les autres monstres."
       },
       "fish_extra": {
         "name": "Poisson supplémentaire",
@@ -4065,11 +4068,11 @@
       },
       "golem_yellow": {
         "name": "Golem jaune",
-        "label": "Epoxy joue le golem jaune comme une marionnette qui avance aussitôt quand le joueur termine un déplacement sur la commande, là où CC3D la fait avancer d'un pas. Elle peut entrer dans le gravier d'Epoxy, qui tient lieu à la fois du sable de CC3D (le golem y entre) et du gravier de CC3D (le golem y est arrêté). L'ordre d'entrée le long d'une file de marionnettes diffère."
+        "label": "Epoxy joue le golem jaune comme un monstre à part entière, dirigé par la commande de marionnette, avec le trajet, les arrêts et les poussées de CC3D. Un golem de CC3D franchit sa case en quatre tics, un tic après que le joueur s'est posé, là où celui d'Epoxy avance aussitôt, et un golem de CC3D transforme un mur apparent en mur là où Epoxy le laisse tel quel. Les blocs qu'il pousse portent les écarts des blocs d'Epoxy."
       },
       "golem_control_yellow": {
         "name": "Commande de golem jaune",
-        "label": "Epoxy joue la commande de golem jaune comme la commande de marionnette : seul le joueur l'actionne, et une marionnette ou un bloc qui y entre ne fait rien, comme dans CC3D. L'ordre des pas diffère."
+        "label": "Epoxy joue la commande de golem jaune comme la commande de marionnette : seul le joueur l'actionne, et un golem ou un bloc qui y entre ne fait rien, comme dans CC3D. Elle dirige aussi les marionnettes d'Epoxy."
       },
       "nibble": {
         "name": "Grignoteur",
@@ -4464,6 +4467,9 @@
     },
     "gravel": {
       "name": "Gravier (Zone Sûre)"
+    },
+    "sand": {
+      "name": "Sable (Golems Jaunes Seulement)"
     },
     "turtle": {
       "name": "Tortue (Coule Une Fois Quittée)"
@@ -5785,6 +5791,12 @@
       "name": "Golem bleu",
       "desc": {
         "label": "Avance tout droit et s'arrête devant un mur ou tout ce qui bloque un monstre ; il ne tourne pas tout seul. Un bouton bleu le fait faire demi-tour, et il fait demi-tour lui-même quand il marche sur un bouton. Il avance en quatre tics, est entraîné par la glace et les sols de force, actionne les plaques et les interrupteurs, et refuse d'entrer dans l'eau, le feu ou la bave. Il tue au contact."
+      }
+    },
+    "golem_yellow": {
+      "name": "Golem jaune",
+      "desc": {
+        "label": "Ne bouge pas seul : il fait un pas dans la direction du joueur chaque fois que celui-ci marche sur une commande de marionnette. Il pousse un bloc, actionne les plaques et les interrupteurs, n'est pas entraîné par la glace ni par les sols de force, traverse le sable et les tortues, et se perd dans l'eau, le feu et la bave. Il tue au contact. Nécessite : une commande de marionnette."
       }
     },
     "mirror_chip": {

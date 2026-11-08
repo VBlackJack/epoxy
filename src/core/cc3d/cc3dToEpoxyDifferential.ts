@@ -49,7 +49,8 @@ export function epoxyIdOf(displayId: string): string {
   if (displayId === 'socket') return 'fish_gate';
   if (displayId === 'teleport_blue') return 'teleport_forward';
   if (displayId === 'teleport_red') return 'teleport_turning';
-  if (displayId === 'cc3d_sand') return 'gravel';
+  if (displayId === 'cc3d_sand') return 'sand';
+  if (displayId === 'cc3d_golem_control_yellow') return 'puppet_control';
   if (displayId === 'force_random') return 'force_cycle';
   // The converter moves a bomb layer to the item grid (see compare with `items`), so the terrain below is floor.
   if (displayId === 'bomb') return 'floor';
@@ -66,7 +67,7 @@ export function epoxyIdOf(displayId: string): string {
 
 /** CC3D display ids of mobs that name another Epoxy entity type. */
 export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
-  cc3d_golem_yellow: 'puppet',
+  cc3d_golem_yellow: 'golem_yellow',
   cc3d_legs_green: 'legs_green',
   cc3d_legs_red: 'legs_red',
   cc3d_baby_blinky: 'baby_blinky',

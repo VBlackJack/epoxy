@@ -51,6 +51,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   appearing_wall: 'floorBase',
   dirt: 'dirtBase',
   gravel: 'gravelBase',
+  sand: 'dirtBase',
   turtle: 'turtleShell',
   socket: 'socketInner',
   fish_gate: 'socketInner',

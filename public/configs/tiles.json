@@ -2591,6 +2591,16 @@
       "i18nKey": "tiles.no_sign_railroad_sign.name",
       "laserTransparent": true,
       "forbiddenItem": "railroad_sign"
+    },
+    "sand": {
+      "id": "sand",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.sand.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": false,
+      "passableByBlock": true
     }
   }
 }

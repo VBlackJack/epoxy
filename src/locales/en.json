@@ -1685,6 +1685,9 @@
       "no_matching_key": {
         "label": "Error: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists."
       },
+      "keyless_doors": {
+        "label": "Warning: {doors, plural, one {# door requires} other {# doors require}} {key} but no matching key exists, so {doors, plural, one {the door stays} other {the doors stay}} shut like {doors, plural, one {a wall} other {walls}}."
+      },
       "fewer_keys_than_doors": {
         "label": "Warning: {doors, plural, one {# door} other {# doors}} for only {keys, plural, one {# key} other {# keys}} ({key})."
       },
@@ -3785,7 +3788,7 @@
       },
       "sand": {
         "name": "Sand",
-        "label": "Epoxy plays CC3D sand as its gravel: the player and every block may enter, monsters may not."
+        "label": "Epoxy plays CC3D sand as its own sand floor: the player, every block and the yellow golem may enter it, other monsters may not."
       },
       "fish_extra": {
         "name": "Extra fish",
@@ -4065,11 +4068,11 @@
       },
       "golem_yellow": {
         "name": "Yellow golem",
-        "label": "Epoxy plays the yellow golem as a puppet that steps at once when the player ends a move on the control, where CC3D walks it one step. It can enter Epoxy gravel, which stands for both CC3D sand (the golem enters it) and CC3D gravel (the golem is stopped by it). The order of entry along a line of puppets differs."
+        "label": "Epoxy plays the yellow golem as a monster of its own, steered by the puppet control, with the path, the stops and the pushes of CC3D. A CC3D golem walks its cell in four ticks, from a tick after the player settles, where the Epoxy one steps at once, and a CC3D golem makes an appearing wall a wall where Epoxy leaves it. The blocks it pushes carry the gaps of the Epoxy blocks."
       },
       "golem_control_yellow": {
         "name": "Yellow golem control",
-        "label": "Epoxy plays the yellow golem control as the puppet control: only the player works it, and a puppet or block entering it does nothing, as in CC3D. The order of the steps differs."
+        "label": "Epoxy plays the yellow golem control as the puppet control: only the player works it, and a golem or block entering it does nothing, as in CC3D. It also steers the Epoxy puppets."
       },
       "nibble": {
         "name": "Nibble",
@@ -4464,6 +4467,9 @@
     },
     "gravel": {
       "name": "Gravel (Safe Zone)"
+    },
+    "sand": {
+      "name": "Sand (Yellow Golems Only)"
     },
     "turtle": {
       "name": "Turtle (Sinks Once Left)"
@@ -5785,6 +5791,12 @@
       "name": "Blue Golem",
       "desc": {
         "label": "Walks straight on and stops at a wall or anything that blocks a monster; it does not turn by itself. A blue button turns it round, and it turns round itself when it steps onto one. It steps in four ticks, is carried by ice and force floors, works plates and switches, and will not step into water, fire or slime. It kills on contact."
+      }
+    },
+    "golem_yellow": {
+      "name": "Yellow Golem",
+      "desc": {
+        "label": "Does not move on its own: it takes one step in the direction the player was moving each time the player steps onto a puppet control. It pushes one block, presses plates and switches, is not carried by ice or force floors, walks over sand and turtles, and is lost in water, fire and slime. It kills on contact. Needs: a puppet control."
       }
     },
     "mirror_chip": {

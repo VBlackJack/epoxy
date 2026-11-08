@@ -152,7 +152,7 @@ beforeEach(() => {
 describe('Runeward marks dispatch', () => {
   it('paints every id of the module, leaves none pending and takes them off the shared drawing', () => {
     expect(marks.PENDING).toEqual([]);
-    expect(MARK_IDS.length).toBe(9 + FLOATING_IDS.length + 2 + SIGNAL_IDS.length);
+    expect(MARK_IDS.length).toBe(10 + FLOATING_IDS.length + 2 + SIGNAL_IDS.length);
     for (const id of MARK_IDS) {
       expect(RUNEWARD_PAINTERS.tiles[id], id).toBe(marks.TILES[id]);
       expect(RUNEWARD_FALLBACK.has(id), id).toBe(false);
@@ -220,6 +220,14 @@ describe('Runeward gravel and dirt', () => {
     const config = art();
     expect(config.mark.gravel.base).not.toBe(config.mark.dirt.base);
     expect(tileLog('gravel', config)).not.toEqual(tileLog('dirt', config));
+  });
+
+  it.each(VARIANTS)('tells sand from dirt and from gravel by drawing in the $name drawing', ({ art }) => {
+    const config = art();
+    const sand = tileLog('sand', config);
+    expect(sand).not.toEqual(tileLog('dirt', config));
+    expect(sand).not.toEqual(tileLog('gravel', config));
+    expect(containsRun(sand, body(tileLog(FLOOR_ID, config)))).toBe(true);
   });
 });
 
