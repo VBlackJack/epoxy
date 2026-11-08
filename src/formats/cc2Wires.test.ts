@@ -23,6 +23,7 @@ const CLONER = 0x44;
 const GATE = 0x5c;
 const TOGGLE_SWITCH = 0x88;
 const PURPLE_WALL = 0x73;
+const BLACK_BUTTON = 0x87;
 const TOGGLE_WALL = 0x0e;
 const N = 0x1;
 const E = 0x2;
@@ -185,30 +186,66 @@ describe('logic gates', () => {
   });
 });
 
-describe('devices Epoxy does not play', () => {
-  it('reports a purple wall sink and keeps the other sinks of the network', () => {
+describe('wired devices Epoxy plays', () => {
+  it('links a pink button to a purple wall', () => {
     const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, E | W), put(2, 0, { code: PURPLE_WALL }), cloner(3, 0)]);
     const result = buildCc2Wires(map);
-    expect(result.links).toEqual([]);
-    expect(result.unsupported).toEqual([{ x: 2, y: 0, kind: 'purple', end: 'sink' }]);
+    expect(result.links).toEqual([link(0, 0, 2, 0)]);
+    expect(result.unsupported).toEqual([]);
+    expect(result.wiredSinks).toEqual([{ x: 2, y: 0 }]);
   });
 
-  it('reports a wired trap and a wired flame jet as sinks', () => {
+  it('links a pink button to a wired trap and a wired flame jet', () => {
     const map = makeMap(3, 3, [button(1, 0, S), wire(1, 1, N | E | W), put(0, 1, { code: 0x42 }), put(2, 1, { code: 0x5f })]);
     const result = buildCc2Wires(map);
-    expect(result.links).toEqual([]);
-    expect(result.unsupported.map((node) => node.kind)).toEqual(['trap', 'flame_jet']);
+    expect(result.links).toEqual([link(1, 0, 0, 1), link(1, 0, 2, 1)]);
+    expect(result.unsupported).toEqual([]);
+    expect(result.wiredSinks).toEqual([{ x: 0, y: 1 }, { x: 2, y: 1 }]);
   });
 
-  it('reports a toggle switch source', () => {
-    const map = makeMap(3, 1, [put(0, 0, modTile(TOGGLE_SWITCH, E)), wire(1, 0, E | W), cloner(2, 0)]);
+  it('counts a toggle switch and a black button as sources', () => {
+    const toggle = makeMap(3, 1, [put(0, 0, modTile(TOGGLE_SWITCH, E)), wire(1, 0, E | W), cloner(2, 0)]);
+    expect(buildCc2Wires(toggle).links).toEqual([link(0, 0, 2, 0)]);
+    const black = makeMap(3, 1, [put(0, 0, modTile(BLACK_BUTTON, E)), wire(1, 0, E | W), cloner(2, 0)]);
+    const result = buildCc2Wires(black);
+    expect(result.links).toEqual([link(0, 0, 2, 0)]);
+    expect(result.unsupported).toEqual([]);
+  });
+
+  it('marks a trap that a wire reaches even when nothing feeds the wire, and not a trap with no wire', () => {
+    const map = makeMap(4, 1, [put(0, 0, { code: 0x42 }), wire(1, 0, W), put(3, 0, { code: 0x42 })]);
     const result = buildCc2Wires(map);
     expect(result.links).toEqual([]);
-    expect(result.unsupported).toEqual([{ x: 0, y: 0, kind: 'toggle_switch', end: 'source' }]);
+    expect(result.wiredSinks).toEqual([{ x: 0, y: 0 }]);
+  });
+});
+
+describe('which sinks a wire reaches', () => {
+  it('leaves a device plain when the side bit of the neighbouring wire does not point at it', () => {
+    const map = makeMap(3, 2, [button(0, 0, E), wire(1, 0, W | S), put(2, 0, { code: 0x42 })]);
+    const result = buildCc2Wires(map);
+    expect(result.wiredSinks).toEqual([]);
+    expect(result.links).toEqual([]);
+  });
+
+  it('reaches a device through a tunnel', () => {
+    const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, W | E | TUNNEL_E), wire(3, 0, W | E | TUNNEL_W), put(4, 0, { code: 0x42 })]);
+    const result = buildCc2Wires(map);
+    expect(result.links).toEqual([link(0, 0, 4, 0)]);
+    expect(result.wiredSinks).toEqual([{ x: 4, y: 0 }]);
+  });
+});
+
+describe('devices Epoxy does not play', () => {
+  it('reports a wired teleport sink', () => {
+    const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, E | W), put(2, 0, modTile(0x10, W)), cloner(3, 0)]);
+    const result = buildCc2Wires(map);
+    expect(result.links).toEqual([]);
+    expect(result.unsupported).toEqual([{ x: 2, y: 0, kind: 'teleport', end: 'sink' }]);
   });
 
   it('gives a map with no wire no link', () => {
     const result = buildCc2Wires(makeMap(4, 4));
-    expect(result).toEqual({ links: [], hasWires: false, hasTunnels: false, unsupported: [], warnings: [] });
+    expect(result).toEqual({ links: [], hasWires: false, hasTunnels: false, wiredSinks: [], unsupported: [], warnings: [] });
   });
 });

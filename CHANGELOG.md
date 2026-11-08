@@ -21,6 +21,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- CC2 import: purple walls and floors, toggle switches, black buttons, gray buttons (as the 5 x 5 area button), and traps and flame jets that a wire reaches now play as their Epoxy wired forms and are linked by signal wires instead of being lost; the wired trap, wired flame jet and gray button are reported as approximate.
 - Epoxy rules: an ice block pushed into water now turns the water into ice (as in Chip's Challenge 2) instead of vanishing and leaving the water; an ice block pushed into fire still melts it into water. Lynx and CC3D rules are unchanged, and the validator counts an ice block as a filler for water.
 - The Ward now has its own drawing in every style: a small round shield with a glowing rune, instead of a boot with a badge.
 - Refined default Runeward mage (four facings, boots, skating pose, deaths by cause); old saved Character settings stay valid.

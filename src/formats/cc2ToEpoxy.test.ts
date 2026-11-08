@@ -138,17 +138,15 @@ describe('terrain, items and entities', () => {
 
   it('keeps reserved ids for what Epoxy lacks', () => {
     const { level, coverage, report } = convert([
-      put(1, 0, { code: PURPLE_WALL }),
+      put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }),
       put(2, 0, { code: 0x84 }, { code: FLOOR_CODE }),
-      put(3, 0, actorTile(0x8b, DIR_W), { code: FLOOR_CODE }),
-      put(4, 0, { code: 0x47 })
+      put(3, 0, actorTile(0x8b, DIR_W), { code: FLOOR_CODE })
     ]);
-    expect(level.terrain[0][1]).toBe('cc2_purple_wall');
+    expect(level.items[0][1]).toBe('cc2_steel_foil');
     expect(level.items[0][2]).toBe('cc2_green_chip');
     expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_ghost', dir: 'W' }]);
-    expect(level.terrain[0][4]).toBe('cc2_button_gray');
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['button_gray', 'ghost', 'green_chip', 'purple_wall']);
+    expect(coverage.lost).toEqual(['ghost', 'green_chip', 'steel_foil']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -380,7 +378,7 @@ describe('cloners and links', () => {
     expect(level.cloneLinks[0].templateDir).toBe('E');
   });
 
-  it('loses a trap or flame jet that a live wire reaches', () => {
+  it('plays a trap or flame jet that a live wire reaches in its wired form', () => {
     const map = makeMap(4, 3, [
       player(0, 2),
       put(1, 0, modTile(PINK, 0x4)),
@@ -388,7 +386,68 @@ describe('cloners and links', () => {
       put(0, 1, { code: TRAP }),
       put(2, 1, { code: 0x5f })
     ]);
-    expect(convertCc2Map(map, OPTIONS).coverage.lost).toEqual(['wired_flame_jet', 'wired_trap']);
+    const { level, coverage } = convertCc2Map(map, OPTIONS);
+    expect(level.terrain[1][0]).toBe('trap_wired');
+    expect(level.terrain[1][2]).toBe('flame_jet_wired_off');
+    expect(level.signalLinks).toEqual([
+      { fromX: 1, fromY: 0, toX: 0, toY: 1 },
+      { fromX: 1, fromY: 0, toX: 2, toY: 1 }
+    ]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['wire', 'wired_flame_jet', 'wired_trap']);
+  });
+
+  it('keeps an unwired trap and flame jet plain, and a lit wired jet as the wired on form', () => {
+    const plain = convert([put(1, 0, { code: TRAP }), put(2, 0, { code: 0x60 })]);
+    expect(plain.level.terrain[0][1]).toBe('trap');
+    expect(plain.level.terrain[0][2]).toBe('flame_jet_on');
+    expect(plain.coverage.approx).toEqual(['flame_jet']);
+    const map = makeMap(4, 3, [
+      player(0, 2),
+      put(1, 0, modTile(PINK, 0x4)),
+      put(1, 1, modTile(FLOOR_CODE, 0x1 | 0x2)),
+      put(2, 1, { code: 0x60 })
+    ]);
+    expect(convertCc2Map(map, OPTIONS).level.terrain[1][2]).toBe('flame_jet_wired_on');
+  });
+
+  it('maps the purple tiles, the switches and the gray button to their Epoxy ids', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x72 }),
+      put(2, 0, { code: 0x73 }),
+      put(3, 0, { code: 0x87 }),
+      put(4, 0, { code: 0x88 }),
+      put(5, 0, { code: 0x89 }),
+      put(1, 1, { code: 0x47 })
+    ]);
+    expect(level.terrain[0].slice(1)).toEqual([
+      'purple_floor',
+      'purple_wall',
+      'black_button',
+      'toggle_switch_off',
+      'toggle_switch_on'
+    ]);
+    expect(level.terrain[1][1]).toBe('button_gray_area');
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['button_gray']);
+  });
+
+  it('links a toggle switch and a black button to the purple tiles they wire', () => {
+    const map = makeMap(5, 2, [
+      player(0, 1),
+      put(0, 0, modTile(0x88, 0x2)),
+      put(1, 0, modTile(FLOOR_CODE, 0x2 | 0x8)),
+      put(2, 0, { code: 0x73 }),
+      put(0, 1, modTile(0x87, 0x2)),
+      put(1, 1, modTile(FLOOR_CODE, 0x2 | 0x8)),
+      put(2, 1, { code: 0x72 })
+    ]);
+    const { level, coverage } = convertCc2Map(map, OPTIONS);
+    expect(level.signalLinks).toEqual([
+      { fromX: 0, fromY: 0, toX: 2, toY: 0 },
+      { fromX: 0, fromY: 1, toX: 2, toY: 1 }
+    ]);
+    expect(coverage.lost).toEqual([]);
   });
 
   it('works the next clone machine in reading order, wrapping round', () => {
@@ -587,13 +646,13 @@ describe('wires', () => {
   it('reports unsupported wire ends as warnings', () => {
     const map = makeMap(3, 1, [
       player(2, 0),
-      put(0, 0, modTile(0x88, E)),
+      put(0, 0, modTile(0x5c, 0x15)),
       put(1, 0, modTile(FLOOR_CODE, E | W)),
       put(2, 0, modTile(CLONER, E))
     ]);
     const { level, report } = convertCc2Map(map, OPTIONS);
     expect(level.signalLinks).toBeUndefined();
-    expect(report.warnings.some((w) => w.includes('toggle_switch'))).toBe(true);
+    expect(report.warnings.some((w) => w.includes('gate of kind nand'))).toBe(true);
   });
 
   it('counts a wired teleport as the wired blue teleport', () => {
@@ -612,7 +671,7 @@ describe('the validator', () => {
     const clean = LevelValidator.validate(exact.level);
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
     const lost = convertCc2Map(
-      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: PURPLE_WALL }), put(4, 1, { code: 0x14 })]),
+      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0x8c }, { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
       OPTIONS
     );
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);

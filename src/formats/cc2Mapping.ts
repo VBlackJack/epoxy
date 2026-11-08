@@ -55,6 +55,11 @@ export const DIRT_BLOCK_ID = 'dirt_block';
 export const UNKNOWN_ID = 'cc2_unknown';
 export const BLUE_WALL_FAKE_ID = 'blue_wall_fake';
 
+/** Wired forms of the devices a wire reaches (the unwired ones keep their plain ids above). */
+export const WIRED_TRAP: Cc2TileMapping = { id: 'trap_wired', key: 'wired_trap' };
+export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: 'flame_jet_wired_off', key: 'wired_flame_jet' };
+export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: 'flame_jet_wired_on', key: 'wired_flame_jet' };
+
 /** Coverage keys the converter adds itself. */
 export const KEY_TELEPORT_BLUE = 'teleport_blue';
 export const KEY_TELEPORT_BLUE_WIRED = 'teleport_blue_wired';
@@ -105,7 +110,8 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x44, same('clone_machine')],
   [0x45, same('hint')],
   [0x46, same('force_cycle', 'force_floor_random')],
-  [0x47, reserved('button_gray')],
+  // The CC2 gray button pulses the wire-capable devices of its 5 x 5 square: not the Epoxy gray button.
+  [0x47, same('button_gray_area', 'button_gray')],
   [0x48, same('swivel_door_cc2_sw', 'swivel_door')],
   [0x49, same('swivel_door_cc2_nw', 'swivel_door')],
   [0x4a, same('swivel_door_cc2_ne', 'swivel_door')],
@@ -121,13 +127,13 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x6b, same('floor', 'custom_floor')],
   [0x70, same('wall')],
   [0x71, same('hint', 'letter')],
-  [0x72, reserved('purple_floor')],
-  [0x73, reserved('purple_wall')],
+  [0x72, same('purple_floor')],
+  [0x73, same('purple_wall')],
   [0x7d, same('wall', 'green_wall')],
   [0x7e, same('blue_wall_fake', 'green_wall_fake')],
-  [0x87, reserved('black_button')],
-  [0x88, reserved('toggle_switch')],
-  [0x89, reserved('toggle_switch')],
+  [0x87, same('black_button')],
+  [0x88, same('toggle_switch_off', 'toggle_switch')],
+  [0x89, same('toggle_switch_on', 'toggle_switch')],
   [0x8a, same('thief_keys')],
   [0x8d, same('turtle')]
 ]);

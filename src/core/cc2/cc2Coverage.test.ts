@@ -31,7 +31,9 @@ import {
 } from './cc2Coverage';
 
 /** Reserved ids that a mapping plays as an Epoxy element instead of losing. */
-const MAPPED_RESERVED = ['helmet', 'steel_wall', 'extra_chip'];
+const MAPPED_RESERVED = [
+  'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray'
+];
 
 describe('cc2 coverage table', () => {
   it('plays the extra chip as an exact chip', () => {
@@ -74,9 +76,9 @@ describe('classifyCc2Level', () => {
   });
 
   it('is lost when any element is lost, whatever else the level holds', () => {
-    const coverage = classifyCc2Level(['floor', 'bug', 'purple_wall', KEY_MULTIPLE_PLAYERS, 'chip']);
+    const coverage = classifyCc2Level(['floor', 'bug', 'ghost', KEY_MULTIPLE_PLAYERS, 'chip']);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual([KEY_MULTIPLE_PLAYERS, 'purple_wall']);
+    expect(coverage.lost).toEqual(['ghost', KEY_MULTIPLE_PLAYERS]);
     expect(coverage.approx).toEqual([]);
   });
 
@@ -119,6 +121,24 @@ describe('key list', () => {
   it('does not reserve an id for the canopy flag', () => {
     expect(PACK_JSON_VERSION_V12_IDS.has('cc2_canopy')).toBe(false);
     expect(PACK_JSON_VERSION_V12_IDS.has('cc2_purple_floor')).toBe(true);
+  });
+});
+
+describe('wired devices', () => {
+  it('plays the purple tiles, the toggle switch and the black button as exact elements', () => {
+    expect(classifyCc2Level(['purple_wall', 'purple_floor', 'toggle_switch', 'black_button'])).toEqual({
+      verdict: 'exact',
+      lost: [],
+      approx: []
+    });
+  });
+
+  it('plays the gray button area, the wired trap and the wired flame jet as approximate', () => {
+    expect(classifyCc2Level(['button_gray', 'wired_trap', 'wired_flame_jet'])).toEqual({
+      verdict: 'approx',
+      lost: [],
+      approx: ['button_gray', 'wired_flame_jet', 'wired_trap']
+    });
   });
 });
 
