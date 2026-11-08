@@ -539,3 +539,5 @@ editor entity over floor timid_teeth 810ccfdacd74a55d
 editor entity over floor ghost 13bcbeb731ecae9f
 editor entity over floor rover 2bfb564bd459ed3a
 editor entity over floor arrow_block_none da776ea141c54398
+editor entity over floor mirror_chip a4d6ac21b7e4b0d6
+editor entity over floor mirror_melinda 1e53c7e53d809459
