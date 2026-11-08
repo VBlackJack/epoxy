@@ -4684,6 +4684,12 @@
         "label": "Panneau d'interdiction pour l'objet \"Éclair\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
+    "no_sign_railroad_sign": {
+      "name": "Panneau Interdit : Panneau de chemin de fer",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Panneau de chemin de fer\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
     "door_red": {
       "name": "Porte Rouge"
     },

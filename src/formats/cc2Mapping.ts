@@ -183,8 +183,15 @@ export const KEY_NO_SIGN_BOOTS = 'no_sign_boots';
 export const KEY_NO_SIGN_ITEM = 'no_sign_item';
 /** A no-sign over a bonus, a time item or the toggle clock: nothing can bar it, so the item is dropped and cannot be picked up. */
 export const KEY_NO_SIGN_BONUS = 'no_sign_bonus';
-/** Terrain ids a no-sign has no meaning on: nobody stands there, so the sign is not placed. */
+/** A no-sign on a wall or over an item no player carries (chip, bomb): it bars nobody, so Epoxy drops the sign and keeps the rest. */
+export const KEY_NO_SIGN_NO_EFFECT = 'no_sign_no_effect';
+/** Terrain ids a no-sign has no meaning on: nobody stands there, so the sign is not dropped onto the item layer. */
 export const NO_SIGN_BLOCKED_TERRAIN: ReadonlySet<string> = new Set(['wall', 'steel_wall']);
+/**
+ * Items that never sit in a player inventory (chips count toward the socket, a bomb is not an item), so the sign
+ * never matches an actor carrying them: Epoxy drops the sign and the item keeps working.
+ */
+export const NO_SIGN_NEVER_CARRIED_ITEMS: ReadonlySet<string> = new Set(['chip', 'bomb', 'green_chip', 'green_bomb']);
 /** Items a no-sign makes impossible to pick up without ever barring anyone: Epoxy drops them. */
 export const NO_SIGN_INERT_ITEMS: ReadonlySet<string> = new Set([
   'score_10',

@@ -2583,6 +2583,14 @@
       "teleportGroup": "turning",
       "teleportExitOrder": "forward_right_left_back",
       "colorKey": "red"
+    },
+    "no_sign_railroad_sign": {
+      "id": "no_sign_railroad_sign",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.no_sign_railroad_sign.name",
+      "laserTransparent": true,
+      "forbiddenItem": "railroad_sign"
     }
   }
 }

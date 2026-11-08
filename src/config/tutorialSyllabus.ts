@@ -205,7 +205,7 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   toll_token: ['toll_token', 'no_sign_toll_token'],
   bribe: ['bribe', 'no_sign_bribe'],
   rail_junction: ['rail_junction'],
-  railroad_sign: ['railroad_sign'],
+  railroad_sign: ['railroad_sign', 'no_sign_railroad_sign'],
   steel_foil: ['steel_foil', 'no_sign_steel_foil'],
   toggle_clock: ['toggle_clock'],
   puppet: ['puppet', 'puppet_control'],
