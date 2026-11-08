@@ -238,7 +238,8 @@ import {
   tileAvailability,
   winRuleAvailability
 } from './paletteAvailability';
-import { arrangeMechanismSections, entityMechanismGroup, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
+import { JUNCTION_NO_SWITCH } from '../render/railArt';
+import { arrangeMechanismSections, entityMechanismGroup, isHiddenFromPalette, tileMechanismGroup, type MechanismGroupId } from './paletteGroups';
 import { searchPalette, type SearchableEntry } from './paletteSearch';
 import { describeResize, RESIZE_DONE_KEY, RESIZE_UNCHANGED_KEY } from './resizeReport';
 import {
@@ -1736,7 +1737,7 @@ export class LevelEditor {
     };
 
     // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
-    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true)) {
+    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true && !isHiddenFromPalette(candidate))) {
       add(
         { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
         t(tile.i18nKey),
@@ -6298,7 +6299,12 @@ export class LevelEditor {
     hiddenCells: ReadonlyMap<number, boolean | undefined> | null,
     width: number
   ): void {
-    this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
+    const track = !doc.cc3d && doc.railTracks !== undefined && ConfigRegistry.getTile(doc.terrain[y][x]).railJunction === true
+      ? doc.railTracks.find((entry) => entry.x === x && entry.y === y)
+      : undefined;
+    // A track cell the level holds data for shows its real segments; without data it shows the sample junction.
+    if (track) this.renderer.drawTrackCell(ctx, x * s, y * s, s, track.mask, track.active ?? JUNCTION_NO_SWITCH);
+    else this.renderer.drawTile(ctx, doc.terrain[y][x], x * s, y * s, s, true, true);
     const cc3d = doc.cc3d;
     if (cc3d) {
       const cell = cc3d.cells[y * cc3d.width + x];

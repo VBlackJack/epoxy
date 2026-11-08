@@ -2546,8 +2546,16 @@ export class PixelRenderer {
       neighbours.cx === undefined || neighbours.cy === undefined
         ? undefined
         : this.railDrawCells?.get(neighbours.cy * this.blockCellsWidth + neighbours.cx);
-    const mask = known?.mask ?? JUNCTION_SAMPLE_MASK;
-    const active = known?.active ?? JUNCTION_NO_SWITCH;
+    this.paintJunctionSegments(ctx, x, y, size, known?.mask ?? JUNCTION_SAMPLE_MASK, known?.active ?? JUNCTION_NO_SWITCH);
+  }
+
+  /** A track cell of a level being edited: the floor of the style with the real segments of the cell over it (the editor has no engine to ask). */
+  public drawTrackCell(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number, active: number): void {
+    this.drawTile(ctx, FLOOR_TILE_ID, x, y, size, true, true);
+    this.paintJunctionSegments(ctx, x, y, size, mask, active);
+  }
+
+  private paintJunctionSegments(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, mask: number, active: number): void {
     const art = this.runewardPainters() ? this.runewardArt() : null;
     const pal = this.pal();
     const neon = this.isHdVector();

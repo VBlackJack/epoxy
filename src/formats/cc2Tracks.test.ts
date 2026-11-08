@@ -30,6 +30,10 @@ import { PACK_JSON_VERSION_V13 } from '../config/constants';
 import { normalizeRailTracks, stripInvalidTextFields } from '../config/ConfigValidation';
 import { RAIL_JUNCTION_TILE_ID } from '../core/coreConstants';
 import type { CompiledLevel, RailTrackCell } from '../core/types';
+import { eraseCell, floodFillTerrain, paintTerrain } from '../editor/mapEdits';
+import { historyDiff } from '../editor/historyDiff';
+import { clearRect, extractClip, moveRect, pasteClip } from '../editor/selectionEdits';
+import { levelMapChanged } from '../editor/saveTarget';
 import { cloneDocument, sameDocument, withEditedMap } from '../editor/editorDocument';
 import { documentFromLevel, levelFromDocument } from '../editor/editorLevelIo';
 import { resizeMap } from '../editor/mapEdits';
@@ -216,5 +220,35 @@ describe('the editor', () => {
     expect(grown.map.railTracks?.map((cell) => [cell.x, cell.y])).toEqual(CELLS.map((cell) => [cell.x + 2, cell.y + 2]));
     const cropped = resizeMap(doc, 4, 4, ConfigRegistry.getLevelSizeBounds());
     expect(cropped.map.railTracks?.map((cell) => [cell.x, cell.y])).toEqual([[2, 2]]);
+  });
+
+  it('moves with the cells of a move, a copy and a paste, and goes with a clear', () => {
+    const doc = documentFromLevel(levelWith(), texts);
+    const rect = { x: 2, y: 2, width: 1, height: 1 };
+    const clip = extractClip(doc, rect, false);
+    expect(clip.railTracks).toEqual([{ dx: 0, dy: 0, mask: 0x31 }]);
+    const pasted = pasteClip(doc, clip, 5, 5, 'epoxy');
+    expect(pasted.map.railTracks).toEqual([...CELLS, { x: 5, y: 5, mask: 0x31 }].sort((a, b) => a.y - b.y || a.x - b.x));
+    const moved = moveRect(doc, rect, 3, 0);
+    expect(moved.map.railTracks).toEqual([{ x: 3, y: 4, mask: 0x30, active: 4, entry: 'W' }, { x: 5, y: 2, mask: 0x31 }].sort((a, b) => a.y - b.y || a.x - b.x));
+    expect(clearRect(doc, rect).map.railTracks).toEqual([CELLS[1]]);
+  });
+
+  it('drops the entry of a cell that stops being a track cell', () => {
+    const doc = documentFromLevel(levelWith(), texts);
+    expect(paintTerrain(doc, 2, 2, 'floor').map.railTracks).toEqual([CELLS[1]]);
+    expect(eraseCell(doc, 3, 4).map.railTracks).toEqual([CELLS[0]]);
+    expect(floodFillTerrain(doc, 2, 2, 'wall').map.railTracks).toEqual([CELLS[1]]);
+    // Painting the same tile again changes nothing.
+    expect(paintTerrain(doc, 2, 2, RAIL_JUNCTION_TILE_ID).changed).toBe(false);
+  });
+
+  it('counts a track cell change in the history diff and in the map signature', () => {
+    const before = documentFromLevel(levelWith(), texts);
+    const after = cloneDocument(before);
+    after.railTracks = [{ x: 2, y: 2, mask: 0x01 }, CELLS[1]];
+    expect(historyDiff(before, after).cells).toEqual([{ x: 2, y: 2 }]);
+    expect(levelMapChanged(levelFromDocument(before, EXPORT), levelFromDocument(after, EXPORT))).toBe(true);
+    expect(levelMapChanged(levelFromDocument(before, EXPORT), levelFromDocument(cloneDocument(before), EXPORT))).toBe(false);
   });
 });

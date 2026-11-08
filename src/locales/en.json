@@ -4492,7 +4492,7 @@
     "rail_junction": {
       "name": "Track Junction",
       "desc": {
-        "label": "A Chip's Challenge 2 track cell with up to six track segments. You may only come in through a side a track opens, and you leave only along a track that joins the side you came in by; a blocked step is turned onto the track. A cell with a switch uses one track at a time and moves to the next when something leaves it. Blocks may back out. The railroad sign ignores the tracks."
+        "label": "A Chip's Challenge 2 track cell with up to six track segments. You may only come in through a side a track opens, and you leave only along a track that joins the side you came in by; a blocked step is turned onto the track. A cell with a switch uses one track at a time and moves to the next when something leaves along the active track. Blocks may back out. The railroad sign ignores the tracks."
       }
     },
     "railroad_sign": {

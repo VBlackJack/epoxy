@@ -66,3 +66,31 @@ export function replaceRailTracks(map: RailTrackHolder, tracks: readonly RailTra
   if (canonical) map.railTracks = canonical;
   else delete map.railTracks;
 }
+
+/** Removes the track cell entries of the cells the predicate picks; returns how many went. The map is changed in place. */
+export function removeRailTracksWhere(map: RailTrackHolder, predicate: (x: number, y: number) => boolean): number {
+  const before = map.railTracks ?? [];
+  const kept = before.filter((entry) => !predicate(entry.x, entry.y));
+  if (kept.length !== before.length) replaceRailTracks(map, kept);
+  return before.length - kept.length;
+}
+
+/** The cells whose track cell entry differs between two lists, as grid positions. */
+export function differingRailTrackCells(
+  before: readonly RailTrackCell[] | undefined,
+  after: readonly RailTrackCell[] | undefined
+): Array<{ x: number; y: number }> {
+  const keyed = (tracks: readonly RailTrackCell[] | undefined): Map<string, string> => {
+    const map = new Map<string, string>();
+    for (const entry of tracks ?? []) map.set(`${entry.x},${entry.y}`, JSON.stringify([entry.mask, entry.active ?? null, entry.entry ?? null]));
+    return map;
+  };
+  const was = keyed(before);
+  const now = keyed(after);
+  const cells = new Map<string, { x: number; y: number }>();
+  for (const entry of [...(before ?? []), ...(after ?? [])]) {
+    const key = `${entry.x},${entry.y}`;
+    if (was.get(key) !== now.get(key)) cells.set(key, { x: entry.x, y: entry.y });
+  }
+  return [...cells.values()];
+}

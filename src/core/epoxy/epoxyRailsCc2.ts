@@ -24,11 +24,13 @@
  * - It leaves only along an open segment that joins the side it came in by; stepping straight back out of the side it
  *   came in by is refused, except for blocks, which may back out (`blocks_leaving`, `can_reverse_on_railroad`).
  * - A step that cannot leave is turned: the same direction, then right, left and back are tried in that order
- *   (`redirect_exit`). Only the player and the blocks the player pushes are redirected here; a monster chooses among its
- *   own turns, which already exclude what the track forbids.
+ *   (`redirect_exit`). The player, the blocks it pushes, the monsters and the steered puppets are redirected (a monster
+ *   judges each of its candidate steps through the redirect, then moves the redirected way).
  * - A switch advances to the next segment of the cell when an actor leaves along the active segment, unless the
  *   cell is wired; a wire pulse or a gray button advances it too (`on_depart`, `on_power`, `on_gray_button`).
  * - The holder of the railroad sign ignores all of this (`trackproof`).
+ * - A monster the floor does not affect (the ghost) neither obeys the tracks' entry side nor records one: it never calls
+ *   the arrival and departure hooks, so a track cell keeps the side of the last other actor [unverified against CC2].
  *
  * Nothing here runs on a level without track cells: `w.railCells` is empty then.
  */

@@ -4492,7 +4492,7 @@
     "rail_junction": {
       "name": "Jonction de voies",
       "desc": {
-        "label": "Une case de voies de Chip's Challenge 2 avec jusqu'à six tronçons. On n'y entre que par un côté qu'une voie ouvre, et on n'en sort que le long d'une voie qui rejoint le côté d'entrée ; un pas bloqué est dévié sur la voie. Une case à aiguillage n'utilise qu'une voie à la fois et passe à la suivante quand quelque chose en sort. Les blocs peuvent reculer. Le panneau de chemin de fer ignore les voies."
+        "label": "Une case de voies de Chip's Challenge 2 avec jusqu'à six tronçons. On n'y entre que par un côté qu'une voie ouvre, et on n'en sort que le long d'une voie qui rejoint le côté d'entrée ; un pas bloqué est dévié sur la voie. Une case à aiguillage n'utilise qu'une voie à la fois et passe à la suivante quand quelque chose en sort le long de la voie active. Les blocs peuvent reculer. Le panneau de chemin de fer ignore les voies."
       }
     },
     "railroad_sign": {

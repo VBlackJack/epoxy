@@ -368,6 +368,36 @@ describe('track cells: monsters', () => {
   });
 });
 
+describe('track cells: monsters are turned onto the track', () => {
+  /** Ticks the engine until the monster has left its cell, and returns where it stands. */
+  function firstStep(engine: GameEngine, type: string): { x: number; y: number } {
+    // Monsters wait for the player's first step.
+    step(engine, 'N');
+    const found = engine.getEntities().find((e) => e.type === type);
+    const start = found === undefined ? undefined : { x: found.x, y: found.y };
+    for (let tick = 0; tick < MONSTER_WALK_TICKS; tick++) {
+      engine.tick();
+      const now = engine.getEntities().find((e) => e.type === type);
+      if (now !== undefined && start !== undefined && (now.x !== start.x || now.y !== start.y)) return { x: now.x, y: now.y };
+    }
+    throw new Error('the monster never moved');
+  }
+
+  it('carries a ball round a bend it entered from the north', () => {
+    const ball: EntityPlacement = { type: 'pink_ball', x: CENTER, y: CENTER, dir: 'S' };
+    // A north-east bend with the ball standing on it, entered from the north: straight on is refused, the way east follows the track.
+    const engine = load(room({ tracks: [{ x: CENTER, y: CENTER, mask: NE, entry: 'N' }], entities: [ball], player: { x: 1, y: SIZE - 2 } }));
+    expect(firstStep(engine, 'pink_ball')).toEqual({ x: CENTER + 1, y: CENTER });
+  });
+
+  it('turns a walker on a junction to the left when its right is the side of entry', () => {
+    const tank: EntityPlacement = { type: 'tank', x: CENTER, y: CENTER, dir: 'E' };
+    // East is refused, the right of east is south (the side of entry, refused to walkers), the left is north.
+    const engine = load(room({ tracks: [{ x: CENTER, y: CENTER, mask: NS | EW }], entities: [tank], player: { x: 1, y: SIZE - 2 } }));
+    expect(firstStep(engine, 'tank')).toEqual({ x: CENTER, y: CENTER - 1 });
+  });
+});
+
 describe('track cells: levels without them', () => {
   it('has no rail state and the same simulation as before', () => {
     const plain = room();

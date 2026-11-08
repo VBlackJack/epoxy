@@ -58,6 +58,14 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
 }
 
 /**
+ * Whether the palette leaves the tile out: a Chip's Challenge 2 track cell is imported with its tracks and not authored
+ * by hand in this release (a cell placed by hand would hold no track and let nobody in).
+ */
+export function isHiddenFromPalette(tile: TileDefinition): boolean {
+  return tile.railJunction === true;
+}
+
+/**
  * The group of a Mechanisms tile, read from the fields the tile config declares so that a new tile
  * lands in a group by itself. The first matching rule wins (a coloured teleporter is a teleporter,
  * a laser gate is a laser part). Null when no rule matches.
@@ -73,7 +81,7 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.laserEmitter || tile.laserReceiverGroup || tile.laserGateGroup || tile.shotLauncher) return 'lasers';
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
   // A rail switch toggles like a wall, but it sits with the rest of the rails.
-  if (tile.railSides !== undefined || tile.railJunction === true) return 'rails';
+  if (tile.railSides !== undefined) return 'rails';
   if (tile.togglesTo || tile.flameTogglesTo || tile.wireTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
   if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
