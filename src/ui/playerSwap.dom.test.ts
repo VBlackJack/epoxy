@@ -160,10 +160,10 @@ describe('swapping from the page', () => {
     expect(engine.getPlayer()).toMatchObject({ x: 8, y: 3 });
   });
 
-  it('is refused while the engine is paused', () => {
+  it('is blocked, without a refusal message, while the engine is paused', () => {
     const engine = start(room(TWO_PLAYERS));
     engine.setPaused(true);
-    expect(swapPlayers(engine)).toEqual({ kind: 'refused' });
+    expect(swapPlayers(engine)).toEqual({ kind: 'blocked' });
   });
 
   it('reads the inventory of the controlled player', () => {

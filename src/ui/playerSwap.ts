@@ -67,15 +67,19 @@ export function playersState(engine: PlayEngine): PlayersState | null {
 export type SwapOutcome =
   | { kind: 'unavailable' }
   | { kind: 'refused' }
+  | { kind: 'blocked' }
   | { kind: 'swapped'; state: PlayersState };
 
 /**
  * Presses the swap key on the engine. A level with one player ignores it ('unavailable': nothing is shown);
- * a level with several refuses it while nobody else can take over, the engine is paused or the level ended.
+ * a level with several refuses it: 'refused' when nobody else is on the map, 'blocked' while paused or once the level ended.
  */
 export function swapPlayers(engine: PlayEngine): SwapOutcome {
   if (!hasSeveralPlayers(engine) || engine.swapPlayer === undefined) return { kind: 'unavailable' };
-  if (!engine.swapPlayer()) return { kind: 'refused' };
+  if (!engine.swapPlayer()) {
+    // Only an empty map has nobody to swap to; a pause or a finished level refuses without a message of its own.
+    return (engine.getParkedPlayers?.()?.length ?? 0) === 0 ? { kind: 'refused' } : { kind: 'blocked' };
+  }
   const state = playersState(engine);
   return state === null ? { kind: 'unavailable' } : { kind: 'swapped', state };
 }

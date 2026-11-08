@@ -4025,7 +4025,7 @@ class EpoxyApplication {
     }
     this.clearAutoMove();
     const outcome = swapPlayers(this.engine);
-    if (outcome.kind === 'unavailable') return;
+    if (outcome.kind === 'unavailable' || outcome.kind === 'blocked') return;
     if (outcome.kind === 'refused') {
       this.showTransientStatus(t(SWAP_REFUSED_KEY));
       return;
