@@ -21,7 +21,8 @@
  *
  *   CC2_GAME_DIR   the folder to check (required)
  *   CC2_OUT_DIR    where the report goes (default: local/cc2 under the repository)
- *   CC2_REPLAY_ENGINE  epoxy (default), lynx, or both (one report per engine, file suffix -replay-<engine>.md)
+ *   CC2_REPLAY_ENGINE  epoxy (default), lynx, cc2, both (epoxy and lynx) or all (epoxy, lynx and cc2); one report per
+ *                  engine, file suffix -replay-<engine>.md
  *
  * Writes `<folder-name>-replay.md`: a summary (replay wins by coverage verdict, by strategy, divergence causes, wins
  * per approximate key) followed by one line per level.
@@ -50,10 +51,13 @@ const C2M_EXTENSION = '.c2m';
 const REPORT_SUFFIX = '-replay';
 const ENGINE_ENV = 'CC2_REPLAY_ENGINE';
 const ENGINE_BOTH = 'both';
+const ENGINE_ALL = 'all';
+const LYNX_BASED: readonly Cc2ReplayEngine[] = ['lynx', 'cc2'];
 const NEWLINE = String.fromCharCode(10);
 const PATH_SEPARATOR = '/';
 const SPLIT_PATTERN = /[\\/]/;
 const VERDICTS = ['exact', 'approx', 'lost'] as const;
+const EXACT = 'exact';
 const NO_REPLAY = 'no replay';
 const DECODE_ERROR = 'decode error';
 const PERCENT = 100;
@@ -115,7 +119,8 @@ function levelLine(row: Row): string {
   if (row.error) return `- ${row.path} | ${coverage} | ${row.error}`;
   if (!row.check) return `- ${row.path} | ${coverage} | ${NO_REPLAY}`;
   const outcome = row.check.won ? `WIN (${row.check.winner})` : `FAIL ${failureText(row.check)}`;
-  return `- ${row.path} | ${coverage} | ${outcome} | ignored keys: ${keyBitNames(row.check.ignoredKeyBits)}`;
+  const unsupported = row.check.unsupported.length > 0 ? ` | unsupported: ${row.check.unsupported.join(', ')}` : '';
+  return `- ${row.path} | ${coverage} | ${outcome} | ignored keys: ${keyBitNames(row.check.ignoredKeyBits)}${unsupported}`;
 }
 
 function tally<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, number> {
@@ -132,7 +137,17 @@ function table(header: readonly string[], rows: ReadonlyArray<ReadonlyArray<stri
   ];
 }
 
-function summaryLines(rows: readonly Row[]): string[] {
+/** Per unsupported id: the levels with a replay that carry it, and how many of those are exact. */
+function unsupportedLines(withReplay: readonly Row[]): string[] {
+  const byId = new Map<string, Row[]>();
+  for (const row of withReplay) for (const id of row.check?.unsupported ?? []) byId.set(id, [...(byId.get(id) ?? []), row]);
+  const rows = [...byId.entries()]
+    .map(([id, list]) => [id, list.length, list.filter((r) => r.verdict === EXACT).length] as const)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return ['## Unsupported ids on levels with a replay', '', ...table(['id', 'levels', 'of which exact'], rows), ''];
+}
+
+function summaryLines(rows: readonly Row[], lynxBased: boolean): string[] {
   const withReplay = rows.filter((r) => r.check !== null);
   const wins = (list: readonly Row[]): number => list.filter((r) => r.check?.won).length;
   const lines: string[] = [];
@@ -185,6 +200,8 @@ function summaryLines(rows: readonly Row[]): string[] {
   });
   lines.push(...table(['approx key', 'levels', 'wins', 'solo levels', 'solo wins'], keyRows), '');
 
+  if (lynxBased) lines.push(...unsupportedLines(withReplay));
+
   const unplayed = withReplay.filter((r) => (r.check?.ignoredKeyBits ?? 0) !== 0);
   lines.push(
     `Levels whose replay uses keys the check does not play (drop, switch, cycle, p2): ${unplayed.length}, wins among them: ${wins(unplayed)}.`,
@@ -196,8 +213,9 @@ function summaryLines(rows: readonly Row[]): string[] {
 function enginesToRun(): Cc2ReplayEngine[] {
   const wanted = process.env[ENGINE_ENV] ?? 'epoxy';
   if (wanted === ENGINE_BOTH) return ['epoxy', 'lynx'];
-  if (wanted === 'epoxy' || wanted === 'lynx') return [wanted];
-  throw new Error(`${ENGINE_ENV} must be epoxy, lynx or ${ENGINE_BOTH}`);
+  if (wanted === ENGINE_ALL) return ['epoxy', 'lynx', 'cc2'];
+  if (wanted === 'epoxy' || wanted === 'lynx' || wanted === 'cc2') return [wanted];
+  throw new Error(`${ENGINE_ENV} must be epoxy, lynx, cc2, ${ENGINE_BOTH} or ${ENGINE_ALL}`);
 }
 
 it('plays the stored replays of a folder of CC2 levels and writes a report', async () => {
@@ -242,7 +260,7 @@ it('plays the stored replays of a folder of CC2 levels and writes a report', asy
       if (c.sections.length > 0) row.check = checkCc2ReplayBest(c.level.level, decodeCc2Replay(c.sections[0]), engine);
       return row;
     });
-    const markdown = [`# CC2 replay check: ${stem} (${engine} engine)`, '', ...summaryLines(rows), '## Levels', '', ...rows.map(levelLine), ''].join(NEWLINE);
+    const markdown = [`# CC2 replay check: ${stem} (${engine} engine)`, '', ...summaryLines(rows, LYNX_BASED.includes(engine)), '## Levels', '', ...rows.map(levelLine), ''].join(NEWLINE);
     const suffix = engines.length > 1 || engine !== 'epoxy' ? `${REPORT_SUFFIX}-${engine}` : REPORT_SUFFIX;
     writeFileSync(join(outDir, `${stem}${suffix}.md`), markdown, 'utf8');
     const played = rows.filter((r) => r.check !== null);
