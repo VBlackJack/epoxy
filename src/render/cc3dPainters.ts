@@ -159,7 +159,8 @@ const GEO = {
   fishEye: 0.04,
   badgeRadius: 0.13,
   badgeRim: 1.25,
-  badgeInset: 0.2
+  badgeInset: 0.2,
+  diamondReach: 1.35
 } as const;
 
 /** Mobs drawn as an existing monster with a mark: the monster, its scale and the mark colour key. */
@@ -167,7 +168,12 @@ export interface Cc3dMobBase {
   readonly base: string;
   readonly scale: number;
   readonly badge: string | null;
+  /** Shape of the mark; a round dot when absent. */
+  readonly badgeShape?: Cc3dBadgeShape;
 }
+
+/** Shape of the mark on a monster variant: a round dot, or a diamond to tell it from a dot of the same colour. */
+export type Cc3dBadgeShape = 'dot' | 'diamond';
 
 const BABY_SCALE = 0.62;
 const FULL_SCALE = 1;
@@ -180,7 +186,7 @@ export const CC3D_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   cc3d_golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
 };
 
-/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark, the floor mimic plain teeth (drawn nearly invisible), the timid teeth teeth with a yellow mark, the ghost a glider with a gray mark and the rover a blob with a brown mark. The CC3D monsters are the monster they resemble with a mark (the babies half size, unmarked): the bouncer a pink ball with a blue mark, the snappy and the nibble teeth with a red and a green mark, the blinky a glider with a red mark, the limpy a paramecium and the limpa a bug with a green mark, the omni a blob with a green mark, the legs a walker with a green and a red mark (as in CC3D), the screamer a fireball with a blue mark, the CC3D walker a walker with a yellow mark, the blue golem a tank with a blue mark, the yellow golem a tank with a yellow mark. */
+/** Epoxy-only monsters drawn as an existing monster with a mark, by entity type: the skitter is teeth that run away, the lurker a blob with an orange mark, the wisp a glider with a ring-coloured mark, the floor mimic plain teeth (drawn nearly invisible), the timid teeth teeth with a yellow mark, the ghost a glider with a gray mark and the rover a blob with a brown mark. The CC3D monsters are the monster they resemble with a mark (the babies half size, unmarked): the bouncer a pink ball with a blue mark, the snappy and the nibble teeth with a red and a green mark, the blinky a glider with a red mark, the limpy a paramecium and the limpa a bug with a green mark, the omni a blob with a green mark, the legs a walker with a green and a red mark (as in CC3D), the screamer a fireball with a blue mark, the CC3D walker a walker with a yellow mark, the blue golem a tank with a blue mark, the yellow golem a tank with a yellow diamond mark (the puppet keeps the yellow dot). */
 export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   skitter: { base: 'teeth', scale: FULL_SCALE, badge: 'blue' },
   lurker: { base: 'blob', scale: FULL_SCALE, badge: 'orange' },
@@ -203,7 +209,7 @@ export const EPOXY_MOB_BASES: Readonly<Record<string, Cc3dMobBase>> = {
   baby_screamer: { base: 'fireball', scale: BABY_SCALE, badge: null },
   walker_3d: { base: 'walker', scale: FULL_SCALE, badge: 'yellow' },
   golem_blue: { base: 'tank', scale: FULL_SCALE, badge: 'blue' },
-  golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow' }
+  golem_yellow: { base: 'tank', scale: FULL_SCALE, badge: 'yellow', badgeShape: 'diamond' }
 };
 
 /** What the painters need from the renderer. */
@@ -510,17 +516,43 @@ export function paintCc3dItem(ctx: CanvasRenderingContext2D, id: string, x: numb
   ctx.fill();
 }
 
-/** A colour dot in the corner of a tile: marks a monster as a variant of the one drawn. */
-export function paintCc3dBadge(ctx: CanvasRenderingContext2D, colorKey: string, x: number, y: number, size: number, tools: Cc3dPaintTools): void {
+/** A diamond centred on (cx, cy) reaching `reach` px along both axes. */
+function diamondPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, reach: number): void {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - reach);
+  ctx.lineTo(cx + reach, cy);
+  ctx.lineTo(cx, cy + reach);
+  ctx.lineTo(cx - reach, cy);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A colour mark in the corner of a tile (a dot, or a diamond): marks a monster as a variant of the one drawn. */
+export function paintCc3dBadge(
+  ctx: CanvasRenderingContext2D,
+  colorKey: string,
+  x: number,
+  y: number,
+  size: number,
+  tools: Cc3dPaintTools,
+  shape: Cc3dBadgeShape = 'dot'
+): void {
   const cx = x + size * (1 - GEO.badgeInset);
   const cy = y + size * GEO.badgeInset;
+  const radius = size * GEO.badgeRadius;
   ctx.fillStyle = tools.pal.wallShadow;
+  if (shape === 'diamond') {
+    diamondPath(ctx, cx, cy, radius * GEO.diamondReach * GEO.badgeRim);
+    ctx.fillStyle = tools.pal[colorKey];
+    diamondPath(ctx, cx, cy, radius * GEO.diamondReach);
+    return;
+  }
   ctx.beginPath();
-  ctx.arc(cx, cy, size * GEO.badgeRadius * GEO.badgeRim, 0, FULL_TURN);
+  ctx.arc(cx, cy, radius * GEO.badgeRim, 0, FULL_TURN);
   ctx.fill();
   ctx.fillStyle = tools.pal[colorKey];
   ctx.beginPath();
-  ctx.arc(cx, cy, size * GEO.badgeRadius, 0, FULL_TURN);
+  ctx.arc(cx, cy, radius, 0, FULL_TURN);
   ctx.fill();
 }
 
