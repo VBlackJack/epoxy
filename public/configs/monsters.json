@@ -794,6 +794,22 @@
       "refusesHazards": ["water", "fire", "slime"],
       "entersTurtles": true,
       "epoxyOnly": true
+    },
+    "golem_blue": {
+      "id": "golem_blue",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.golem_blue.name",
+      "moveIntervalTicks": 3,
+      "movementPattern": "tank_march",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "refusesHazards": ["water", "fire", "slime"],
+      "entersTurtles": true,
+      "reversedByButton": true,
+      "epoxyOnly": true
     }
   }
 }

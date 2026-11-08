@@ -59,7 +59,7 @@ const CC2_SWIVEL_IDS = ['swivel_door_cc2_ne', 'swivel_door_cc2_se', 'swivel_door
 const CC2_ITEM_IDS = ['green_chip', 'green_bomb', 'steel_wall', 'hiking_boots', 'sign_chip_only', 'sign_melinda_only', 'steel_foil', 'toggle_clock', 'bribe', 'dynamite', 'dynamite_lit'];
 const CC2_MONSTER_IDS = ['floor_mimic', 'timid_teeth', 'ghost', 'rover', 'mirror_chip', 'mirror_melinda'];
 const CC3D_MONSTER_IDS = [
-  'walker_3d', 'bouncer', 'snappy', 'nibble', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'omni', 'legs_green', 'legs_red', 'screamer', 'baby_screamer'
+  'walker_3d', 'bouncer', 'snappy', 'nibble', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'omni', 'legs_green', 'legs_red', 'screamer', 'baby_screamer', 'golem_blue'
 ];
 const CC2_RAIL_IDS = ['rail_junction', 'railroad_sign'];
 const CC2_BLOCK_IDS = ['arrow_block_none'];

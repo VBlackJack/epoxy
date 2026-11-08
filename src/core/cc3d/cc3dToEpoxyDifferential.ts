@@ -79,6 +79,8 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   pink_ball: 'bouncer',
   blob: 'omni',
   fireball: 'screamer',
+  // The CC3D engine draws its blue golem as a tank.
+  tank: 'golem_blue',
   cc3d_reflector_lu: 'one_sided_mirror_sw',
   cc3d_reflector_dl: 'one_sided_mirror_nw',
   cc3d_reflector_ur: 'one_sided_mirror_se',

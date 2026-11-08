@@ -5775,6 +5775,12 @@
         "label": "Goes straight on; when blocked it draws a direction at random and waits if that way is blocked too. It steps in four ticks. It will not step into water, fire or slime. It works plates and switches and kills on contact."
       }
     },
+    "golem_blue": {
+      "name": "Blue Golem",
+      "desc": {
+        "label": "Walks straight on and stops at a wall or anything that blocks a monster; it does not turn by itself. A blue button turns it round, and it turns round itself when it steps onto one. It steps in four ticks, is carried by ice and force floors, works plates and switches, and will not step into water, fire or slime. It kills on contact."
+      }
+    },
     "mirror_chip": {
       "name": "Mirror Chip",
       "desc": {
