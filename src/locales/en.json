@@ -4832,7 +4832,7 @@
       }
     },
     "signal_wire_floor": {
-      "name": "Wire Floor",
+      "name": "Conductive Floor",
       "desc": {
         "label": "A floor a wire runs under. It sends a signal while the player stands on it holding the lightning bolt. Needs: signal links out."
       }
