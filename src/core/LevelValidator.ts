@@ -457,10 +457,10 @@ export class LevelValidator {
     const sx = level.playerStart.x;
     const sy = level.playerStart.y;
     const startInGrid = Number.isInteger(sx) && Number.isInteger(sy) && sx >= 0 && sx < width && sy >= 0 && sy < height;
-    if (!startInGrid) {
+    if (level.missingStart || !startInGrid) {
       issues.push({
         severity: 'error',
-        i18nKey: 'validator.issues.invalid_start.label'
+        i18nKey: level.missingStart ? 'validator.issues.no_start.label' : 'validator.issues.invalid_start.label'
       });
       return {
         valid: false,

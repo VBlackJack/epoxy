@@ -33,7 +33,7 @@ const INFO: Severity = 'info';
 // A new validator.issues key must be added here with the severity that core emits.
 const EMITTED_SEVERITY: Record<string, Severity> = {
   no_exit: ERR, missing_chips: ERR, no_matching_key: ERR, fewer_keys_than_doors: WARN, unreachable_chips: ERR,
-  unreachable_exit: ERR, socket_bypass: ERR, invalid_start: ERR, no_targets: ERR, fewer_blocks_than_targets: ERR,
+  unreachable_exit: ERR, socket_bypass: ERR, invalid_start: ERR, no_start: ERR, no_targets: ERR, fewer_blocks_than_targets: ERR,
   no_emitter: ERR, no_receiver: ERR,
   targets_unsolvable: WARN, hidden_by_block: WARN, laser_gate_on_beam: WARN, exit_on_receivers_level: WARN,
   start_on_wall: WARN, start_on_entity: WARN, trap_link_button: WARN, trap_link_target: WARN,

@@ -249,6 +249,7 @@ export function paintPlayerStart(source: EditorMap, x: number, y: number, dir: D
   if (start.x === x && start.y === y && start.dir === dir) return unchanged(source);
   const map = cloneMap(source);
   map.playerStart = { x, y, dir };
+  delete map.missingStart;
   return { map, changed: true, removedLinks: 0, removedUnderlays: 0, playerStartKept: false };
 }
 
@@ -825,6 +826,7 @@ export function resizeMap(
   report.droppedEdges = (source.cellEdges?.length ?? 0) - kept.length;
 
   const resized: EditorMap = { terrain, items, entities, trapLinks, cloneLinks, playerStart: { x: startX, y: startY, dir: source.playerStart.dir } };
+  if (source.missingStart) resized.missingStart = true;
   replaceEdges(resized, kept);
   setLauncherLinks(resized, launcherLinks);
   setSignalLinks(resized, signalLinks);

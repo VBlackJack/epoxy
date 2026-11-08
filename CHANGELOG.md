@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- CC1 `.DAT` import: under the Lynx rules the swimming Chip codes 0x3C-0x3F give the player start (facing kept, terrain below kept) when the level has no other start; the unused codes 0x33-0x3B and 112-255 are reported as import diagnostics; a level with no player start is flagged and fails validation instead of getting a start at the centre.
+
 ### Added
 
 - Clockwork Citadel campaign (`epoxy_citadel`, `public/configs/citadel-levels.json` and `public/configs/citadel-campaign.json`): a new built-in campaign pack of 50 multi-chamber puzzle levels (`epoxy_k_1` to `epoxy_k_50`) across 5 chapters of 10 ("Outer Sluices & Counterweights", "Cryo Ducts & Boot Tolls", "Automata Escapements & Rail Foundries", "Prism Optics & Transit Networks", "Ballistic Sanctum & Parity Vaults"), synthesizing all 25 CC1, CC2, and CC3D puzzle archetypes with an isolated save slot, 0 validator issues, and verified stored solutions. Both locales.

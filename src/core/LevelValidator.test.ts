@@ -108,6 +108,14 @@ describe('LevelValidator', () => {
     expect(found).not.toContain('validator.issues.unreachable_exit.label');
   });
 
+  it('reports an imported level flagged without a start as an error', () => {
+    const level = grid(['#####', '#.E.#', '#####']);
+    level.missingStart = true;
+    const report = LevelValidator.validate(level);
+    expect(report.valid).toBe(false);
+    expect(report.issues.map((i) => i.i18nKey)).toContain('validator.issues.no_start.label');
+  });
+
   it('reports a start outside the grid without throwing', () => {
     const level = grid(['#####', '#.E.#', '#####']);
     level.playerStart = { x: 40, y: 40, dir: 'S' };

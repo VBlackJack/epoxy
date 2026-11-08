@@ -1785,6 +1785,8 @@ export interface CompiledLevel {
   timeLimitSeconds: number;
   chipsRequired: number;
   playerStart: { x: number; y: number; dir: Direction };
+  /** True when an import found no player start: playerStart is then an inert placeholder and the validator reports an error. */
+  missingStart?: boolean;
   terrain: string[][];
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */

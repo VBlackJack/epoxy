@@ -97,6 +97,8 @@ export function startCellProblem(
 export function levelStartingAt(level: CompiledLevel, cell: GridCell): CompiledLevel {
   const copy = structuredClone(level);
   copy.playerStart = { x: cell.x, y: cell.y, dir: level.playerStart.dir };
+  // The chosen cell is a start of its own, so an imported level without one becomes playable from there
+  delete copy.missingStart;
   if (copy.cc3d) {
     const dir = level.cc3d?.player.dir;
     copy.cc3d.player = dir === undefined ? { x: cell.x, y: cell.y } : { x: cell.x, y: cell.y, dir };

@@ -6792,6 +6792,11 @@ export class LevelEditor {
     if (this.testCheckPending) return;
     const exported = this.exportCompiledLevel();
     const compiled = startCell ? levelStartingAt(exported, startCell) : exported;
+    if (compiled.missingStart) {
+      // An imported level without a start is never played: say so and stay in the editor
+      this.setStatusText(t('validator.issues.no_start.label'));
+      return;
+    }
     const key = this.currentCheckKey();
     const generation = this.loadGeneration;
     const epoch = this.checkAbortEpoch;

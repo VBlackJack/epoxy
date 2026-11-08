@@ -411,7 +411,10 @@ function stampClip(
   if (clip.playerStart) {
     const x = originX + clip.playerStart.dx;
     const y = originY + clip.playerStart.dy;
-    if (inGrid(map, x, y) && !ringCells.has(`${x},${y}`)) map.playerStart = { x, y, dir: clip.playerStart.dir };
+    if (inGrid(map, x, y) && !ringCells.has(`${x},${y}`)) {
+      map.playerStart = { x, y, dir: clip.playerStart.dir };
+      delete map.missingStart;
+    }
   }
   return { skipped, borderSkipped, droppedLinks, droppedUnderlays, writtenCells };
 }

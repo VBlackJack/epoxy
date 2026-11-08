@@ -1647,6 +1647,9 @@
       "socket_bypass": {
         "label": "Erreur : La sortie est accessible sans passer par la serrure à puces."
       },
+      "no_start": {
+        "label": "Erreur : Le niveau importé n'a pas de point de départ du joueur."
+      },
       "invalid_start": {
         "label": "Erreur : Le point de départ du joueur est hors de la carte."
       },

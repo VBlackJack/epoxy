@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { levelNavigationBlocked, nextLevelGoesToEditor, overlayButtons, testRunKeyReturns, testRunStatus } from './testRun';
+import { levelNavigationBlocked, nextLevelGoesToEditor, nextPlayableLevelIndex, overlayButtons, testRunKeyReturns, testRunStatus } from './testRun';
 
 describe('overlayButtons', () => {
   it('shows Next and Replay on a normal win and no way back to the editor', () => {
@@ -105,5 +105,20 @@ describe('testRunStatus', () => {
   it('says nothing when the run did not end', () => {
     expect(testRunStatus('none', 5, null)).toBeNull();
     expect(testRunStatus('paused', 5, null)).toBeNull();
+  });
+});
+
+describe('nextPlayableLevelIndex', () => {
+  const levels = [{}, { missingStart: true }, { missingStart: true }, {}];
+
+  it('skips levels without a start', () => {
+    expect(nextPlayableLevelIndex(levels, 0, true)).toBe(0);
+    expect(nextPlayableLevelIndex(levels, 1, true)).toBe(3);
+  });
+
+  it('wraps only when asked, and answers null when nothing can be played', () => {
+    expect(nextPlayableLevelIndex([{}, { missingStart: true }], 1, true)).toBe(0);
+    expect(nextPlayableLevelIndex([{}, { missingStart: true }], 1, false)).toBeNull();
+    expect(nextPlayableLevelIndex([{ missingStart: true }], 0, true)).toBeNull();
   });
 });
