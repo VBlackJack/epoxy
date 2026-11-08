@@ -138,7 +138,8 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x28, same('key_yellow')],
   [0x29, same('key_green')],
   [0x2a, same('chip')],
-  [0x2b, reserved('extra_chip')],
+  // The extra chip does not count toward the socket (the converter counts the 0x2A chips only); it plays as a chip.
+  [0x2b, same('chip', 'extra_chip')],
   [0x3b, same('boots_ice', 'cleats')],
   [0x3c, same('boots_force', 'suction_boots')],
   [0x3d, same('boots_fire', 'fire_boots')],

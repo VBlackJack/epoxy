@@ -54,6 +54,8 @@ const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
 const PLACEHOLDER_REASON =
   'Epoxy has no equivalent: the converter keeps the cell as the cc2_unknown placeholder, so the level is not playable as imported.';
+const EXTRA_CHIP_REASON =
+  'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =
   'Epoxy plays the steel wall as a plain wall, which is exact as long as nothing in the level destroys walls (see steel_wall_with_destroyer).';
 
@@ -75,7 +77,7 @@ const EXACT_KEYS: readonly string[] = [
   'blue_wall_real', 'blue_wall_fake', 'thin_wall', 'swivel_door', 'toggle_wall_open', 'toggle_wall_closed',
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
-  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x'
+  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip'
 ];
 
 /**
@@ -90,7 +92,8 @@ const MECHANIC_KEYS: readonly string[] = [
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
   button_green: GREEN_BUTTON_REASON,
-  steel_wall: STEEL_WALL_REASON
+  steel_wall: STEEL_WALL_REASON,
+  extra_chip: EXTRA_CHIP_REASON
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
@@ -158,7 +161,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 };
 
 /** Reserved ids whose key is classified by a mapping above instead of being lost. */
-const MAPPED_RESERVED_NAMES: readonly string[] = ['helmet', 'steel_wall'];
+const MAPPED_RESERVED_NAMES: readonly string[] = ['helmet', 'steel_wall', 'extra_chip'];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };
 

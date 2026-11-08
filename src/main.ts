@@ -149,6 +149,10 @@ import { setupTouchDrawers } from './ui/touchDrawers';
 import type { TouchDrawers } from './ui/touchDrawers';
 import { collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
+import { cc2PackNameFromFile, dropImportJunk, isCc2FileName, folderNameOf, importCc2Selection, CC2_ERROR_NO_LEVELS_KEY } from './ui/cc2Import';
+import { cc2CoverageBadge, cc2ImportNoticeLines, cc2PlayBannerText } from './ui/cc2Display';
+import { Cc2SourceStorage } from './storage/Cc2SourceStorage';
+import { choiceDialog } from './ui/choiceDialog';
 import {
   parseGraphicsStyle,
   resolveSavedLevel,
@@ -1058,10 +1062,16 @@ class EpoxyApplication {
    * one pack, any other format imports its first file, a mix is refused.
    */
   private async handleImportedFiles(files: readonly File[]): Promise<void> {
-    if (files.length === 0) return;
+    // The companion files a zip made on macOS leaves behind are never part of a selection.
+    const selected = dropImportJunk(files);
+    if (selected.length === 0) return;
+    files = selected;
     switch (classifyImportSelection(files.map((f) => f.name))) {
       case 'cc3d':
         await this.handleCc3dFiles(files);
+        return;
+      case 'cc2':
+        await this.handleCc2Files(files);
         return;
       case 'diggy':
         await this.handleDiggyFiles(files);
@@ -1093,6 +1103,38 @@ class EpoxyApplication {
       await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_files_skipped_toast.label');
     } catch (err) {
       console.error('CC3D import failed:', err);
+      this.showTransientStatus(this.importErrorMessage());
+    }
+  }
+
+  /** CC2 levels and their game script import together as one pack, in the order of the script. */
+  private async handleCc2Files(files: readonly File[]): Promise<void> {
+    try {
+      const maxBytes = ConfigRegistry.getGame().import.maxFileBytes;
+      const result = await importCc2Selection(files, maxBytes, formatMegabytes);
+      if (result.levels.length === 0) {
+        this.showTransientStatus(
+          result.firstError ? t(result.firstError.key, result.firstError.params) : t(CC2_ERROR_NO_LEVELS_KEY)
+        );
+        return;
+      }
+      const packName =
+        result.packName ??
+        (files.length === 1 ? cc2PackNameFromFile(files[0].name) : folderNameOf(files)) ??
+        t('app.packs.cc2_default_name.label');
+      // The raw files go to the local sidecar first, so a level never points at a source that was not kept.
+      const sourcesKept = await Cc2SourceStorage.putAll(result.sources);
+      const skipped = result.summary.skipped + result.summary.tooLarge;
+      await this.finishPackImport(packName, result.levels, skipped, 'app.packs.imported_files_skipped_toast.label');
+      const lines = cc2ImportNoticeLines(result.summary, sourcesKept);
+      await choiceDialog({
+        title: t('cc2.import.report.title.label'),
+        message: lines.join(' '),
+        cancelLabel: t('app.packs.manager.convert.saved.close.action'),
+        options: []
+      });
+    } catch (err) {
+      console.error('CC2 import failed:', err);
       this.showTransientStatus(this.importErrorMessage());
     }
   }
@@ -1994,6 +2036,28 @@ class EpoxyApplication {
   private loadPlayLevel(level: CompiledLevel): void {
     this.engineSelector.forLevel(level).loadLevel(level);
     this.syncSokobanSkinControl(level.winRule);
+    this.syncCc2Banner(level);
+  }
+
+  /** Shows the banner of a level imported from CC2 that holds mechanics Epoxy does not play; hides it for any other. */
+  private syncCc2Banner(level: CompiledLevel): void {
+    const banner = byId('cc2-banner');
+    if (!banner) return;
+    const text = cc2PlayBannerText(level);
+    banner.textContent = text ?? '';
+    banner.title = text ?? '';
+    banner.classList.remove('expanded');
+    banner.setAttribute('aria-expanded', 'false');
+    banner.classList.toggle('hidden', text === null);
+  }
+
+  /** A cell of the Levels table with the title and, for a level imported from CC2, its coverage badge. */
+  private levelTitleCell(title: string, level: CompiledLevel): HTMLTableCellElement {
+    const td = document.createElement('td');
+    td.textContent = title;
+    const badge = cc2CoverageBadge(level);
+    if (badge) td.append(' ', badge);
+    return td;
   }
 
   /**
@@ -2350,6 +2414,26 @@ class EpoxyApplication {
         void this.handleImportedFiles(files);
       }
       packFileInput.value = '';
+    });
+
+    // A folder pick lists every file under it: only the CC2 levels and game scripts are kept.
+    const packFolderInput = byId<HTMLInputElement>('pack-folder-input');
+    // A browser that cannot pick a folder has no use for the button.
+    byId('btn-import-folder')?.classList.toggle('hidden', !packFolderInput || !('webkitdirectory' in packFolderInput));
+    const cc2Banner = byId('cc2-banner');
+    cc2Banner?.addEventListener('click', () => {
+      const expanded = cc2Banner.classList.toggle('expanded');
+      cc2Banner.setAttribute('aria-expanded', String(expanded));
+    });
+    byId('btn-import-folder')?.addEventListener('click', () => packFolderInput?.click());
+    packFolderInput?.addEventListener('change', () => {
+      const files = Array.from(packFolderInput.files ?? []).filter((file) => isCc2FileName(file.name));
+      if (files.length > 0) {
+        void this.handleImportedFiles(files);
+      } else if ((packFolderInput.files?.length ?? 0) > 0) {
+        this.showTransientStatus(t(CC2_ERROR_NO_LEVELS_KEY));
+      }
+      packFolderInput.value = '';
     });
 
     byId('btn-export-pack-ccl')?.addEventListener('click', () => {
@@ -3122,7 +3206,7 @@ class EpoxyApplication {
       timeCell.classList.toggle('hidden', !showTimes);
       tr.append(
         cell(String(lvl.number)),
-        cell(title),
+        this.levelTitleCell(title, lvl),
         codeCell,
         timeCell,
         cell(rec ? String(rec.minSteps) : noRecord),

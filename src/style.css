@@ -2645,6 +2645,66 @@ body.fullscreen-mode .view-section {
   color: var(--accent-yellow);
 }
 
+.packs-badge-cc2-exact {
+  border-color: #43a047;
+  color: #81c784;
+}
+
+.packs-badge-cc2-approx {
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+
+.packs-badge-cc2-lost {
+  border-color: #e53935;
+  color: #ef9a9a;
+}
+
+/* Banner of a level imported from CC2 that holds mechanics Epoxy does not play: one line, the whole text on tap. */
+.cc2-banner {
+  position: absolute;
+  top: 48px;
+  left: 8px;
+  right: 8px;
+  max-height: 40%;
+  overflow: hidden;
+  padding: 0.3rem 0.6rem;
+  border: 2px solid #e53935;
+  border-radius: 6px;
+  background: rgba(60, 12, 12, 0.92);
+  color: #ffcdd2;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.cc2-banner.expanded {
+  white-space: normal;
+  overflow-y: auto;
+}
+
+/* On a touch overlay the hint banner sits at the top: the CC2 banner takes the bottom edge instead. */
+body.touch-overlay .play-shell .lcd-screen .cc2-banner {
+  z-index: 4;
+  top: auto;
+  bottom: 8px;
+}
+
+.packs-export-source {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.35rem;
+}
+
+.packs-export-source label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .packs-new-form {
   display: flex;
   flex-direction: column;

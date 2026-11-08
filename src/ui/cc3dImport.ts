@@ -17,6 +17,7 @@
 import { CC3D_XML_EXTENSION, Cc3dImportError, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { decodeDiggyFiles, isDiggyFloorFileName } from '../formats/DiggyCodec';
 import type { CompiledLevel } from '../core/types';
+import { isCc2FileName } from './cc2Import';
 import { formatMegabytes, isImportSizeAllowed } from './importLimits';
 
 /** i18n key of the message for a file over the size limit. */
@@ -31,7 +32,7 @@ export interface ImportableFile {
 }
 
 /** How a selection of files is to be imported. */
-export type ImportSelectionKind = 'cc3d' | 'diggy' | 'single' | 'several' | 'mixed';
+export type ImportSelectionKind = 'cc3d' | 'cc2' | 'diggy' | 'single' | 'several' | 'mixed';
 
 /** True for a level file of the cc3d ruleset. */
 export function isCc3dFileName(name: string): boolean {
@@ -39,7 +40,7 @@ export function isCc3dFileName(name: string): boolean {
 }
 
 /**
- * XML files import together as one pack, and multiple Diggy floor JSON files
+ * XML files import together as one pack, so do CC2 level and script files (.c2m, .c2g), and multiple Diggy floor JSON files
  * (`floors_*.json` / `*.diggy.json`) import together as one pack; any other
  * format imports one file at a time, so several of them or a mixed selection
  * are refused (nothing is imported).
@@ -47,6 +48,8 @@ export function isCc3dFileName(name: string): boolean {
 export function classifyImportSelection(names: readonly string[]): ImportSelectionKind {
   const xmlCount = names.filter(isCc3dFileName).length;
   if (xmlCount > 0) return xmlCount === names.length ? 'cc3d' : 'mixed';
+  const cc2Count = names.filter(isCc2FileName).length;
+  if (cc2Count > 0) return cc2Count === names.length ? 'cc2' : 'mixed';
   if (names.length <= 1) return 'single';
   const diggyCount = names.filter(isDiggyFloorFileName).length;
   if (diggyCount === names.length) return 'diggy';
