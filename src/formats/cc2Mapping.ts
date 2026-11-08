@@ -46,7 +46,7 @@ export const WALL_ID = 'wall';
 export const CLONE_MACHINE_ID = 'clone_machine';
 export const TRAP_ID = 'trap';
 export const HINT_ID = 'hint';
-export const SIGNAL_BUTTON_ID = 'signal_button';
+export const SIGNAL_PLATE_ID = 'signal_plate';
 export const TOGGLE_WALL_CLOSED_ID = 'toggle_wall_closed';
 export const TOGGLE_WALL_OPEN_ID = 'toggle_wall_open';
 export const BUTTON_RED_ID = 'button_red';
@@ -112,7 +112,8 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x4b, same('swivel_door_se', 'swivel_door')],
   [0x4e, same('transmogrifier')],
   [0x50, same('wall', 'steel_wall')],
-  [0x5e, same('signal_button', 'wire')],
+  // The CC2 pink button is held: powered while an actor stands on it, which is the Epoxy pressure plate.
+  [0x5e, same(SIGNAL_PLATE_ID, 'wire')],
   [0x5f, same('flame_jet_off', 'flame_jet')],
   [0x60, same('flame_jet_on', 'flame_jet')],
   [0x61, same('button_orange')],
@@ -164,6 +165,27 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x8e, same('boots_eye', 'secret_eye')],
   [0x90, same('boots_speed', 'speed_boots')],
   [0x92, same('boots_pull', 'hook')]
+]);
+
+/** Coverage keys of the no-sign (code 0x7F), a layer over the cell that bars the item shown under it. */
+export const KEY_NO_SIGN = 'no_sign';
+export const KEY_NO_SIGN_EMPTY = 'no_sign_empty';
+export const KEY_NO_SIGN_KEY = 'no_sign_key';
+export const KEY_NO_SIGN_BOOTS = 'no_sign_boots';
+
+/**
+ * Epoxy forbid tile that plays a no-sign over an item (by Epoxy item id): the player cannot enter the cell while
+ * carrying the item, and the item itself is not placed, so it cannot be picked up.
+ */
+export const NO_SIGN_FORBID_MAP: ReadonlyMap<string, Cc2TileMapping> = new Map<string, Cc2TileMapping>([
+  ['key_red', { id: 'forbid_key_red', key: KEY_NO_SIGN_KEY }],
+  ['key_blue', { id: 'forbid_key_blue', key: KEY_NO_SIGN_KEY }],
+  ['key_yellow', { id: 'forbid_key_yellow', key: KEY_NO_SIGN_KEY }],
+  ['key_green', { id: 'forbid_key_green', key: KEY_NO_SIGN_KEY }],
+  ['boots_ice', { id: 'forbid_boots_ice', key: KEY_NO_SIGN_BOOTS }],
+  ['boots_water', { id: 'forbid_boots_water', key: KEY_NO_SIGN_BOOTS }],
+  ['boots_fire', { id: 'forbid_boots_fire', key: KEY_NO_SIGN_BOOTS }],
+  ['boots_force', { id: 'forbid_boots_force', key: KEY_NO_SIGN_BOOTS }]
 ]);
 
 /** Item codes with no Epoxy and no reserved id: the item is dropped and the key is lost. */

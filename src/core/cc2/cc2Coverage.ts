@@ -54,6 +54,8 @@ const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
 const PLACEHOLDER_REASON =
   'Epoxy has no equivalent: the converter keeps the cell as the cc2_unknown placeholder, so the level is not playable as imported.';
+const NO_SIGN_REASON =
+  'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
 const EXTRA_CHIP_REASON =
   'The extra chip is picked up like a chip but is not counted toward the socket: Epoxy plays it as a chip and the socket requirement counts only the computer chips of the level.';
 const STEEL_WALL_REASON =
@@ -77,7 +79,7 @@ const EXACT_KEYS: readonly string[] = [
   'blue_wall_real', 'blue_wall_fake', 'thin_wall', 'swivel_door', 'toggle_wall_open', 'toggle_wall_closed',
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
-  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip'
+  'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty'
 ];
 
 /**
@@ -97,6 +99,10 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
+  // Epoxy: forbid_key_red/blue/yellow/green.
+  no_sign_key: NO_SIGN_REASON,
+  // Epoxy: forbid_boots_ice/water/fire/force.
+  no_sign_boots: NO_SIGN_REASON,
   // Epoxy: button_orange.
   button_orange: 'Epoxy plays the orange button as its flame button; the CC2 button acts on the flame jets around it, where Epoxy toggles them all [unverified].',
   // Epoxy: flame_jet_on, flame_jet_off.
@@ -156,7 +162,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
   wired_flame_jet: 'A CC2 wire switches this flame jet; Epoxy flame jets follow only the orange button, so the wire is dropped.',
   arrow_block_locked: 'A directional block with no arrow cannot be pushed in CC2; Epoxy has no immovable block entity, so it is placed as a pushable dirt block.',
   bribe: PLACEHOLDER_REASON,
-  no_sign: PLACEHOLDER_REASON,
+  no_sign: 'A no-sign over an item other than a key or boots (or over a cell that is not plain floor) has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };
 
