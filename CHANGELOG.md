@@ -43,6 +43,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Level editor palette: variant families take one entry each (no-signs, counters, swivel doors, CC2 swivel doors, toggle switch); R cycles the brush through the family, the entry shows the variant in hand, the eyedropper picks the variant, and search still lists every variant. Both locales.
 - A transmogrifier now also switches the player between Chip and Melinda when stepped on (CC2 rule), with Melinda's rules (no sliding on ice, hiking boots on dirt and gravel, gender signs, teeth fleeing her) following the current character; undo restores it. The validator treats a level with a transmogrifier as playable by either character. No bundled level or stored solution changes.
 - CC2 import: green chips and bombs, steel walls, hiking boots and the male and female signs now play as their Epoxy elements (exact), a level whose only player is Melinda is imported with the melinda character, green chips count toward the chips required, and a steel wall next to dynamite is approximate instead of lost.
 - CC2 import: purple walls and floors, toggle switches, black buttons, gray buttons (as the 5 x 5 area button), and traps and flame jets that a wire reaches now play as their Epoxy wired forms and are linked by signal wires instead of being lost; the wired trap, wired flame jet and gray button are reported as approximate.
