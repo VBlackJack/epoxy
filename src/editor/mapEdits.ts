@@ -190,7 +190,7 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
 }
 
 /** Gives the cells that just became track cells (terrain `tileId`) the default tracks; any other tile adds nothing. */
-function addDefaultRailTracks(map: EditorMap, tileId: string, cells: ReadonlyArray<{ x: number; y: number }>): void {
+export function addDefaultRailTracks(map: EditorMap, tileId: string, cells: ReadonlyArray<{ x: number; y: number }>): void {
   if (map.cc3d || tileDefinitionOf(tileId)?.railJunction !== true) return;
   replaceRailTracks(map, [...(map.railTracks ?? []), ...cells.map((cell) => defaultRailTrackCell(cell.x, cell.y))]);
 }

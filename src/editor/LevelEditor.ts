@@ -2025,8 +2025,6 @@ export class LevelEditor {
         return;
       }
     }
-    // Over a track cell the key turns its tracks a quarter turn, as one history step.
-    if (this.rotateTrackCellInPlace()) return;
     this.activeDir = rotateClockwise(this.activeDir);
     this.afterDirectionChange();
   }
@@ -2035,7 +2033,8 @@ export class LevelEditor {
   private rotateTrackCellInPlace(): boolean {
     const cell = pickTestCell(this.cursorCell, this.lastHoverCell);
     const turned = cell ? rotateRailTracksAt(this.doc, cell.x, cell.y) : null;
-    return turned !== null && this.commitCellEdit(turned);
+    if (!cell || turned === null) return false;
+    return this.commitCellEdit(turned, [{ key: 'editor.rail_tracks.status.rotated.label', params: { x: cell.x, y: cell.y } }]);
   }
 
   /** Mounts the Cell section of the inspector, with the panels that fill it. */
@@ -2043,7 +2042,7 @@ export class LevelEditor {
     const section = byId(CELL_SECTION_ID);
     const body = byId(CELL_BODY_ID);
     if (!section || !body) return;
-    const panels = [new RailTrackPanel({ commit: (map) => this.commitCellEdit(map) }, () => this.doc)];
+    const panels = [new RailTrackPanel({ commit: (map, messages) => this.commitCellEdit(map, messages) }, () => this.doc)];
     this.cellSection = new CellSection(section, body, panels, () => {
       if (!this.disposed) this.render();
     });
@@ -2056,12 +2055,13 @@ export class LevelEditor {
   }
 
   /** Puts a map edited by a Cell section panel in the document as one history step. Returns whether it was applied. */
-  private commitCellEdit(map: EditorMap): boolean {
+  private commitCellEdit(map: EditorMap, messages: ToolMessage[] = []): boolean {
     if (this.stroke) return false;
     const before = this.doc;
     this.doc = withEditedMap(this.doc, map);
     this.recordChange(before);
     this.render();
+    this.announce(messages);
     return true;
   }
 
@@ -2184,7 +2184,7 @@ export class LevelEditor {
       case 'rotate_in_place':
         // A floating stamp turns between its two layouts; an ordinary paste leaves the key to the creature under the cursor.
         if (this.pasting && this.floatingStamp) this.turnStamp();
-        else this.rotateEntityInPlace();
+        else if (!this.rotateTrackCellInPlace()) this.rotateEntityInPlace();
         break;
       case 'test_from_here':
         void this.testFromHere();

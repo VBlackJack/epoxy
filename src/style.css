@@ -1541,6 +1541,13 @@ button.editor-issue-row:focus-visible {
   gap: 0.4rem;
 }
 
+.editor-rail-heading {
+  margin: 0.4rem 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 .editor-rail-segments {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

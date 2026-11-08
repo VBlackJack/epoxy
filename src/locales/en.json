@@ -1967,7 +1967,15 @@
         "action": "Clear"
       },
       "rotate": {
-        "hint": "Press R to turn the tracks a quarter turn."
+        "hint": "Press Shift+R to turn the tracks a quarter turn."
+      },
+      "status": {
+        "rotated": {"label": "Tracks at ({x}, {y}) turned a quarter turn."},
+        "segment_on": {"label": "Track segment switched on at ({x}, {y}): {segment}."},
+        "segment_off": {"label": "Track segment switched off at ({x}, {y}): {segment}."},
+        "switch": {"label": "Open segment of the switch at ({x}, {y}): {segment}."},
+        "switch_none": {"label": "The track cell at ({x}, {y}) has no switch."},
+        "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
       }
     },
     "cell_speech": {

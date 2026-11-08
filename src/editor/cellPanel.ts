@@ -31,7 +31,7 @@ export interface CellPosition {
 /** What a panel gets from the editor: the way to commit an edit through the editor history. */
 export interface CellPanelHost {
   /** Puts a map made by an edit in the document as one history step; false when it changed nothing. */
-  commit(map: EditorMap): boolean;
+  commit(map: EditorMap, messages?: Array<{ key: string; params?: Record<string, string | number> }>): boolean;
 }
 
 /** One kind of cell settings. */
@@ -39,6 +39,9 @@ export interface CellPanel {
   /** The content for the cell, or null when the panel has nothing to say about it. */
   render(doc: EditorDocument, x: number, y: number): HTMLElement | null;
 }
+
+/** Attribute of the control that takes the focus when the focused one is gone after a redraw. */
+export const CELL_FOCUS_FALLBACK_ATTRIBUTE = 'data-focus-fallback';
 
 /** Attribute that names an element a rebuild of the section must give the focus back to. */
 export const CELL_FOCUS_ATTRIBUTE = 'data-focus-key';
@@ -87,6 +90,7 @@ export class CellSection {
   /** Forgets the listeners; the section is not drawn again. */
   public dispose(): void {
     this.controller.abort();
+    this.body.replaceChildren();
   }
 
   /**
@@ -121,7 +125,8 @@ export class CellSection {
         const again = Array.from(this.body.querySelectorAll<HTMLElement>(`[${CELL_FOCUS_ATTRIBUTE}]`)).find(
           (el) => el.getAttribute(CELL_FOCUS_ATTRIBUTE) === focusKey
         );
-        again?.focus();
+        // A control that is gone (the radio of a switch that went) hands the focus to the segments instead of dropping it.
+        (again ?? this.body.querySelector<HTMLElement>(`[${CELL_FOCUS_FALLBACK_ATTRIBUTE}]`))?.focus();
       }
     } finally {
       this.drawing = false;

@@ -24,7 +24,7 @@ import { RAIL_TRACK_COUNT } from '../core/coreConstants';
 import type { Direction } from '../core/types';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { t } from '../i18n/I18nManager';
-import { CELL_FOCUS_ATTRIBUTE, type CellPanel, type CellPanelHost } from './cellPanel';
+import { CELL_FOCUS_ATTRIBUTE, CELL_FOCUS_FALLBACK_ATTRIBUTE, type CellPanel, type CellPanelHost } from './cellPanel';
 import type { EditorDocument } from './editorDocument';
 import { canHoldSwitch, clearRailTracksAt, railTrackAt, segmentsOfMask, setRailActiveSegment, sidesOfSegment, toggleRailSegment } from './railTrackEdits';
 
@@ -60,6 +60,7 @@ const PANEL_CLASS = 'editor-rail-panel';
 const SEGMENTS_CLASS = 'editor-rail-segments';
 const SEGMENT_CLASS = 'editor-rail-segment';
 const ACTIVE_CLASS = 'editor-rail-active';
+const HEADING_CLASS = 'editor-rail-heading';
 
 /** The middle of the edge of the icon a side is on. */
 function edgePoint(side: Direction): [number, number] {
@@ -119,7 +120,7 @@ export class RailTrackPanel implements CellPanel {
     root.className = PANEL_CLASS;
 
     const heading = document.createElement('h4');
-    heading.className = 'editor-connections-heading';
+    heading.className = HEADING_CLASS;
     heading.textContent = t(HEADING_KEY, { x, y });
     root.appendChild(heading);
 
@@ -137,8 +138,14 @@ export class RailTrackPanel implements CellPanel {
       button.setAttribute('aria-pressed', String(on));
       button.setAttribute('aria-label', t(SEGMENT_NAME_KEYS[segment]));
       button.title = t(SEGMENT_NAME_KEYS[segment]);
+      if (segment === 0) button.setAttribute(CELL_FOCUS_FALLBACK_ATTRIBUTE, '');
       button.appendChild(segmentIcon(segment));
-      button.addEventListener('click', () => this.apply(toggleRailSegment(this.getDoc(), x, y, segment)));
+      button.addEventListener('click', () =>
+        this.apply(toggleRailSegment(this.getDoc(), x, y, segment), {
+          key: on ? 'editor.rail_tracks.status.segment_off.label' : 'editor.rail_tracks.status.segment_on.label',
+          params: { x, y, segment: t(SEGMENT_NAME_KEYS[segment]) }
+        })
+      );
       group.appendChild(button);
     }
     root.appendChild(group);
@@ -159,7 +166,7 @@ export class RailTrackPanel implements CellPanel {
     clear.setAttribute(CELL_FOCUS_ATTRIBUTE, 'clear');
     clear.disabled = mask === 0;
     clear.textContent = t(CLEAR_KEY);
-    clear.addEventListener('click', () => this.apply(clearRailTracksAt(this.getDoc(), x, y)));
+    clear.addEventListener('click', () => this.apply(clearRailTracksAt(this.getDoc(), x, y), { key: 'editor.rail_tracks.status.cleared.label', params: { x, y } }));
     root.appendChild(clear);
 
     const hint = document.createElement('p');
@@ -188,14 +195,19 @@ export class RailTrackPanel implements CellPanel {
       radio.value = option.segment === null ? '' : String(option.segment);
       radio.checked = (active ?? null) === option.segment;
       radio.setAttribute(CELL_FOCUS_ATTRIBUTE, `active-${option.segment ?? 'none'}`);
-      radio.addEventListener('change', () => this.apply(setRailActiveSegment(this.getDoc(), x, y, option.segment)));
+      radio.addEventListener('change', () =>
+        this.apply(setRailActiveSegment(this.getDoc(), x, y, option.segment), {
+          key: option.segment === null ? 'editor.rail_tracks.status.switch_none.label' : 'editor.rail_tracks.status.switch.label',
+          params: { x, y, segment: option.label }
+        })
+      );
       label.append(radio, ` ${option.label}`);
       fieldset.appendChild(label);
     }
     return fieldset;
   }
 
-  private apply(map: ReturnType<typeof toggleRailSegment>): void {
-    if (map) this.host.commit(map);
+  private apply(map: ReturnType<typeof toggleRailSegment>, message: { key: string; params: Record<string, string | number> }): void {
+    if (map) this.host.commit(map, [message]);
   }
 }

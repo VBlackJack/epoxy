@@ -203,10 +203,20 @@ describe('authoring track cells', () => {
     expect(activeRadios()).toHaveLength(0);
   });
 
-  it('turns the tracks with the rotate key, as one history step', () => {
+  it('leaves the plain rotate key to the direction, even beside a track cell', () => {
+    placeTrack();
+    editor.handleKeyAction({ kind: 'rotate' });
+    expect(tracks()).toEqual([{ x: TRACK_X, y: TRACK_Y, mask: NORTH_SOUTH_MASK }]);
+  });
+
+  it('turns the tracks with Shift+R, as one history step, and says so', () => {
     placeTrack();
     segmentButton(NORTH_EAST_SEGMENT).click();
-    editor.handleKeyAction({ kind: 'rotate' });
+    expect(byId('editor-status-bar').textContent).toBe(
+      t('editor.rail_tracks.status.segment_on.label', { x: TRACK_X, y: TRACK_Y, segment: t('editor.rail_tracks.segment.ne.label') })
+    );
+    editor.handleKeyAction({ kind: 'rotate_in_place' });
+    expect(byId('editor-status-bar').textContent).toBe(t('editor.rail_tracks.status.rotated.label', { x: TRACK_X, y: TRACK_Y }));
     // North-east becomes south-east, north-south becomes east-west.
     expect(tracks()?.[0].mask).toBe((1 << 1) | EAST_WEST_MASK);
     editor.undo();

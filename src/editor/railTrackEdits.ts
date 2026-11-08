@@ -79,10 +79,8 @@ export function rotateMask(mask: number): number {
 export function rotateRailTrackCell(cell: RailTrackCell): RailTrackCell {
   const turned: RailTrackCell = { x: cell.x, y: cell.y, mask: rotateMask(cell.mask) };
   if (cell.active !== undefined) turned.active = ROTATED_SEGMENT[cell.active];
-  if (cell.entry !== undefined) {
-    const turnedEntry = rotateClockwise(cell.entry);
-    if (turnedEntry !== RAIL_DEFAULT_ENTRY) turned.entry = turnedEntry;
-  }
+  const turnedEntry = rotateClockwise(cell.entry ?? RAIL_DEFAULT_ENTRY);
+  if (turnedEntry !== RAIL_DEFAULT_ENTRY) turned.entry = turnedEntry;
   return turned;
 }
 

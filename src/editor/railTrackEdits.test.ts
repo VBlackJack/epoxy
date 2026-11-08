@@ -17,8 +17,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RAIL_TRACK_COUNT } from '../core/coreConstants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import type { RailTrackCell } from '../core/types';
 import type { EditorMap } from './editorDocument';
 import { eraseCell, floodFillTerrain, paintTerrain } from './mapEdits';
+import { fillRect } from './selectionEdits';
 import {
   canHoldSwitch,
   clearRailTracksAt,
@@ -79,6 +81,15 @@ describe('mask turns', () => {
       let turned = mask;
       for (let turn = 0; turn < 4; turn++) turned = rotateMask(turned);
       expect(turned).toBe(mask);
+    }
+  });
+
+  it('brings the entry side back after four turns, the default one included', () => {
+    for (const entry of [undefined, 'N', 'E', 'S', 'W'] as const) {
+      const start: RailTrackCell = { x: 1, y: 1, mask: bit(NORTH_SOUTH), ...(entry && entry !== 'S' ? { entry } : {}) };
+      let cell = start;
+      for (let turn = 0; turn < 4; turn++) cell = rotateRailTrackCell(cell);
+      expect(cell).toEqual(start);
     }
   });
 
@@ -146,6 +157,15 @@ describe('painting and erasing track cells', () => {
     expect(cells).toContain('3,2');
     expect(cells).toContain('2,2');
     expect((filled.railTracks ?? []).every((entry) => entry.mask === RAIL_DEFAULT_MASK)).toBe(true);
+  });
+});
+
+describe('filling a rectangle with track cells', () => {
+  it('gives every filled cell the default tracks', () => {
+    const result = fillRect(mapWithTrack(), { x: 1, y: 1, width: 2, height: 2 }, { kind: 'terrain', id: JUNCTION }, 'S', 'epoxy');
+    expect(result.changed).toBe(true);
+    const cells = (result.map.railTracks ?? []).map((entry) => `${entry.x},${entry.y}:${entry.mask}`).sort();
+    expect(cells).toEqual([`1,1:${RAIL_DEFAULT_MASK}`, `1,2:${RAIL_DEFAULT_MASK}`, `2,1:${RAIL_DEFAULT_MASK}`, `2,2:${RAIL_DEFAULT_MASK}`, `3,2:${RAIL_DEFAULT_MASK}`]);
   });
 });
 

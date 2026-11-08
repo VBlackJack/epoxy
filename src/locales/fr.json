@@ -1967,7 +1967,15 @@
         "action": "Effacer"
       },
       "rotate": {
-        "hint": "Appuyez sur R pour tourner les rails d'un quart de tour."
+        "hint": "Appuyez sur Maj+R pour tourner les rails d'un quart de tour."
+      },
+      "status": {
+        "rotated": {"label": "Rails en ({x}, {y}) tournés d'un quart de tour."},
+        "segment_on": {"label": "Segment de rails activé en ({x}, {y}) : {segment}."},
+        "segment_off": {"label": "Segment de rails désactivé en ({x}, {y}) : {segment}."},
+        "switch": {"label": "Segment ouvert de l'aiguillage en ({x}, {y}) : {segment}."},
+        "switch_none": {"label": "La cellule de rails en ({x}, {y}) n'a pas d'aiguillage."},
+        "cleared": {"label": "Rails en ({x}, {y}) effacés."}
       }
     },
     "cell_speech": {
