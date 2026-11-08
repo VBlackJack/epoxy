@@ -56,7 +56,7 @@ const GREEN_WALL_OPEN = 'toggle_wall_open';
 /** Chip's Challenge 2 swivel doors, added to the same pack format. */
 const CC2_SWIVEL_IDS = ['swivel_door_cc2_ne', 'swivel_door_cc2_se', 'swivel_door_cc2_sw', 'swivel_door_cc2_nw'];
 /** Ids of the Chip's Challenge 2 items and characters, which share pack format 13. */
-const CC2_ITEM_IDS = ['green_chip', 'green_bomb', 'steel_wall', 'hiking_boots', 'sign_chip_only', 'sign_melinda_only', 'steel_foil', 'toggle_clock', 'bribe'];
+const CC2_ITEM_IDS = ['green_chip', 'green_bomb', 'steel_wall', 'hiking_boots', 'sign_chip_only', 'sign_melinda_only', 'steel_foil', 'toggle_clock', 'bribe', 'dynamite', 'dynamite_lit'];
 const CC2_MONSTER_IDS = ['floor_mimic', 'timid_teeth', 'ghost', 'rover'];
 const CC2_RAIL_IDS = ['rail_junction', 'railroad_sign'];
 const CC2_BLOCK_IDS = ['arrow_block_none'];

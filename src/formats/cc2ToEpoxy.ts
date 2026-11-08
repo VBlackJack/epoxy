@@ -19,7 +19,6 @@ import {
   CC2_COVERAGE,
   KEY_CANOPY,
   KEY_MULTIPLE_PLAYERS,
-  KEY_STEEL_WALL_DESTROYER,
   KEY_UNKNOWN,
   KEY_WIRE,
   KEY_WIRE_TUNNEL,
@@ -117,14 +116,12 @@ const CODE_CLONER = 0x44;
 const CODE_BUTTON_BROWN = 0x3a;
 const CODE_BUTTON_RED = 0x39;
 const CODE_LOGIC_GATE = 0x5c;
-const CODE_STEEL_WALL = 0x50;
 /** The lightning bolt item: while held, the player powers the wire nets of the floor they stand on. */
 const CODE_LIGHTNING_BOLT = 0x62;
 /** The counter gates are the modifiers 0x1e..0x27, the digit they start with plus 0x1e. */
 const COUNTER_MODIFIER_BASE = 0x1e;
 const KEY_COUNTER_GATE = 'counter_gate';
 const KEY_NAND_GATE = 'nand_gate';
-const CODE_DYNAMITE = 0x51;
 /** The CC2 green chip; counted toward the chip requirement like the computer chips [medium confidence]. */
 const CODE_GREEN_CHIP = 0x84;
 const CODE_SOCKET = 0x2c;
@@ -366,9 +363,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const brownButtons: number[] = [];
   const redButtons: number[] = [];
   let chips = 0;
-  let hasDynamite = false;
   let hasSocket = false;
-  let hasSteelWall = false;
   let playerCount = 0;
   let playerIndex = -1;
   let playerTile: Cc2Tile | undefined;
@@ -421,7 +416,6 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         keys.add(mapping.key);
         if (code === CC2_CODE_TRACK) railTracks.push({ x, y, ...decodeCc2Track(tile.mod) });
         if (code === CODE_SOCKET) hasSocket = true;
-        if (code === CODE_STEEL_WALL) hasSteelWall = true;
         if (code === CODE_TRAP || code === CODE_OPEN_TRAP) traps.push(index);
         if (code === CODE_CLONER || code === CODE_CLONER_CC1) cloners.set(index, null);
         if (code === CODE_BUTTON_BROWN) brownButtons.push(index);
@@ -449,7 +443,6 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           itemId = mapping.id;
           keys.add(mapping.key);
           if (code === CC2_CODE_COMPUTER_CHIP || code === CODE_GREEN_CHIP) chips += 1;
-          if (code === CODE_DYNAMITE) hasDynamite = true;
         } else {
           keys.add(KEY_UNKNOWN);
           warnings.push(`item code 0x${code.toString(16)} at ${where} is not mapped`);
@@ -600,9 +593,6 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   if (wires.hasTunnels) keys.add(KEY_WIRE_TUNNEL);
 
   if (chips > 0 && !hasSocket) warnings.push('chips placed but no socket: chips required is 0');
-
-  // Structural keys.
-  if (hasSteelWall && hasDynamite) keys.add(KEY_STEEL_WALL_DESTROYER);
 
   const coverage = classifyCc2Level(keys);
   const exact = [...keys].filter((key) => CC2_COVERAGE[key]?.level === 'exact').sort();

@@ -39,7 +39,7 @@ export const NO_SIGN_ITEM_PREFIX = 'no_sign_';
 
 /**
  * The items a player can carry, hence the items a no-sign can name (one `no_sign_<item>` tile each, in the item layer):
- * the four keys, every pair of boots and boot-like item (the steel foil too), the blast charge, the pocket gate, the hurl stone,
+ * the four keys, every pair of boots and boot-like item (the steel foil too), the blast charge, the dynamite, the pocket gate, the hurl stone,
  * the toll token, the bribe and the lightning bolt.
  */
 export const NO_SIGN_ITEM_IDS: readonly string[] = [
@@ -58,6 +58,7 @@ export const NO_SIGN_ITEM_IDS: readonly string[] = [
   'ward',
   'hiking_boots',
   'charge',
+  'dynamite',
   'pocket_gate',
   'hurl_stone',
   'toll_token',
@@ -93,6 +94,12 @@ export const GRAY_BUTTON_RADIUS = 2;
 /** Item id of the blast charge a player carries and drops. */
 export const CHARGE_ITEM_ID = 'charge';
 
+/** Item id of the Chip's Challenge 2 dynamite a player carries and sets down. */
+export const DYNAMITE_ITEM_ID = 'dynamite';
+
+/** Item id of the lit Chip's Challenge 2 dynamite. */
+export const DYNAMITE_LIT_ITEM_ID = 'dynamite_lit';
+
 /** Item id of the pocket gate a player carries and sets down as a teleporter pad. */
 export const GATE_ITEM_ID = 'pocket_gate';
 
@@ -119,6 +126,20 @@ export const STONE_DEATH_REASON_KEY = 'hud.messages.death_stone';
 
 /** Half-width (Chebyshev radius) of the square a blast charge clears of monsters and blocks, and kills the player in. */
 export const CHARGE_BLAST_RADIUS = 1;
+
+/** Half-width (Chebyshev radius) of the square that bounds the dynamite blast. */
+export const DYNAMITE_BLAST_RADIUS = 2;
+
+/** The dynamite blast spares the cells whose |dx| + |dy| reaches this sum: the four far corners of its square. */
+export const DYNAMITE_BLAST_CORNER_SUM = 4;
+
+/** Stand-in blast tick of a set-down dynamite whose player has not left yet: it never comes due. */
+export const DYNAMITE_NOT_LIT_TICK = Number.MAX_SAFE_INTEGER;
+
+/** What dynamite leaves under a creature standing on plain floor: fire, or water under an ice block. */
+export const DYNAMITE_FIRE_TILE_ID = 'fire';
+export const DYNAMITE_WATER_TILE_ID = 'water';
+export const DYNAMITE_ICE_BLOCK_TYPE = 'ice_block';
 
 /** Sound effect of a blast charge going off. */
 export const CHARGE_BLAST_SFX = 'bomb';
