@@ -57,7 +57,10 @@ import {
   GENDER_SIGN_MAP,
   ITEM_LOST_KEYS,
   ITEM_MAP,
+  KEY_NO_SIGN,
+  KEY_NO_SIGN_EMPTY,
   NAND_GATE,
+  NO_SIGN_FORBID_MAP,
   RESERVED_PLAYER_ENTITIES,
   TERRAIN_MAP,
   TRACK_JUNCTION,
@@ -443,7 +446,16 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
       }
 
       // Hidden sign marker.
-      if (part.noSign !== undefined && part.noSign.code === CC2_CODE_NO_SIGN) keys.add('no_sign');
+      if (part.noSign !== undefined && part.noSign.code === CC2_CODE_NO_SIGN) {
+        const forbid = itemId !== null && terrainId === FLOOR_ID ? NO_SIGN_FORBID_MAP.get(itemId) : undefined;
+        if (forbid !== undefined) {
+          // The item is replaced by the forbid tile: it cannot be picked up, and carrying it bars the cell.
+          terrainId = forbid.id;
+          itemId = null;
+          keys.add(forbid.key);
+        } else if (itemId === null) keys.add(KEY_NO_SIGN_EMPTY);
+        else keys.add(KEY_NO_SIGN);
+      }
 
       // Panel: thin walls.
       if (part.panel !== undefined) {
