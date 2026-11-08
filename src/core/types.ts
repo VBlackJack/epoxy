@@ -973,6 +973,8 @@ export interface KeybindingsConfig {
   dropItem?: string[];
   /** Selects the next held item for dropItem. */
   cycleItem?: string[];
+  /** Hands control to the next player of a level with several. */
+  swapPlayer?: string[];
 }
 
 export interface UltimatePackDescriptor {
