@@ -62,7 +62,7 @@ import {
   paintCc3dMob,
   paintCc3dTerrain
 } from './cc3dPainters';
-import { paintMelindaBow } from './cc2Marks';
+import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonsterDot } from './cc2Marks';
 import {
   CC2_ITEM_VARIANTS,
   CC2_TERRAIN_VARIANTS,
@@ -5890,6 +5890,12 @@ export class PixelRenderer {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
+    // A mirror player is the player seen through glass: the player skin, Melinda's bow for her mirror, a pale dot.
+    const mirrorOf = ConfigRegistry.getEntityDef(type)?.mirrorsCharacter;
+    if (mirrorOf !== undefined) {
+      this.drawMirrorPlayer(ctx, mirrorOf === MELINDA_CHARACTER, dir, x, y, size);
+      return;
+    }
     // A custom monster that phases through tiles is seen through like the wisp.
     const drawAlpha = MONSTER_DRAW_ALPHA[type] ?? (ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN ? MONSTER_DRAW_ALPHA.wisp : undefined);
     if (!this.drawingPhased && drawAlpha !== undefined) {
@@ -5939,6 +5945,16 @@ export class PixelRenderer {
     } else {
       this.paintEntity(ctx, type, dir, x, y, size, frame);
     }
+  }
+
+  /** A mirror Chip or mirror Melinda: the player drawn in the chosen skin, seen through glass, with a pale dot. */
+  private drawMirrorPlayer(ctx: CanvasRenderingContext2D, withBow: boolean, dir: Direction, x: number, y: number, size: number): void {
+    ctx.save();
+    ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1) * MIRROR_PLAYER_ALPHA;
+    this.drawPlayerBody(ctx, x, y, size, dir, false, true, 0, 0, {});
+    ctx.restore();
+    if (withBow) paintMelindaBow(ctx, x, y, size, dir);
+    paintMonsterDot(ctx, x, y, size, MIRROR_MARK_COLOURS);
   }
 
   /** Outline drawn over a block that stands on a block target, so the covered target stays readable. */
