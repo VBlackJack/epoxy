@@ -57,6 +57,14 @@ const GREEN_WALL_OPEN = 'toggle_wall_open';
 const CC2_SWIVEL_IDS = ['swivel_door_cc2_ne', 'swivel_door_cc2_se', 'swivel_door_cc2_sw', 'swivel_door_cc2_nw'];
 /** Ids of the Chip's Challenge 2 items and characters, which share pack format 13. */
 const CC2_ITEM_IDS = ['green_chip', 'green_bomb', 'steel_wall', 'hiking_boots', 'sign_chip_only', 'sign_melinda_only'];
+/** The signal gates, the wire floor and the lightning bolt of the same format. */
+const CC2_SIGNAL_IDS = [
+  'signal_gate_nand',
+  'signal_gate_dlatch',
+  ...Array.from({ length: 10 }, (_, n) => `signal_counter_${n}`),
+  'signal_wire_floor',
+  'lightning_bolt'
+];
 const NEW_IDS = [PURPLE_WALL, PURPLE_FLOOR, SWITCH_OFF, SWITCH_ON, BLACK, GRAY_AREA, TRAP_WIRED, JET_OFF, JET_ON];
 
 const SIZE = 13;
@@ -210,7 +218,7 @@ describe('wired devices: configuration', () => {
 
   it('adds pack format 13 for exactly these ids', () => {
     expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V13);
-    expect([...PACK_JSON_VERSION_V13_IDS].sort()).toEqual([...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS].sort());
+    expect([...PACK_JSON_VERSION_V13_IDS].sort()).toEqual([...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_SIGNAL_IDS].sort());
     expect(idSetVersionOf(room({ terrain: [[{ x: 3, y: 3 }, PURPLE_WALL]] }))).toBe(PACK_JSON_VERSION_V13);
     expect(idSetVersionOf(room())).toBe(0);
   });

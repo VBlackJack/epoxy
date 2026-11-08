@@ -240,6 +240,32 @@ editor tile signal_latch_off closed=true 9d6b5ca24a6d4919
 editor tile signal_latch_off closed=false ae733e1afad03510
 editor tile signal_latch_on closed=true d75df2deb9c8af3b
 editor tile signal_latch_on closed=false dd1faed6404e1696
+editor tile signal_gate_nand closed=true bc517aef5e384d85
+editor tile signal_gate_nand closed=false 2b024be209540279
+editor tile signal_gate_dlatch closed=true b74a84618f8be8c2
+editor tile signal_gate_dlatch closed=false 35c914f5951ff6c1
+editor tile signal_counter_0 closed=true 9ca668df7dd966b3
+editor tile signal_counter_0 closed=false e131afbe7aab5e23
+editor tile signal_counter_1 closed=true de62151a19a53650
+editor tile signal_counter_1 closed=false 7e095e0c4b696596
+editor tile signal_counter_2 closed=true 25c5aae455602a6a
+editor tile signal_counter_2 closed=false 28cf2ff679452b02
+editor tile signal_counter_3 closed=true f9218125f6705108
+editor tile signal_counter_3 closed=false 07106bcb0f4feaf7
+editor tile signal_counter_4 closed=true c9aaab762b4033c1
+editor tile signal_counter_4 closed=false bef8e37a66a0c134
+editor tile signal_counter_5 closed=true c130e22c8937f714
+editor tile signal_counter_5 closed=false 0a7c969183f98c1e
+editor tile signal_counter_6 closed=true c9ad04f9ba63e17f
+editor tile signal_counter_6 closed=false 0b0c9388f5e50bec
+editor tile signal_counter_7 closed=true 2afc656500d65d8a
+editor tile signal_counter_7 closed=false 08ea94f26fcc235a
+editor tile signal_counter_8 closed=true f3d5a8dc19a8c1bd
+editor tile signal_counter_8 closed=false a3ebf1f62a1684bb
+editor tile signal_counter_9 closed=true c749b85b5c84d5b8
+editor tile signal_counter_9 closed=false 79232a1c380a1a9c
+editor tile signal_wire_floor closed=true b7cdb2ba6f8fa145
+editor tile signal_wire_floor closed=false 0af4fdb62938c174
 editor tile purple_wall closed=true 32c8ee974fc71f78
 editor tile purple_wall closed=false 6a7c6c8718bd9f8d
 editor tile purple_floor closed=true 8735edf98fcb8f59
@@ -358,6 +384,8 @@ editor tile green_bomb closed=true a6109fcf939eb4c3
 editor tile green_bomb closed=false 24e5e0200938ff47
 editor tile hiking_boots closed=true b7847656e9166387
 editor tile hiking_boots closed=false 7fea96f09791c0ce
+editor tile lightning_bolt closed=true 92f34c4f73325ab2
+editor tile lightning_bolt closed=false 8b8cdbd663bb2f03
 editor tile score_10 closed=true 928f521fe112e079
 editor tile score_10 closed=false 542790cc5d4d440c
 editor tile score_100 closed=true d0a957cc2cd13631
@@ -393,6 +421,7 @@ editor item over floor bomb a0c2602267203abc
 editor item over floor green_chip d18dec4014cf29ac
 editor item over floor green_bomb 6f869941d9e5ae61
 editor item over floor hiking_boots ce6b634d8468ade4
+editor item over floor lightning_bolt 0b84fcf14fd719f1
 editor item over floor score_10 ea1659d02028a079
 editor item over floor score_100 f8a301fa52eeec67
 editor item over floor score_1000 cbf8dab427d534a6

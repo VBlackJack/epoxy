@@ -366,7 +366,8 @@ describe('Runeward signal tiles', () => {
   });
 
   it('gives every signal kind of the game a Runeward painter', () => {
-    expect(SIGNAL_IDS.length).toBe(8);
+    // The eight original signal tiles, the NAND gate, the data latch, ten counters and the wire floor.
+    expect(SIGNAL_IDS.length).toBe(21);
     for (const id of SIGNAL_IDS) expect(RUNEWARD_PAINTERS.tiles[id], id).toBeDefined();
   });
 });

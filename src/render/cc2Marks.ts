@@ -16,7 +16,8 @@
 
 /**
  * The marks that tell the Chip's Challenge 2 look-alikes from the Epoxy tile they are drawn on: the green chip and the
- * green bomb are a chip and a bomb with a swap badge, the hiking boots are boots with a tread badge, the steel wall is a
+ * green bomb are a chip and a bomb with a swap badge, the hiking boots are boots with a tread badge, the lightning bolt is
+ * boots with a bolt badge, the steel wall is a
  * wall with rivets, a gender sign is a floor with a plate and a letter, and Melinda is the player with a bow. Every
  * mark is drawn over whatever the render style painted below it, so one drawing serves every style; only the colours
  * differ, and each style hands in its own. Pure module: no DOM, only the canvas context it is given.
@@ -42,6 +43,18 @@ const BADGE = { x: 0.76, y: 0.76, radius: 0.19, line: 0.03 } as const;
 const SWAP_ARROWS = { half: 0.1, offset: 0.045, head: 0.05, line: 0.03 } as const;
 /** The zigzag tread inside a hiking boots badge: half width, half height, step count and line width, in tiles. */
 const TREAD = { halfWidth: 0.11, halfHeight: 0.06, steps: 3, line: 0.035 } as const;
+/** The zigzag bolt inside a lightning badge: points of the bolt as offsets from the badge centre, in tiles, and the line width. */
+const BOLT = {
+  points: [
+    [0.045, -0.13],
+    [-0.07, 0.01],
+    [0.0, 0.01],
+    [-0.045, 0.13],
+    [0.07, -0.02],
+    [0.005, -0.02]
+  ],
+  line: 0.025
+} as const;
 /** The rivets of a steel wall: inset from the corner, radius, and the inset of the plate outline, in tiles. */
 const RIVETS = { inset: 0.17, radius: 0.055, plateInset: 0.09, line: 0.03 } as const;
 /** The plate of a gender sign: half width, half height, corner radius and line width, in tiles. */
@@ -136,6 +149,27 @@ export function paintTreadBadge(ctx: CanvasRenderingContext2D, x: number, y: num
   for (let step = 1; step <= TREAD.steps * 2; step++) {
     ctx.lineTo(cx - width / 2 + (width * step) / (TREAD.steps * 2), cy + (step % 2 === 0 ? high : -high));
   }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The lightning bolt: a round badge with a filled zigzag bolt, in the colour of electricity. */
+export function paintBoltBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.fillStyle = colours.ink;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, BOLT.line);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  BOLT.points.forEach(([dx, dy], i) => {
+    if (i === 0) ctx.moveTo(cx + size * dx, cy + size * dy);
+    else ctx.lineTo(cx + size * dx, cy + size * dy);
+  });
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }

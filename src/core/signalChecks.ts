@@ -100,6 +100,9 @@ function danglingCells(level: CompiledLevel): GridPoint[] {
   return cells;
 }
 
+/** The gates that keep a memory between settles: the toggle latch, the data latch and the counter. */
+const MEMORY_KINDS: ReadonlySet<string> = new Set(['latch', 'dlatch', 'counter']);
+
 /** What a signal does along a path: an inversion (NOT), an XOR (no sign describes it), or a latch (edge-triggered, so it cannot oscillate). */
 interface PathState {
   inverted: boolean;
@@ -133,9 +136,11 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
       const node = byCell.get(next);
       if (node === undefined) continue;
       const arrived: PathState = {
-        inverted: node.kind === 'not' ? !state.inverted : state.inverted,
+        // A NAND inverts like a NOT. A data latch and a counter keep a memory: like the toggle latch, a path through one
+        // is taken as holding itself, never as flickering (the check over-approximates: a warning, not an error).
+        inverted: node.kind === 'not' || node.kind === 'nand' ? !state.inverted : state.inverted,
         xor: state.xor || node.kind === 'xor',
-        latch: state.latch || node.kind === 'latch'
+        latch: state.latch || MEMORY_KINDS.has(node.kind)
       };
       if (node.kind === 'sink') {
         // A launcher or cloner sink has no colour and moves no door: it takes no part in a world loop.
@@ -177,7 +182,7 @@ function pulseDoorCells(spec: SignalSpec): number[] {
           if (node.color !== undefined && !latched) reachesDoor = true;
           continue;
         }
-        const arrived = latched || node.kind === 'latch';
+        const arrived = latched || MEMORY_KINDS.has(node.kind);
         const key = `${next}:${arrived ? 1 : 0}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -335,8 +340,18 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
 
   if (spec === undefined) return;
 
+  // The wire floors of one net (sources a lightning bolt powers) are one input together: only one player stands on a
+  // floor at a time, so they never add up like the plates of a sink that takes a single input.
+  const chargedCells = new Set(spec.nodes.filter((node) => node.kind === 'source' && node.sample === 'charged').map((node) => node.cell));
   const inputs = new Map<number, number>();
-  for (const link of spec.links) inputs.set(link.to, (inputs.get(link.to) ?? 0) + 1);
+  const chargedInto = new Set<number>();
+  for (const link of spec.links) {
+    if (chargedCells.has(link.from)) {
+      if (chargedInto.has(link.to)) continue;
+      chargedInto.add(link.to);
+    }
+    inputs.set(link.to, (inputs.get(link.to) ?? 0) + 1);
+  }
 
   const multiSinks: GridPoint[] = [];
   const notBad: GridPoint[] = [];

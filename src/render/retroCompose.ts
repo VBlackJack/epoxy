@@ -21,6 +21,7 @@
  */
 
 import { CC2_ITEM_VARIANTS, cc2VariantOf } from './cc2Variants';
+import { SIGNAL_COUNTER_TILE_ID_PREFIX } from '../core/coreConstants';
 import { relativeTo } from '../core/lynx/directions';
 import { Direction, RelativeTurn, TileDefinition } from '../core/types';
 import {
@@ -37,6 +38,7 @@ import { DEFAULT_PLAYER_SKIN, PLAYER_SKIN_SPRITE_PREFIX, type PlayerSkinId } fro
 import {
   RETRO_HIDDEN_WALL_MARKERS,
   RETRO_PLAIN_OVERLAY_TILES,
+  RETRO_COUNTER_SPRITE,
   RETRO_SIGNAL_LIT_SUFFIX,
   RETRO_SIGNAL_TILES,
   RETRO_SPRITE,
@@ -154,6 +156,11 @@ const BLUE_WALL_TILES: ReadonlySet<string> = new Set(['blue_wall_real', 'blue_wa
 const BLUE_WALL_FAKE = 'blue_wall_fake';
 const PLAIN_OVERLAY_TILES: ReadonlySet<string> = new Set(RETRO_PLAIN_OVERLAY_TILES);
 const SIGNAL_TILES: ReadonlySet<string> = new Set(RETRO_SIGNAL_TILES);
+
+/** A counter gate tile id is this prefix and the number (0 to 9) it starts with; all share one base sprite. */
+const COUNTER_TILE_PATTERN = new RegExp(`^${SIGNAL_COUNTER_TILE_ID_PREFIX}([0-9])$`);
+/** Where the number of a counter is drawn on its base sprite, in sprite pixels (the number is 3 by 5). */
+const COUNTER_NUMBER_POSITION = { x: 6, y: 4 } as const;
 const DOOR_TILES: ReadonlySet<string> = new Set(['door_red', 'door_blue', 'door_yellow', 'door_green']);
 const KEY_ITEM_PREFIX = 'key_';
 const BOOTS_ITEM_PREFIX = 'boots_';
@@ -305,6 +312,16 @@ export function retroTileLayers(input: RetroTileInput): RetroLayer[] {
   }
   if (def.blockedEdges && def.blockedEdges.length > 0) return retroThinLayers(def.blockedEdges);
   if (PLAIN_OVERLAY_TILES.has(tileId)) return [floorOnly, { name: tileId }];
+  const counterMatch = COUNTER_TILE_PATTERN.exec(tileId);
+  if (counterMatch !== null) {
+    const layers: RetroLayer[] = [
+      floorOnly,
+      { name: RETRO_COUNTER_SPRITE },
+      { name: `${RETRO_SPRITE_PREFIX.digit}${counterMatch[1]}`, x: COUNTER_NUMBER_POSITION.x, y: COUNTER_NUMBER_POSITION.y }
+    ];
+    if (input.powered === true) layers.push({ name: `${RETRO_COUNTER_SPRITE}${RETRO_SIGNAL_LIT_SUFFIX}` });
+    return layers;
+  }
   if (SIGNAL_TILES.has(tileId)) {
     const layers: RetroLayer[] = [floorOnly, { name: tileId }];
     if (input.powered === true) layers.push({ name: `${tileId}${RETRO_SIGNAL_LIT_SUFFIX}` });

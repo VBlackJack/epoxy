@@ -26,6 +26,14 @@
  *  - A node reads the outputs of the nodes linked into it. A gate with no input is unpowered and outputs
  *    off, NOT included (the validator will refuse such a gate later). With inputs: AND is all on, OR is
  *    any on, NOT is none on (a NOR when several inputs), XOR is an odd number of inputs on.
+ *  - A NAND is off when all its inputs are on, on otherwise (a NAND with no input is unpowered, like every gate).
+ *  - A data latch has a data input (port in0, the default) and a clock input (port in1). While the clock is on, its bit
+ *    follows the data (the OR of the data wires); the bit is its output and it holds while the clock is off. A latch
+ *    with no clock wire never changes. Level-sensitive, unlike the toggle latch.
+ *  - A counter holds a digit from 0 to 9 and starts with its authored digit. It counts up on a rising edge of its in0
+ *    input and down on a rising edge of its in1 input (both at once: no change). Counting up past 9 wraps to 0 and
+ *    pulses out0 for that settle; counting down below 0 wraps to 9 and raises out1, which holds until the next count.
+ *    A link leaves out0 unless its port names out1. The prime settle counts nothing.
  *  - A sink outputs on when any input is on, and off with no input. A source outputs the level sampled
  *    for it; links into a source are ignored.
  *  - A toggle latch flips its bit on a rising edge of its input (the input is on, where the last settle
@@ -40,11 +48,24 @@
  *    and reports no edge.
  */
 
+import { SIGNAL_COUNTER_MAX } from '../coreConstants';
+import { parseSignalPort } from '../signalPorts';
 import type { SignalLinkSpec, SignalNodeKind, SignalNodeSpec, SignalState } from '../types';
 
 export type { SignalLinkSpec, SignalNodeKind, SignalNodeSpec, SignalState };
 
-export const SIGNAL_NODE_KINDS: readonly SignalNodeKind[] = ['source', 'and', 'or', 'not', 'xor', 'latch', 'sink'];
+export const SIGNAL_NODE_KINDS: readonly SignalNodeKind[] = [
+  'source',
+  'and',
+  'or',
+  'not',
+  'xor',
+  'latch',
+  'nand',
+  'dlatch',
+  'counter',
+  'sink'
+];
 
 export type SignalBuildErrorCode = 'unknown_kind' | 'duplicate_cell' | 'unknown_endpoint';
 
@@ -61,9 +82,21 @@ export class SignalBuildError extends Error {
   }
 }
 
+/** One wire into a node, with the ports it joins: the output of the node it leaves (1 only for a counter underflow) and the input it enters. */
+export interface SignalWire {
+  /** Index (in SignalNetwork.nodes) of the node the wire leaves. */
+  from: number;
+  /** 1 when the wire leaves the underflow output of a counter, else 0. */
+  fromPort: 0 | 1;
+  /** 1 when the wire enters the second input (a data latch clock, a counter down), else 0. */
+  toPort: 0 | 1;
+}
+
 export interface SignalNode extends SignalNodeSpec {
   /** Indexes (in SignalNetwork.nodes) of the nodes linked into this one, ascending, one per link. */
   inputs: number[];
+  /** The same links with their ports, ordered by source, then output port, then input port. */
+  wires: SignalWire[];
   /** True for a node of a cycle: it outputs off. */
   cyclic: boolean;
 }
@@ -218,12 +251,19 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
 
   const evaluation: number[] = componentOrder.flatMap((c) => members[c]);
   const position = new Map<number, number>(evaluation.map((raw, i) => [raw, i]));
-  const nodes: SignalNode[] = evaluation.map((raw) => ({ ...sorted[raw], inputs: [], cyclic: looping[comp[raw]] }));
+  const nodes: SignalNode[] = evaluation.map((raw) => ({ ...sorted[raw], inputs: [], wires: [], cyclic: looping[comp[raw]] }));
   for (const link of linkSpecs) {
     const to = position.get(rawIndex.get(link.to) as number) as number;
-    nodes[to].inputs.push(position.get(rawIndex.get(link.from) as number) as number);
+    const from = position.get(rawIndex.get(link.from) as number) as number;
+    nodes[to].inputs.push(from);
+    const ports = parseSignalPort(link.port);
+    // Only a counter has a second output; a port naming one elsewhere is read as the first.
+    nodes[to].wires.push({ from, fromPort: nodes[from].kind === 'counter' && ports.out === 1 ? 1 : 0, toPort: ports.in === 1 ? 1 : 0 });
   }
-  for (const node of nodes) node.inputs.sort((a, b) => a - b);
+  for (const node of nodes) {
+    node.inputs.sort((a, b) => a - b);
+    node.wires.sort((a, b) => a.from - b.from || a.fromPort - b.fromPort || a.toPort - b.toPort);
+  }
 
   const cycles: number[][] = [];
   for (const c of componentOrder) {
@@ -241,16 +281,28 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
 
 /** The state of a network before its first settle: everything off. */
 export function createSignalState(network: SignalNetwork): SignalState {
-  return {
+  const state: SignalState = {
     latchBits: network.nodes.map((node) => node.kind === 'latch' && node.startBit === true),
     lastOutputs: network.nodes.map(() => false)
   };
+  // The counter fields exist only in a network that has a counter, so every other state is unchanged.
+  if (network.nodes.some((node) => node.kind === 'counter')) {
+    state.counterValues = network.nodes.map((node) => (node.kind === 'counter' ? clampCount(node.startValue ?? 0) : 0));
+    state.counterUnderflow = network.nodes.map(() => false);
+  }
+  return state;
+}
+
+function clampCount(value: number): number {
+  return Math.min(SIGNAL_COUNTER_MAX, Math.max(0, Math.trunc(value)));
 }
 
 export function cloneSignalState(state: SignalState): SignalState {
   return {
     latchBits: [...state.latchBits],
-    lastOutputs: [...state.lastOutputs]
+    lastOutputs: [...state.lastOutputs],
+    ...(state.counterValues !== undefined ? { counterValues: [...state.counterValues] } : {}),
+    ...(state.counterUnderflow !== undefined ? { counterUnderflow: [...state.counterUnderflow] } : {})
   };
 }
 
@@ -260,6 +312,8 @@ function gateOutput(kind: SignalNodeKind, inputs: readonly boolean[]): boolean {
   switch (kind) {
     case 'and':
       return inputs.every(Boolean);
+    case 'nand':
+      return !inputs.every(Boolean);
     case 'or':
     case 'sink':
       return inputs.some(Boolean);
@@ -270,6 +324,49 @@ function gateOutput(kind: SignalNodeKind, inputs: readonly boolean[]): boolean {
     default:
       return false;
   }
+}
+
+/** The level a wire carries: the output of the node it leaves, or the held underflow of a counter. */
+function wireLevel(wire: SignalWire, outputs: readonly boolean[], underflow: readonly boolean[] | undefined): boolean {
+  return wire.fromPort === 1 ? underflow?.[wire.from] === true : outputs[wire.from];
+}
+
+/**
+ * Settles one counter and returns its overflow output. The counting is on the rising edge of each input, read against
+ * the levels of the last settle; the prime settle counts nothing. Both inputs rising at once cancel.
+ */
+function settleCounter(
+  node: SignalNode,
+  index: number,
+  previous: SignalState,
+  next: SignalState,
+  outputs: readonly boolean[],
+  prime: boolean
+): boolean {
+  const values = next.counterValues as number[];
+  const underflow = next.counterUnderflow as boolean[];
+  const on = (port: 0 | 1): boolean => node.wires.some((wire) => wire.toPort === port && wireLevel(wire, outputs, underflow));
+  const was = (port: 0 | 1): boolean =>
+    node.wires.some((wire) => wire.toPort === port && wireLevel(wire, previous.lastOutputs, previous.counterUnderflow));
+  const up = !prime && on(0) && !was(0);
+  const down = !prime && on(1) && !was(1);
+  if (up || down) underflow[index] = false;
+  if (up === down) return false;
+  if (up) {
+    if (values[index] < SIGNAL_COUNTER_MAX) {
+      values[index]++;
+      return false;
+    }
+    values[index] = 0;
+    return true;
+  }
+  if (values[index] > 0) {
+    values[index]--;
+  } else {
+    values[index] = SIGNAL_COUNTER_MAX;
+    underflow[index] = true;
+  }
+  return false;
 }
 
 /**
@@ -289,18 +386,30 @@ export function settleSignals(
     const node = network.nodes[i];
     // A node of a cycle outputs off, and a latch in one holds its bit.
     if (node.cyclic) continue;
-    const inputs = node.inputs.map((j) => outputs[j]);
+    // Each wire carries the output it leaves by: a counter has two (see wireLevel).
+    const inputs = node.wires.map((wire) => wireLevel(wire, outputs, next.counterUnderflow));
     switch (node.kind) {
       case 'source':
         outputs[i] = sourceLevels.get(node.cell) === true;
         break;
       case 'latch': {
         // The input of the last settle is read from the stored outputs of the nodes linked in.
-        const wasOn = node.inputs.some((j) => state.lastOutputs[j]);
+        const wasOn = node.wires.some((wire) => wireLevel(wire, state.lastOutputs, state.counterUnderflow));
         if (!prime && inputs.some(Boolean) && !wasOn) next.latchBits[i] = !next.latchBits[i];
         outputs[i] = next.latchBits[i];
         break;
       }
+      case 'dlatch': {
+        // The clock is the second input; while it is on the bit follows the data (the first input).
+        if (node.wires.some((wire) => wire.toPort === 1 && wireLevel(wire, outputs, next.counterUnderflow))) {
+          next.latchBits[i] = node.wires.some((wire) => wire.toPort === 0 && wireLevel(wire, outputs, next.counterUnderflow));
+        }
+        outputs[i] = next.latchBits[i];
+        break;
+      }
+      case 'counter':
+        outputs[i] = settleCounter(node, i, state, next, outputs, prime);
+        break;
       default:
         outputs[i] = gateOutput(node.kind, inputs);
     }

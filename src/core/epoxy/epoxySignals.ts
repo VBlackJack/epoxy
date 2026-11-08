@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
+import { LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
@@ -135,6 +136,11 @@ function samplePulse(runtime: SignalRuntime, index: number, cell: number, prime:
   return true;
 }
 
+/** Whether the player stands on the cell holding the lightning bolt. */
+function chargedCellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
+  return w.player.alive && w.player.x === x && w.player.y === y && w.player.boots.has(LIGHTNING_BOLT_ITEM_ID);
+}
+
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
 function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): Map<number, boolean> {
   const width = mapWidth(w);
@@ -151,6 +157,8 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
     else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y));
     // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
     else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
+    // A wire floor is powered while the player stands on it holding the lightning bolt: the whole wire net it feeds is on.
+    else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y));
     else levels.set(cell, cellOccupied(w, x, y));
   }
   return levels;
@@ -206,7 +214,10 @@ export function poweredSignalCellsOf(w: EpoxyWorld): ReadonlySet<number> | undef
   if (runtime === undefined) return undefined;
   const powered = new Set<number>();
   runtime.network.nodes.forEach((node, index) => {
-    if (runtime.state.lastOutputs[index] || runtime.lit.has(node.cell)) powered.add(node.cell);
+    // A counter shows lit while its held underflow output is on, besides its overflow pulse.
+    if (runtime.state.lastOutputs[index] || runtime.state.counterUnderflow?.[index] === true || runtime.lit.has(node.cell)) {
+      powered.add(node.cell);
+    }
   });
   return powered;
 }

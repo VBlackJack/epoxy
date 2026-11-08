@@ -3308,6 +3308,19 @@ export class PixelRenderer {
       case 'signal_gate_xor':
       case 'signal_latch_off':
       case 'signal_latch_on':
+      case 'signal_gate_nand':
+      case 'signal_gate_dlatch':
+      case 'signal_wire_floor':
+      case 'signal_counter_0':
+      case 'signal_counter_1':
+      case 'signal_counter_2':
+      case 'signal_counter_3':
+      case 'signal_counter_4':
+      case 'signal_counter_5':
+      case 'signal_counter_6':
+      case 'signal_counter_7':
+      case 'signal_counter_8':
+      case 'signal_counter_9':
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, false);
         break;
 
@@ -4747,6 +4760,19 @@ export class PixelRenderer {
       case 'signal_gate_xor':
       case 'signal_latch_off':
       case 'signal_latch_on':
+      case 'signal_gate_nand':
+      case 'signal_gate_dlatch':
+      case 'signal_wire_floor':
+      case 'signal_counter_0':
+      case 'signal_counter_1':
+      case 'signal_counter_2':
+      case 'signal_counter_3':
+      case 'signal_counter_4':
+      case 'signal_counter_5':
+      case 'signal_counter_6':
+      case 'signal_counter_7':
+      case 'signal_counter_8':
+      case 'signal_counter_9':
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, true);
         break;
 

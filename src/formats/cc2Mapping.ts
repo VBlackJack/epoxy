@@ -157,7 +157,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x51, same('charge', 'dynamite')],
   [0x52, same('ward', 'helmet')],
   [0x59, same('hiking_boots')],
-  [0x62, reserved('lightning_bolt')],
+  [0x62, same('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],
   [0x6a, same('stopwatch_penalty', 'time_penalty')],
   [0x6f, reserved('railroad_sign')],
@@ -241,6 +241,6 @@ export const UNKNOWN_KEY = 'unknown';
 
 /** Track junction placeholder (terrain). */
 export const TRACK_JUNCTION = reserved('track_junction');
-/** Reserved ids for the logic gates Epoxy lacks. */
+/** Reserved ids of the logic gates, kept for packs written before Epoxy played them (the converter no longer places them). */
 export const NAND_GATE = reserved('nand_gate');
 export const COUNTER_GATE = reserved('counter_gate');

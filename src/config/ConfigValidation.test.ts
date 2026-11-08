@@ -357,9 +357,9 @@ describe('findSignalConfigErrors', () => {
     expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'pulse' }))).toEqual([]);
   });
 
-  it('refuses a source other than held, pulse, inverted or toggle and a gate that is not one of the five', () => {
+  it('refuses a source and a gate that the signal network does not know', () => {
     expect(findSignalConfigErrors(withTile('signal_plate', { signalSource: 'sticky' as 'held' }))).toHaveLength(1);
-    expect(findSignalConfigErrors(withTile('signal_gate_and', { signalGate: 'nand' as 'and' })).join()).toContain('signalGate');
+    expect(findSignalConfigErrors(withTile('signal_gate_and', { signalGate: 'bogus' as 'and' })).join()).toContain('signalGate');
   });
 
   it('refuses a latch start flag that is not true or not on a latch', () => {
