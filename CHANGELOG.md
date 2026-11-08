@@ -7,6 +7,8 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Validator and hints follow CC2 railroad tracks: the reach walk enters a track cell only through an open side and leaves only along a segment joining the entry side (any segment may be the active one, and a reachable railroad sign opens every track), and hints no longer plan steps the tracks refuse. No-signs stay passable for the validator, since the item can be set down.
+- CC3D conversion coverage is now measured: differential tests play the same scenario on the CC3D engine and on the converted Epoxy level, and promote bomb, plain gravel, trap, trap control, clone machine and switch, and the blue golem control to exact; every other approximate element now names the measured differences. Gravel next to a reflector is its own approximate key.
 - CC2 import: railroad track curves were rotated by one bit (every imported curve pointed the wrong way) and are now read in the CC2 order; logic gate modifiers now decode the diode (played as a one-input OR) and the counter-clockwise latch instead of reporting unknown gates. Both CC2 latches now play as a data latch (see the logic gates entry below).
 - Validator: far fewer false "exit unreachable" reports. A force floor (plain, turning or random) is a cell the player may step off sideways, as the engine allows, instead of a slide followed to its end; blocks are counted per hazard instead of being spent greedily on the first hazard reached. On the bundled CCLP 1-5 packs the false reports drop from 210 to 41, and no level is newly flagged. Two bundled levels (epoxy_c_3, epoxy_p_20) are now judged valid.
 - CC1 `.DAT` import under the Epoxy rules: the unused codes 51-53 now read as walls and 54-56 as invisible walls, as under the Lynx rules, instead of floor (they are never written back). This changes three bundled CCLP2 levels: 71, 98 and 127.
@@ -17,6 +19,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor: a Canopy brush in the Terrain tab (Epoxy rules): a click toggles the CC2 canopy on a cell and keeps its thin walls, a drag applies the first cell's choice along the stroke, the eraser clears it. Both locales.
 - Chip's Challenge 2 mirror players (Epoxy rules, pack format 13): mirror Chip and mirror Melinda copy every move the player of their character attempts (blocked ones included), follow that character's terrain rules, open the doors of their own key colour (green for Chip's, yellow for Melinda's), pick up keys and tools but not chips, push one block, press buttons, die on hazards without ending the level, and kill the player on contact. The CC2 import maps them. Both locales.
 - Tools: `npm run import:cc3d` converts a folder of Chuck's Challenge 3D pack folders (XML levels) offline into one native CC3D pack and one Epoxy-rules pack per folder, with a coverage report per pack; level passwords can be carried over from older packs by map id (`CC3D_META_DIR`).
 - Level editor: CC2 track cells can be authored. The track cell is in the Rails palette and starts as a north-south straight; a new Cell inspector section toggles its six segments, picks the open segment of a switch and clears it, and Shift+R turns the tracks a quarter turn. The validator warns about a track cell with no segment. Both locales.
