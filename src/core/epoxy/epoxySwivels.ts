@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC2_SWIVEL_RULE, OPPOSITE_DIRECTION } from '../coreConstants';
 import { Direction } from '../types';
+import { enterRail, leaveRail } from './epoxyRailsCc2';
 import { EpoxyWorld, mapWidth } from './epoxyWorld';
 
 /** The side clockwise of each side (N, E, S, W around the cell). */
@@ -40,6 +41,8 @@ const COUNTER_CLOCKWISE_SIDE: Readonly<Record<Direction, Direction>> = {
  * came in by (the opposite of `dir`). The door turns when the actor leaves.
  */
 export function enterSwivel(w: EpoxyWorld, x: number, y: number, dir: Direction): void {
+  // A Chip's Challenge 2 track cell remembers the side its actor came in by, the way a swivel door does.
+  enterRail(w, x, y, dir);
   const tile = ConfigRegistry.getTile(w.terrain[y][x]);
   // A CC2 door turns on the way out and needs no entry side.
   if (!tile.swivelTurns || tile.swivelRule === CC2_SWIVEL_RULE) return;
@@ -54,6 +57,8 @@ export function enterSwivel(w: EpoxyWorld, x: number, y: number, dir: Direction)
  * (clockwise when the side clockwise of `exit` is closed too, else counter-clockwise); through an open side it stays.
  */
 export function leaveSwivel(w: EpoxyWorld, x: number, y: number, exit: Direction): void {
+  // A track cell with a switch moves on behind an actor that leaves along the active track.
+  leaveRail(w, x, y, exit);
   const own = ConfigRegistry.getTile(w.terrain[y][x]);
   if (own.swivelTurns && own.swivelRule === CC2_SWIVEL_RULE) {
     const closed = own.blockedEdges ?? [];

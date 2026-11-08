@@ -27,6 +27,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
+import { removeRailTracksWhere, replaceRailTracks, translateRailTracks } from './editorRailTracks';
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
@@ -179,6 +180,8 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
   const hidden = hidesShotDevice(map, x, y);
   let removedLinks = dropLinksAt(map, x, y, keepsLauncherLinks(previous, tileId) || hidden);
   const removedUnderlays = pruneUnderlays(map);
+  // A cell that stops being a track cell loses its tracks.
+  if (map.railTracks) replaceRailTracks(map, map.railTracks);
   // A device still hidden under the new top keeps its links; one that is gone loses them.
   if (hidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
@@ -278,6 +281,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
   map.entities = map.entities.filter((e) => !(e.x === x && e.y === y));
   removeEdgesWhere(map, (ex, ey) => ex === x && ey === y);
   const removedUnderlays = removeUnderlaysWhere(map, (ux, uy) => ux === x && uy === y);
+  removeRailTracksWhere(map, (rx, ry) => rx === x && ry === y);
   const removedLinks = dropLinksAt(map, x, y);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept };
 }
@@ -315,6 +319,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
     if (cy > 0) queue.push(index - width);
   }
   const removedUnderlays = pruneUnderlays(map);
+  if (map.railTracks) replaceRailTracks(map, map.railTracks);
   if (anyHidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
 }
@@ -833,6 +838,8 @@ export function resizeMap(
   // The hidden terrain stays with its cell, then only what the new terrain on top can still hide is kept.
   replaceUnderlays(resized, translateUnderlays(source.underlays ?? [], dx, dy, newWidth, newHeight).filter((u) => alive(u.x, u.y)));
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
+  // The track cells move with their cells; the editor does not edit them.
+  replaceRailTracks(resized, translateRailTracks(source.railTracks ?? [], dx, dy, newWidth, newHeight).filter((t) => alive(t.x, t.y)));
   return {
     map: resized,
     width: newWidth,

@@ -72,6 +72,10 @@ const STEEL_FOIL_REASON =
   'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
 const TOGGLE_CLOCK_REASON =
   'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
+const TRACK_REASON =
+  'Epoxy plays a CC2 track cell as a track cell of its own (rail_junction): entering only through a side an open track touches, leaving only along a track that joins the side of entry (a block may back out), a blocked step of the player, a pushed block or a monster turned right, left then back, and a switch that advances when an actor leaves along the active track or a gray button works. The validator and the hints read a track cell as open floor (they over-approximate). Deviations: the thin walls of the cell are not read when a step is turned, the ghost leaves no entry side, and the importer links no wire to a switch (a gray button works it) [unverified against the game: the rules are those of the Lexy Labyrinth engine].';
+const RAILROAD_SIGN_REASON =
+  'Epoxy plays the railroad sign as boots: the player who holds it ignores the track cells (enters and leaves on any side, is never turned, and still moves the switches). A thief takes it with the other boots, as in CC2.';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 
@@ -98,7 +102,7 @@ const EXACT_KEYS: readonly string[] = [
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
-  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe',
+  'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate'
 ];
 
@@ -122,6 +126,7 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   extra_chip: EXTRA_CHIP_REASON,
   green_chip: GREEN_CHIP_REASON,
   bribe: BRIBE_REASON,
+  railroad_sign: RAILROAD_SIGN_REASON,
   melinda_player: MELINDA_PLAYER_REASON,
   gender_sign_male: GENDER_SIGN_REASON,
   gender_sign_female: GENDER_SIGN_REASON
@@ -180,7 +185,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: turtle.
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical [unverified].',
   // Epoxy: rail_* pieces and rail_switch_a/b.
-  track: 'Epoxy rail pieces cover the plain CC2 track; switch and junction behaviour differ [unverified].',
+  track: TRACK_REASON,
+  track_junction: TRACK_REASON,
   // Epoxy: puppet (steered by the puppet control).
   yellow_tank: 'Epoxy plays the yellow tank as a puppet steered by the puppet control; the step order differs [unverified].',
   button_yellow: 'Epoxy plays the yellow button as the puppet control; only the player works it [unverified].',
@@ -220,7 +226,7 @@ const LOST_ENTRIES: Readonly<Record<string, string>> = {
 const MAPPED_RESERVED_NAMES: readonly string[] = [
   'helmet', 'steel_wall', 'extra_chip', 'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'button_gray',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'steel_foil', 'toggle_clock',
-  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt'
+  'ghost', 'rover', 'floor_mimic', 'timid_teeth', 'nand_gate', 'counter_gate', 'lightning_bolt', 'track_junction', 'railroad_sign'
 ];
 
 const VERDICT_RANK: Readonly<Record<Cc2CoverageVerdict, number>> = { exact: 0, approx: 1, lost: 2 };

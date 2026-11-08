@@ -336,6 +336,37 @@ export const SPENT_REVEAL_KEY_PREFIX = 'rv';
 /** Prefix of the swivel door entry sides in a search state key. */
 export const SWIVEL_ENTRY_KEY_PREFIX = 'sw';
 
+/** Terrain id of a Chip's Challenge 2 track cell; its segments live in the level's `railTracks`. */
+export const RAIL_JUNCTION_TILE_ID = 'rail_junction';
+
+/** Item id of the Chip's Challenge 2 railroad sign: boots whose holder ignores the track constraints. */
+export const RAILROAD_SIGN_ITEM_ID = 'railroad_sign';
+
+/**
+ * The two sides each track segment of a track cell joins, in the order of the mask bits (the Lexy's Labyrinth railroad
+ * `track_order`): north-east, south-east, south-west, north-west, east-west, north-south.
+ */
+export const RAIL_TRACK_SIDES: ReadonlyArray<readonly [Direction, Direction]> = [
+  ['N', 'E'],
+  ['S', 'E'],
+  ['S', 'W'],
+  ['N', 'W'],
+  ['E', 'W'],
+  ['N', 'S']
+];
+
+/** Number of track segments a track cell can hold. */
+export const RAIL_TRACK_COUNT = RAIL_TRACK_SIDES.length;
+
+/** Mask with every segment of a track cell set. */
+export const RAIL_TRACK_MASK_ALL = (1 << RAIL_TRACK_COUNT) - 1;
+
+/** Entry side of a track cell nobody came into: the south side, as for an actor that came in moving north (the modifier default). */
+export const RAIL_DEFAULT_ENTRY: Direction = 'S';
+
+/** Prefix of the track cell state in a search state key. */
+export const RAIL_STATE_KEY_PREFIX = 'rl';
+
 /** Value of `swivelRule` on the swivel doors that play by the Chip's Challenge 2 rule (see TileDefinition.swivelRule). */
 export const CC2_SWIVEL_RULE = 'cc2';
 

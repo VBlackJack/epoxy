@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, RAILROAD_SIGN_ITEM_ID, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -331,7 +331,7 @@ export function isWiredDeviceTileId(id: string | null | undefined): boolean {
  */
 export function isCharacterContentTileId(id: string | null | undefined): boolean {
   if (!id) return false;
-  if (id === HIKING_BOOTS_ITEM_ID) return true;
+  if (id === HIKING_BOOTS_ITEM_ID || id === RAILROAD_SIGN_ITEM_ID) return true;
   const tile = ConfigRegistry.getTile(id);
   return (
     tile.itemTogglesTo !== undefined || tile.blastProof === true || tile.characterOnly !== undefined ||
@@ -364,9 +364,11 @@ export function hasTokenContent(level: Pick<CompiledLevel, 'terrain' | 'items'>)
   return hasTile(level.terrain) || hasTile(level.items);
 }
 
-/** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on. */
+/** True when the tile is a rail piece (a straight, a bend or a switch), which closes the sides it is not open on, or a Chip's Challenge 2 track cell. */
 export function isRailTileId(id: string | null | undefined): boolean {
-  return !!id && ConfigRegistry.getTile(id).railSides !== undefined;
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.railSides !== undefined || tile.railJunction === true;
 }
 
 /** True when the tile id is a reserved id of a mechanic Epoxy does not play (a cc2_* terrain or item). */

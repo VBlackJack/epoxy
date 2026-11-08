@@ -58,6 +58,14 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
 }
 
 /**
+ * Whether the palette leaves the tile out: a Chip's Challenge 2 track cell is imported with its tracks and not authored
+ * by hand in this release (a cell placed by hand would hold no track and let nobody in).
+ */
+export function isHiddenFromPalette(tile: TileDefinition): boolean {
+  return tile.railJunction === true;
+}
+
+/**
  * The group of a Mechanisms tile, read from the fields the tile config declares so that a new tile
  * lands in a group by itself. The first matching rule wins (a coloured teleporter is a teleporter,
  * a laser gate is a laser part). Null when no rule matches.

@@ -4621,6 +4621,18 @@
         "label": "Ramassez-le et gardez-le. Chaque fois que vous marchez sur un voleur, un pot-de-vin est dépensé et rien n'est pris, que le voleur garde des bottes ou des clés. Il ne se dépose pas et un voleur ne le prend jamais."
       }
     },
+    "rail_junction": {
+      "name": "Jonction de voies",
+      "desc": {
+        "label": "Une case de voies de Chip's Challenge 2 avec jusqu'à six tronçons. On n'y entre que par un côté qu'une voie ouvre, et on n'en sort que le long d'une voie qui rejoint le côté d'entrée ; un pas bloqué est dévié sur la voie. Une case à aiguillage n'utilise qu'une voie à la fois et passe à la suivante quand quelque chose en sort le long de la voie active. Les blocs peuvent reculer. Le panneau de chemin de fer ignore les voies."
+      }
+    },
+    "railroad_sign": {
+      "name": "Panneau de chemin de fer",
+      "desc": {
+        "label": "Ramassez-le et gardez-le. Tant que vous le portez, les cases de voies ne limitent plus par où vous entrez et sortez. Un voleur le prend avec les autres bottes."
+      }
+    },
     "score_10": {
       "name": "Fanion Bonus (10 points)"
     },

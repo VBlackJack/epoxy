@@ -123,6 +123,8 @@ function playfieldSignature(level: CompiledLevel): string {
     canonicalJson(level.playerStart),
     canonicalJson(level.cellEdges ?? []),
     canonicalJson(level.underlays ?? []),
+    // Only a level with track cells carries them, so the signature of every other level stays as it was.
+    ...(level.railTracks ? [canonicalJson(level.railTracks)] : []),
     unordered(level.launcherLinks ?? []),
     unordered(level.signalLinks ?? []),
     level.winRule ?? DEFAULT_WIN_RULE,

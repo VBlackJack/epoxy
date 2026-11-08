@@ -19,7 +19,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { arrangeMechanismSections, entityMechanismGroup, MECHANISM_GROUPS, tileMechanismGroup } from './paletteGroups';
+import { arrangeMechanismSections, entityMechanismGroup, isHiddenFromPalette, MECHANISM_GROUPS, tileMechanismGroup } from './paletteGroups';
 
 const MECHANISMS_CATEGORY = 'mechanisms';
 
@@ -27,7 +27,9 @@ function lookup(locale: unknown, key: string): unknown {
   return key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);
 }
 
-const mechanismTiles = () => Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY);
+// The palette leaves out the tiles it does not offer (the track cell is imported, not placed by hand).
+const mechanismTiles = () =>
+  Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === MECHANISMS_CATEGORY && !isHiddenFromPalette(tile));
 const mechanismEntities = () => Object.values(ConfigRegistry.getMonsters().entities).filter((ent) => ent.category === MECHANISMS_CATEGORY);
 
 beforeEach(() => {
@@ -42,6 +44,12 @@ describe('Mechanisms palette groups', () => {
     expect(known.size).toBe(MECHANISM_GROUPS.length);
     for (const tile of mechanismTiles()) expect(known.has(tileMechanismGroup(tile)!), `tile ${tile.id}`).toBe(true);
     for (const ent of mechanismEntities()) expect(known.has(entityMechanismGroup(ent)!), `entity ${ent.id}`).toBe(true);
+  });
+
+  it('leaves the track cell out of the palette', () => {
+    const junction = ConfigRegistry.getTiles().tiles.rail_junction;
+    expect(isHiddenFromPalette(junction)).toBe(true);
+    expect(isHiddenFromPalette(ConfigRegistry.getTiles().tiles.rail_ns)).toBe(false);
   });
 
   it('has no group without a member, so no heading is ever empty', () => {

@@ -20,10 +20,11 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
 import { canonicalJson } from './canonicalJson';
 import { canonicalEdges, cloneEdges } from './editorCellEdges';
+import { canonicalRailTracks, cloneRailTracks } from './editorRailTracks';
 import { canonicalUnderlays, cloneUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks, cloneLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks, cloneSignalLinks } from './editorSignalLinks';
-import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, LauncherLink, PlayerCharacter, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, LauncherLink, PlayerCharacter, RailTrackCell, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -47,6 +48,11 @@ export interface EditorMap {
    * Absent when the level has none, and never held by a CC3D level.
    */
   cellEdges?: CellEdge[];
+  /**
+   * The track segments of the Chip's Challenge 2 track cells (Epoxy ruleset only), in canonical form (see
+   * normalizeRailTracks). Not authored by the editor: carried through unchanged. Absent when the level has none, and never held by a CC3D level.
+   */
+  railTracks?: RailTrackCell[];
   /**
    * Terrain hidden under a removable top such as a door (Epoxy ruleset only), in canonical form (see
    * normalizeUnderlays). Absent when the level has none, and never held by a CC3D level.
@@ -91,6 +97,7 @@ export type EditorDocument = EditorMap & EditorMetadata;
 /** Deep copy of a map; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneMap(map: EditorMap): EditorMap {
   const cellEdges = map.cc3d ? undefined : cloneEdges(map.cellEdges);
+  const railTracks = map.cc3d ? undefined : cloneRailTracks(map.railTracks);
   const underlays = map.cc3d ? undefined : cloneUnderlays(map.underlays);
   const launcherLinks = map.cc3d ? undefined : cloneLauncherLinks(map.launcherLinks);
   const signalLinks = map.cc3d ? undefined : cloneSignalLinks(map.signalLinks);
@@ -103,6 +110,7 @@ export function cloneMap(map: EditorMap): EditorMap {
     playerStart: { ...map.playerStart },
     ...(map.missingStart ? { missingStart: true } : {}),
     ...(cellEdges ? { cellEdges } : {}),
+    ...(railTracks ? { railTracks } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
     ...(signalLinks ? { signalLinks } : {}),
@@ -116,7 +124,7 @@ export function cloneMap(map: EditorMap): EditorMap {
  * from before.
  */
 export function withEditedMap(doc: EditorDocument, map: EditorMap): EditorDocument {
-  const { missingStart: _previousMissingStart, cellEdges: _previousEdges, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
+  const { missingStart: _previousMissingStart, cellEdges: _previousEdges, railTracks: _previousRailTracks, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
   return { ...rest, ...map };
 }
 
@@ -175,7 +183,7 @@ export function restoreDocument(snapshot: EditorDocument): EditorDocument {
 
 /** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, missingStart, cellEdges, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, missingStart, cellEdges, railTracks, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -185,6 +193,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     playerStart,
     ...(missingStart ? { missingStart } : {}),
     ...(cellEdges ? { cellEdges } : {}),
+    ...(railTracks ? { railTracks } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
     ...(signalLinks ? { signalLinks } : {}),
@@ -231,6 +240,7 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       playerStart: hasCc3d ? null : doc.playerStart,
       missingStart: doc.missingStart === true,
       cellEdges: hasCc3d ? null : (canonicalEdges(doc.cellEdges, doc.terrain) ?? []),
+      railTracks: hasCc3d ? null : (canonicalRailTracks(doc.railTracks, doc.terrain) ?? []),
       underlays: hasCc3d ? null : (canonicalUnderlays(doc.underlays, doc.terrain) ?? []),
       launcherLinks: hasCc3d ? null : (canonicalLauncherLinks(doc.launcherLinks, doc.terrain, doc.underlays) ?? []),
       signalLinks: hasCc3d ? null : (canonicalSignalLinks(doc.signalLinks, doc.terrain) ?? []),
