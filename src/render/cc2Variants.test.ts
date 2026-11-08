@@ -24,6 +24,7 @@ const PALETTE: MarkPalette = {
   green: '#0f0',
   brown: '#840',
   gray: '#888',
+  red: '#f00',
   blue: '#00f',
   glyphInk: '#111',
   hintGlyph: '#eee',

@@ -154,7 +154,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x40, same('bomb')],
   [0x4c, same('stopwatch_bonus', 'time_bonus')],
   [0x4d, same('toggle_clock')],
-  [0x51, same('charge', 'dynamite')],
+  [0x51, same('dynamite')],
   [0x52, same('ward', 'helmet')],
   [0x59, same('hiking_boots')],
   [0x62, same('lightning_bolt')],

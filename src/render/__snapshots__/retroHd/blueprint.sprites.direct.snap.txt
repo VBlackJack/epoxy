@@ -53,6 +53,9 @@ item no_sign_toll_token tick=3 9516c799bd74cf86
 item no_sign_steel_foil tick=3 c80c7dfdbe545f7a
 item no_sign_bribe tick=3 0457954ad224e4fa
 item no_sign_lightning_bolt tick=3 3140f8eaf4de1fc0
+item dynamite tick=3 dc4033d31324466c
+item dynamite_lit tick=3 2898107276a72b0a
+item no_sign_dynamite tick=3 24026217c21faafb
 entity dirt_block dir=N tick=3 a89c02d8442e4ef9
 entity dirt_block dir=E tick=3 c17c2db2e2d8d795
 entity dirt_block dir=S tick=3 184ce356dd6d4307
@@ -264,6 +267,9 @@ item no_sign_toll_token tick=13 df6eb6105f64f390
 item no_sign_steel_foil tick=13 4f773b3fb2e9a7ae
 item no_sign_bribe tick=13 ae754162713178dd
 item no_sign_lightning_bolt tick=13 af1bb3700ed05ea6
+item dynamite tick=13 d71f4fe9767ab865
+item dynamite_lit tick=13 eababcc788f2c8d0
+item no_sign_dynamite tick=13 60e90aed8923ec81
 entity dirt_block dir=N tick=13 e90ea48d37902770
 entity dirt_block dir=E tick=13 fe2677eeec74ecd8
 entity dirt_block dir=S tick=13 5d930e94a844a16f
