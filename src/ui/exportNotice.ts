@@ -54,6 +54,9 @@ export function lossyExportNotice(
       t('app.export.refused_player_out_of_range.label', { levels: levelNames(refusedFor('player_out_of_range')) })
     );
   }
+  if (refusedFor('melinda_character').length > 0) {
+    parts.push(t('app.export.refused_melinda_character.label', { levels: levelNames(refusedFor('melinda_character')) }));
+  }
   if (refusedFor('targets_win_rule').length > 0) {
     parts.push(
       t('app.export.refused_targets_win_rule.label', { levels: levelNames(refusedFor('targets_win_rule')) })

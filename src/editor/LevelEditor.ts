@@ -17,7 +17,7 @@
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { CC2_LEVEL_EXTENSION, IMPORTED_PACK_RULESET } from '../config/constants';
-import { InvalidLevelError, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
+import { InvalidLevelError, isPlayerCharacter, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { i18n, t } from '../i18n/I18nManager';
 import { nameWithDescription, paletteDescription } from './paletteDescriptions';
 import { parsePackJson } from '../packs/packJson';
@@ -53,7 +53,7 @@ import { formatValidationIssue } from '../ui/validatorIssueText';
 import { receiversProgress } from '../ui/levelFeedback';
 import { BeamPreview, computeBeamPreview, EMPTY_BEAM_PREVIEW } from './beamPreview';
 import { buildIssueMarkers, IssueMarker, markerFreshness } from './issueMarkers';
-import { DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE, FLOOR_TILE_ID, MELINDA_CHARACTER } from '../core/coreConstants';
 import { anchoredZoomScroll, CanvasFit, fitCanvas, revealScroll, ScrollPosition, StageView, zoomIn, zoomOut } from './canvasFit';
 import { distance, midpoint, pinchStep, startsPinch, type TouchGestureState, type TouchPoint } from './touchGesture';
 import { historyDiff, HistoryDiff } from './historyDiff';
@@ -226,12 +226,13 @@ import {
   shiftRect
 } from './selectionEdits';
 import { MetadataEditCoalescer } from './metadataCoalescer';
-import { isEditableRuleset, parseChipsRequired, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
+import { isEditableRuleset, parseChipsRequired, parseCharacter, parseRuleset, parseTimeLimit, parseWinRule, requiresEpoxyRules } from './metadataFields';
 import {
   Availability,
   cellEdgeAvailability,
   EditableRuleset,
   entityAvailability,
+  EPOXY_ONLY_REASON_KEY,
   linkAvailability,
   majorityRuleset,
   tileAvailability,
@@ -358,12 +359,14 @@ const METADATA_INPUT_IDS = [
   'editor-meta-time',
   'editor-meta-chips',
   'editor-meta-winrule',
-  'editor-meta-ruleset'
+  'editor-meta-ruleset',
+  'editor-meta-character'
 ] as const;
 /** Fields that change in one gesture: each change is its own history step. */
-const GESTURE_FIELD_IDS: readonly string[] = ['editor-meta-winrule', 'editor-meta-ruleset'];
+const GESTURE_FIELD_IDS: readonly string[] = ['editor-meta-winrule', 'editor-meta-ruleset', 'editor-meta-character'];
 const WIN_RULE_INPUT_ID = 'editor-meta-winrule';
 const RULESET_INPUT_ID = 'editor-meta-ruleset';
+const CHARACTER_INPUT_ID = 'editor-meta-character';
 const TITLE_INPUT_ID = 'editor-meta-title';
 const LYNX_RULESET = 'lynx' as const;
 /** The explicit Check and the Test pre-check search door orders more thoroughly than the automatic check. */
@@ -3259,6 +3262,7 @@ export class LevelEditor {
     const chips = value('editor-meta-chips');
     const winRule = value(WIN_RULE_INPUT_ID);
     const ruleset = value(RULESET_INPUT_ID);
+    const character = value(CHARACTER_INPUT_ID);
     const next: EditorMetadata = {
       // A cleared field stays cleared: an empty title falls back to the default one when the level is stored.
       title: title === null ? doc.title : title.trim(),
@@ -3270,6 +3274,9 @@ export class LevelEditor {
       winRule: winRule === null ? doc.winRule : parseWinRule(winRule, doc.winRule),
       ruleset: doc.ruleset
     };
+    const chosenCharacter = character === null ? doc.character : parseCharacter(character, doc.character ?? DEFAULT_PLAYER_CHARACTER);
+    // Chip is the default character and stays unset, so a level played by Chip is the same document as before.
+    next.character = chosenCharacter !== undefined && chosenCharacter !== DEFAULT_PLAYER_CHARACTER ? chosenCharacter : undefined;
     if (ruleset !== null) {
       const parsed = parseRuleset(ruleset, doc.ruleset ?? DEFAULT_RULESET);
       next.ruleset = parsed === DEFAULT_RULESET ? undefined : parsed;
@@ -3287,7 +3294,8 @@ export class LevelEditor {
       a.timeLimitSeconds === b.timeLimitSeconds &&
       a.chipsRequired === b.chipsRequired &&
       a.winRule === b.winRule &&
-      a.ruleset === b.ruleset
+      a.ruleset === b.ruleset &&
+      (a.character ?? DEFAULT_PLAYER_CHARACTER) === (b.character ?? DEFAULT_PLAYER_CHARACTER)
     );
   }
 
@@ -3336,6 +3344,7 @@ export class LevelEditor {
     set('editor-meta-time', String(doc.timeLimitSeconds));
     set('editor-meta-chips', String(doc.chipsRequired));
     set(WIN_RULE_INPUT_ID, doc.winRule);
+    set(CHARACTER_INPUT_ID, doc.character ?? DEFAULT_PLAYER_CHARACTER);
     this.syncRulesetInput();
     this.syncSizeInputs();
   }
@@ -3382,6 +3391,17 @@ export class LevelEditor {
             ? 'editor.layout.rules.description.lynx'
             : 'editor.layout.rules.description.epoxy'
       );
+    }
+    const characterEl = byId<HTMLSelectElement>(CHARACTER_INPUT_ID);
+    if (characterEl) {
+      // Only the Epoxy rules play Melinda: the Lynx and CC3D engines have one player.
+      const epoxy = !cc3d && editableRulesetOf(this.doc.ruleset) !== LYNX_RULESET;
+      characterEl.disabled = cc3d;
+      for (const option of Array.from(characterEl.options)) {
+        const unavailable = option.value === MELINDA_CHARACTER && !epoxy && this.doc.character !== MELINDA_CHARACTER;
+        option.disabled = unavailable;
+        option.title = unavailable ? t(EPOXY_ONLY_REASON_KEY) : '';
+      }
     }
     const winRuleEl = byId<HTMLSelectElement>(WIN_RULE_INPUT_ID);
     if (winRuleEl) {
@@ -3849,6 +3869,7 @@ export class LevelEditor {
     const raw = draft.level as unknown as Record<string, unknown>;
     if (raw.ruleset !== undefined && !isRuleset(raw.ruleset)) return null;
     if (raw.winRule !== undefined && !isWinRule(raw.winRule)) return null;
+    if (raw.character !== undefined && !isPlayerCharacter(raw.character)) return null;
     try {
       const [valid] = sanitizeStoredLevels(
         [hydrateDraftLevel(draft.level)],

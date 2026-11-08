@@ -383,6 +383,8 @@ export class BlockPuzzleSolver {
     }
     if (engine.getEntities().some((e) => !isModelledEntityType(e.type))) return null;
     if (engine.getLevel().cloneLinks.length > 0 || engine.getLevel().trapLinks.length > 0) return null;
+    // Melinda walks differently from Chip (ice, dirt, gravel, signs): the search models Chip only.
+    if (engine.getLevel().character !== undefined) return null;
     // Signal wiring changes the board as the player moves: the search does not model it.
     if ((engine.getLevel().signalLinks?.length ?? 0) > 0) return null;
     if (bootsPullBlocks(engine.getPlayer().boots) || hasPullBootsContent({ terrain: engine.getTerrain(), items: engine.getItems() })) return null;

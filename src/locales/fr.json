@@ -273,6 +273,9 @@
       "refused_player_out_of_range": {
         "label": "Non exporté : le départ de {levels} est hors de sa carte."
       },
+      "refused_melinda_character": {
+        "label": "Non exporté : {levels} se joue avec Melinda, ce que le format .DAT ne peut pas contenir."
+      },
       "refused_targets_win_rule": {
         "label": "Non exporté : {levels} se gagne en couvrant des cibles de bloc, que le format .DAT ne peut pas porter."
       },
@@ -1314,6 +1317,9 @@
       },
       "forbidden_item": {
         "label": "Cette barrière refuse l'objet que vous portez : déposez-le d'abord."
+      },
+      "needs_hiking_boots": {
+        "label": "Melinda a besoin de chaussures de randonnée pour marcher ici."
       },
       "drop_cell_occupied": {
         "label": "Impossible de déposer ici : la case contient déjà un objet."
@@ -3305,6 +3311,15 @@
       "win_rule": {
         "label": "Règle de victoire"
       },
+      "character": {
+        "label": "Personnage"
+      },
+      "character_chip": {
+        "label": "Chip"
+      },
+      "character_melinda": {
+        "label": "Melinda (ne glisse pas sur la glace, chaussures de randonnée requises sur la terre et le gravier)"
+      },
       "win_rule_exit": {
         "label": "Atteindre la sortie"
       },
@@ -4018,6 +4033,24 @@
     "wall": {
       "name": "Mur"
     },
+    "steel_wall": {
+      "name": "Mur d'Acier",
+      "desc": {
+        "label": "Un mur qu'aucune explosion ne détruit."
+      }
+    },
+    "sign_chip_only": {
+      "name": "Panneau (Chip Seulement)",
+      "desc": {
+        "label": "Seul Chip peut marcher dessus ; c'est un mur pour Melinda. Les monstres et les blocs le traversent."
+      }
+    },
+    "sign_melinda_only": {
+      "name": "Panneau (Melinda Seulement)",
+      "desc": {
+        "label": "Seule Melinda peut marcher dessus ; c'est un mur pour Chip. Les monstres et les blocs le traversent."
+      }
+    },
     "recessed_wall": {
       "name": "Mur Escamotable"
     },
@@ -4398,6 +4431,24 @@
     },
     "bomb": {
       "name": "Bombe"
+    },
+    "green_chip": {
+      "name": "Puce Verte",
+      "desc": {
+        "label": "Compte comme une puce. Chaque appui sur un bouton vert la change en bombe verte, et inversement."
+      }
+    },
+    "green_bomb": {
+      "name": "Bombe Verte",
+      "desc": {
+        "label": "Explose comme une bombe. Chaque appui sur un bouton vert la change en puce verte, et inversement."
+      }
+    },
+    "hiking_boots": {
+      "name": "Chaussures de Randonnée",
+      "desc": {
+        "label": "Permettent à Melinda de marcher sur la terre meuble et le gravier. Elles ne servent à rien à Chip."
+      }
     },
     "score_10": {
       "name": "Fanion Bonus (10 points)"

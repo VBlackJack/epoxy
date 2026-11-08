@@ -157,3 +157,29 @@ describe('Pathfinder.findPath', () => {
     expect(Pathfinder.findPath(engine, 4, 2).moves).toEqual(['E', 'E']);
   });
 });
+
+describe('Pathfinder.findPath for Melinda', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  const melinda = (level: CompiledLevel): CompiledLevel => ({ ...level, character: 'melinda' });
+
+  it('routes across ice, which does not carry her off', () => {
+    const engine = engineFor(melinda(corridor({ 4: 'ice' })));
+    expect(Pathfinder.findPath(engine, 6, 2).moves).toEqual(['E', 'E', 'E', 'E']);
+  });
+
+  it('refuses dirt and gravel without hiking boots and crosses them with the boots', () => {
+    for (const tile of ['dirt', 'gravel']) {
+      expect(Pathfinder.findPath(engineFor(melinda(corridor({ 4: tile }))), 6, 2).moves, tile).toEqual([]);
+      expect(Pathfinder.findPath(engineFor(melinda(corridor({ 4: tile })), ['hiking_boots']), 6, 2).moves, tile).toHaveLength(4);
+      expect(Pathfinder.findPath(engineFor(corridor({ 4: tile })), 6, 2).moves, tile).toHaveLength(4);
+    }
+  });
+
+  it('refuses dirt after a thief took the hiking boots', () => {
+    const engine = engineFor(melinda(corridor({ 3: 'thief', 4: 'dirt' })), ['hiking_boots']);
+    expect(Pathfinder.findPath(engine, 6, 2).moves).toEqual([]);
+  });
+});

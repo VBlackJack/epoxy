@@ -2,6 +2,12 @@ editor tile floor closed=true ccf370a9765ef926
 editor tile floor closed=false cfaadf70b0c22130
 editor tile wall closed=true 13db8863e15049a5
 editor tile wall closed=false cf992b7999d17c8a
+editor tile steel_wall closed=true f61b5e5649c5580f
+editor tile steel_wall closed=false 7312950599ac4364
+editor tile sign_chip_only closed=true b3287b6e93b1063f
+editor tile sign_chip_only closed=false b3f223ccef615ba9
+editor tile sign_melinda_only closed=true 9f6b3c0b0ab7a79b
+editor tile sign_melinda_only closed=false bec26609fe7255de
 editor tile recessed_wall closed=true a1ed4676df3632e1
 editor tile recessed_wall closed=false 6dff6011a8deec03
 editor tile blue_wall_real closed=true ca118e42d4ccb625
@@ -346,6 +352,12 @@ editor tile toll_token closed=true d7efe7e7c40de26d
 editor tile toll_token closed=false 5a23a98c7a9657bc
 editor tile bomb closed=true e30509365b52bb02
 editor tile bomb closed=false 660dd15996bc5d28
+editor tile green_chip closed=true 99bf13e173e94ceb
+editor tile green_chip closed=false f0b1a529462078cb
+editor tile green_bomb closed=true 3bce50a47ad48309
+editor tile green_bomb closed=false bf19a2156541f716
+editor tile hiking_boots closed=true 4e106abdcf65244d
+editor tile hiking_boots closed=false 7bce873506196303
 editor tile score_10 closed=true f376f1dcadff2e5f
 editor tile score_10 closed=false eee5b9e0483d474c
 editor tile score_100 closed=true 00ba73f3f3291d91
@@ -378,6 +390,9 @@ editor item over floor pocket_gate 16db4797d05c8c48
 editor item over floor hurl_stone fd79a6b108152070
 editor item over floor toll_token c913a24c6e278380
 editor item over floor bomb b1d13c4ddf1a8b64
+editor item over floor green_chip 50d8e4d02f2598ef
+editor item over floor green_bomb 191f6861b346234e
+editor item over floor hiking_boots 2ad8baca219f6830
 editor item over floor score_10 defcafb41d2477c2
 editor item over floor score_100 3e8b6868be3b0e47
 editor item over floor score_1000 da6c6f54aeceaff5

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DEFAULT_RULESET } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
 import type { CloneLink, EntityPlacement, TrapLink } from '../core/types';
 import { dirtyCc3dCells } from './cc3dLayerDiff';
 import { differingEdgeCells } from './editorCellEdges';
@@ -51,7 +51,8 @@ function metadataDiffers(a: EditorDocument, b: EditorDocument): boolean {
     a.timeLimitSeconds !== b.timeLimitSeconds ||
     a.chipsRequired !== b.chipsRequired ||
     a.winRule !== b.winRule ||
-    (a.ruleset ?? DEFAULT_RULESET) !== (b.ruleset ?? DEFAULT_RULESET)
+    (a.ruleset ?? DEFAULT_RULESET) !== (b.ruleset ?? DEFAULT_RULESET) ||
+    (a.character ?? DEFAULT_PLAYER_CHARACTER) !== (b.character ?? DEFAULT_PLAYER_CHARACTER)
   );
 }
 

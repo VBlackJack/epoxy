@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -34,6 +34,7 @@ import {
   PlayerState,
   RelativeTurn,
   LitCharge,
+  PlayerCharacter,
   RuntimeEntity,
   Shot,
   TileDefinition,
@@ -477,7 +478,26 @@ export function isEdgeBlocked(
  */
 export function canPlayerEnter(w: EpoxyWorld, tile: TileDefinition): boolean {
   if (!tile.passableByPlayer) return false;
+  const character = playerCharacterOf(w);
+  // A gender sign is a wall for the other character; the boots a character needs on dirt and gravel are checked here too.
+  if (tile.characterOnly !== undefined && tile.characterOnly !== character) return false;
+  const neededBoots = tile.bootsForCharacter?.[character];
+  if (neededBoots !== undefined && !w.player.boots.has(neededBoots)) return false;
   return !(tile.forbiddenItem && holdsItem(w, tile.forbiddenItem));
+}
+
+/** The character the level is played with: Chip unless the level names another. */
+export function playerCharacterOf(w: EpoxyWorld): PlayerCharacter {
+  return w.level.character ?? DEFAULT_PLAYER_CHARACTER;
+}
+
+/**
+ * Whether the player cannot slide on a tile: the boots the tile names protect them, or they are a character who
+ * never slides on ice (Melinda treats ice, corners included, as the player with ice skates does).
+ */
+export function playerGripsTile(w: EpoxyWorld, tile: TileDefinition): boolean {
+  if (tile.protectedByItem !== undefined && w.player.boots.has(tile.protectedByItem)) return true;
+  return tile.slideType === 'ice' && playerCharacterOf(w) === MELINDA_CHARACTER;
 }
 
 /** Applies the terrain change, if any, of a cell the player or a block has just left. */

@@ -242,8 +242,9 @@ export const PACK_JSON_VERSION_V12_IDS: ReadonlySet<string> = new Set([
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 13 (see
  * PACK_JSON_VERSION_V13_IDS): the wired devices of the Chip's Challenge 2 family (purple wall and floor, toggle switch,
- * black button, gray area button, wired trap, wired flame jet, Chip's Challenge 2 swivel doors). An older build would read them as floor, so it must
- * refuse the file.
+ * black button, gray area button, wired trap, wired flame jet, Chip's Challenge 2 swivel doors, green chip and bomb, steel wall, hiking boots, gender signs), or a level
+ * played by Melinda (its `character` field). An older build would read the tiles as floor and play Melinda as Chip, so it
+ * must refuse the file.
  */
 export const PACK_JSON_VERSION_V13 = 13;
 
@@ -261,7 +262,13 @@ export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
   'swivel_door_cc2_ne',
   'swivel_door_cc2_se',
   'swivel_door_cc2_sw',
-  'swivel_door_cc2_nw'
+  'swivel_door_cc2_nw',
+  'green_chip',
+  'green_bomb',
+  'steel_wall',
+  'hiking_boots',
+  'sign_chip_only',
+  'sign_melinda_only'
 ]);
 
 /**

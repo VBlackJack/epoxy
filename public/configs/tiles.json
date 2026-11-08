@@ -28,6 +28,39 @@
       "passableByMonster": false,
       "passableByBlock": false
     },
+    "steel_wall": {
+      "id": "steel_wall",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.steel_wall.name",
+      "laserTransparent": false,
+      "passableByPlayer": false,
+      "passableByMonster": false,
+      "passableByBlock": false,
+      "blastProof": true
+    },
+    "sign_chip_only": {
+      "id": "sign_chip_only",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.sign_chip_only.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "characterOnly": "chip"
+    },
+    "sign_melinda_only": {
+      "id": "sign_melinda_only",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.sign_melinda_only.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "characterOnly": "melinda"
+    },
     "recessed_wall": {
       "id": "recessed_wall",
       "category": "terrain",
@@ -479,7 +512,8 @@
       "passableByPlayer": true,
       "passableByMonster": false,
       "passableByBlock": false,
-      "transformsToOnStep": "floor"
+      "transformsToOnStep": "floor",
+      "bootsForCharacter": { "melinda": "hiking_boots" }
     },
     "gravel": {
       "id": "gravel",
@@ -489,7 +523,8 @@
       "laserTransparent": true,
       "passableByPlayer": true,
       "passableByMonster": false,
-      "passableByBlock": true
+      "passableByBlock": true,
+      "bootsForCharacter": { "melinda": "hiking_boots" }
     },
     "turtle": {
       "id": "turtle",
@@ -1055,6 +1090,33 @@
       "i18nKey": "tiles.bomb.name",
       "laserTransparent": true,
       "hazard": "bomb"
+    },
+    "green_chip": {
+      "id": "green_chip",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.green_chip.name",
+      "laserTransparent": true,
+      "collectible": "chip",
+      "countsAsChip": true,
+      "itemTogglesTo": "green_bomb"
+    },
+    "green_bomb": {
+      "id": "green_bomb",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.green_bomb.name",
+      "laserTransparent": true,
+      "hazard": "bomb",
+      "itemTogglesTo": "green_chip"
+    },
+    "hiking_boots": {
+      "id": "hiking_boots",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.hiking_boots.name",
+      "laserTransparent": true,
+      "collectible": "boot"
     },
     "score_10": {
       "id": "score_10",

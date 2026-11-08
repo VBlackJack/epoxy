@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, FLOOR_TILE_ID, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { WARD } from './wardShape';
@@ -31,7 +31,7 @@ import {
   paintWiredDevice,
   type WiredColours
 } from './wiredArt';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, PlayerCharacter, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -62,6 +62,15 @@ import {
   paintCc3dMob,
   paintCc3dTerrain
 } from './cc3dPainters';
+import { paintMelindaBow } from './cc2Marks';
+import {
+  CC2_ITEM_VARIANTS,
+  CC2_TERRAIN_VARIANTS,
+  cc2VariantOf,
+  paintCc2Mark,
+  paletteMarkColours,
+  type MarkPalette
+} from './cc2Variants';
 import { CC2_PLACEHOLDER_INSET_RATIO, isCc2Id, paintCc2Placeholder } from './cc2Placeholder';
 import { FrameBudgetGuard } from './frameBudget';
 import {
@@ -869,6 +878,8 @@ export class PixelRenderer {
   private frameRevealsHiddenWalls = false;
   /** Look of the player character; the default is the stock player. */
   private playerSkin: PlayerSkinId = DEFAULT_PLAYER_SKIN;
+  /** The character of the level being drawn; the icon and the editor draw Chip. */
+  private playerCharacter: PlayerCharacter = DEFAULT_PLAYER_CHARACTER;
 
   private readonly lighting = new LightingLayer();
   /** Lights gathered while drawing a frame, reused across frames. */
@@ -1641,6 +1652,7 @@ export class PixelRenderer {
     }
     const spritePx = lowRes ? originX + Math.round((this.visualPlayerPos.x - region.x0) * unit) : playerPx;
     const spritePy = lowRes ? originY + Math.round((this.visualPlayerPos.y - region.y0) * unit) : playerPy;
+    this.playerCharacter = engine.getLevel().character ?? DEFAULT_PLAYER_CHARACTER;
     this.drawPlayer(
       sceneCtx,
       spritePx,
@@ -2438,6 +2450,15 @@ export class PixelRenderer {
       this.drawTile(ctx, wiredBase, x, y, size, isEditor, isClosedTrap, pass, neighbours);
       // A static pass of a lit jet holds the floor only: the plug goes on with the animated overlay.
       if (pass === 'all' || pass === 'animated' || tileId !== WIRED_LIT_JET_TILE) this.drawWiredMark(ctx, x, y, size);
+      return;
+    }
+    // A steel wall and a gender sign are the wall or the floor of the style with a mark over it.
+    const terrainVariant = cc2VariantOf(CC2_TERRAIN_VARIANTS, tileId);
+    if (terrainVariant) {
+      this.drawTile(ctx, terrainVariant.base, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      if (pass !== 'animated') {
+        paintCc2Mark(ctx, terrainVariant.mark, x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, terrainVariant.mark));
+      }
       return;
     }
     const painterId = EPOXY_TO_CC3D_PAINTER[tileId];
@@ -5464,6 +5485,13 @@ export class PixelRenderer {
       runewardPaint(ctx, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
+    // A green chip or bomb and the hiking boots are the item they resemble with a mark over it, in every style.
+    const itemVariant = cc2VariantOf(CC2_ITEM_VARIANTS, itemId);
+    if (itemVariant) {
+      this.drawItem(ctx, itemVariant.base, x, y, size);
+      paintCc2Mark(ctx, itemVariant.mark, x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, itemVariant.mark));
+      return;
+    }
     if (isCc3dId(itemId)) {
       paintCc3dItem(ctx, itemId, x, y, size, this.cc3dTools(ctx));
       return;
@@ -6449,6 +6477,24 @@ export class PixelRenderer {
     frame: number = 0,
     hop: number = 0,
     extras: PlayerPoseExtras = {}
+  ): void {
+    this.drawPlayerBody(ctx, x, y, size, dir, inWater, alive, frame, hop, extras);
+    // Melinda is the character of the style with a bow, so she reads as someone else in every style and every pose.
+    if (this.playerCharacter === MELINDA_CHARACTER && alive) paintMelindaBow(ctx, x, y - hop * size, size, dir);
+  }
+
+  /** The player of the level's character in the chosen skin, without the mark that tells Melinda from Chip. */
+  private drawPlayerBody(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    dir: Direction,
+    inWater: boolean,
+    alive: boolean,
+    frame: number,
+    hop: number,
+    extras: PlayerPoseExtras
   ): void {
     const runewardPlayer = this.runewardPainters()?.player;
     // The Julien skin keeps its own drawing in every style.

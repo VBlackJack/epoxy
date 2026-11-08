@@ -382,6 +382,14 @@ function buildEdges(level: DeviceLevel): Edge[] {
     if (channel !== undefined) {
       for (const b of facets) if (wallChannel(b.tile) === channel) add(a, b, 'colour', 'toggle', channel);
     }
+    // The green button also turns every green chip into a green bomb and back, wherever it lies.
+    if (a.tile.buttonAction === 'toggle_walls') {
+      level.items?.forEach((row, y) =>
+        row.forEach((item, x) => {
+          if (item !== null && item !== undefined && ConfigRegistry.getTile(item).itemTogglesTo !== undefined) add(a, { x, y }, 'colour', 'toggle', GREEN_CHANNEL);
+        })
+      );
+    }
     if (a.tile.plateColor !== undefined) {
       for (const b of facets) if (b.tile.holdDoorColor === a.tile.plateColor) add(a, b, 'colour', 'plate', a.tile.plateColor);
     }

@@ -20,6 +20,7 @@
  * RGBA buffer and dithers the floor shadow on it, so the rules can be tested in node.
  */
 
+import { CC2_ITEM_VARIANTS, cc2VariantOf } from './cc2Variants';
 import { relativeTo } from '../core/lynx/directions';
 import { Direction, RelativeTurn, TileDefinition } from '../core/types';
 import {
@@ -230,6 +231,9 @@ export function retroLabelLayers(label: string): RetroLayer[] {
 
 /** Layers of an item (key, boots, chip, score flag...) as it sits on the floor. */
 export function retroItemLayers(itemId: string, def: RetroTileSource): RetroLayer[] {
+  // A look-alike item (green chip or bomb, hiking boots) is the sprite of the item it resembles; its mark is drawn over it.
+  const variant = cc2VariantOf(CC2_ITEM_VARIANTS, itemId);
+  if (variant) return retroItemLayers(variant.base, def);
   if (itemId.startsWith(KEY_ITEM_PREFIX)) {
     return [{ name: RETRO_SPRITE.key, swap: swapRampOf(def.colorKey) }, ...glyphLayer(def.colorKey ?? DEFAULT_COLOR_KEY)];
   }

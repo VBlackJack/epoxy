@@ -62,8 +62,8 @@ const COLOURS = ['red', 'blue', 'yellow', 'green'];
 
 /** Family id to the tile ids, entity ids and synthetic members it covers. */
 export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
-  walk: ['floor', 'wall', 'exit', 'hint'],
-  chips: ['chip', 'socket'],
+  walk: ['floor', 'wall', 'exit', 'hint', 'steel_wall', 'sign_chip_only', 'sign_melinda_only'],
+  chips: ['chip', 'socket', 'green_chip', 'green_bomb'],
   hidden_walls: ['recessed_wall', 'blue_wall_real', 'blue_wall_fake', 'invisible_wall', 'appearing_wall'],
   thin_walls: [...THIN_WALL_SIDES.map((sides) => `thin_wall_${sides}`), SYNTHETIC_CELL_EDGES],
   swivel_doors: [
@@ -75,7 +75,7 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   turn_plates: ['turn_plate_cw', 'turn_plate_ccw'],
   underlays: [SYNTHETIC_UNDERLAYS],
   dirt: ['dirt'],
-  gravel: ['gravel'],
+  gravel: ['gravel', 'hiking_boots'],
   water_fire: ['water', 'fire'],
   water_fire_boots: ['boots_water', 'boots_fire'],
   slime: ['slime'],

@@ -91,6 +91,15 @@ tile wall closed=true wallMask=85 hash=1 ae24e1b21173984d
 tile wall closed=true wallMask=255 hash=0 b059ab5ae06edc92
 tile wall closed=true wallMask=255 hash=3 331ffb649151c1b0
 tile wall closed=true wallMask=255 hash=7 234ebc9fa1afe33a
+tile steel_wall closed=true isolated ce8cf06648fc0678
+tile steel_wall closed=true shadowMask=65 hash=1 0d399e4134b27d2c
+tile steel_wall closed=true shadowMask=128 hash=1 ce8f8132717481ac
+tile sign_chip_only closed=true isolated 929b0ea43f904158
+tile sign_chip_only closed=true shadowMask=65 hash=1 df27719cff21e511
+tile sign_chip_only closed=true shadowMask=128 hash=1 1fb88044e1819f00
+tile sign_melinda_only closed=true isolated bb3a812745cf9394
+tile sign_melinda_only closed=true shadowMask=65 hash=1 dc5d34a703db1353
+tile sign_melinda_only closed=true shadowMask=128 hash=1 def80fe04d4416d0
 tile recessed_wall closed=true isolated 2e03f6e243f3c837
 tile recessed_wall closed=true shadowMask=65 hash=1 35a83629a0291957
 tile recessed_wall closed=true shadowMask=128 hash=1 fd88cfb676b9aabe

@@ -64,6 +64,8 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
 
   if (action === 'toggle_walls') {
     swapTerrain(w, (tile) => tile.togglesTo);
+    // The green chips and bombs lying anywhere on the level change form with the green walls.
+    swapItems(w, (tile) => tile.itemTogglesTo);
     flipToggleParity(w, GREEN_TOGGLE_PARITY_BIT);
   } else if (channelOfButtonAction(action) !== undefined) {
     // A colour button swaps the walls of its own channel only; green walls and the other colours stay.
@@ -277,6 +279,18 @@ function swapChipsAndBombs(w: EpoxyWorld, bx: number, by: number): void {
       } else if (item === BOMB_ITEM_ID) {
         w.items[y][x] = CHIP_ITEM_ID;
       }
+    }
+  }
+}
+
+/** Replaces every item for which `target` names an item by that item. */
+function swapItems(w: EpoxyWorld, target: (tile: TileDefinition) => string | undefined): void {
+  for (let y = 0; y < w.items.length; y++) {
+    for (let x = 0; x < w.items[y].length; x++) {
+      const id = w.items[y][x];
+      if (id === null) continue;
+      const next = target(ConfigRegistry.getTile(id));
+      if (next) w.items[y][x] = next;
     }
   }
 }

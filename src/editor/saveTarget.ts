@@ -15,7 +15,7 @@
  */
 
 import { BUILTIN_PACK_IDS, DEFAULT_LEVEL_PASSWORD } from '../config/constants';
-import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import { CompiledLevel, Ruleset } from '../core/types';
 import { canonicalJson } from './canonicalJson';
 import { packUsesPasswords } from '../ui/packPasswords';
@@ -127,6 +127,7 @@ function playfieldSignature(level: CompiledLevel): string {
     unordered(level.signalLinks ?? []),
     level.winRule ?? DEFAULT_WIN_RULE,
     level.ruleset ?? DEFAULT_RULESET,
+    level.character ?? DEFAULT_PLAYER_CHARACTER,
     String(level.chipsRequired),
     // A CC3D level is its cells and its mobs, in order (mob order decides which clone machine or shooter links);
     // its map id and background are display only.
