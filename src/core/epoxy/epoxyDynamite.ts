@@ -27,7 +27,6 @@ import {
   DYNAMITE_WATER_TILE_ID,
   FLOOR_TILE_ID
 } from '../coreConstants';
-import { isPhasingEntityType } from '../RulesetFeatures';
 import { LitCharge } from '../types';
 import { EpoxyContext, EpoxyWorld, isInBounds, killPlayer, mapWidth, rebuildDeviceLookups, removeEntity } from './epoxyWorld';
 
@@ -111,10 +110,9 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       if (!isInBounds(w, x, y)) continue;
       ctx.emitVisual('explosion', x, y);
 
-      // What stands in the cell: creatures, the player, or a lit dynamite (the exploding one included).
-      const creatures = w.entities.filter(
-        (e) => e.x === x && e.y === y && !(ConfigRegistry.getTile(w.terrain[y][x]).isCloneMachine && !isPhasingEntityType(e.type))
-      );
+      // What stands in the cell: creatures, the player, or a lit dynamite (the exploding one included). The template
+      // held by a clone machine is a creature like any other: it dies and the machine stays, protected by it.
+      const creatures = w.entities.filter((e) => e.x === x && e.y === y);
       const playerHere = w.player.alive && w.player.x === x && w.player.y === y;
       const litHere = [...w.litCharges, ...pending].filter(
         (other) => other.x === x && other.y === y && other.dynamite === true && other.awaitingDeparture !== true

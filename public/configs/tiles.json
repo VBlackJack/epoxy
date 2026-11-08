@@ -539,7 +539,6 @@
     },
     "socket": {
       "id": "socket",
-
       "survivesDynamite": true,
       "category": "terrain",
       "layer": "terrain",
@@ -1645,7 +1644,6 @@
     },
     "signal_gate_and": {
       "id": "signal_gate_and",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1658,7 +1656,6 @@
     },
     "signal_gate_or": {
       "id": "signal_gate_or",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1671,7 +1668,6 @@
     },
     "signal_gate_not": {
       "id": "signal_gate_not",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1684,7 +1680,6 @@
     },
     "signal_gate_xor": {
       "id": "signal_gate_xor",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1720,7 +1715,6 @@
     },
     "signal_gate_nand": {
       "id": "signal_gate_nand",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1733,7 +1727,6 @@
     },
     "signal_gate_dlatch": {
       "id": "signal_gate_dlatch",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1746,7 +1739,6 @@
     },
     "signal_counter_0": {
       "id": "signal_counter_0",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1760,7 +1752,6 @@
     },
     "signal_counter_1": {
       "id": "signal_counter_1",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1774,7 +1765,6 @@
     },
     "signal_counter_2": {
       "id": "signal_counter_2",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1788,7 +1778,6 @@
     },
     "signal_counter_3": {
       "id": "signal_counter_3",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1802,7 +1791,6 @@
     },
     "signal_counter_4": {
       "id": "signal_counter_4",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1816,7 +1804,6 @@
     },
     "signal_counter_5": {
       "id": "signal_counter_5",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1830,7 +1817,6 @@
     },
     "signal_counter_6": {
       "id": "signal_counter_6",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1844,7 +1830,6 @@
     },
     "signal_counter_7": {
       "id": "signal_counter_7",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1858,7 +1843,6 @@
     },
     "signal_counter_8": {
       "id": "signal_counter_8",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",
@@ -1872,7 +1856,6 @@
     },
     "signal_counter_9": {
       "id": "signal_counter_9",
-
       "survivesDynamite": true,
       "category": "mechanisms",
       "layer": "terrain",

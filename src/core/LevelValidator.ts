@@ -567,15 +567,16 @@ export class LevelValidator {
       }
     }
 
-    // A level that places dynamite may have its walls, doors and hazards blasted away. The walk does not follow the
-    // blast: it reads every such cell as floor from the start (an over-approximation, so it never reports a false
-    // unreachable). What dynamite spares (see survivesDynamite) and the exit stay as they are.
+    // A level that places dynamite may have its walls, doors, hazards, ice and force floors blasted away, and its bombs
+    // destroyed. The walk does not follow the blast: it reads every such cell as floor and drops every bomb from the
+    // start (an over-approximation, so it never reports a false unreachable). What dynamite spares (see
+    // survivesDynamite) and the exit stay as they are. Blocks are not removed: the walk does not treat them as obstacles.
     const dynamiteLevel = level.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
     const dynamiteBlastable = (id: string): boolean => {
       if (id === FLOOR_TILE_ID) return false;
       const tile = ConfigRegistry.getTile(id);
       if (tile.blastProof === true || tile.survivesDynamite === true || tile.isLevelExit === true) return false;
-      return tile.passableByPlayer !== true || tile.hazard !== undefined;
+      return tile.passableByPlayer !== true || tile.hazard !== undefined || tile.slideType !== undefined || tile.forceDirection !== undefined;
     };
 
     const rankBudget = { left: RANK_STEP_BUDGET };
@@ -600,6 +601,14 @@ export class LevelValidator {
         }
       }
       const simItems = level.items.map((row) => [...row]);
+      if (dynamiteLevel) {
+        for (const row of simItems) {
+          for (let cx = 0; cx < row.length; cx++) {
+            const id = row[cx];
+            if (id && ConfigRegistry.getTile(id).hazard === 'bomb') row[cx] = null;
+          }
+        }
+      }
       if (meter) meter.cells += 2 * width * height;
       const ownedKeys: Record<string, number> = {};
       let collectedChips = 0;

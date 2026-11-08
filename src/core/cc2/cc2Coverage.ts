@@ -69,7 +69,7 @@ const STEEL_FOIL_REASON =
 const TOGGLE_CLOCK_REASON =
   'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
 const DYNAMITE_REASON =
-  'Epoxy plays dynamite with the CC2 blast of the Lexy Labyrinth engine: lit once the player leaves the cell, a fuse of 85 ticks, a 5 x 5 square without its far corners that destroys items and turns terrain into floor (steel wall, socket and logic gates resist, creatures are killed). Differences: a lit dynamite is an item in Epoxy, so it blocks nothing and never slides on ice or force floors; thin walls on the cells are not destroyed; the explosion animation does not block the player; the fuse may be one tick off [unverified].';
+  'Epoxy plays dynamite with the CC2 blast of the Lexy Labyrinth engine: lit once the player leaves the cell, a fuse of 85 ticks, a 5 x 5 square without its far corners that destroys items and turns terrain into floor (steel wall, socket and logic gates resist, creatures are killed). Differences: a lit dynamite is an item in Epoxy, so it blocks nothing and never slides on ice or force floors; thin walls on the cells are not destroyed and canopies do not shield their cell; a cracked floor would become a hole but Epoxy has no such tile; a no-sign on the cell does not stop the lighting; a lit dynamite does not block re-entry of its cell; the explosion animation does not block the player; the fuse may be one tick off [unverified].';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 

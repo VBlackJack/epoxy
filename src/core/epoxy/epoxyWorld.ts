@@ -354,7 +354,6 @@ export function playerHaste(w: EpoxyWorld): number {
   return factor;
 }
 
-/** Lists the cell in the device lookups its terrain belongs to. */
 /**
  * Lists the devices of the grid again, from the terrain as it is now. Dynamite turns terrain into floor, so a device it
  * destroyed must leave the lists the laser, hold door, plate and teleporter passes walk. A device hidden under a removable
@@ -380,6 +379,7 @@ export function rebuildDeviceLookups(w: EpoxyWorld): void {
   }
 }
 
+/** Lists the cell in the device lookups its terrain belongs to. */
 function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string, coversTargets: boolean): void {
   const tile = ConfigRegistry.getTile(terrainId);
   if (tile.buttonAction === 'hold_trap') w.holdTrapButtons.push({ x, y });

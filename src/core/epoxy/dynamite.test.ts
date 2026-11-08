@@ -31,7 +31,7 @@ import { CHARGE_DEATH_REASON_KEY, DYNAMITE_ITEM_ID, DYNAMITE_LIT_ITEM_ID, FLOOR_
 import { GameEngine } from '../GameEngine';
 import { LevelValidator } from '../LevelValidator';
 import { isChargeTileId, isEpoxyOnlyItemId } from '../RulesetFeatures';
-import type { CompiledLevel, Direction, EntityPlacement } from '../types';
+import type { CompiledLevel, Direction, EntityPlacement, SignalLink } from '../types';
 import { inDynamiteBlast } from './epoxyDynamite';
 import type { EpoxyContext } from './epoxyWorld';
 
@@ -59,6 +59,7 @@ interface Setup {
   terrain?: Array<[number, number, string]>;
   items?: Array<[number, number, string]>;
   entities?: EntityPlacement[];
+  signalLinks?: SignalLink[];
 }
 
 function room(setup: Setup = {}): CompiledLevel {
@@ -81,7 +82,8 @@ function room(setup: Setup = {}): CompiledLevel {
     items,
     entities: setup.entities ?? [],
     trapLinks: [],
-    cloneLinks: []
+    cloneLinks: [],
+    ...(setup.signalLinks === undefined ? {} : { signalLinks: setup.signalLinks })
   };
 }
 
@@ -441,6 +443,53 @@ describe('dynamite: creatures', () => {
   });
 });
 
+describe('dynamite: clone machines and signal sources', () => {
+  it('kills the template a clone machine holds and keeps the machine', () => {
+    const engine = load(
+      room({
+        terrain: [[CENTRE.x + 1, CENTRE.y, 'clone_machine']],
+        entities: [{ type: WALKER, x: CENTRE.x + 1, y: CENTRE.y, dir: 'S' }]
+      })
+    );
+    freeze(engine);
+    setDownAndLeave(engine);
+    blastNow(engine);
+    expect(engine.getEntities()).toHaveLength(0);
+    expect(terrainAt(engine, 1, 0)).toBe('clone_machine');
+  });
+
+  it('stops a blasted black button from feeding its network', () => {
+    const sink = { x: 2, y: 2 };
+    const source = { x: CENTRE.x + 1, y: CENTRE.y };
+    const level = room({
+      terrain: [[source.x, source.y, 'black_button'], [sink.x, sink.y, 'purple_wall']],
+      items: [[3, 3, DYNAMITE]],
+      signalLinks: [{ fromX: source.x, fromY: source.y, toX: sink.x, toY: sink.y }]
+    });
+    const engine = load(level);
+    tickN(engine, 3);
+    expect(engine.getTerrain()[sink.y][sink.x]).toBe('purple_wall');
+    setDownAndLeave(engine);
+    blastNow(engine);
+    expect(terrainAt(engine, 1, 0)).toBe(FLOOR_TILE_ID);
+    expect(engine.getTerrain()[sink.y][sink.x]).toBe('purple_floor');
+  });
+
+  it('leaves the same network alone on a level without dynamite', () => {
+    const sink = { x: 2, y: 2 };
+    const source = { x: CENTRE.x + 1, y: CENTRE.y };
+    const engine = load(
+      room({
+        terrain: [[source.x, source.y, 'black_button'], [sink.x, sink.y, 'purple_wall']],
+        signalLinks: [{ fromX: source.x, fromY: source.y, toX: sink.x, toY: sink.y }]
+      })
+    );
+    contextOf(engine).world.terrain[source.y][source.x] = FLOOR_TILE_ID;
+    tickN(engine, 5);
+    expect(engine.getTerrain()[sink.y][sink.x]).toBe('purple_wall');
+  });
+});
+
 describe('dynamite: lit dynamite caught in a blast', () => {
   const lightOther = (engine: GameEngine, dx: number, dy: number, ticksLeft: number): void => {
     const world = contextOf(engine).world;
@@ -553,6 +602,16 @@ describe('dynamite: validator', () => {
   it('does not call a level unwinnable because of a wall the dynamite could destroy', () => {
     expect(LevelValidator.validate(shut(false)).stats.reachableExit).toBe(false);
     expect(LevelValidator.validate(shut(true)).stats.reachableExit).toBe(true);
+  });
+
+  it('reads bombs, ice and force floors on the way as removable too', () => {
+    const level = shut(true);
+    level.terrain[2][3] = 'ice';
+    level.terrain[2][4] = 'force_n';
+    level.items[2][3] = 'bomb';
+    expect(LevelValidator.validate(level).stats.reachableExit).toBe(true);
+    level.terrain[2][5] = 'steel_wall';
+    expect(LevelValidator.validate(level).stats.reachableExit).toBe(false);
   });
 
   it('still counts a steel wall as shut', () => {

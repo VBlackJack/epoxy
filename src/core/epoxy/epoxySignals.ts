@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
-import { LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
+import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
@@ -141,6 +141,17 @@ function chargedCellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
   return w.player.alive && w.player.x === x && w.player.y === y && w.player.boots.has(LIGHTNING_BOLT_ITEM_ID);
 }
 
+/**
+ * True when a blast turned the source terrain of the cell into plain floor or fire. Only a level that places dynamite
+ * can see it, so other levels sample as they always did.
+ */
+function sourceBlastedAway(w: EpoxyWorld, x: number, y: number): boolean {
+  if (!w.hasDynamite) return false;
+  const now = w.terrain[y][x];
+  const first = w.level.terrain[y][x];
+  return (now === FLOOR_TILE_ID || now === DYNAMITE_FIRE_TILE_ID) && first !== FLOOR_TILE_ID && first !== DYNAMITE_FIRE_TILE_ID;
+}
+
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
 function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): Map<number, boolean> {
   const width = mapWidth(w);
@@ -151,7 +162,9 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
     const x = cell % width;
     const y = Math.floor(cell / width);
     const def = runtime.defs.get(index) as SignalNodeDef;
-    if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
+    // A source terrain that dynamite blasted away feeds nothing any more.
+    if (sourceBlastedAway(w, x, y)) levels.set(cell, false);
+    else if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
     else if (def.sample === 'receiver') levels.set(cell, lit.has(cell));
     // A black button is powered unless something presses it.
     else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y));
