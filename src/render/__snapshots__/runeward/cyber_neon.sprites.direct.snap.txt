@@ -21,6 +21,7 @@ item bomb tick=3 447c18d06aa1e7e1
 item green_chip tick=3 ee60e9af91025e43
 item green_bomb tick=3 89c2735aa992234e
 item hiking_boots tick=3 464b18b3e5ccc600
+item lightning_bolt tick=3 e88a1ec2285d0538
 item steel_foil tick=3 d9ab3b55d4032565
 item toggle_clock tick=3 15fe7096f74f43e5
 item bribe tick=3 84e308a910c5e347
@@ -50,6 +51,7 @@ item no_sign_hurl_stone tick=3 09d95d30c2d07bfa
 item no_sign_toll_token tick=3 33b59b14523ee35a
 item no_sign_steel_foil tick=3 177edcd7f01127a9
 item no_sign_bribe tick=3 0b9c4a982fb4897f
+item no_sign_lightning_bolt tick=3 2d761d374c0bbb7d
 entity dirt_block dir=N tick=3 c208acc0b41f0893
 entity dirt_block dir=E tick=3 08943a9bce12316f
 entity dirt_block dir=S tick=3 5785a319cd39bf54
@@ -225,6 +227,7 @@ item bomb tick=13 8593ec6f4976dac7
 item green_chip tick=13 5bc15f370463d8e2
 item green_bomb tick=13 1db2eb885118074c
 item hiking_boots tick=13 16c7d6ed0a203522
+item lightning_bolt tick=13 66f56c51a90c66c5
 item steel_foil tick=13 ef87a8e4c1e4d68e
 item toggle_clock tick=13 55577039627d9578
 item bribe tick=13 cb547a329aa2d063
@@ -254,6 +257,7 @@ item no_sign_hurl_stone tick=13 f80bfec3ba93ae4e
 item no_sign_toll_token tick=13 60725db49aa3dae0
 item no_sign_steel_foil tick=13 a836fee5ab3fe4fb
 item no_sign_bribe tick=13 50cf0b4907876e17
+item no_sign_lightning_bolt tick=13 2b4774cd94d52e70
 entity dirt_block dir=N tick=13 8065e546fee0adf5
 entity dirt_block dir=E tick=13 47b3a5e71503940a
 entity dirt_block dir=S tick=13 a163f8311a3c16e1

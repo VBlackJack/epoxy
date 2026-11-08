@@ -187,11 +187,11 @@ describe('logic gates', () => {
     expect(buildCc2Wires(map).links).toEqual([link(1, 0, 1, 1), link(1, 1, 3, 1), link(1, 2, 1, 1)]);
   });
 
-  it('reports a NAND gate as a gate Epoxy does not play, without a link', () => {
+  it('links a NAND gate like the other two-input gates, now that Epoxy plays it', () => {
     const map = makeMap(3, 3, [button(0, 1, E), put(1, 1, modTile(GATE, 0x16)), cloner(1, 2)]);
     const result = buildCc2Wires(map);
-    expect(result.links).toEqual([]);
-    expect(result.unsupported.some((node) => node.kind === 'logic_gate')).toBe(true);
+    expect(result.links).toEqual([link(0, 1, 1, 1), link(1, 1, 1, 2)]);
+    expect(result.unsupported).toEqual([]);
   });
 });
 

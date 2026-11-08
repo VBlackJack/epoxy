@@ -81,8 +81,15 @@ export const RETRO_SIGNAL_TILES: readonly string[] = [
   'signal_gate_not',
   'signal_gate_xor',
   'signal_latch_off',
-  'signal_latch_on'
+  'signal_latch_on',
+  'signal_gate_nand',
+  'signal_gate_dlatch',
+  'signal_gate_counter',
+  'signal_wire_floor'
 ];
+
+/** Sprite of the base of every counter gate; the number it starts with is drawn over it. */
+export const RETRO_COUNTER_SPRITE = 'signal_gate_counter';
 
 /** Suffix of the overlay sprite of a powered signal tile. */
 export const RETRO_SIGNAL_LIT_SUFFIX = '_lit';

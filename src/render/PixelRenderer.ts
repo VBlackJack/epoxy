@@ -793,6 +793,7 @@ export class PixelRenderer {
   private signalStateKey: string = '';
   /** The cells whose signal node is on, read from the engine each frame; undefined without signals. */
   private poweredSignalCells: ReadonlySet<number> | undefined;
+  private counterValues: ReadonlyMap<number, number> | undefined;
   private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
@@ -991,9 +992,9 @@ export class PixelRenderer {
   }
 
   /** What a Runeward painter may use besides its arguments; the cache is created on first use. */
-  private runewardEnv(art: RunewardArtConfig, signalPowered: boolean = false): RunewardPaintEnv {
+  private runewardEnv(art: RunewardArtConfig, signalPowered: boolean = false, signalCount?: number): RunewardPaintEnv {
     this.runewardCache ??= new Map<string, unknown>();
-    return { timeTick: this.timeTick, signalPowered, reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
+    return { timeTick: this.timeTick, signalPowered, ...(signalCount === undefined ? {} : { signalCount }), reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
   }
 
   /** Colours of the Runeward painters, or null when the config lacks them or holds an unusable one. */
@@ -1458,6 +1459,7 @@ export class PixelRenderer {
     this.blockCellsWidth = mapWidth;
     collectBlockCells(entities, mapWidth, this.blockCells);
     this.poweredSignalCells = engine.getPoweredSignalCells?.();
+    this.counterValues = engine.getCounterValues?.();
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -2053,7 +2055,9 @@ export class PixelRenderer {
     }
 
     const blockKey = blockCellsKey(this.blockCells);
-    const signalKey = this.poweredSignalCells === undefined ? '' : [...this.poweredSignalCells].sort((a, b) => a - b).join(',');
+    const counterKey = this.counterValues === undefined ? '' : [...this.counterValues].map(([cell, count]) => `${cell}=${count}`).join(',');
+    const signalKey =
+      (this.poweredSignalCells === undefined ? '' : [...this.poweredSignalCells].sort((a, b) => a - b).join(',')) + (counterKey === '' ? '' : `|${counterKey}`);
     const skinKey = this.skinActive ? `skin${this.skinLoader?.version ?? 0}` : '';
     const revealKey = this.frameRevealsHiddenWalls ? REVEAL_KEY : '';
     const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}|${revealKey}`;
@@ -2420,7 +2424,7 @@ export class PixelRenderer {
     const runewardTile = this.runewardPainters();
     const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
     if (runewardPaint) {
-      const env = this.runewardEnv(this.runewardArt() as RunewardArtConfig, this.isSignalPowered(neighbours));
+      const env = this.runewardEnv(this.runewardArt() as RunewardArtConfig, this.isSignalPowered(neighbours), this.counterCountAt(neighbours));
       runewardPaint(ctx, x, y, size, pass, neighbours, env, isEditor, isClosedTrap);
       if (isEditor && tileId === FAKE_BLUE_WALL_TILE) {
         ctx.fillStyle = this.pal().yellow;
@@ -2525,6 +2529,12 @@ export class PixelRenderer {
     );
   }
 
+  /** The live count of the counter gate being drawn; undefined in the editor and for any other cell. */
+  private counterCountAt(neighbours: Readonly<TileNeighbours>): number | undefined {
+    if (neighbours.cx === undefined || neighbours.cy === undefined) return undefined;
+    return this.counterValues?.get(neighbours.cy * this.blockCellsWidth + neighbours.cx);
+  }
+
   /** Whether the signal node of the cell being drawn is on; false in the editor, which has no running level. */
   private isSignalPowered(neighbours: Readonly<TileNeighbours>): boolean {
     if (neighbours.cx === undefined || neighbours.cy === undefined) return false;
@@ -2555,7 +2565,8 @@ export class PixelRenderer {
       kind,
       this.isSignalPowered(neighbours),
       { box: rounded ? pal.modernButtonBase : pal.chipBody, idle: pal.gravelBase, lit: pal.yellow },
-      { rounded, glowBlurPx: rounded ? this.getSettings().glowBlurPx.soft : 0 }
+      { rounded, glowBlurPx: rounded ? this.getSettings().glowBlurPx.soft : 0 },
+      this.counterCountAt(neighbours)
     );
   }
 
@@ -3312,6 +3323,19 @@ export class PixelRenderer {
       case 'signal_gate_xor':
       case 'signal_latch_off':
       case 'signal_latch_on':
+      case 'signal_gate_nand':
+      case 'signal_gate_dlatch':
+      case 'signal_wire_floor':
+      case 'signal_counter_0':
+      case 'signal_counter_1':
+      case 'signal_counter_2':
+      case 'signal_counter_3':
+      case 'signal_counter_4':
+      case 'signal_counter_5':
+      case 'signal_counter_6':
+      case 'signal_counter_7':
+      case 'signal_counter_8':
+      case 'signal_counter_9':
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, false);
         break;
 
@@ -4035,6 +4059,7 @@ export class PixelRenderer {
       revealHiddenWalls: this.frameRevealsHiddenWalls,
       isClosedTrap,
       powered: this.isSignalPowered(neighbours),
+      counterCount: this.counterCountAt(neighbours),
       phase: this.retroPhase(),
       reducedMotion: this.reducedMotion
     });
@@ -4751,6 +4776,19 @@ export class PixelRenderer {
       case 'signal_gate_xor':
       case 'signal_latch_off':
       case 'signal_latch_on':
+      case 'signal_gate_nand':
+      case 'signal_gate_dlatch':
+      case 'signal_wire_floor':
+      case 'signal_counter_0':
+      case 'signal_counter_1':
+      case 'signal_counter_2':
+      case 'signal_counter_3':
+      case 'signal_counter_4':
+      case 'signal_counter_5':
+      case 'signal_counter_6':
+      case 'signal_counter_7':
+      case 'signal_counter_8':
+      case 'signal_counter_9':
         this.paintSignalDevice(ctx, tileId, x, y, size, neighbours, true);
         break;
 

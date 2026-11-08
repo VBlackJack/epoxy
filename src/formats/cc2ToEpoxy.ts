@@ -21,12 +21,11 @@ import {
   KEY_MULTIPLE_PLAYERS,
   KEY_STEEL_WALL_DESTROYER,
   KEY_UNKNOWN,
-  KEY_DATA_LATCH,
   KEY_WIRE,
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { CC2_ID_PREFIX, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
+import { CC2_ID_PREFIX, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -52,7 +51,6 @@ import type { Cc2Cell, Cc2File, Cc2Map, Cc2Tile } from './cc2Model';
 import { Cc2Layer, cc2Map, cc2Options, cc2Text } from './cc2Model';
 import {
   CC2_CODE_MELINDA,
-  COUNTER_GATE,
   DIRT_BLOCK_ID,
   ENTITY_MAP,
   FLOOR_ID,
@@ -64,7 +62,6 @@ import {
   KEY_NO_SIGN_BONUS,
   KEY_NO_SIGN_EMPTY,
   KEY_NO_SIGN_ITEM,
-  NAND_GATE,
   NO_SIGN_BLOCKED_TERRAIN,
   NO_SIGN_FORBID_MAP,
   NO_SIGN_INERT_ITEMS,
@@ -133,6 +130,12 @@ const CODE_BUTTON_BROWN = 0x3a;
 const CODE_BUTTON_RED = 0x39;
 const CODE_LOGIC_GATE = 0x5c;
 const CODE_STEEL_WALL = 0x50;
+/** The lightning bolt item: while held, the player powers the wire nets of the floor they stand on. */
+const CODE_LIGHTNING_BOLT = 0x62;
+/** The counter gates are the modifiers 0x1e..0x27, the digit they start with plus 0x1e. */
+const COUNTER_MODIFIER_BASE = 0x1e;
+const KEY_COUNTER_GATE = 'counter_gate';
+const KEY_NAND_GATE = 'nand_gate';
 const CODE_DYNAMITE = 0x51;
 /** The CC2 green chip; counted toward the chip requirement like the computer chips [medium confidence]. */
 const CODE_GREEN_CHIP = 0x84;
@@ -146,7 +149,9 @@ const GATE_IDS: Readonly<Record<string, string>> = {
   and: 'signal_gate_and',
   or: 'signal_gate_or',
   xor: 'signal_gate_xor',
-  latch: 'signal_latch_off',
+  nand: 'signal_gate_nand',
+  /** Both CC2 latches are data latches; the Epoxy toggle latch (signal_latch_off) is no longer what they become. */
+  latch: 'signal_gate_dlatch',
   /** A diode passes its single input to its output: an OR gate with one input does the same. */
   diode: 'signal_gate_or'
 };
@@ -384,7 +389,10 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   let wiredDevices = false;
 
   // The wires come first: a trap or flame jet that a wire reaches is placed in its wired form.
-  const wires = buildCc2Wires(map);
+  // A lightning bolt makes the wire floors sources: the player holding it powers the nets of the floor they stand on.
+  const hasLightningBolt = map.cells.some((cell) => cell.tiles.some((tile) => tile.code === CODE_LIGHTNING_BOLT));
+  const wires = buildCc2Wires(map, { chargeFloors: hasLightningBolt });
+  const chargeFloorCells = new Set((wires.chargeFloors ?? []).map((floor) => floor.y * width + floor.x));
   const wiredSinkCells = new Set(wires.wiredSinks.map((sink) => sink.y * width + sink.x));
 
   // The player is the first chip or Melinda in reading order; every other one is an inert placeholder.
@@ -423,7 +431,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
       if (tile !== undefined) {
         const code = tile.code;
         const mapping = terrainMapping(tile, warnings, where, wiredSinkCells.has(index));
-        terrainId = mapping.id;
+        terrainId = chargeFloorCells.has(index) ? WIRE_FLOOR_TILE_ID : mapping.id;
         keys.add(mapping.key);
         if (code === CODE_SOCKET) hasSocket = true;
         if (code === CODE_STEEL_WALL) hasSteelWall = true;
@@ -600,7 +608,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   for (const node of wires.unsupported) {
     warnings.push(`${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`);
   }
-  if (wires.hasWires || wiredDevices || keys.has(KEY_DATA_LATCH)) keys.add(KEY_WIRE);
+  if (wires.hasWires || wiredDevices) keys.add(KEY_WIRE);
   if (wires.hasTunnels) keys.add(KEY_WIRE_TUNNEL);
 
   if (chips > 0 && !hasSocket) warnings.push('chips placed but no socket: chips required is 0');
@@ -669,13 +677,10 @@ function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired:
   if (code === CC2_CODE_TRACK) return trackMapping(tile.mod);
   if (code === CODE_LOGIC_GATE) {
     const gate = decodeCc2Gate(tile.mod);
-    if (gate.kind === 'nand') return NAND_GATE;
-    if (gate.kind === 'counter') return COUNTER_GATE;
     if (gate.kind === 'unknown') return { id: UNKNOWN_ID, key: UNKNOWN_KEY };
-    if (gate.kind === 'latch') {
-      warnings.push(`latch gate at ${where} played as the Epoxy toggle latch, not a data latch [unverified]`);
-      return { id: GATE_IDS[gate.kind], key: KEY_DATA_LATCH };
-    }
+    if (gate.kind === 'nand') return { id: GATE_IDS.nand, key: KEY_NAND_GATE };
+    // The counter starts with the digit its modifier names; it has no facing.
+    if (gate.kind === 'counter') return { id: `${SIGNAL_COUNTER_TILE_ID_PREFIX}${(tile.mod ?? COUNTER_MODIFIER_BASE) - COUNTER_MODIFIER_BASE}`, key: KEY_COUNTER_GATE };
     return { id: GATE_IDS[gate.kind], key: KEY_WIRE };
   }
   if (GENDER_SIGN_MAP.has(code)) return GENDER_SIGN_MAP.get(code) as Cc2TileMapping;

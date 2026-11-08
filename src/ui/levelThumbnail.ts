@@ -64,6 +64,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   green_chip: 'green',
   green_bomb: 'bombBody',
   hiking_boots: 'brown',
+  lightning_bolt: 'blue',
   steel_foil: 'wallTop',
   toggle_clock: 'blue',
   bribe: 'green',
@@ -103,6 +104,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   turn_plate_cw: 'teleportRing',
   turn_plate_ccw: 'teleportRing',
   signal_plate: 'yellow',
+  signal_wire_floor: 'yellow',
   signal_button: 'yellow',
   purple_wall: 'teleportRing',
   purple_floor: 'teleportCore',
@@ -137,7 +139,8 @@ const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> =
   { prefix: 'score_', key: 'bonusFlag' },
   { prefix: 'stopwatch_', key: 'stopwatchBody' },
   { prefix: 'signal_gate_', key: 'teleportRing' },
-  { prefix: 'signal_latch_', key: 'teleportRing' }
+  { prefix: 'signal_latch_', key: 'teleportRing' },
+  { prefix: 'signal_counter_', key: 'teleportRing' }
 ];
 
 /** Gates are `laser_gate_<colour>_<state>`; an open gate looks like floor. */

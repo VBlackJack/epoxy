@@ -593,6 +593,45 @@ tile signal_latch_off closed=true shadowMask=128 hash=1 ee1d984dd9a53baf
 tile signal_latch_on closed=true isolated d3a897835e3059bf
 tile signal_latch_on closed=true shadowMask=65 hash=1 5cc1969f57510993
 tile signal_latch_on closed=true shadowMask=128 hash=1 d3dde385c6e6faac
+tile signal_gate_nand closed=true isolated c7cb5a7faa04a3ad
+tile signal_gate_nand closed=true shadowMask=65 hash=1 6f05012d12857fba
+tile signal_gate_nand closed=true shadowMask=128 hash=1 2c2c1a372b4e329b
+tile signal_gate_dlatch closed=true isolated e24fc06356e6a634
+tile signal_gate_dlatch closed=true shadowMask=65 hash=1 3b6df70226450cf6
+tile signal_gate_dlatch closed=true shadowMask=128 hash=1 fe7fc1fca898205b
+tile signal_counter_0 closed=true isolated 0525ffbe0c19efcf
+tile signal_counter_0 closed=true shadowMask=65 hash=1 7000baafc8dc2ccd
+tile signal_counter_0 closed=true shadowMask=128 hash=1 7799dc0aa5185e4d
+tile signal_counter_1 closed=true isolated 471ac456becda8e4
+tile signal_counter_1 closed=true shadowMask=65 hash=1 dc27ff6b34dc286b
+tile signal_counter_1 closed=true shadowMask=128 hash=1 2c5af3cce23329e6
+tile signal_counter_2 closed=true isolated c880b5ed70efd43d
+tile signal_counter_2 closed=true shadowMask=65 hash=1 da9fbbb38d4dd4fd
+tile signal_counter_2 closed=true shadowMask=128 hash=1 c29cebafffe5167c
+tile signal_counter_3 closed=true isolated 3f13960e9690bb32
+tile signal_counter_3 closed=true shadowMask=65 hash=1 430c4691789eb0db
+tile signal_counter_3 closed=true shadowMask=128 hash=1 55d57724c1e9aa59
+tile signal_counter_4 closed=true isolated 3c12df5049d725cd
+tile signal_counter_4 closed=true shadowMask=65 hash=1 f9e7264bbd72940d
+tile signal_counter_4 closed=true shadowMask=128 hash=1 b26e274c36e90481
+tile signal_counter_5 closed=true isolated b9bfe2313cd3adbc
+tile signal_counter_5 closed=true shadowMask=65 hash=1 0571e4ee39e55033
+tile signal_counter_5 closed=true shadowMask=128 hash=1 728708d231ca7ea4
+tile signal_counter_6 closed=true isolated 6afe68c43d0b08cc
+tile signal_counter_6 closed=true shadowMask=65 hash=1 365cd2845562fb11
+tile signal_counter_6 closed=true shadowMask=128 hash=1 25bd3e2e906eca18
+tile signal_counter_7 closed=true isolated dfa9918823a16ad7
+tile signal_counter_7 closed=true shadowMask=65 hash=1 1980503028dace8d
+tile signal_counter_7 closed=true shadowMask=128 hash=1 106b59f49376a93b
+tile signal_counter_8 closed=true isolated 5ff69763816d4b2f
+tile signal_counter_8 closed=true shadowMask=65 hash=1 b926c9018fbeb5e5
+tile signal_counter_8 closed=true shadowMask=128 hash=1 b6f7a190b5db5f92
+tile signal_counter_9 closed=true isolated 1b3e06965915f5ca
+tile signal_counter_9 closed=true shadowMask=65 hash=1 9d199045f6a3ac3a
+tile signal_counter_9 closed=true shadowMask=128 hash=1 6483dc369b4049a3
+tile signal_wire_floor closed=true isolated 3ed25b5c73d22f1f
+tile signal_wire_floor closed=true shadowMask=65 hash=1 8221662a61816d81
+tile signal_wire_floor closed=true shadowMask=128 hash=1 b00975f4c54f7b5a
 tile purple_wall closed=true isolated 6382f9618c683470
 tile purple_wall closed=true shadowMask=65 hash=1 10f544b9dc48a24f
 tile purple_wall closed=true shadowMask=128 hash=1 73177e79dd99f3d5

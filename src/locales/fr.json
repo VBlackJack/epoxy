@@ -4459,6 +4459,12 @@
         "label": "Panneau d'interdiction pour l'objet \"Pot-de-vin\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
       }
     },
+    "no_sign_lightning_bolt": {
+      "name": "Panneau Interdit : Éclair",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Éclair\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
     "door_red": {
       "name": "Porte Rouge"
     },
@@ -4589,6 +4595,12 @@
       "name": "Chaussures de Randonnée",
       "desc": {
         "label": "Permettent à Melinda de marcher sur la terre meuble et le gravier. Elles ne servent à rien à Chip."
+      }
+    },
+    "lightning_bolt": {
+      "name": "Éclair",
+      "desc": {
+        "label": "Tant que le joueur le porte, le sol câblé sur lequel il se tient envoie un signal le long de ses câbles."
       }
     },
     "steel_foil": {
@@ -4871,6 +4883,84 @@
       "name": "Bascule (allumée)",
       "desc": {
         "label": "Change d'état à chaque fois que son entrée se met à envoyer un signal ; démarre allumée. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_gate_nand": {
+      "name": "Porte NON-ET",
+      "desc": {
+        "label": "Envoie un signal sauf si tous les signaux qui lui sont liés en envoient un. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_gate_dlatch": {
+      "name": "Verrou de données",
+      "desc": {
+        "label": "Mémorise le signal de son lien de données (port in0) tant que son lien d'horloge (port in1) envoie un signal, et envoie ce qu'il mémorise. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_0": {
+      "name": "Compteur (0)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 0. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_1": {
+      "name": "Compteur (1)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 1. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_2": {
+      "name": "Compteur (2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 2. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_3": {
+      "name": "Compteur (3)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 3. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_4": {
+      "name": "Compteur (4)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 4. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_5": {
+      "name": "Compteur (5)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 5. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_6": {
+      "name": "Compteur (6)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 6. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_7": {
+      "name": "Compteur (7)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 7. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_8": {
+      "name": "Compteur (8)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 8. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_9": {
+      "name": "Compteur (9)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 9. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_wire_floor": {
+      "name": "Sol câblé",
+      "desc": {
+        "label": "Un sol sous lequel passe un câble. Il envoie un signal tant que le joueur s'y tient en portant l'éclair. Nécessite : des liens de signal en sortie."
       }
     },
     "purple_wall": {

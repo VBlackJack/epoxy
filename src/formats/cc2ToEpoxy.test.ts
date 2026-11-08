@@ -152,14 +152,12 @@ describe('terrain, items and entities', () => {
   it('keeps reserved ids for what Epoxy lacks', () => {
     const { level, coverage, report } = convert([
       put(1, 0, { code: 0x6f }, { code: FLOOR_CODE }),
-      put(2, 0, { code: 0x62 }, { code: FLOOR_CODE }),
       put(3, 0, actorTile(0x65, DIR_W), { code: FLOOR_CODE })
     ]);
     expect(level.items[0][1]).toBe('cc2_railroad_sign');
-    expect(level.items[0][2]).toBe('cc2_lightning_bolt');
     expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_mirror_chip', dir: 'W' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['lightning_bolt', 'mirror_chip', 'railroad_sign']);
+    expect(coverage.lost).toEqual(['mirror_chip', 'railroad_sign']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -279,7 +277,10 @@ describe('terrain, items and entities', () => {
     expect(bonus.coverage.lost).toEqual([]);
     expect(bonus.coverage.approx).toEqual(['no_sign_bonus']);
     const bolt = convert([put(1, 0, { code: 0x7f }, { code: 0x62 }, { code: FLOOR_CODE })]);
-    expect(bolt.coverage.lost).toContain('no_sign');
+    expect(bolt.level.items[0][1]).toBe('no_sign_lightning_bolt');
+    expect(bolt.coverage.approx).toContain('no_sign_item');
+    const railroad = convert([put(1, 0, { code: 0x7f }, { code: 0x6f }, { code: FLOOR_CODE })]);
+    expect(railroad.coverage.lost).toContain('no_sign');
   });
 
   it('plays an empty no-sign as the plain floor, exactly', () => {
@@ -721,7 +722,7 @@ describe('wires', () => {
     expect(convertCc2Map(map, OPTIONS).coverage.approx).toEqual(['wire', 'wire_tunnel']);
   });
 
-  it('maps gates to Epoxy gates and the reserved ids for the others', () => {
+  it('maps gates to Epoxy gates and the placeholder for an unknown one', () => {
     const cells = [
       put(0, 0, modTile(GATE, 0x01)),
       put(1, 0, modTile(GATE, 0x05)),
@@ -738,34 +739,35 @@ describe('wires', () => {
       'signal_gate_and',
       'signal_gate_or',
       'signal_gate_xor',
-      'signal_latch_off',
-      'cc2_nand_gate',
-      'cc2_counter_gate',
+      'signal_gate_dlatch',
+      'signal_gate_nand',
+      'signal_counter_0',
       'cc2_unknown'
     ]);
-    expect(coverage.lost).toEqual(['counter_gate', 'nand_gate', 'unknown']);
-    expect(report.warnings.some((w) => w.includes('latch'))).toBe(true);
-    expect(coverage.approx).toContain('data_latch');
+    expect(coverage.lost).toEqual(['unknown']);
+    expect(report.warnings.some((w) => w.includes('latch'))).toBe(false);
+    expect(coverage.approx).toContain('counter_gate');
+    expect(coverage.approx).not.toContain('data_latch');
   });
 
   it('plays each latch rotation and the diode as an Epoxy gate', () => {
     const cells = [put(0, 0, modTile(GATE, 0x10)), put(1, 0, modTile(GATE, 0x40)), put(2, 0, modTile(GATE, 0x43)), put(3, 0, modTile(GATE, 0x18))];
     const { level, coverage } = convertCc2Map(makeMap(4, 2, [player(0, 1), ...cells]), OPTIONS);
-    expect(level.terrain[0]).toEqual(['signal_latch_off', 'signal_latch_off', 'signal_latch_off', 'signal_gate_or']);
-    expect(coverage.approx).toContain('data_latch');
+    expect(level.terrain[0]).toEqual(['signal_gate_dlatch', 'signal_gate_dlatch', 'signal_gate_dlatch', 'signal_gate_or']);
+    expect(coverage.approx).not.toContain('data_latch');
     expect(coverage.lost).toEqual([]);
   });
 
   it('reports unsupported wire ends as warnings', () => {
-    const map = makeMap(3, 1, [
-      player(2, 0),
-      put(0, 0, modTile(0x5c, 0x15)),
+    // A teleporter the wires reach cannot be played as a link end.
+    const map = makeMap(4, 1, [
+      player(3, 0),
+      put(0, 0, modTile(PINK, E)),
       put(1, 0, modTile(FLOOR_CODE, E | W)),
-      put(2, 0, modTile(CLONER, E))
+      put(2, 0, modTile(0x10, W))
     ]);
-    const { level, report } = convertCc2Map(map, OPTIONS);
-    expect(level.signalLinks).toBeUndefined();
-    expect(report.warnings.some((w) => w.includes('gate of kind nand'))).toBe(true);
+    const { report } = convertCc2Map(map, OPTIONS);
+    expect(report.warnings.some((w) => w.includes('teleport') && w.includes('not played'))).toBe(true);
   });
 
   it('counts a wired teleport as the wired blue teleport', () => {

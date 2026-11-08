@@ -25,6 +25,7 @@ import type { RunewardArtConfig } from '../core/types';
 import {
   MELINDA_BOW_COLOURS,
   MarkColours,
+  paintBoltBadge,
   paintBribeBadge,
   paintFoilBadge,
   paintNoSign,
@@ -36,7 +37,7 @@ import {
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'no_sign';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -52,6 +53,7 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   steel_foil: { base: 'boots_ice', mark: 'foil' },
   toggle_clock: { base: 'stopwatch_bonus', mark: 'pause' },
   bribe: { base: 'toll_token', mark: 'bribe' },
+  lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
   ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
 };
 
@@ -84,6 +86,8 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'tread':
       return { fill: pal.brown, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'bolt':
+      return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'rivets':
       return { fill: pal.gray, edge: pal.wallShadow, ink: pal.hintGlyph };
     case 'sign_chip':
@@ -109,6 +113,8 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
     case 'tread':
       return { fill: art.keys.yellow.main, edge, ink: art.keys.yellow.glyph };
+    case 'bolt':
+      return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
     case 'rivets':
       return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.topLight };
     case 'sign_chip':
@@ -134,6 +140,9 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'tread':
       paintTreadBadge(ctx, x, y, size, colours);
+      return;
+    case 'bolt':
+      paintBoltBadge(ctx, x, y, size, colours);
       return;
     case 'rivets':
       paintRivets(ctx, x, y, size, colours);
