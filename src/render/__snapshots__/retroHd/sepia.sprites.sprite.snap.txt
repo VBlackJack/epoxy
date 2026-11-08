@@ -21,11 +21,14 @@ item bomb tick=3 b6f8eefeacb26d92
 item green_chip tick=3 fa2124883b4b6d6e
 item green_bomb tick=3 2f022fa00de8879e
 item hiking_boots tick=3 30a04e802bb75769
-item score_10 tick=3 3b92fbe8ac2afa4b
-item score_100 tick=3 b6fc60aef2481a9e
-item score_1000 tick=3 18a5c4ed612524b0
-item score_2x tick=3 42a695b5542d6e31
-item stopwatch_bonus tick=3 030d67d64aae46cf
+item steel_foil tick=3 87b8e4292c2dd733
+item toggle_clock tick=3 88b1e0ae469b0407
+item bribe tick=3 85a089185aa62311
+item score_10 tick=3 9d11275049e16ff4
+item score_100 tick=3 de5c75553032d09f
+item score_1000 tick=3 47a34ebaf0069e78
+item score_2x tick=3 b91da53df9caa9f3
+item stopwatch_bonus tick=3 32c1555bdf386b89
 item stopwatch_penalty tick=3 13399a54106bbeb7
 entity dirt_block dir=N tick=3 d51811e7dd4db1f3
 entity dirt_block dir=E tick=3 90c2c87a42cb0f9a
@@ -202,11 +205,14 @@ item bomb tick=13 d4a105caa984abdb
 item green_chip tick=13 fdb8eacb8af329e8
 item green_bomb tick=13 e9600c619f7f1511
 item hiking_boots tick=13 d576c04d4e5f48ea
-item score_10 tick=13 fd6f9f9cf4fca7f9
-item score_100 tick=13 f4318a46884601d7
-item score_1000 tick=13 706637de9b652da2
-item score_2x tick=13 d0c2c6cdbec3911f
-item stopwatch_bonus tick=13 6f0bcd98ae11d67f
+item steel_foil tick=13 e1a50d60deeeaf4e
+item toggle_clock tick=13 b62384b99b921a29
+item bribe tick=13 7c62d7d3ed2d825f
+item score_10 tick=13 7e934955ecacb7f6
+item score_100 tick=13 94c8bf2a1204b53d
+item score_1000 tick=13 33e4cf5eca779e45
+item score_2x tick=13 4593b46b278b8c59
+item stopwatch_bonus tick=13 042d3f0935fdd8e7
 item stopwatch_penalty tick=13 b3b6b02d6d114467
 entity dirt_block dir=N tick=13 9437fc6d3dd78f5d
 entity dirt_block dir=E tick=13 7fa0fa1e7099cdb8

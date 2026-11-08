@@ -21,6 +21,7 @@ import {
   KEY_MULTIPLE_PLAYERS,
   KEY_STEEL_WALL_DESTROYER,
   KEY_UNKNOWN,
+  KEY_DATA_LATCH,
   KEY_WIRE,
   KEY_WIRE_TUNNEL,
   classifyCc2Level
@@ -98,12 +99,16 @@ const KEY_ARROW_BLOCK = 'arrow_block';
 const KEY_ARROW_BLOCK_LOCKED = 'arrow_block_locked';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
 
-/** Track segments in the low bits of the track modifier (bit order not verified against a reference). */
+/**
+ * Track segments in the low bits of the track modifier, in the order of the Lexy's Labyrinth railroad track_order:
+ * bit 0 NE, bit 1 SE, bit 2 SW, bit 3 NW, bit 4 EW, bit 5 NS. The switch flag (0x40), the active track (bits 8-11) and
+ * the entered side (bits 12-13) are not read: a track with a switch is a junction in Epoxy.
+ */
 const TRACK_SEGMENTS: ReadonlyArray<{ bit: number; id: string }> = [
-  { bit: 0x01, id: 'rail_nw' },
-  { bit: 0x02, id: 'rail_ne' },
-  { bit: 0x04, id: 'rail_se' },
-  { bit: 0x08, id: 'rail_sw' },
+  { bit: 0x01, id: 'rail_ne' },
+  { bit: 0x02, id: 'rail_se' },
+  { bit: 0x04, id: 'rail_sw' },
+  { bit: 0x08, id: 'rail_nw' },
   { bit: 0x10, id: 'rail_ew' },
   { bit: 0x20, id: 'rail_ns' }
 ];
@@ -137,7 +142,9 @@ const GATE_IDS: Readonly<Record<string, string>> = {
   and: 'signal_gate_and',
   or: 'signal_gate_or',
   xor: 'signal_gate_xor',
-  latch: 'signal_latch_off'
+  latch: 'signal_latch_off',
+  /** A diode passes its single input to its output: an OR gate with one input does the same. */
+  diode: 'signal_gate_or'
 };
 
 /** Markers in the note block that start a hint. */
@@ -578,7 +585,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   for (const node of wires.unsupported) {
     warnings.push(`${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`);
   }
-  if (wires.hasWires || wiredDevices) keys.add(KEY_WIRE);
+  if (wires.hasWires || wiredDevices || keys.has(KEY_DATA_LATCH)) keys.add(KEY_WIRE);
   if (wires.hasTunnels) keys.add(KEY_WIRE_TUNNEL);
 
   if (chips > 0 && !hasSocket) warnings.push('chips placed but no socket: chips required is 0');
@@ -650,7 +657,10 @@ function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired:
     if (gate.kind === 'nand') return NAND_GATE;
     if (gate.kind === 'counter') return COUNTER_GATE;
     if (gate.kind === 'unknown') return { id: UNKNOWN_ID, key: UNKNOWN_KEY };
-    if (gate.kind === 'latch') warnings.push(`latch gate at ${where} played as the Epoxy latch [unverified]`);
+    if (gate.kind === 'latch') {
+      warnings.push(`latch gate at ${where} played as the Epoxy toggle latch, not a data latch [unverified]`);
+      return { id: GATE_IDS[gate.kind], key: KEY_DATA_LATCH };
+    }
     return { id: GATE_IDS[gate.kind], key: KEY_WIRE };
   }
   if (GENDER_SIGN_MAP.has(code)) return GENDER_SIGN_MAP.get(code) as Cc2TileMapping;

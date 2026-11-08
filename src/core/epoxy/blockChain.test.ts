@@ -247,6 +247,75 @@ describe('chain pushing: the player', () => {
   });
 });
 
+describe('chain pushing: a sliding block', () => {
+  const SLIDER_X = 3;
+  const SAFE_ROW = 2;
+
+  /** A room with the slider on ice at SLIDER_X, set sliding east and ready to move, the player out of the row. */
+  function slideRoom(entities: EntityPlacement[], player = { x: 2, y: SAFE_ROW }): GameEngine {
+    const engine = load(room({ entities, terrain: [[SLIDER_X, ROW, 'ice']], player }));
+    const slider = engine.getEntities().find((e) => e.x === SLIDER_X && e.kind === 'block');
+    if (!slider) throw new Error('no slider');
+    slider.isSliding = true;
+    slider.dir = 'E';
+    slider.cooldownTicks = 0;
+    return engine;
+  }
+
+  it('pushes a resting ice block, and chains through two', () => {
+    const one = slideRoom([placed('ice_block', SLIDER_X), placed('ice_block', 4)]);
+    one.tick();
+    expect(layout(one)).toEqual(['ice_block@4', 'ice_block@5']);
+    expect(one.getChainPushCount()).toBe(1);
+    const two = slideRoom([placed('ice_block', SLIDER_X), placed('ice_block', 4), placed('ice_block', 5)]);
+    two.tick();
+    expect(layout(two)).toEqual(['ice_block@4', 'ice_block@5', 'ice_block@6']);
+    expect(two.getChainPushCount()).toBe(1);
+  });
+
+  it('does not push a dirt block, and a sliding dirt block pushes nothing', () => {
+    const iceIntoDirt = slideRoom([placed('ice_block', SLIDER_X), placed('dirt_block', 4)]);
+    iceIntoDirt.tick();
+    // The refused slide bounces back on the ice, as before.
+    expect(layout(iceIntoDirt)).toEqual(['ice_block@2', 'dirt_block@4']);
+    expect(iceIntoDirt.getChainPushCount()).toBe(0);
+    const dirtIntoIce = slideRoom([placed('dirt_block', SLIDER_X), placed('ice_block', 4)]);
+    dirtIntoIce.tick();
+    expect(layout(dirtIntoIce)).toEqual(['dirt_block@2', 'ice_block@4']);
+    expect(dirtIntoIce.getChainPushCount()).toBe(0);
+  });
+
+  it('does not push a sliding block', () => {
+    const engine = slideRoom([placed('ice_block', SLIDER_X), placed('ice_block', 4)]);
+    const target = engine.getEntities().find((e) => e.x === 4);
+    if (!target) throw new Error('no target');
+    target.isSliding = true;
+    target.dir = 'W';
+    target.cooldownTicks = MAX_WAIT_TICKS;
+    engine.tick();
+    expect(layout(engine)).toEqual(['ice_block@2', 'ice_block@4']);
+    expect(engine.getChainPushCount()).toBe(0);
+  });
+
+  it('never pushes a block onto the player', () => {
+    const engine = slideRoom([placed('ice_block', SLIDER_X), placed('ice_block', 4)], { x: 5, y: ROW });
+    engine.tick();
+    expect(layout(engine)).toEqual(['ice_block@2', 'ice_block@4']);
+    expect(engine.getPlayer().alive).toBe(true);
+  });
+
+  it('is put back by undo of the next move', () => {
+    const engine = slideRoom([placed('ice_block', SLIDER_X), placed('ice_block', 4)]);
+    expect(step(engine, 'E')).toBe(true);
+    const before = layout(engine);
+    engine.tick();
+    expect(layout(engine)).toEqual(['ice_block@4', 'ice_block@5']);
+    expect(engine.undo()).toBe(true);
+    expect(layout(engine)).toEqual(before);
+    expect(layout(engine)).toEqual(['ice_block@3', 'ice_block@4']);
+  });
+});
+
 describe('chain pushing: other movers never chain', () => {
   it('leaves a line alone when a steered puppet walks into it', () => {
     const engine = load(

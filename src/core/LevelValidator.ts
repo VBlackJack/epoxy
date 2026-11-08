@@ -589,20 +589,21 @@ export class LevelValidator {
 
       // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
       // depends on its type: a dirt block fills water, an ice block melts fire and turns water into ice, a mirror
-      // refuses water. Hazards are demands on that stock, accepted only while a consistent assignment exists.
+      // refuses water. A hazard is accepted when the stock can cover it on its own and nothing is spent: the walk
+      // meets hazards in no particular order, so a running total would charge blocks to dead-end branches. This
+      // over-approximates: one block may cover several hazards here.
       const blockStock = new Map<string, number>();
       const stockBlocks = (type: string, count: number): void => {
         blockStock.set(type, (blockStock.get(type) ?? 0) + count);
       };
-      const demand = { water: 0, fire: 0, melt: 0, other: 0 };
-      type Demand = typeof demand;
+      const demandOf = (use: BlockUse): Record<BlockUse, number> => ({ water: 0, fire: 0, melt: 0, other: 0, [use]: 1 });
       /**
-       * Whether the stock covers a set of demands. Water needs a block that fills it; fire needs an ice block
+       * Whether the stock covers one demand on its own. Water needs a block that fills it; fire needs an ice block
        * (which melts) and a separate filler (for the water left); a melt needs only the ice block, because the
        * player swims the water left; slime and bombs take any block. With fillers F, ice blocks M and all blocks T:
        * water + fire <= F, fire + melt <= M and water + 2 * fire + melt + other <= T.
        */
-      const covers = (next: Demand): boolean => {
+      const covers = (next: Record<BlockUse, number>): boolean => {
         let fillers = 0;
         let melters = 0;
         let total = 0;
@@ -619,13 +620,9 @@ export class LevelValidator {
           next.water + 2 * next.fire + next.melt + next.other > total
         );
       };
-      const affords = (use: BlockUse): boolean => covers({ ...demand, [use]: demand[use] + 1 });
-      /** Takes the blocks one hazard needs, if the stock still covers every demand taken so far. */
-      const trySpend = (use: BlockUse): boolean => {
-        if (!covers({ ...demand, [use]: demand[use] + 1 })) return false;
-        demand[use]++;
-        return true;
-      };
+      const affords = (use: BlockUse): boolean => covers(demandOf(use));
+      /** Whether the stock covers the blocks one hazard needs; the running total of earlier hazards is not kept. */
+      const trySpend = affords;
       // Fires an ice block melted into water. The terrain grid is shared by every boot state and stays fire
       // there: writing water would make the cell harder for a state holding fire boots.
       const meltedFires = new Set<string>();
@@ -639,9 +636,7 @@ export class LevelValidator {
         if (meltedFires.has(key)) {
           if (swims) return 'pass';
           // A bootless state needs the water filled: upgrade the melt to a full fire demand (filler included).
-          if (!covers({ ...demand, melt: demand.melt - 1, fire: demand.fire + 1 })) return 'blocked';
-          demand.melt--;
-          demand.fire++;
+          if (!affords('fire')) return 'blocked';
           meltedFires.delete(key);
           simTerrain[fy][fx] = FLOOR_TILE_ID;
           changed = true;
@@ -991,7 +986,7 @@ export class LevelValidator {
               }
             }
 
-            // Ice and force floors carry the player: follow the slide to where it really ends
+            // Ice carries the player to where the slide really ends; a force floor ends the slide on its cell
             const landedTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
             if (landedTile.slideType && !hasBoot(nextBoots, landedTile.protectedByItem)) {
               const slide = this.simulateSlide(
@@ -1483,10 +1478,9 @@ export class LevelValidator {
   }
 
   /**
-   * Follows an ice or force floor slide from its first cell. The slide is
-   * fatal when it runs into water, fire or a bomb without protection, when it
-   * hits a random force floor (its outcome cannot be predicted), or when it
-   * loops for longer than the grid has cells.
+   * Follows an ice slide from its first cell. The slide ends without a verdict on the first unprotected force
+   * floor (the walk then stands on it), is fatal when it runs into water, fire or a bomb without protection, and
+   * is fatal when it loops for longer than the grid has cells.
    */
   private static simulateSlide(
     terrain: string[][],
@@ -1566,11 +1560,10 @@ export class LevelValidator {
       }
 
       if (tile.slideType === 'force') {
-        // A turning force floor pushes by the shared turn, which no static walk can know: the slide ends here without
-        // a verdict, so the walk tries every exit from this cell (an over-approximation, never a false unreachable).
-        if (tile.forceCycle === true) return { end: { x, y }, path, boots, fatal: false };
-        if (tile.forceDirection === 'RANDOM') return fatal();
-        dir = tile.forceDirection || dir;
+        // A force floor the walk does not stand on yet ends the slide here without a verdict: the walk then stands
+        // on it and tries every exit but the one against the push (an over-approximation, never a false unreachable).
+        // This covers the turning and the random floors, whose push no static walk can know.
+        return { end: { x, y }, path, boots, fatal: false };
       } else {
         dir = tile.deflectionMap?.[dir] || dir;
       }

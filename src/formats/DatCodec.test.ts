@@ -26,6 +26,15 @@ import { withEditedMap } from '../editor/editorDocument';
 import { paintTerrain } from '../editor/mapEdits';
 
 const PREFIX = 'test';
+/** CCLP 2, inlined by Vite as a base64 data URL so the test needs no file system access. */
+const CCLP2_DATA_URL = Object.values(
+  import.meta.glob('../../public/packs/CCLP2.DAT', { query: '?inline', import: 'default', eager: true })
+)[0] as string;
+/** Codes 0x33-0x38 are the unused wall (0x33-0x35) and invisible wall (0x36-0x38) codes; the bundled pack holds some. */
+const UNUSED_CODE_FIRST = 0x33;
+const UNUSED_WALL_LAST = 0x35;
+const UNUSED_CODE_LAST = 0x38;
+const CCLP2_UNUSED_CODE_LEVELS = [71, 98, 127];
 /** Pack header (magic and level count) and the level record length word that precede the first layer length. */
 const PACK_HEADER_BYTES = 6;
 const RECORD_HEADER_BYTES = 10;
@@ -1032,6 +1041,45 @@ describe('DatCodec Lynx decoding', () => {
     expect(noStart.levels[0].missingStart).toBe(true);
     const { mapWidth, mapHeight } = ConfigRegistry.getGame().grid;
     expect(noStart.levels[0].playerStart).not.toMatchObject({ x: Math.floor(mapWidth / 2), y: Math.floor(mapHeight / 2) });
+  });
+
+  it('reads the unused codes 51-56 as walls under Epoxy and keeps the Lynx reading', () => {
+    const wallCode = CODE.unusedWallCodes[0];
+    const invisibleCode = CODE.unusedInvisibleCodes[CODE.unusedInvisibleCodes.length - 1];
+    for (const ruleset of ['epoxy', 'lynx'] as const) {
+      const level = decodeOne({ '2,2': wallCode, '3,2': invisibleCode, '4,2': CODE.chipSouth }, {}, ruleset);
+      expect(level.terrain[2][2]).toBe('wall');
+      expect(level.terrain[2][3]).toBe('invisible_wall');
+    }
+    const epoxy = DatCodec.decodeBufferWithDiagnostics(handBuiltPack({ '2,2': wallCode, '4,2': CODE.chipSouth }, {}), PREFIX, 'epoxy');
+    expect(epoxy.diagnostics).toEqual([{ levelNumber: 1, kind: 'unused_code', codes: [wallCode] }]);
+  });
+
+  it('writes the canonical codes, never the unused 51-56, when a decoded level is exported', () => {
+    const level = decodeOne({ '2,2': CODE.unusedWallCodes[0], '3,2': CODE.unusedInvisibleCodes[0], '4,2': CODE.chipSouth }, {}, 'epoxy');
+    const top = topLayers(toBuffer(DatCodec.encodeLevels([level])))[0];
+    const layerWidth = ConfigRegistry.getDatFormat().layerWidth ?? ConfigRegistry.getGame().grid.mapWidth;
+    expect(top[2 * layerWidth + 2]).toBe(CODE.wall);
+    for (const code of [...CODE.unusedWallCodes.slice(0, 3), ...CODE.unusedInvisibleCodes]) {
+      expect(top.includes(code)).toBe(false);
+    }
+  });
+
+  it('decodes the unused codes held by bundled CCLP2 levels 71, 98 and 127 as walls', () => {
+    const base64 = CCLP2_DATA_URL.slice(CCLP2_DATA_URL.indexOf(',') + 1);
+    const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer;
+    const levels = DatCodec.decodeBuffer(buffer, 'cclp2', DEFAULT_RULESET);
+    const layers = topLayers(buffer);
+    const layerWidth = ConfigRegistry.getDatFormat().layerWidth ?? ConfigRegistry.getGame().grid.mapWidth;
+    const found = new Map<number, number>();
+    levels.forEach((level, i) => {
+      layers[i].forEach((code, idx) => {
+        if (code < UNUSED_CODE_FIRST || code > UNUSED_CODE_LAST) return;
+        found.set(level.number, (found.get(level.number) ?? 0) + 1);
+        expect(level.terrain[Math.floor(idx / layerWidth)][idx % layerWidth]).toBe(code <= UNUSED_WALL_LAST ? 'wall' : 'invisible_wall');
+      });
+    });
+    for (const levelNumber of CCLP2_UNUSED_CODE_LEVELS) expect(found.get(levelNumber)).toBeGreaterThan(0);
   });
 
   it('keeps the clone machine of an exported block on a cloner', () => {

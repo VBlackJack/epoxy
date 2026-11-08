@@ -49,10 +49,19 @@ describe('gate modifier', () => {
     expect(decodeCc2Gate(0x16)).toEqual({ kind: 'nand', facing: 2 });
   });
 
+  it('reads the diode and both latch rotations', () => {
+    expect(decodeCc2Gate(0x18)).toEqual({ kind: 'diode', facing: 0 });
+    expect(decodeCc2Gate(0x1b)).toEqual({ kind: 'diode', facing: 3 });
+    for (const mod of [0x40, 0x41, 0x42, 0x43]) expect(decodeCc2Gate(mod)).toEqual({ kind: 'latch', facing: mod & 3 });
+  });
+
+  it('keeps the values between the known gates unknown', () => {
+    for (const mod of [0x1c, 0x28, 0x44, 0x7c]) expect(decodeCc2Gate(mod)).toEqual({ kind: 'unknown' });
+  });
+
   it('reads counters and unknown values as gates without a facing', () => {
     expect(decodeCc2Gate(0x1e)).toEqual({ kind: 'counter' });
     expect(decodeCc2Gate(0x27)).toEqual({ kind: 'counter' });
-    expect(decodeCc2Gate(0x42)).toEqual({ kind: 'unknown' });
     expect(decodeCc2Gate(0x1c)).toEqual({ kind: 'unknown' });
   });
 });

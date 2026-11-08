@@ -173,6 +173,9 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   pocket_gate: ['pocket_gate', 'pocket_gate_pad'],
   hurl_stone: ['hurl_stone'],
   toll_token: ['toll_token'],
+  bribe: ['bribe'],
+  steel_foil: ['steel_foil'],
+  toggle_clock: ['toggle_clock'],
   puppet: ['puppet', 'puppet_control'],
   score_items: ['score_10', 'score_100', 'score_1000', 'score_2x'],
   stopwatches: ['stopwatch_bonus', 'stopwatch_penalty']
@@ -302,6 +305,9 @@ export const PENDING: readonly string[] = [
   'pocket_gate',
   'hurl_stone',
   'toll_token',
+  'bribe',
+  'steel_foil',
+  'toggle_clock',
   'puppet',
   'score_items',
   'stopwatches'

@@ -1001,6 +1001,9 @@
       "time_unlimited": {
         "label": "---"
       },
+      "time_paused": {
+        "label": "PAUSE"
+      },
       "score": {
         "label": "SCORE"
       },
@@ -1339,8 +1342,20 @@
       "drop_token": {
         "label": "Un jeton de péage ne se dépose pas : il paie un voleur."
       },
+      "drop_bribe": {
+        "label": "Un pot-de-vin ne se dépose pas : il paie un voleur."
+      },
       "thief_paid": {
         "label": "Le jeton de péage a payé le voleur. Rien n'a été pris !"
+      },
+      "thief_bribed": {
+        "label": "Le pot-de-vin a payé le voleur. Rien n'a été pris !"
+      },
+      "timer_paused": {
+        "label": "Le chronomètre est en pause."
+      },
+      "timer_resumed": {
+        "label": "Le chronomètre repart."
       },
       "throw_busy": {
         "label": "Impossible de lancer en mouvement."
@@ -4454,6 +4469,24 @@
       "name": "Chaussures de Randonnée",
       "desc": {
         "label": "Permettent à Melinda de marcher sur la terre meuble et le gravier. Elles ne servent à rien à Chip."
+      }
+    },
+    "steel_foil": {
+      "name": "Feuille d'Acier",
+      "desc": {
+        "label": "Ramassez-la et gardez-la. Se cogner contre un mur ordinaire le transforme en mur d'acier ; vous ne bougez pas et la feuille n'est pas consommée. Un voleur la prend avec les autres bottes."
+      }
+    },
+    "toggle_clock": {
+      "name": "Horloge à Bascule",
+      "desc": {
+        "label": "Reste en place. Marcher dessus met le chronomètre du niveau en pause, et y remarcher le relance. Les monstres et les blocs ne peuvent pas entrer dans sa case. Elle ne fait rien dans un niveau sans limite de temps."
+      }
+    },
+    "bribe": {
+      "name": "Pot-de-vin",
+      "desc": {
+        "label": "Ramassez-le et gardez-le. Chaque fois que vous marchez sur un voleur, un pot-de-vin est dépensé et rien n'est pris, que le voleur garde des bottes ou des clés. Il ne se dépose pas et un voleur ne le prend jamais."
       }
     },
     "score_10": {

@@ -16,9 +16,13 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { storedSolutionWins } from '../generator/SolutionReplay';
+import { GameEngine } from './GameEngine';
 import { LevelValidator } from './LevelValidator';
-import { CloneLink, CompiledLevel, EntityPlacement } from './types';
+import { CloneLink, CompiledLevel, Direction, EntityPlacement } from './types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
+
+/** Ticks the force floor engine test waits for a move to be accepted before giving up. */
+const FORCE_FLOOR_MOVE_RETRY_TICKS = 40;
 
 /** One-letter codes for hand-built grids. */
 const TERRAIN_CODES: Record<string, string> = {
@@ -176,9 +180,31 @@ describe('LevelValidator', () => {
     expect(LevelValidator.validate(grid(['#######', '#EWPTb#', '#######'])).valid).toBe(false);
   });
 
-  it('follows a force floor instead of treating it as floor', () => {
+  /** Plays one move per attempt, ticking until the engine takes it; reports whether the level was won. */
+  const engineWinsByMoves = (level: CompiledLevel, moves: Direction[]): boolean => {
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    for (const dir of moves) {
+      let waited = 0;
+      while (!engine.attemptPlayerMove(dir)) {
+        engine.tick();
+        if (++waited > FORCE_FLOOR_MOVE_RETRY_TICKS) return false;
+      }
+    }
+    return engine.isLevelCompleted();
+  };
+
+  it('lets the walk step off a force floor sideways instead of following the push to its end', () => {
+    // The south push ends in water, but the engine lets the player step east before the push moves them.
     const level = grid(['######', '#PvE##', '##W###', '######']);
+    expect(LevelValidator.validate(level).stats.reachableExit).toBe(true);
+    expect(engineWinsByMoves(level, ['E', 'E'])).toBe(true);
+  });
+
+  it('still refuses an exit that lies against the push of a force floor', () => {
+    const level = grid(['#####', '##E##', '#PvW#', '#####']);
     expect(LevelValidator.validate(level).stats.reachableExit).toBe(false);
+    expect(engineWinsByMoves(level, ['E', 'N'])).toBe(false);
   });
 
   it('rejects an ice slide that ends in fire', () => {

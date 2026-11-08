@@ -131,6 +131,19 @@ describe('DifficultyMetrics', () => {
     expect(report.timeRatio).toBeCloseTo(GENEROUS_LIMIT_SECONDS / report.solutionSeconds);
   });
 
+  it('does not count the ticks a toggle clock held the timer in the solution time', () => {
+    const plain = withSolution(
+      buildTestLevel(['#########', '#@.....E#', '#########'], { timeLimitSeconds: GENEROUS_LIMIT_SECONDS }),
+      'EEEEEE'
+    );
+    const clocked: CompiledLevel = { ...plain, items: plain.items.map((row) => [...row]) };
+    clocked.items[1][2] = 'toggle_clock';
+    const without = DifficultyMetrics.measure(plain);
+    const withClock = DifficultyMetrics.measure(clocked);
+    expect(withClock.solved).toBe(true);
+    expect(withClock.solutionSeconds).toBeLessThan(without.solutionSeconds);
+  });
+
   it('classifies terrain changes', () => {
     expect(terrainEventKind('recessed_wall', 'wall')).toBe('wall_raised');
     expect(terrainEventKind('blue_wall_fake', 'floor')).toBeNull();
