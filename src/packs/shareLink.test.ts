@@ -131,6 +131,16 @@ describe('shareLink', () => {
     expect(result.pack.text).toBe(text);
   });
 
+  it('refuses a shared pack that carries a CC2 level', async () => {
+    const licensed: CompiledLevel = {
+      ...makeLevel('c2'),
+      cc2: { v: 1, sha256: 'a'.repeat(64), file: 'synthetic.c2m', order: 1, gridHash: 'h', coverage: { verdict: 'exact', lost: [], approx: [] } }
+    };
+    const text = serializePack('Licensed', [makeLevel('e1'), licensed], {}, true);
+    const result = await readSharedPack(hashOf(await linkOf(text)), context());
+    expect(result).toEqual({ ok: false, error: 'cc2_content' });
+  });
+
   it('writes the link on the page address without its own fragment', async () => {
     const text = serializePack('P', [makeLevel('a')], {}, true);
     const result = await encodeShareLink(text, 'https://example.test/epoxy/#old=1', Number.MAX_SAFE_INTEGER);

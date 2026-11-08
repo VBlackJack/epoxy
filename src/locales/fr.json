@@ -877,6 +877,12 @@
         "empty": {
           "label": "Ajoutez un niveau avant de partager ce pack."
         },
+        "cc2": {
+          "label": "Ce pack contient des niveaux CC2 importés, qui restent sur cet appareil et ne peuvent pas être partagés par lien."
+        },
+        "cc2_incoming": {
+          "label": "Ce lien contient des niveaux CC2, qui ne peuvent pas être partagés par lien. Il n'a pas été ouvert."
+        },
         "hint": {
           "label": "Les liens longs ne passent pas dans certaines messageries. Exportez le fichier JSON pour les gros packs."
         },
