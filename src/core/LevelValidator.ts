@@ -39,7 +39,8 @@ import {
   ICE_TILE_ID,
   MELINDA_CHARACTER,
   transmogrifiedCharacter,
-  toggleWallOtherForm
+  toggleWallOtherForm,
+  TURTLE_TILE_ID
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
 import { DEFAULT_TELEPORT_GROUP, entityPressesPlate } from './epoxy/epoxyWorld';
@@ -68,6 +69,10 @@ import {
  * toggled walls, filled water); the loop stops earlier once a pass changes nothing.
  */
 const MAX_FIXPOINT_PASSES = 60;
+
+/** Rounds of the mover flood: each round may open walls the movers then cross, and a level has few such chains. */
+const MOVER_FLOOD_MAX_ROUNDS = 8;
+
 /** Pocket pads it takes to make a link: gates reached plus pads the level places. */
 const MIN_POCKET_PADS = 2;
 /** Relay pads it takes to make a pair: a group with fewer leads nowhere. */
@@ -504,9 +509,12 @@ export class LevelValidator {
     );
     for (const [keyId, doors] of Object.entries(keepingDoorCounts)) {
       if ((keyCounts[keyId] || 0) === 0 && !mirrorKeys.has(keyId)) {
+        // A CC3D level keeps doors that no key opens: they are walls of the source design, and the reach walk
+        // still judges whether the level can be won without them.
+        const decoy = isConvertedCc3dLevel(level);
         issues.push({
-          severity: 'error',
-          i18nKey: 'validator.issues.no_matching_key.label',
+          severity: decoy ? 'warning' : 'error',
+          i18nKey: decoy ? 'validator.issues.keyless_doors.label' : 'validator.issues.no_matching_key.label',
           params: { key: keyId, doors }
         });
       }
@@ -630,6 +638,9 @@ export class LevelValidator {
       railEntries.set(index, cell.entry ?? RAIL_DEFAULT_ENTRY);
     }
 
+    // A CC3D level is built on the play of its movers (blocks and monsters stop slides, work buttons after the walls
+    // the player opened): the walk reads them optimistically there, an over-approximation of what they can do.
+    const readsMoversOptimistically = isConvertedCc3dLevel(level) && (level.entities.length > 0 || level.cloneLinks.length > 0);
     const rankBudget = { left: RANK_STEP_BUDGET };
     const meter = options.meter;
 
@@ -755,7 +766,8 @@ export class LevelValidator {
 
       // Signal sinks fire without the player reaching a button: applied once, before the fixpoint.
       this.applySignalSinks(level, blockTypes, stockBlocks, simItems, simTerrain);
-      // Monsters and blocks reach buttons and bombs the player may not: applied once, before the fixpoint.
+      // Monsters and blocks reach buttons and bombs the player may not: applied before the fixpoint, and again on every
+      // pass of a CC3D level, where the walls the player opens widen the way of the movers (an over-approximation).
       this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain);
 
       let changed = true;
@@ -764,6 +776,9 @@ export class LevelValidator {
       while (changed && passes < MAX_FIXPOINT_PASSES) {
         changed = false;
         passes++;
+        if (passes > 1 && readsMoversOptimistically && this.applyMovingThingEffects(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain)) {
+          changed = true;
+        }
         if (stoneCount > 0) {
           for (const row of simItems) {
             for (let cx = 0; cx < row.length; cx++) {
@@ -905,7 +920,9 @@ export class LevelValidator {
 
           // A key thief the player can reach is assumed to be crossed once: the keys held then are gone.
           // Later passes carry the keys picked up since, which the same thief must not rob again.
-          if (currTile.stealsKeys && !tokenLevel && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
+          // A CC3D level is the exception: its security gates are walked round as often as crossed, and the walk
+          // cannot tell a gate on the only way from one beside it, so it takes none as crossed (an over-approximation).
+          if (currTile.stealsKeys && !tokenLevel && !isConvertedCc3dLevel(level) && !appliedKeyThieves.has(`${curr.x},${curr.y}`)) {
             appliedKeyThieves.add(`${curr.x},${curr.y}`);
             for (const keyId of Object.keys(ownedKeys)) {
               if (ownedKeys[keyId] > 0) {
@@ -1162,6 +1179,14 @@ export class LevelValidator {
                 // As for a door opened on foot: the engine lets the player enter whatever the opening reveals
                 // (ice carries on, water kills), so only plain ground is entered here; the next pass judges the rest.
                 if (hidden !== undefined && !isPlainGround(ConfigRegistry.getTile(hidden))) continue;
+              }
+              // A level whose movers (blocks, monsters) can come to rest on the ice may stop a slide on any cell of its path.
+              // The walk does not follow them, so it reads every ice cell of the path as a possible stop (an
+              // over-approximation, read for CC3D levels only: they are built on that play).
+              if (readsMoversOptimistically) {
+                for (const cell of slide.path) {
+                  if (ConfigRegistry.getTile(simTerrain[cell.y][cell.x]).slideType === 'ice') enqueue(cell.x, cell.y, slide.boots);
+                }
               }
               enqueue(slide.end.x, slide.end.y, slide.boots);
               continue;
@@ -2371,8 +2396,11 @@ export class LevelValidator {
   /**
    * Cells monsters and blocks can reach from their start cells. The flood follows each actor's tile passability
    * and the map bounds, and ignores timing, other actors and pushing. What stands on such a cell is taken as
-   * triggered: a green button opens the closed toggle walls, a red button grants its block cloner, and a bomb is
-   * set off. A monster that does not press plates (pressesPlates false) still sets off bombs but works no button.
+   * triggered: a green button opens the closed toggle walls, a colour button the closed walls of its channel, a
+   * flame button puts the flame jets out, a red button grants its block cloner, and a bomb is set off. A monster that
+   * does not press plates (pressesPlates false) still sets off bombs but works no button. A monster enters the turtles
+   * and the fire its definition lets it, and the flood is repeated while the buttons it presses open more walls.
+   * Returns true when the call changed the terrain, the items or the cloner stock.
    * Accepted over-approximations: the flood walks past bombs, and a block used up on a bomb keeps flooding.
    * A ghost sets off no bomb in play, yet the flood removes the bombs it reaches: that can only turn a level the
    * walk finds winnable into a false winnable, never the reverse.
@@ -2386,13 +2414,37 @@ export class LevelValidator {
     stockBlocks: (type: string, count: number) => void,
     simItems: (string | null)[][],
     simTerrain: string[][]
-  ): void {
+  ): boolean {
+    const width = simTerrain[0]?.length ?? 0;
+    if (width === 0) return false;
+    const possibleCharacters = this.possibleCharacters(level);
+    const tally = { changed: false };
+    // Walls a button opens let the movers go further, so the flood is repeated until a round opens nothing new.
+    for (let round = 0; round < MOVER_FLOOD_MAX_ROUNDS; round++) {
+      if (!this.floodMovingThings(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain, possibleCharacters, tally)) break;
+    }
+    return tally.changed;
+  }
+
+  /**
+   * One flood of applyMovingThingEffects. True when it opened terrain, which can widen the next flood.
+   */
+  private static floodMovingThings(
+    level: CompiledLevel,
+    blockTypes: ReadonlySet<string>,
+    grantedCloneLinks: Set<number>,
+    stockBlocks: (type: string, count: number) => void,
+    simItems: (string | null)[][],
+    simTerrain: string[][],
+    possibleCharacters: readonly PlayerCharacter[],
+    tally: { changed: boolean }
+  ): boolean {
     const height = simTerrain.length;
     const width = simTerrain[0]?.length ?? 0;
-    if (width === 0) return;
+    if (width === 0) return false;
     const reached = new Uint8Array(width * height);
     const pressed = new Uint8Array(width * height);
-    const possibleCharacters = this.possibleCharacters(level);
+    let terrainChanged = false;
     for (const entity of level.entities) {
       const def = ConfigRegistry.getEntityDef(entity.type);
       const kind = def?.kind;
@@ -2425,7 +2477,13 @@ export class LevelValidator {
           const mirrored = def?.mirrorsCharacter !== undefined && possibleCharacters.includes(def.mirrorsCharacter) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
           // A fish gate is read as open to a monster or a block (an over-approximation: it opens once the chips are in).
           const opensToMovers = dest.fishGate === true;
-          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers) : dest.passableByBlock !== true && !opensToMovers) continue;
+          // A monster may also enter what its definition passes: the turtles, the fire it is immune to, the tiles it names.
+          const entersByDefinition =
+            kind === 'monster' &&
+            (def?.passesTiles?.includes(destId) === true ||
+              (def?.entersTurtles === true && destId === TURTLE_TILE_ID) ||
+              (dest.hazard === 'fire' && def?.immuneToFire === true));
+          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers || entersByDefinition) : dest.passableByBlock !== true && !opensToMovers) continue;
           if (mirrored && dest.requiredKey !== undefined) mirrorOpened.push({ x: nx, y: ny });
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
@@ -2436,25 +2494,50 @@ export class LevelValidator {
       }
     }
     let opensToggleWalls = false;
+    let opensFlames = false;
+    const opensChannels = new Set<ChannelColor>();
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         if (!reached[y * width + x]) continue;
         const action = pressed[y * width + x] ? ConfigRegistry.getTile(simTerrain[y][x]).buttonAction : undefined;
         if (action === 'toggle_walls') opensToggleWalls = true;
+        if (action === 'toggle_flames') opensFlames = true;
+        const channel = channelOfButtonAction(action);
+        if (channel !== undefined) opensChannels.add(channel);
         if (action === 'trigger_cloner') {
           level.cloneLinks.forEach((link, linkIdx) => {
             if (link.buttonX !== x || link.buttonY !== y || !blockTypes.has(link.templateType) || grantedCloneLinks.has(linkIdx)) return;
             grantedCloneLinks.add(linkIdx);
             stockBlocks(link.templateType, CLONER_BLOCK_ALLOWANCE);
+            tally.changed = true;
           });
         }
         const item = simItems[y][x];
-        if (item && ConfigRegistry.getTile(item).hazard === 'bomb') simItems[y][x] = null;
+        if (item && ConfigRegistry.getTile(item).hazard === 'bomb') {
+          simItems[y][x] = null;
+          tally.changed = true;
+        }
       }
     }
+    const noteChange = (): void => {
+      terrainChanged = true;
+      tally.changed = true;
+    };
     if (opensToggleWalls) {
-      this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), () => undefined);
+      this.openToggledTiles(simTerrain, (tile) => (tile.passableByPlayer ? undefined : tile.togglesTo), noteChange);
     }
+    // A colour button a mover works opens the closed walls of its own channel, as when the player works it.
+    for (const channel of opensChannels) {
+      this.openToggledTiles(
+        simTerrain,
+        (tile) => (tile.toggleChannel === channel && !tile.passableByPlayer ? tile.channelTogglesTo : undefined),
+        noteChange
+      );
+    }
+    if (opensFlames) {
+      this.openToggledTiles(simTerrain, (tile) => (tile.hazard ? tile.flameTogglesTo : undefined), noteChange);
+    }
+    return terrainChanged;
   }
 
   /**
