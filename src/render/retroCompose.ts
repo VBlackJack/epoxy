@@ -407,7 +407,10 @@ const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
   floor_mimic: 'teeth',
   timid_teeth: 'teeth',
   ghost: 'glider',
-  rover: 'blob'
+  rover: 'blob',
+  // Only names a sprite for the id tables: a mirror player is drawn as the player seen through glass (PixelRenderer.drawMirrorPlayer).
+  mirror_chip: 'teeth',
+  mirror_melinda: 'teeth'
 };
 
 /** Sleeping monsters have one sprite whatever their facing and walk frame: the faint seam that gives them away. */

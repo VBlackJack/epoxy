@@ -538,6 +538,38 @@
       "emulates": ["teeth", "glider", "bug", "pink_ball", "timid_teeth", "fireball", "paramecium", "walker"],
       "emulationSwitchAttempts": 32,
       "epoxyOnly": true
+    },
+    "mirror_chip": {
+      "id": "mirror_chip",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.mirror_chip.name",
+      "moveIntervalTicks": 2,
+      "movementPattern": "stationary",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "pushesBlocks": true,
+      "mirrorsCharacter": "chip",
+      "mirrorKey": "key_green",
+      "epoxyOnly": true
+    },
+    "mirror_melinda": {
+      "id": "mirror_melinda",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.mirror_melinda.name",
+      "moveIntervalTicks": 2,
+      "movementPattern": "stationary",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "pushesBlocks": true,
+      "mirrorsCharacter": "melinda",
+      "mirrorKey": "key_yellow",
+      "epoxyOnly": true
     }
   }
 }

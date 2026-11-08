@@ -150,16 +150,26 @@ describe('terrain, items and entities', () => {
   });
 
   it('keeps reserved ids for what Epoxy lacks', () => {
-    const { level, coverage, report } = convert([
-      put(1, 0, { code: 0x6f }, { code: FLOOR_CODE }),
-      put(3, 0, actorTile(0x65, DIR_W), { code: FLOOR_CODE })
-    ]);
+    const { level, coverage, report } = convert([put(1, 0, { code: 0x6f }, { code: FLOOR_CODE })]);
     expect(level.items[0][1]).toBe('cc2_railroad_sign');
-    expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_mirror_chip', dir: 'W' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['mirror_chip', 'railroad_sign']);
+    expect(coverage.lost).toEqual(['railroad_sign']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
+  });
+
+  it('plays the mirror players as Epoxy monsters, approximately', () => {
+    const { level, coverage } = convert([
+      put(3, 0, actorTile(MIRROR_CHIP, DIR_W), { code: FLOOR_CODE }),
+      put(4, 0, actorTile(0x66, DIR_E), { code: FLOOR_CODE })
+    ]);
+    expect(level.entities).toEqual([
+      { x: 3, y: 0, type: 'mirror_chip', dir: 'W' },
+      { x: 4, y: 0, type: 'mirror_melinda', dir: 'E' }
+    ]);
+    expect(coverage.verdict).toBe('approx');
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['mirror_chip', 'mirror_melinda']);
   });
 
   it('keeps cc2_unknown for cells past an undecodable code', () => {
@@ -377,9 +387,10 @@ describe('players', () => {
     expect(level.playerStart).toEqual({ x: 1, y: 0, dir: 'S' });
     expect(level.entities).toEqual([
       { x: 2, y: 2, type: 'cc2_melinda', dir: 'E' },
-      { x: 4, y: 2, type: 'cc2_mirror_chip', dir: 'N' }
+      { x: 4, y: 2, type: 'mirror_chip', dir: 'N' }
     ]);
-    expect(coverage.lost).toEqual(['melinda', 'mirror_chip', 'multiple_players']);
+    expect(coverage.lost).toEqual(['melinda', 'multiple_players']);
+    expect(coverage.approx).toContain('mirror_chip');
   });
 
   it('plays a level whose only player is Melinda with her character, exactly', () => {
@@ -389,13 +400,14 @@ describe('players', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
-  it('leaves Chip as the default character, and loses two players or a mirror player', () => {
+  it('leaves Chip as the default character, loses two players and plays a mirror player', () => {
     expect(convertCc2Map(makeMap(3, 3, [player(1, 1, DIR_N)]), OPTIONS).level.character).toBeUndefined();
     const pair = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N), player(3, 1, DIR_N, MELINDA)]), OPTIONS);
     expect(pair.level.character).toBeUndefined();
     expect(pair.coverage.lost).toEqual(['melinda', 'multiple_players']);
     const mirror = convertCc2Map(makeMap(5, 3, [player(1, 1, DIR_N, MELINDA), player(3, 1, DIR_N, MIRROR_CHIP)]), OPTIONS);
-    expect(mirror.coverage.lost).toEqual(['mirror_chip']);
+    expect(mirror.coverage.lost).toEqual([]);
+    expect(mirror.coverage.approx).toEqual(['mirror_chip']);
   });
 
   it('warns about a level with no player', () => {

@@ -28,6 +28,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
+import { steerMirrors } from './epoxyMirrors';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -59,6 +60,15 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): bool
 }
 
 export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
+  const moved = attemptPlayerStep(ctx, dir, fromSlide);
+  const w = ctx.world;
+  // The mirror players copy the move the player attempted, a refused one too; a slide step that went nowhere is no attempt.
+  if (w.player.alive && !w.levelCompleted && (moved || !fromSlide)) steerMirrors(ctx, dir);
+  return moved;
+}
+
+/** The player's own step in `dir`: the checks of the cell ahead, the push of a block and the arrival. */
+function attemptPlayerStep(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
   w.player.dir = dir;
   const vec = DIRECTION_VECTORS[dir];

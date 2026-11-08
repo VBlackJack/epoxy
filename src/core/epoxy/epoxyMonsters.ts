@@ -31,6 +31,7 @@ import { stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { absorbMonsterContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
@@ -77,6 +78,8 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
   // A steered monster never decides a step: it moves only when a steering pad is worked.
   if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
+  // A mirror player moves with the player; on its own it is only carried by the floor (ice, a force floor).
+  if (ConfigRegistry.getEntityDef(entity.type)?.mirrorsCharacter !== undefined) return stepMirrorFloor(ctx, entity);
   // A sleeping lurker never moves by itself; only the player's arrival next to it changes it.
   if (ConfigRegistry.getEntityDef(entity.type)?.movementPattern === STATIONARY_PATTERN) return true;
   if (entity.cooldownTicks > 0) {
