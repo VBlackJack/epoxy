@@ -329,6 +329,20 @@ describe('mirror players: items, hazards and contact', () => {
     expect(engine.getPlayer().alive).toBe(false);
   });
 
+  it('copies a forced slide step the wall refuses', () => {
+    // The player steps onto ice beside the east wall, and the slide then runs into the wall. The mirror copies that
+    // refused step too: it walks into the water one cell on and dies, which the bounce back alone would never do.
+    const terrain: Array<[number, number, string]> = [
+      [11, 3, 'ice'],
+      [4, 8, 'water']
+    ];
+    const engine = load(room({ terrain, player: { x: 10, y: 3 }, entities: [mirror(MIRROR_CHIP, 2, 8)] }));
+    engine.attemptPlayerMove('E');
+    expect(cellOf(engine, MIRROR_CHIP)).toBe(at(3, 8));
+    run(engine, SLIDE_TICKS);
+    expect(cellOf(engine, MIRROR_CHIP)).toBe('gone');
+  });
+
   it('puts the mirror state back on undo', () => {
     const engine = load(room({ entities: [mirror(MIRROR_CHIP, 3, 3)] }));
     walk(engine, 'E');
@@ -357,6 +371,19 @@ describe('mirror players: validator, pack format and import', () => {
         .map((issue) => issue.i18nKey);
     expect(errorsOf(closed).length).toBeGreaterThan(0);
     expect(errorsOf(withMirror)).toEqual([]);
+  });
+
+  it('counts only the mirror of the level character for the doors it opens', () => {
+    const wall = (x: number, y: number): [number, number, string] => [x, y, 'wall'];
+    const terrain: Array<[number, number, string]> = [wall(7, 1), wall(7, 3), [7, 2, 'door_green'], [8, 2, 'exit']];
+    const errorsOf = (level: CompiledLevel): string[] =>
+      LevelValidator.validate(level)
+        .issues.filter((issue) => issue.severity === 'error')
+        .map((issue) => issue.i18nKey);
+    for (let y = 1; y < 4; y++) terrain.push(wall(9, y));
+    expect(errorsOf(room({ terrain, player: { x: 2, y: 2 }, entities: [mirror(MIRROR_CHIP, 3, 2)] }))).toEqual([]);
+    // Melinda plays: a mirror Chip never moves, so it opens nothing.
+    expect(errorsOf(room({ terrain, character: MELINDA_CHARACTER, player: { x: 2, y: 2 }, entities: [mirror(MIRROR_CHIP, 3, 2)] })).length).toBeGreaterThan(0);
   });
 
   it('keeps a level with mirrors on a plain floor free of errors', () => {

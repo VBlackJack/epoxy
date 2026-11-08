@@ -62,8 +62,8 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition): bool
 export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: boolean): boolean {
   const moved = attemptPlayerStep(ctx, dir, fromSlide);
   const w = ctx.world;
-  // The mirror players copy the move the player attempted, a refused one too; a slide step that went nowhere is no attempt.
-  if (w.player.alive && !w.levelCompleted && (moved || !fromSlide)) steerMirrors(ctx, dir);
+  // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
+  if (w.player.alive && !w.levelCompleted) steerMirrors(ctx, dir);
   return moved;
 }
 

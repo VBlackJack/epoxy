@@ -240,8 +240,6 @@ export const ENTITY_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, C
 export const CC2_CODE_MELINDA = 0x56;
 /** Coverage key of a level whose only player is Melinda: Epoxy plays it with the melinda character. */
 export const KEY_MELINDA_PLAYER = 'melinda_player';
-export const CC2_CODE_MIRROR_CHIP = 0x65;
-export const CC2_CODE_MIRROR_MELINDA = 0x66;
 /** Reserved entities for the players Epoxy does not drive (the mirror players are Epoxy monsters, see ENTITY_MAP). */
 export const RESERVED_PLAYER_ENTITIES: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2TileMapping>([
   [CC2_CODE_MELINDA, reserved('melinda')]

@@ -476,9 +476,13 @@ export class LevelValidator {
         });
       }
     }
-    // A mirror player opens the doors of its own key colour without a key: such doors are not left without one.
+    // A mirror of the level's character opens the doors of its own key colour without a key: such doors are not left without one.
     const mirrorKeys = new Set(
-      level.entities.map((e) => ConfigRegistry.getEntityDef(e.type)?.mirrorKey).filter((key): key is string => key !== undefined)
+      level.entities
+        .map((e) => ConfigRegistry.getEntityDef(e.type))
+        .filter((def) => def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER))
+        .map((def) => def?.mirrorKey)
+        .filter((key): key is string => key !== undefined)
     );
     for (const [keyId, doors] of Object.entries(keepingDoorCounts)) {
       if ((keyCounts[keyId] || 0) === 0 && !mirrorKeys.has(keyId)) {
@@ -2250,7 +2254,7 @@ export class LevelValidator {
             (dest.hazard === undefined || def.blockedByHazards?.includes(dest.hazard) !== true);
           // A mirror player walks the terrain its character walks (doors of its key colour open to it): the flood
           // reads every tile the player may enter as open, an over-approximation that never turns a level unwinnable.
-          const mirrored = def?.mirrorsCharacter !== undefined && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
+          const mirrored = def?.mirrorsCharacter === (level.character ?? DEFAULT_PLAYER_CHARACTER) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
           if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored) : dest.passableByBlock !== true) continue;
           if (mirrored && dest.requiredKey !== undefined) mirrorOpened.push({ x: nx, y: ny });
           seen[ny * width + nx] = 1;
