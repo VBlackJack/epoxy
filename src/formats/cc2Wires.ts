@@ -74,17 +74,20 @@ const CODE_PURPLE_FLOOR = 0x72;
 const CODE_PURPLE_WALL = 0x73;
 
 /** Kinds of a logic gate, as the modifier names them. */
-export type Cc2GateKind = 'not' | 'and' | 'or' | 'xor' | 'latch' | 'nand' | 'counter' | 'unknown';
+export type Cc2GateKind = 'not' | 'and' | 'or' | 'xor' | 'latch' | 'nand' | 'diode' | 'counter' | 'unknown';
 
 /** Gate kind values: the modifier with its two low bits (the facing) cleared. */
 const GATE_BASE_NOT = 0x00;
 const GATE_BASE_AND = 0x04;
 const GATE_BASE_OR = 0x08;
 const GATE_BASE_XOR = 0x0c;
+/** Clockwise latch: type (modifier >> 2) 4. */
 const GATE_BASE_LATCH = 0x10;
 const GATE_BASE_NAND = 0x14;
-/** Unverified: the reversed latch may use another value (0x40..0x43). */
-const GATE_BASE_LATCH_REVERSED = 0x18;
+/** Diode: type 6, a one-input gate that passes its input to its output. */
+const GATE_BASE_DIODE = 0x18;
+/** Counter-clockwise latch: type 16, modifiers 0x40..0x43. */
+const GATE_BASE_LATCH_CCW = 0x40;
 const GATE_FACING_MASK = 0x03;
 const GATE_BASE_MASK = 0xfc;
 /** The counter gates are the ten values 0x1e..0x27 (the digit shown), and have no facing. */
@@ -98,7 +101,8 @@ const GATE_BASE_KIND: ReadonlyMap<number, Cc2GateKind> = new Map<number, Cc2Gate
   [GATE_BASE_XOR, 'xor'],
   [GATE_BASE_LATCH, 'latch'],
   [GATE_BASE_NAND, 'nand'],
-  [GATE_BASE_LATCH_REVERSED, 'latch']
+  [GATE_BASE_DIODE, 'diode'],
+  [GATE_BASE_LATCH_CCW, 'latch']
 ]);
 
 export interface Cc2Gate {
@@ -252,7 +256,7 @@ function devicePorts(info: CellInfo): Map<number, PortKind> {
     const facing = info.gate?.facing;
     if (facing === undefined) return ports;
     ports.set(facing, 'out');
-    if (info.gate?.kind === 'not') ports.set((facing + OPPOSITE_STEP) % SIDE_COUNT, 'in');
+    if (info.gate?.kind === 'not' || info.gate?.kind === 'diode') ports.set((facing + OPPOSITE_STEP) % SIDE_COUNT, 'in');
     else {
       ports.set((facing + LEFT_STEP) % SIDE_COUNT, 'in');
       ports.set((facing + RIGHT_STEP) % SIDE_COUNT, 'in');
