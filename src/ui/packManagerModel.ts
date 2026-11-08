@@ -163,12 +163,19 @@ export function buildPackActions(
   };
 }
 
-/** Translation key of the reason a pack cannot be shared yet. */
-export const SHARE_BLOCKED_REASON_KEY = 'app.packs.share.empty.label';
+/** Why a pack cannot be shared: it holds no level yet, or it holds levels imported from CC2 (licensed content). */
+export type ShareRefusal = 'empty' | 'cc2_content';
 
-/** A pack can be shared once it holds a level. */
-export function canSharePack(levels: readonly CompiledLevel[]): boolean {
-  return levels.length > 0;
+/** Translation key of the message that tells why a pack cannot be shared, by refusal. */
+export const SHARE_REFUSAL_KEYS: Record<ShareRefusal, string> = {
+  empty: 'app.packs.share.empty.label',
+  cc2_content: 'app.packs.share.cc2.label'
+};
+
+/** The reason a pack cannot be shared, or null when it can: it must hold a level and none imported from CC2. */
+export function shareRefusal(levels: readonly Pick<CompiledLevel, 'cc2'>[]): ShareRefusal | null {
+  if (levels.length === 0) return 'empty';
+  return levels.some((level) => level.cc2 !== undefined) ? 'cc2_content' : null;
 }
 
 /** A pack a level can be copied or moved to. */

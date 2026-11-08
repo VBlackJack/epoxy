@@ -41,7 +41,6 @@ import {
   buildLevelRows,
   buildLibraryRows,
   buildPackActions,
-  canSharePack,
   convertedTitle,
   dropSlotAt,
   dropTargetIndex,
@@ -52,7 +51,8 @@ import {
   packFileName,
   resolveSelection,
   selectionAfterRemoval,
-  SHARE_BLOCKED_REASON_KEY,
+  SHARE_REFUSAL_KEYS,
+  shareRefusal,
   transferTargets
 } from './packManagerModel';
 import {
@@ -505,17 +505,17 @@ export class PackManager {
     this.cc2SourcePackId = pack.id;
   }
 
-  /** The share buttons: hidden where links cannot be made, disabled with a reason while the pack is empty. */
+  /** The share buttons: hidden where links cannot be made, disabled with a reason while the pack is empty or holds CC2 levels. */
   private renderShareControls(pack: LevelPack): void {
     const supported = isShareEncoderSupported();
-    const canShare = canSharePack(pack.levels);
+    const refusal = shareRefusal(pack.levels);
     const copy = byId<HTMLButtonElement>('packs-share-copy-btn');
     const more = byId<HTMLButtonElement>('packs-share-more-btn');
     for (const [button, available] of [[copy, supported], [more, supported && canShareNatively()]] as const) {
       if (!button) continue;
       button.classList.toggle(HIDDEN_CLASS, !available);
-      button.disabled = !canShare;
-      this.setDisabledReason(button, !canShare, SHARE_BLOCKED_REASON_KEY);
+      button.disabled = refusal !== null;
+      this.setDisabledReason(button, refusal !== null, refusal ? SHARE_REFUSAL_KEYS[refusal] : '');
     }
     byId('packs-share-hint')?.classList.toggle(HIDDEN_CLASS, !supported);
     this.setShareStatus('');
@@ -524,7 +524,7 @@ export class PackManager {
   /** Makes the link of the selected pack, then copies it or hands it to the system share sheet. */
   private async shareSelected(how: 'copy' | 'native'): Promise<void> {
     const pack = this.selectedPack();
-    if (!pack || !canSharePack(pack.levels)) return;
+    if (!pack || shareRefusal(pack.levels) !== null) return;
     this.setShareStatus('');
     const name = this.host.packDisplayName(pack);
     const link = await makeShareLink(pack, name);
