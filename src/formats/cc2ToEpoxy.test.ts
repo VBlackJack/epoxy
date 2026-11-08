@@ -238,6 +238,25 @@ describe('terrain, items and entities', () => {
     expect(coverage.approx).toContain('track');
   });
 
+  it('reads each track bit as its Lexy railroad segment', () => {
+    const expected: ReadonlyArray<readonly [number, string]> = [
+      [0x01, 'rail_ne'],
+      [0x02, 'rail_se'],
+      [0x04, 'rail_sw'],
+      [0x08, 'rail_nw'],
+      [0x10, 'rail_ew'],
+      [0x20, 'rail_ns']
+    ];
+    for (const [bit, id] of expected) {
+      expect(convert([put(1, 0, modTile(0x4f, bit))]).level.terrain[0][1], `bit 0x${bit.toString(16)}`).toBe(id);
+    }
+  });
+
+  it('ignores the switch flag and the active track bits when a track has one segment', () => {
+    const switched = 0x40 | 0x02 | (1 << 8) | (2 << 12);
+    expect(convert([put(1, 0, modTile(0x4f, switched))]).level.terrain[0][1]).toBe('rail_se');
+  });
+
   it('approximates a steel wall only next to dynamite', () => {
     expect(convert([put(1, 0, { code: STEEL_WALL })]).coverage.verdict).toBe('exact');
     const withDynamite = convert([put(1, 0, { code: STEEL_WALL }), put(2, 0, { code: DYNAMITE }, { code: FLOOR_CODE })]);
@@ -646,7 +665,7 @@ describe('wires', () => {
       put(4, 0, modTile(GATE, 0x11)),
       put(5, 0, modTile(GATE, 0x15)),
       put(6, 0, modTile(GATE, 0x1e)),
-      put(7, 0, modTile(GATE, 0x42))
+      put(7, 0, modTile(GATE, 0x44))
     ];
     const { level, coverage, report } = convertCc2Map(makeMap(8, 2, [player(0, 1), ...cells]), OPTIONS);
     expect(level.terrain[0]).toEqual([
@@ -661,6 +680,15 @@ describe('wires', () => {
     ]);
     expect(coverage.lost).toEqual(['counter_gate', 'nand_gate', 'unknown']);
     expect(report.warnings.some((w) => w.includes('latch'))).toBe(true);
+    expect(coverage.approx).toContain('data_latch');
+  });
+
+  it('plays each latch rotation and the diode as an Epoxy gate', () => {
+    const cells = [put(0, 0, modTile(GATE, 0x10)), put(1, 0, modTile(GATE, 0x40)), put(2, 0, modTile(GATE, 0x43)), put(3, 0, modTile(GATE, 0x18))];
+    const { level, coverage } = convertCc2Map(makeMap(4, 2, [player(0, 1), ...cells]), OPTIONS);
+    expect(level.terrain[0]).toEqual(['signal_latch_off', 'signal_latch_off', 'signal_latch_off', 'signal_gate_or']);
+    expect(coverage.approx).toContain('data_latch');
+    expect(coverage.lost).toEqual([]);
   });
 
   it('reports unsupported wire ends as warnings', () => {

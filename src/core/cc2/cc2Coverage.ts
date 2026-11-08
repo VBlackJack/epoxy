@@ -36,6 +36,8 @@ export const KEY_MULTIPLE_PLAYERS = 'multiple_players';
 export const KEY_STEEL_WALL_DESTROYER = 'steel_wall_with_destroyer';
 export const KEY_WIRE = 'wire';
 export const KEY_WIRE_TUNNEL = 'wire_tunnel';
+/** A CC2 latch gate (either rotation): a data latch, which the Epoxy toggle latch only approximates. */
+export const KEY_DATA_LATCH = 'data_latch';
 /** The canopy flag of a thin wall: a modifier of the cell, not a terrain. */
 export const KEY_CANOPY = 'canopy';
 /** A code the importer's table does not know; it stands for the cc2_unknown placeholder. */
@@ -173,6 +175,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
+  [KEY_DATA_LATCH]: 'A CC2 latch is a data latch (its memory follows the first input while the second is on); Epoxy plays it as its toggle latch, which flips on each pulse [unverified].',
   [KEY_WIRE]: WIRED_REASON,
   [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
 };
