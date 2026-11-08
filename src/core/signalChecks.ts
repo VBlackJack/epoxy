@@ -28,9 +28,10 @@ import { registryTileLookup } from './epoxy/epoxySignals';
 import { buildSignalNetwork } from './epoxy/signalNetwork';
 import { GameEngine } from './GameEngine';
 import { compileSignalSpec, normalizeSignalLinks } from './signalLinks';
+import { parseSignalPort } from './signalPorts';
 import { t } from '../i18n/I18nManager';
 import { underlayMap } from './Underlays';
-import type { ChannelColor, CompiledLevel, GridPoint, SignalNodeDef, SignalSpec, ValidationIssue } from './types';
+import type { ChannelColor, CompiledLevel, GridPoint, SignalLinkSpec, SignalNodeDef, SignalSpec, ValidationIssue } from './types';
 
 type Params = Record<string, string | number>;
 
@@ -100,6 +101,12 @@ function danglingCells(level: CompiledLevel): GridPoint[] {
   return cells;
 }
 
+/**
+ * The gates that change only on an edge of their input, so a loop through one cannot oscillate: the toggle latch and the
+ * counter. A data latch is not one: with its clock on it is transparent, so a path through it is read as a pass-through.
+ */
+const EDGE_MEMORY_KINDS: ReadonlySet<string> = new Set(['latch', 'counter']);
+
 /** What a signal does along a path: an inversion (NOT), an XOR (no sign describes it), or a latch (edge-triggered, so it cannot oscillate). */
 interface PathState {
   inverted: boolean;
@@ -133,9 +140,12 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
       const node = byCell.get(next);
       if (node === undefined) continue;
       const arrived: PathState = {
-        inverted: node.kind === 'not' ? !state.inverted : state.inverted,
+        // A NAND inverts like a NOT. A counter changes only on an edge, like the toggle latch, so a path through one is
+        // taken as holding itself, never as flickering. A data latch is transparent while its clock is on: it passes the
+        // signal on unchanged (the check over-approximates: it reads the clock as on).
+        inverted: node.kind === 'not' || node.kind === 'nand' ? !state.inverted : state.inverted,
         xor: state.xor || node.kind === 'xor',
-        latch: state.latch || node.kind === 'latch'
+        latch: state.latch || EDGE_MEMORY_KINDS.has(node.kind)
       };
       if (node.kind === 'sink') {
         // A launcher or cloner sink has no colour and moves no door: it takes no part in a world loop.
@@ -160,8 +170,8 @@ function receiverReach(spec: SignalSpec, from: number): ReceiverReach {
 /** The pulse buttons that reach a hold door along a path with no latch (NOT and XOR do not latch), located at the button. */
 function pulseDoorCells(spec: SignalSpec): number[] {
   const byCell = new Map<number, SignalNodeDef>(spec.nodes.map((n) => [n.cell, n]));
-  const outgoing = new Map<number, number[]>();
-  for (const link of spec.links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link.to]);
+  const outgoing = new Map<number, SignalLinkSpec[]>();
+  for (const link of spec.links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link]);
   const cells: number[] = [];
   for (const source of spec.nodes) {
     if (source.kind !== 'source' || source.sample !== 'pulse') continue;
@@ -170,14 +180,18 @@ function pulseDoorCells(spec: SignalSpec): number[] {
     let reachesDoor = false;
     while (queue.length > 0 && !reachesDoor) {
       const { cell, latched } = queue.shift() as { cell: number; latched: boolean };
-      for (const next of outgoing.get(cell) ?? []) {
+      for (const wire of outgoing.get(cell) ?? []) {
+        const next = wire.to;
         const node = byCell.get(next);
         if (node === undefined) continue;
+        // The toggle latch holds its bit; a counter holds only its underflow output (out1), its overflow (out0) is a
+        // one-settle pulse that still reaches a hold door as a pulse; a data latch passes a pulse through its data input.
+        const leavesByUnderflow = byCell.get(cell)?.kind === 'counter' && parseSignalPort(wire.port).out === 1;
         if (node.kind === 'sink') {
-          if (node.color !== undefined && !latched) reachesDoor = true;
+          if (node.color !== undefined && !latched && !leavesByUnderflow) reachesDoor = true;
           continue;
         }
-        const arrived = latched || node.kind === 'latch';
+        const arrived = latched || node.kind === 'latch' || leavesByUnderflow;
         const key = `${next}:${arrived ? 1 : 0}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -335,8 +349,18 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
 
   if (spec === undefined) return;
 
+  // The wire floors of one net (sources a lightning bolt powers) are one input together: only one player stands on a
+  // floor at a time, so they never add up like the plates of a sink that takes a single input.
+  const chargedCells = new Set(spec.nodes.filter((node) => node.kind === 'source' && node.sample === 'charged').map((node) => node.cell));
   const inputs = new Map<number, number>();
-  for (const link of spec.links) inputs.set(link.to, (inputs.get(link.to) ?? 0) + 1);
+  const chargedInto = new Set<number>();
+  for (const link of spec.links) {
+    if (chargedCells.has(link.from)) {
+      if (chargedInto.has(link.to)) continue;
+      chargedInto.add(link.to);
+    }
+    inputs.set(link.to, (inputs.get(link.to) ?? 0) + 1);
+  }
 
   const multiSinks: GridPoint[] = [];
   const notBad: GridPoint[] = [];

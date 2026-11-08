@@ -36,7 +36,7 @@ import {
 import { DEFAULT_PLAYER_CHARACTER } from '../core/coreConstants';
 import { usesBlockChains } from '../core/blockChains';
 import { cellEdgeMask, levelHasCanopy } from '../core/EdgeRules';
-import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat } from '../core/signalLinks';
+import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat, usesSignalPorts } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
@@ -74,8 +74,13 @@ function packFileVersion(levels: readonly CompiledLevel[]): number {
   // A level played by Melinda is read as Chip's by a build that does not know the field, so it needs format 13.
   // A block chain push is refused by a build that does not know it, so a level that can chain needs format 13 too.
   // A canopy is a flag an older build drops from the cell edges, so a level that holds one needs format 13 as well.
+  // A signal link that names a port is read without it by an older build, so such a level needs format 13 as well.
   const characterVersion = levels.some(
-    (level) => (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER) || usesBlockChains(level) || levelHasCanopy(level)
+    (level) =>
+      (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER) ||
+      usesBlockChains(level) ||
+      usesSignalPorts(level) ||
+      levelHasCanopy(level)
   )
     ? PACK_JSON_VERSION_V13
     : flipVersion;

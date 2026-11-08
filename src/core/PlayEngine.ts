@@ -118,6 +118,8 @@ export interface PlayEngine {
    * signals. Read only and never hashed or snapshotted. An engine without a signal network omits it.
    */
   getPoweredSignalCells?(): ReadonlySet<number> | undefined;
+  /** The count of each counter gate by cell index; undefined without a counter. */
+  getCounterValues?(): ReadonlyMap<number, number> | undefined;
   getTrapLinks(): TrapLink[];
   getCloneLinks(): CloneLink[];
   getMapWidth(): number;

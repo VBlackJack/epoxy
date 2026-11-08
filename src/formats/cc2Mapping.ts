@@ -157,7 +157,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x51, same('charge', 'dynamite')],
   [0x52, same('ward', 'helmet')],
   [0x59, same('hiking_boots')],
-  [0x62, reserved('lightning_bolt')],
+  [0x62, same('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],
   [0x6a, same('stopwatch_penalty', 'time_penalty')],
   [0x6f, reserved('railroad_sign')],
@@ -179,6 +179,22 @@ export const KEY_NO_SIGN = 'no_sign';
 export const KEY_NO_SIGN_EMPTY = 'no_sign_empty';
 export const KEY_NO_SIGN_KEY = 'no_sign_key';
 export const KEY_NO_SIGN_BOOTS = 'no_sign_boots';
+/** A no-sign over an item the player can carry, on the item layer (any item, or a key or boots off plain floor). */
+export const KEY_NO_SIGN_ITEM = 'no_sign_item';
+/** A no-sign over a bonus, a time item or the toggle clock: nothing can bar it, so the item is dropped and cannot be picked up. */
+export const KEY_NO_SIGN_BONUS = 'no_sign_bonus';
+/** Terrain ids a no-sign has no meaning on: nobody stands there, so the sign is not placed. */
+export const NO_SIGN_BLOCKED_TERRAIN: ReadonlySet<string> = new Set(['wall', 'steel_wall']);
+/** Items a no-sign makes impossible to pick up without ever barring anyone: Epoxy drops them. */
+export const NO_SIGN_INERT_ITEMS: ReadonlySet<string> = new Set([
+  'score_10',
+  'score_100',
+  'score_1000',
+  'score_2x',
+  'stopwatch_bonus',
+  'stopwatch_penalty',
+  'toggle_clock'
+]);
 
 /**
  * Epoxy forbid tile that plays a no-sign over an item (by Epoxy item id): the player cannot enter the cell while
@@ -242,6 +258,6 @@ export const UNKNOWN_KEY = 'unknown';
 
 /** Track junction placeholder (terrain). */
 export const TRACK_JUNCTION = reserved('track_junction');
-/** Reserved ids for the logic gates Epoxy lacks. */
+/** Reserved ids of the logic gates, kept for packs written before Epoxy played them (the converter no longer places them). */
 export const NAND_GATE = reserved('nand_gate');
 export const COUNTER_GATE = reserved('counter_gate');

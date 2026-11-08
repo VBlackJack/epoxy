@@ -4339,6 +4339,132 @@
     "forbid_boots_force": {
       "name": "Barrière Sans Bottes Ventouses"
     },
+    "no_sign_key_red": {
+      "name": "Panneau Interdit : Clé Rouge",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Clé Rouge\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_key_blue": {
+      "name": "Panneau Interdit : Clé Bleue",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Clé Bleue\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_key_yellow": {
+      "name": "Panneau Interdit : Clé Jaune",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Clé Jaune\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_key_green": {
+      "name": "Panneau Interdit : Clé Verte (Passe-partout)",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Clé Verte (Passe-partout)\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_water": {
+      "name": "Panneau Interdit : Palmes Aquatiques",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Palmes Aquatiques\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_fire": {
+      "name": "Panneau Interdit : Bottes Ignifugées",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Bottes Ignifugées\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_ice": {
+      "name": "Panneau Interdit : Crampons à Glace",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Crampons à Glace\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_force": {
+      "name": "Panneau Interdit : Bottes Ventouses",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Bottes Ventouses\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_slow_time": {
+      "name": "Panneau Interdit : Ralentisseur",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Ralentisseur\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_speed": {
+      "name": "Panneau Interdit : Bottes de Vitesse",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Bottes de Vitesse\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_eye": {
+      "name": "Panneau Interdit : Bottes de Clairvoyance",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Bottes de Clairvoyance\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_boots_pull": {
+      "name": "Panneau Interdit : Gants de Traction",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Gants de Traction\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_ward": {
+      "name": "Panneau Interdit : Égide",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Égide\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_hiking_boots": {
+      "name": "Panneau Interdit : Chaussures de Randonnée",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Chaussures de Randonnée\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_charge": {
+      "name": "Panneau Interdit : Charge Explosive",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Charge Explosive\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_pocket_gate": {
+      "name": "Panneau Interdit : Porte de poche",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Porte de poche\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_hurl_stone": {
+      "name": "Panneau Interdit : Pierre de jet",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Pierre de jet\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_toll_token": {
+      "name": "Panneau Interdit : Jeton de péage",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Jeton de péage\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_steel_foil": {
+      "name": "Panneau Interdit : Feuille d'Acier",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Feuille d'Acier\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_bribe": {
+      "name": "Panneau Interdit : Pot-de-vin",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Pot-de-vin\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
+    "no_sign_lightning_bolt": {
+      "name": "Panneau Interdit : Éclair",
+      "desc": {
+        "label": "Panneau d'interdiction pour l'objet \"Éclair\" : il ne peut pas être ramassé ici, et un joueur qui en porte un ne peut pas entrer dans cette case. Le terrain sous le panneau garde son effet ; les blocs passent, les monstres non."
+      }
+    },
     "door_red": {
       "name": "Porte Rouge"
     },
@@ -4469,6 +4595,12 @@
       "name": "Chaussures de Randonnée",
       "desc": {
         "label": "Permettent à Melinda de marcher sur la terre meuble et le gravier. Elles ne servent à rien à Chip."
+      }
+    },
+    "lightning_bolt": {
+      "name": "Éclair",
+      "desc": {
+        "label": "Tant que le joueur le porte, le sol câblé sur lequel il se tient envoie un signal le long de ses câbles."
       }
     },
     "steel_foil": {
@@ -4751,6 +4883,84 @@
       "name": "Bascule (allumée)",
       "desc": {
         "label": "Change d'état à chaque fois que son entrée se met à envoyer un signal ; démarre allumée. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_gate_nand": {
+      "name": "Porte NON-ET",
+      "desc": {
+        "label": "Envoie un signal sauf si tous les signaux qui lui sont liés en envoient un. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_gate_dlatch": {
+      "name": "Verrou de données",
+      "desc": {
+        "label": "Mémorise le signal de son lien de données (port in0) tant que son lien d'horloge (port in1) envoie un signal, et envoie ce qu'il mémorise. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_0": {
+      "name": "Compteur (0)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 0. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_1": {
+      "name": "Compteur (1)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 1. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_2": {
+      "name": "Compteur (2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 2. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_3": {
+      "name": "Compteur (3)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 3. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_4": {
+      "name": "Compteur (4)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 4. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_5": {
+      "name": "Compteur (5)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 5. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_6": {
+      "name": "Compteur (6)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 6. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_7": {
+      "name": "Compteur (7)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 7. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_8": {
+      "name": "Compteur (8)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 8. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_counter_9": {
+      "name": "Compteur (9)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 9. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie."
+      }
+    },
+    "signal_wire_floor": {
+      "name": "Sol câblé",
+      "desc": {
+        "label": "Un sol sous lequel passe un câble. Il envoie un signal tant que le joueur s'y tient en portant l'éclair. Nécessite : des liens de signal en sortie."
       }
     },
     "purple_wall": {
