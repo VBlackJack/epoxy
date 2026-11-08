@@ -1769,11 +1769,8 @@ export class LevelEditor {
     };
 
     // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
-    // A variant family (the no signs, the counters...) has one entry showing the variant in hand; a search still lists every variant.
+    // A variant family (the no signs, the counters) has one entry showing the variant in hand; a search still lists every variant.
     const placeable = Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true);
-    const handTile = this.brush.kind === 'terrain' || this.brush.kind === 'item' ? ConfigRegistry.getTile(this.brush.id) : undefined;
-    const handFamily = handTile ? variantFamilyOf(handTile) : null;
-    if (handTile && handFamily !== null && handTile.category === category) this.variantChoice.set(familyKey(category, handFamily), handTile.id);
     const collapse = collapseFamilies && editableRulesetOf(this.doc.ruleset) !== LYNX_RULESET;
     for (const tile of collapse ? paletteTilesOf(placeable, category, this.variantChoice) : placeable) {
       add(
@@ -1874,11 +1871,20 @@ export class LevelEditor {
    * Choosing a palette item puts the brush back in hand, except for a terrain tile while filling and on the Select
    * tool while a selection is there: the entry then waits for Shift+F to fill the selection with it.
    */
+  /** Remembers the variant in hand as the one its family button shows. */
+  private rememberVariant(brush: Brush): void {
+    if (brush.kind !== 'terrain' && brush.kind !== 'item') return;
+    const tile = ConfigRegistry.getTile(brush.id);
+    const family = tile ? variantFamilyOf(tile) : null;
+    if (tile && family !== null) this.variantChoice.set(familyKey(tile.category, family), tile.id);
+  }
+
   private selectBrush(brush: Brush): void {
     this.endLinkSession(false);
     const hintBefore = this.sideToolActive();
     const keepSelection = this.keepsSelectionOnChoice();
     this.brush = brush;
+    this.rememberVariant(brush);
     this.paletteStop = null;
     if (
       !keepSelection &&
@@ -2043,14 +2049,28 @@ export class LevelEditor {
   private rotateDirection(): void {
     // A rail piece in hand turns itself: the key picks its next starting position instead of the placing side. The
     // brush is set in place, so the tool, a selection and a floating paste stay as they are.
-    // A tile of a variant family cycles through the family the same way, and says which variant it landed on.
+    // A tile of a variant family cycles through the family the same way, and says which variant it landed on. R takes
+    // over for item brushes as well: an item has no facing, so the direction control means nothing for it. Under the
+    // Lynx rules the variants that engine lacks are skipped.
     if ((this.brush.kind === 'terrain' || this.brush.kind === 'item') && !this.isCc3d()) {
       const tiles = ConfigRegistry.getTiles().tiles;
-      const step = tiles[this.brush.id] ? nextBrushTile(tiles[this.brush.id], tiles) : null;
+      const ruleset = editableRulesetOf(this.doc.ruleset);
+      const start = this.brush.id;
+      let step = tiles[start] ? nextBrushTile(tiles[start], tiles) : null;
+      while (step !== null && step.id !== start && ruleset === LYNX_RULESET && !tileAvailability(ruleset, step.id).available) {
+        step = nextBrushTile(tiles[step.id], tiles);
+      }
+      if (step !== null && step.id === start) step = null;
       if (step !== null) {
+        const grid = byId(PALETTE_GRID_ID);
+        const focused = document.activeElement;
+        const gridHadFocus = focused instanceof HTMLElement && grid !== null && grid.contains(focused) && focused.dataset.brushId === start;
         this.brush = { kind: tiles[step.id].layer === 'item' ? 'item' : 'terrain', id: step.id };
+        this.rememberVariant(this.brush);
         this.updateCanvasLabel();
         this.renderPaletteItems();
+        // The family button now stands for the new variant: the focus follows it instead of being lost with the old one.
+        if (gridHadFocus) this.restoreGridFocus(grid, this.brush.kind, step.id);
         const description = paletteDescription(this.brush.kind, step.id, t);
         const label = this.brushLabel(this.brush);
         if (step.rail) this.setStatusText(description === undefined ? label : nameWithDescription(label, description));
@@ -4152,6 +4172,7 @@ export class LevelEditor {
     const picked = pickFromCell(this.doc, x, y, FLOOR_TILE_ID);
     this.endLinkSession(false);
     this.brush = picked.brush;
+    this.rememberVariant(picked.brush);
     if (picked.dir) {
       this.activeDir = picked.dir;
       this.updateDirButtons();

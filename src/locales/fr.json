@@ -1552,7 +1552,7 @@
         "label": "B / F / E / I : Pinceau, Remplir, Gomme, Pipette (Alt+clic ou clic du milieu prend aussi)"
       },
       "kb_editor_rotate": {
-        "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi, ou tourner le rail choisi vers sa position de départ suivante"
+        "label": "R : Tourner l'orientation de la créature ou du départ du joueur choisi, tourner le rail choisi vers sa position de départ suivante, ou passer à la variante suivante d'une famille (interdits, compteurs, portes pivotantes, interrupteur)"
       },
       "kb_editor_rotate_in_place": {
         "label": "Maj+R : Tourner d'un quart de tour vers la droite la créature ou la tourelle sous le curseur (la machine à cloner dessous suit), ou tourne un tampon flottant"
@@ -3286,7 +3286,7 @@
           "west": {
             "aria": "Orienter vers l'ouest"
           },
-          "rotate": "Tourner dans le sens horaire (R)"
+          "rotate": "Tourner dans le sens horaire, ou variante suivante du pinceau en main (R)"
         }
       },
       "inspector": {

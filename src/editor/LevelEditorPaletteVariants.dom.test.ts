@@ -220,6 +220,18 @@ describe('the rotate key cycles a variant family', () => {
     expect(editor.exportCompiledLevel().items[CURSOR_START][CURSOR_START]).toBeNull();
   });
 
+  it('keeps the focus on the family button when R changes its variant', () => {
+    open(room());
+    openTab(ITEMS_CATEGORY);
+    const members = membersOf(NO_SIGN_FAMILY, ITEMS_CATEGORY);
+    const button = entryFor(members[0])!;
+    button.click();
+    entryFor(members[0])!.focus();
+    shortcut('r');
+    const entry = entryFor(members[1])!;
+    expect(document.activeElement).toBe(entry);
+  });
+
   it('leaves Shift+R to the in-place rotation, which does not touch the brush', () => {
     open(room());
     openTab(ITEMS_CATEGORY);
