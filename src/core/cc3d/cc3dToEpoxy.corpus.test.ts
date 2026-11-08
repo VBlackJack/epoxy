@@ -48,7 +48,6 @@ const ISSUE_SUFFIX = '.label';
 const CONVERTED_PREFIX = 'cc3d_';
 /** Validator errors a converted level may keep: the CC3D rules cannot be expressed in the Epoxy ones (arbitration 3). */
 const ALLOWED_ERROR_KEYS: readonly string[] = [
-  'socket_bypass',
   'unreachable_chips',
   'unreachable_exit',
   'no_matching_key',
