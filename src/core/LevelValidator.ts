@@ -24,6 +24,10 @@ import {
   HINT_TILE_ID,
   CELL_EDGE_BITS,
   OPPOSITE_DIRECTION,
+  RAILROAD_SIGN_ITEM_ID,
+  RAIL_DEFAULT_ENTRY,
+  RAIL_TRACK_COUNT,
+  RAIL_TRACK_SIDES,
   WALL_TILE_ID,
   MECHANICS_PARAM,
   MECHANICS_SEPARATOR,
@@ -194,6 +198,8 @@ interface DoorRankContext {
 
 interface QueuedCell extends GridPoint {
   boots: number;
+  /** Side a CC2 track cell was entered by; absent elsewhere and for arrivals that carry no side (teleport, slide, pad). */
+  entry?: Direction;
 }
 
 interface SlideResult {
@@ -579,6 +585,20 @@ export class LevelValidator {
       return tile.passableByPlayer !== true || tile.hazard !== undefined || tile.slideType !== undefined || tile.forceDirection !== undefined;
     };
 
+    // CC2 track cells: the segments each holds (a cell the level lists none for lets nobody in). Empty without track cells.
+    const railMasks = new Map<number, number>();
+    for (let ry = 0; ry < height; ry++) {
+      for (let rx = 0; rx < width; rx++) {
+        if (ConfigRegistry.getTile(level.terrain[ry][rx]).railJunction === true) railMasks.set(ry * width + rx, 0);
+      }
+    }
+    const railEntries = new Map<number, Direction>();
+    for (const cell of level.railTracks ?? []) {
+      const index = cell.y * width + cell.x;
+      if (railMasks.has(index)) railMasks.set(index, cell.mask);
+      railEntries.set(index, cell.entry ?? RAIL_DEFAULT_ENTRY);
+    }
+
     const rankBudget = { left: RANK_STEP_BUDGET };
     const meter = options.meter;
 
@@ -613,6 +633,10 @@ export class LevelValidator {
       const ownedKeys: Record<string, number> = {};
       let collectedChips = 0;
       let reachableExit = false;
+      // Set once the walk reaches a railroad sign: its holder ignores the tracks, and the sign is not tracked per state
+      // (it protects from nothing), so from then on every track cell is taken as open floor (over-approximation).
+      let railSignReached = false;
+      const tracksBind = (): boolean => railMasks.size > 0 && !railSignReached;
 
       // Reachable blocks are counted per type, globally and not by position. What a block can do to a hazard
       // depends on its type: a dirt block fills water, an ice block melts fire and turns water into ice, a mirror
@@ -727,8 +751,18 @@ export class LevelValidator {
 
         const visited = new Uint8Array(maskCount * width * height);
         const queue: QueuedCell[] = [];
-        const enqueue = (x: number, y: number, boots: number): void => {
+        // A track cell is reached once per side it was entered by: the side decides which segments lead out.
+        const trackSeen = new Set<string>();
+        const enqueue = (x: number, y: number, boots: number, entry?: Direction): void => {
           const idx = (boots * height + y) * width + x;
+          if (tracksBind() && railMasks.has(y * width + x)) {
+            const trackKey = `${idx}:${entry ?? ''}`;
+            if (trackSeen.has(trackKey)) return;
+            trackSeen.add(trackKey);
+            visited[idx] = 1;
+            queue.push({ x, y, boots, entry });
+            return;
+          }
           if (!visited[idx]) {
             visited[idx] = 1;
             queue.push({ x, y, boots });
@@ -768,6 +802,10 @@ export class LevelValidator {
             simItems[cy][cx] = null;
             changed = true;
           } else if (itemDef.collectible === 'boot') {
+            if (item === RAILROAD_SIGN_ITEM_ID && !railSignReached) {
+              railSignReached = true;
+              changed = true;
+            }
             return boots | (bootBits.get(item) ?? NO_BOOTS);
           }
           return boots;
@@ -789,7 +827,7 @@ export class LevelValidator {
             }
           }
         }
-        enqueue(sx, sy, NO_BOOTS);
+        enqueue(sx, sy, NO_BOOTS, railEntries.get(sy * width + sx));
 
         /**
          * Links the pocket pads once the gates reached and the placed pads can make a pair: every reached cell may hold
@@ -822,7 +860,7 @@ export class LevelValidator {
           const pickedUp = collectAt(curr.x, curr.y, curr.boots);
           if (pickedUp !== curr.boots) {
             // Same cell, now holding the boot: continue from that state instead
-            enqueue(curr.x, curr.y, pickedUp);
+            enqueue(curr.x, curr.y, pickedUp, curr.entry);
             continue;
           }
 
@@ -911,6 +949,15 @@ export class LevelValidator {
               continue;
             }
 
+            // Tracks: the cell left lets the walker out only along a segment joining the side it came in by, and the cell
+            // entered needs a segment on the side the walker arrives by. Any segment counts, switches included.
+            if (tracksBind()) {
+              const leaving = railMasks.get(curr.y * width + curr.x);
+              if (leaving !== undefined && this.railExitRefused(leaving, curr.entry, dir)) continue;
+              const entering = railMasks.get(ny * width + nx);
+              if (entering !== undefined && !this.railTouchesSide(entering, OPPOSITE_DIRECTION[dir])) continue;
+            }
+
             let nextTile = ConfigRegistry.getTile(simTerrain[ny][nx]);
 
             if (nextTile.revealsToOnTouch && nextTile.revealsToOnTouch !== simTerrain[ny][nx]) {
@@ -970,7 +1017,9 @@ export class LevelValidator {
             if (this.characterBars(nextTile, character, curr.boots, bootBits)) continue;
 
             // A barrier against a held item is passable here: the item can be put down
-            // before it and fetched later, so reachability stays optimistic about it.
+            // before it and fetched later, so reachability stays optimistic about it. That covers the no-signs
+            // on the item layer too (forbiddenItem on an item tile): keys are tracked as a shared count and
+            // boots only when they protect, and a held item can be dropped, so blocking is not sound.
 
             const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits, tokenLevel);
             // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
@@ -1083,7 +1132,7 @@ export class LevelValidator {
               continue;
             }
 
-            enqueue(nx, ny, nextBoots);
+            enqueue(nx, ny, nextBoots, OPPOSITE_DIRECTION[dir]);
           }
         }
 
@@ -2769,6 +2818,30 @@ export class LevelValidator {
       }
     }
     return false;
+  }
+
+  /** Whether a segment of the track cell mask touches the side. */
+  private static railTouchesSide(mask: number, side: Direction): boolean {
+    for (let track = 0; track < RAIL_TRACK_COUNT; track++) {
+      if ((mask & (1 << track)) !== 0 && RAIL_TRACK_SIDES[track].includes(side)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a track cell refuses a walker stepping out towards `dir` (rules of epoxyRailsCc2). Stepping back out of the
+   * side it came in by is refused; otherwise some segment must join the entry side and `dir`. An arrival that carries no
+   * side (teleport, slide) may leave along any segment touching `dir`. Which segment is active is ignored: a switch can
+   * turn, so any segment may be open (over-approximation).
+   */
+  private static railExitRefused(mask: number, entry: Direction | undefined, dir: Direction): boolean {
+    if (entry === dir) return true;
+    for (let track = 0; track < RAIL_TRACK_COUNT; track++) {
+      if ((mask & (1 << track)) === 0) continue;
+      const [a, b] = RAIL_TRACK_SIDES[track];
+      if (entry === undefined ? a === dir || b === dir : (a === entry && b === dir) || (b === entry && a === dir)) return false;
+    }
+    return true;
   }
 
   /** Whether the tile's closed sides change during play: a swivel door or a rail switch. */
