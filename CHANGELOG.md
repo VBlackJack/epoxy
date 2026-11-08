@@ -21,6 +21,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Chuck's Challenge 3D yellow golem as an Epoxy monster (`golem_yellow`) and sand (`sand`, pack format 13): the golem only moves when the player steps on a golem control, one step in the player's direction, pushing one block, walking sand and sinking turtles; sand lets the player, blocks and the yellow golem in but no other monster. The CC3D conversion uses them instead of the puppet and gravel. Drawings in every style, both locales.
 - Chuck's Challenge 3D blue golem as an Epoxy monster (`golem_blue`, pack format 13): it marches straight on, turns round when a blue button is pressed, and stops before water, fire and slime; the CC3D conversion uses it instead of the tank. Drawings in every style, both locales.
 - Documentation: a mechanisms reference for level authors (docs/mechanisms.md, French mirror docs/fr/mechanisms.md) covering every CC2, CC3D and Epoxy mechanism added in this release and how to place it in the editor; authoring help rows in the editor; the French puzzle encyclopedia is back in sync with the English one.
 - Level editor: a Second Player tool places extra player starts (up to 7, facing from the direction control, R or Shift+R turns them); the Cell inspector picks each one's character (Chip or Melinda) or removes it; extras follow every edit (eraser, cut, paste, move, resize, undo) and the level settings show the player count. Epoxy rules only. Both locales.

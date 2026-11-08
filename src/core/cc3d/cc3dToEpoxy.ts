@@ -171,7 +171,7 @@ const TERRAIN_RULES: Record<Cc3dTerrainKind, TerrainRule> = {
   turtle: { id: fixed('turtle') },
   dirt: { id: fixed('dirt') },
   gravel: { id: fixed('gravel') },
-  sand: { id: fixed('gravel') },
+  sand: { id: fixed('sand') },
   teleport_blue: { id: fixed(TELEPORT_FORWARD_TILE_ID) },
   teleport_red: { id: fixed(TELEPORT_TURNING_TILE_ID) },
   push_up_wall: { id: fixed('recessed_wall') },
@@ -260,7 +260,7 @@ const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
   snappy: { type: fixed('snappy') },
   nibble: { type: fixed('nibble') },
   golem_blue: { type: fixed('golem_blue') },
-  golem_yellow: { type: fixed('puppet') },
+  golem_yellow: { type: fixed('golem_yellow') },
   laser_shooter: { type: null },
   bot_static: { type: fixed('turret_fixed') },
   // Epoxy makes no turn at the first step, so a rotating turret is placed one quarter turn ahead.

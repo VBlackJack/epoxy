@@ -124,6 +124,43 @@ function paintGravel(ctx: CanvasRenderingContext2D, size: number, art: Art, nb: 
   }
 }
 
+// ---- Sand -------------------------------------------------------------------------------------
+
+const SAND = {
+  bedInset: 0.06,
+  bedCorner: 0.1,
+  grainCount: 22,
+  grainSalt: 151,
+  grainMargin: 0.14,
+  grainRadius: 0.028,
+  grainRadiusSpan: 0.02,
+  grainSquash: 0.7,
+  grainAlpha: 0.8
+} as const;
+
+/** Sand: a fine bed in the light earth colour with small grains scattered from the cell hash. */
+function paintSand(ctx: CanvasRenderingContext2D, size: number, art: Art, nb: Neighbours): void {
+  const { dirt } = art.mark;
+  paintFloor(ctx, size, art, nb);
+  const inset = size * SAND.bedInset;
+  ctx.fillStyle = dirt.light;
+  roundRect(ctx, inset, inset, size - inset * 2, size - inset * 2, size * SAND.bedCorner);
+  ctx.fill();
+  outline(ctx, size, dirt.edge);
+  const span = 1 - SAND.grainMargin * 2;
+  ctx.globalAlpha = SAND.grainAlpha;
+  for (let i = 0; i < SAND.grainCount; i += 1) {
+    const h = tileHash(nb.hash, SAND.grainSalt + i);
+    const px = SAND.grainMargin + inkUnit(h, INK.shiftA) * span;
+    const py = SAND.grainMargin + inkUnit(h, INK.shiftB) * span;
+    const r = SAND.grainRadius + inkUnit(h, INK.shiftC) * SAND.grainRadiusSpan;
+    ellipse(ctx, size, px, py, r, r * SAND.grainSquash);
+    ctx.fillStyle = i % 2 === 0 ? dirt.base : dirt.dark;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 // ---- Dirt -------------------------------------------------------------------------------------
 
 const DIRT = {
@@ -614,6 +651,7 @@ function signalTile(id: string): RunewardTilePainter {
 export const TILES: Readonly<Record<string, RunewardTilePainter>> = {
   gravel: staticMark((ctx, size, art, nb) => paintGravel(ctx, size, art, nb)),
   dirt: staticMark((ctx, size, art, nb) => paintDirt(ctx, size, art, nb)),
+  sand: staticMark((ctx, size, art, nb) => paintSand(ctx, size, art, nb)),
   hint: staticMark((ctx, size, art, nb) => paintHint(ctx, size, art, nb)),
   recessed_wall: staticMark((ctx, size, art, nb) => paintRecessedWall(ctx, size, art, nb)),
   block_target: staticMark((ctx, size, art, nb) => paintBlockTarget(ctx, size, art, nb)),

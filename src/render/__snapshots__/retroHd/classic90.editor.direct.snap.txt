@@ -346,6 +346,8 @@ editor tile teleport_forward closed=true 6f88ee035143463c
 editor tile teleport_forward closed=false d6e2689639942fe7
 editor tile teleport_turning closed=true c02063d2f0fb305d
 editor tile teleport_turning closed=false 21af9518d309f537
+editor tile sand closed=true e4f54d764a5661d5
+editor tile sand closed=false 01d055a2491218d5
 editor tile key_red closed=true 4cb5e738243c12eb
 editor tile key_red closed=false 346ba933117db923
 editor tile key_blue closed=true 72eb368a33ef368b
@@ -578,3 +580,4 @@ editor entity over floor screamer ba8eceb657ce2e02
 editor entity over floor baby_screamer 5beb142350fcd4b9
 editor entity over floor walker_3d eef9d636f7190ebc
 editor entity over floor golem_blue e75a6b3dc56d5e3d
+editor entity over floor golem_yellow 97b37d42c8087f5a
