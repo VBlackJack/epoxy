@@ -68,7 +68,10 @@ function entry(level: CoverageLevel, reason: string): CoverageEntry {
 }
 
 const EXACT_REASON = 'Epoxy plays this element as CC3D does.';
-const MONSTER_REASON = 'Monster movement is close to CC3D, not identical.';
+const MONSTER_EVIDENCE =
+  ' Measured in cc3dEvidenceMonsters.test.ts against the CC3D engine, state by state, in a maze and at water, fire, slime, dirt, gravel, sand, the exit, the gates, items, turtles, bombs, ice blocks, toggle controls, ice and force floors.';
+const MONSTER_PACE_GAP =
+  ' What differs without changing the path: entering ice or a force floor is a fast step in CC3D and a normal one in Epoxy, and a monster that reaches the player stands next to him in CC3D and on his cell in Epoxy.';
 const TOOL_CAP_GAP =
   'CC3D holds at most four tools and a fifth drops the oldest on the cell, where Epoxy keeps every pair of boots (cc3dEvidenceOrbs.test.ts).';
 const ORB_ICE_REASON = `Ice and force floors, fire and water behave as in CC3D with the orb in hand or not. ${TOOL_CAP_GAP}`;
@@ -78,8 +81,7 @@ const SLIME_ORBS_GAP =
 const ORB_FIRE_REASON = `The orb protects from fire and not from water, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_GAP}`;
 const ORB_WATER_REASON = `The orb protects from water and not from fire, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_GAP}`;
 const PLATE_REASON =
-  'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither. The CC3D baby blinky, baby screamer and both legs press a plate and become flying Epoxy monsters (glider, fireball) that do not.';
-const FLYER_PLATE_GAP = ' Unlike in CC3D, the converted monster does not press colour plates (it flies in Epoxy).';
+  'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, the baby blinky, the baby screamer, both legs, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither.';
 const BLOCK_GAPS =
   'Epoxy lets the block into fire and onto an item, where CC3D refuses both; it refuses dirt, where CC3D lets the block in and clears the dirt; and it refuses an open blue gate, where CC3D lets the block in and clears the gate.';
 const COLOR_BLOCK_REASON = `Plates (its own colour only), slime, bombs, gravel, sand, ice, force floors, water and the exit behave as in CC3D (cc3dEvidenceBlocks.test.ts). ${BLOCK_GAPS}`;
@@ -87,13 +89,13 @@ const BLOCK_DIRT_REASON = `Plates, water (it makes dirt), slime, bombs, gravel, 
 const BLOCK_ICE_REASON =
   'Fire (it melts into water), water (it freezes), slime, bombs, gravel, sand, ice, force floors, plates, the exit and items behave as in CC3D (cc3dEvidenceBlocks.test.ts). Epoxy refuses dirt, where CC3D slides the block over it without clearing it; it refuses a chain of blocks, where CC3D pushes the whole chain; it refuses both security gates, where CC3D slides the block over them; and it refuses an open blue gate, where CC3D lets the block in and clears the gate.';
 const WATER_REASON =
-  'A dirt block makes dirt, an ice block ice and a colour block a bridge the player walks over, and the player drowns unless he holds the water orb, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy monsters walk into water and drown, where CC3D monsters without water immunity refuse the cell; and Epoxy lets a second block be pushed onto a floating colour block, where CC3D refuses it.';
+  'A dirt block makes dirt, an ice block ice and a colour block a bridge the player walks over, and the player drowns unless he holds the water orb, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and golems walk into water and drown, where the CC3D ones refuse the cell (the other CC3D monsters refuse it in Epoxy too, cc3dEvidenceMonsters.test.ts); and Epoxy lets a second block be pushed onto a floating colour block, where CC3D refuses it.';
 const TURTLE_REASON =
-  'The turtle sinks into water behind the player or the block that leaves it, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy monsters refuse a turtle, where CC3D monsters cross it and sink it.';
+  'The turtle sinks into water behind the player or the block that leaves it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and golems refuse a turtle, where the CC3D ones cross it and sink it (the other CC3D monsters cross it in Epoxy too, cc3dEvidenceMonsters.test.ts).';
 const DIRT_REASON =
   'The player clears dirt by walking into it, and monsters are stopped by it, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy refuses a block, where CC3D lets a block in and clears the dirt, and refuses the ice block, which CC3D slides over the dirt without clearing it.';
 const SLIME_REASON =
-  'Slime kills the player and is cleaned away with any block that enters it, as in CC3D (cc3dEvidenceTerrain.test.ts). A player holding the fire and the water orb together survives slime in CC3D and cleans it, where the Epoxy player dies; and a CC3D monster refuses slime, where an Epoxy monster walks in and dies.';
+  'Slime kills the player and is cleaned away with any block that enters it, as in CC3D (cc3dEvidenceTerrain.test.ts). A player holding the fire and the water orb together survives slime in CC3D and cleans it, where the Epoxy player dies; and a CC3D walker or golem refuses slime, where the Epoxy one walks in and dies (the other CC3D monsters refuse it in Epoxy too, cc3dEvidenceMonsters.test.ts).';
 const APPEARING_WALL_REASON =
   'The player bumping an appearing wall turns it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). A block pushed into it and a monster trying to enter it also make it a wall in CC3D, where Epoxy leaves it as it is.';
 const GATE_TOOLS_REASON =
@@ -118,20 +120,57 @@ const LASER_CONTROLLER_REASON =
 const LASER_SHOOTER_REASON =
   'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened; a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
 const NIBBLE_REASON =
-  'Epoxy plays a nibble as a skitter: it steps away from the player on the axis of the greater distance, with its rest folded into a fixed step interval [unverified].';
+  'Epoxy plays the nibble as a monster of its own: it steps away from the player along the axis of the greater distance (horizontal on a tie), tries the other axis only when not lined up, and waits otherwise, with its rest folded into an eight-tick step.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP +
+  ' The rest rule of the CC3D engine is itself [unverified].';
 const TELEPORT_RED_REASON =
   'The target (the previous red teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D tries forward, right, left, back; Epoxy blocks and monsters leave forward only.';
 const TELEPORT_BLUE_REASON =
   'The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only.';
+const LEGS_PATTERN_GAP =
+  ' The real game switches the pattern of the legs with the plates; neither the CC3D engine nor Epoxy models it, both play the base pattern [unverified].';
 const LEGS_GREEN_REASON =
-  'Epoxy plays the green legs as a fireball, which is immune to fire where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].' + FLYER_PLATE_GAP;
+  'Epoxy plays the green legs as a monster of their own: the fireball turn order (straight, right, left, back), a four-tick step, no immunity, and they press plates and switches.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP +
+  LEGS_PATTERN_GAP;
 const LEGS_RED_REASON =
-  'Epoxy plays the red legs as a glider, which is immune to water where the legs have no immunity; the pattern switching of the legs is not modelled [unverified].' + FLYER_PLATE_GAP;
+  'Epoxy plays the red legs as a monster of their own: the glider turn order (straight, left, right, back), a four-tick step, no immunity, and they press plates and switches.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP +
+  LEGS_PATTERN_GAP;
+const BOUNCER_REASON =
+  'Epoxy plays the bouncer as a monster of its own: straight on, back when blocked, a four-tick step, refusing water, fire and slime, pressing plates and switches.' + MONSTER_EVIDENCE + MONSTER_PACE_GAP;
+const BLINKY_REASON =
+  'Epoxy plays the blinky as a monster of its own: straight, left, right, back, a four-tick step, immune to water, not carried by ice or force floors, pressing no plate and working no switch, crossing turtles without sinking them.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP;
+const BABY_BLINKY_REASON =
+  'Epoxy plays the baby blinky as a monster of its own: straight, left, right, back, a four-tick step, immune to water only, carried by ice and force floors, pressing plates and switches, crossing turtles without sinking them.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP;
+const LIMPY_REASON =
+  'Epoxy plays the limpy as a monster of its own: right, straight, left, back, a four-tick step, refusing water, fire and slime, pressing plates and switches.' + MONSTER_EVIDENCE + MONSTER_PACE_GAP;
+const LIMPA_REASON =
+  'Epoxy plays the limpa as a monster of its own: left, straight, right, back, a four-tick step, refusing water, fire and slime, pressing plates and switches.' + MONSTER_EVIDENCE + MONSTER_PACE_GAP;
 const SCREAMER_REASON =
-  'Epoxy plays the screamer as a fireball, which is immune to fire but not to ice and force floors, which the CC3D screamer ignores; the screamer melting ice blocks is not modelled [unverified].';
+  'Epoxy plays the screamer as a monster of its own: straight, right, left, back, a four-tick step, immune to fire, not carried by ice or force floors, melting the ice blocks it meets (the floor becomes water), pressing no plate and working no switch.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP;
 const BABY_SCREAMER_REASON =
-  'Epoxy plays the baby screamer as a fireball: the immunity to fire matches, the melting of ice blocks by the baby screamer is not modelled [unverified].' + FLYER_PLATE_GAP;
-const BABY_BLINKY_REASON = MONSTER_REASON + FLYER_PLATE_GAP;
+  'Epoxy plays the baby screamer as a monster of its own: straight, right, left, back, a four-tick step, immune to fire only, carried by ice and force floors, melting the ice blocks it meets, pressing plates and switches.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP;
+const SNAPPY_REASON =
+  'Epoxy plays the snappy as a monster of its own: it steps towards the player along the axis of the greater distance (horizontal on a tie), tries the other axis only when not lined up, and waits otherwise, with its rest folded into an eight-tick step.' +
+  MONSTER_EVIDENCE +
+  MONSTER_PACE_GAP +
+  ' The rest rule of the CC3D engine is itself [unverified].';
+const WALKER_REASON =
+  'Epoxy plays the walker as a monster of its own: straight on, and when blocked one draw among the four ways with a blocked draw a wait, a four-tick step, refusing water, fire and slime, pressing plates and switches, crossing turtles and sinking them. Measured in cc3dEvidenceMonsters.test.ts on corridors, where the path is fixed whatever is drawn: the same cells in the same order at water, fire, slime, dirt, gravel, sand, the exit, turtles, bombs and toggle controls. The draws of the two engines come from different random sequences, so a walker in an open room cannot be matched step by step [unverified].';
+const OMNI_REASON =
+  'Epoxy plays the omni as a monster of its own: it draws one direction at random, waits when the draw is blocked, steps in eight ticks, refuses water and fire, is not hurt by slime and leaves slime on the bare floor it steps out of once it has stood on slime (cc3dEvidenceMonsters.test.ts agrees on a corridor it cannot leave, the trail included). The draws of the two engines come from different random sequences, so a roaming omni cannot be matched step by step [unverified].';
 const TRAP_UNWORKED_REASON =
   'No trap control works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button (cc3dEvidenceDevices.test.ts). An Epoxy trap link has no empty form, so the converter cannot say "worked by nothing".';
 const CLONE_SWITCH_EMPTY_REASON =
@@ -165,13 +204,15 @@ const EXACT_KEYS: readonly string[] = [
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR,
   // A stack Epoxy holds exactly: see classifyStack.
-  KEY_STACKED_TERRAIN
+  KEY_STACKED_TERRAIN,
+  // The CC3D monsters that have an Epoxy monster of their own, measured by cc3dEvidenceMonsters.test.ts.
+  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
   force_random:
-    'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force (blinky, screamer, yellow golem) are not turned; the same monster gap exists on plain force floors, so this entry is kept exact for the floor itself [unverified for monsters].',
+    'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force are not turned: the blinky and the screamer are not turned in Epoxy either (cc3dEvidenceMonsters.test.ts), the yellow golem still is; this entry is kept exact for the floor itself [unverified for the golem].',
   sand: SAND_REASON,
   fish_extra: FISH_EXTRA_REASON,
   [KEY_SOCKET_RED]: SOCKET_RED_REASON,
@@ -181,7 +222,16 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   trap_control: TRAP_CONTROL_REASON,
   clone_machine: CLONE_MACHINE_REASON,
   clone_switch: CLONE_SWITCH_REASON,
-  golem_control_blue: GOLEM_CONTROL_BLUE_REASON
+  golem_control_blue: GOLEM_CONTROL_BLUE_REASON,
+  bouncer: BOUNCER_REASON,
+  blinky: BLINKY_REASON,
+  baby_blinky: BABY_BLINKY_REASON,
+  limpy: LIMPY_REASON,
+  limpa: LIMPA_REASON,
+  screamer: SCREAMER_REASON,
+  baby_screamer: BABY_SCREAMER_REASON,
+  snappy: SNAPPY_REASON,
+  nibble: NIBBLE_REASON
 };
 
 const APPROX_ENTRIES: Record<string, string> = {
@@ -214,25 +264,16 @@ const APPROX_ENTRIES: Record<string, string> = {
   block_color_yellow: COLOR_BLOCK_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
-  walker: MONSTER_REASON,
+  walker: WALKER_REASON,
   legs_green: LEGS_GREEN_REASON,
   legs_red: LEGS_RED_REASON,
-  blinky: MONSTER_REASON,
-  baby_blinky: BABY_BLINKY_REASON,
-  limpa: MONSTER_REASON,
-  limpy: MONSTER_REASON,
-  bouncer: MONSTER_REASON,
-  omni: MONSTER_REASON,
-  screamer: SCREAMER_REASON,
-  baby_screamer: BABY_SCREAMER_REASON,
-  snappy: MONSTER_REASON,
+  omni: OMNI_REASON,
   bot_static: BOT_REASON,
   bot_cw: BOT_REASON,
   bot_ccw: BOT_REASON,
   bot_multi: BOT_REASON,
   golem_yellow: GOLEM_YELLOW_REASON,
   golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
-  nibble: NIBBLE_REASON,
   golem_blue: GOLEM_BLUE_REASON,
   laser_controller: LASER_CONTROLLER_REASON,
   laser_shooter: LASER_SHOOTER_REASON

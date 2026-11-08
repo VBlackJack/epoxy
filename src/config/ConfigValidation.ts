@@ -21,6 +21,8 @@ import {
   CC2_UNIMPLEMENTED_SOURCE,
   CHASE_PLAYER_PATTERN,
   EMULATE_CYCLE_PATTERN,
+  RANDOM_DRAW_PATTERN,
+  FORWARD_ELSE_DRAW_PATTERN,
   FIRE_LAUNCHERS_ACTION,
   FLEE_PLAYER_PATTERN,
   MIRROR_FRONT_AXIS,
@@ -1612,6 +1614,8 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   STATIONARY_PATTERN,
   PHASE_LINE_PATTERN,
   EMULATE_CYCLE_PATTERN,
+  RANDOM_DRAW_PATTERN,
+  FORWARD_ELSE_DRAW_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',
@@ -1680,7 +1684,12 @@ const MONSTER_FLAG_FIELDS = [
   'ignoresFloorEffects',
   'passesItems',
   'blockedByCanopy',
-  'blockedBetweenCanopies'
+  'blockedBetweenCanopies',
+  'ignoresSlidingFloors',
+  'meltsIceBlocks',
+  'immuneToSlime',
+  'entersTurtles',
+  'leavesTurtlesAfloat'
 ] as const;
 
 /**
@@ -1701,6 +1710,21 @@ export function findMonsterBehaviourConfigErrors(
       if (entity[field] === undefined) continue;
       if (typeof entity[field] !== 'boolean') errors.push(`${id}.${field}: expected a boolean`);
       if (entity.kind !== 'monster') errors.push(`${id}.${field}: only a monster has this field`);
+    }
+    if (entity.trailTile !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.trailTile: only a monster leaves a trail`);
+      if (typeof entity.trailTile !== 'string' || tiles[entity.trailTile] === undefined) {
+        errors.push(`${id}.trailTile: "${String(entity.trailTile)}" is not the id of an existing tile`);
+      }
+    }
+    if (entity.refusesHazards !== undefined && entity.kind === 'monster') {
+      if (!Array.isArray(entity.refusesHazards)) {
+        errors.push(`${id}.refusesHazards: expected a list of hazards`);
+      } else {
+        for (const hazard of entity.refusesHazards) {
+          if (!MONSTER_HAZARDS.includes(hazard)) errors.push(`${id}.refusesHazards: unknown hazard ${String(hazard)}`);
+        }
+      }
     }
     if (entity.fleesCharacters !== undefined) {
       if (entity.kind !== 'monster') errors.push(`${id}.fleesCharacters: only a monster flees a character`);

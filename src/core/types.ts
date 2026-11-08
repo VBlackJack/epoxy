@@ -1416,6 +1416,24 @@ export interface EntityDefinition {
   ignoresFloorEffects?: boolean;
   /** A monster that walks over items without being stopped by them or picking them up. */
   passesItems?: boolean;
+  /**
+   * A monster that ice and force floors (plain, random or turning) neither carry nor turn: on them it keeps to its own
+   * movement pattern, as on plain floor (the CC3D blinky and screamer).
+   */
+  ignoresSlidingFloors?: boolean;
+  /**
+   * A monster that melts the ice block it tries to enter: the block is removed, the floor under it becomes what the
+   * block melts into, and the monster does not move that step (the CC3D screamers).
+   */
+  meltsIceBlocks?: boolean;
+  /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
+  immuneToSlime?: boolean;
+  /** A monster that steps onto turtles, which sink into water behind it when it leaves them (the CC3D monsters). */
+  entersTurtles?: boolean;
+  /** A monster that `entersTurtles` and leaves them afloat instead of sinking them (the CC3D blinkies). */
+  leavesTurtlesAfloat?: boolean;
+  /** Tile the monster leaves on the plain, itemless floor cell it steps out of (the CC3D omni leaves slime). */
+  trailTile?: string;
   /** A monster that follows the behaviour of these monsters in turn (movement pattern `emulate_cycle`), in this order. */
   emulates?: string[];
   /** Step decisions a monster that `emulates` others takes before it moves on to the next behaviour. */
@@ -1995,6 +2013,8 @@ export interface RuntimeEntity {
   emulatee?: number;
   /** Rovers only: step decisions taken since the rover last changed behaviour. */
   emulationMoves?: number;
+  /** Monsters with a trail only: the monster has stood on slime, so it leaves the trail tile on the floor it steps out of. */
+  slimed?: boolean;
 }
 
 export interface PlayerState {

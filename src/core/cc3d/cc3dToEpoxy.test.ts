@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { isCompiledLevelShape, sanitizeStoredLevels, stripInvalidTextFields } from '../../config/ConfigValidation';
-import { PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_V7 } from '../../config/constants';
+import { PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V7 } from '../../config/constants';
 import { parsePackJson, serializePack } from '../../packs/packJson';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -205,19 +205,19 @@ const MOB_CASES: MobCase[] = [
   mobCase('reflector', 'one_sided_mirror_nw', { mirror: 'DL' }),
   mobCase('reflector', 'one_sided_mirror_se', { mirror: 'UR' }),
   mobCase('reflector', 'one_sided_mirror_ne', { mirror: 'RD' }),
-  mobCase('walker', 'walker'),
-  mobCase('legs_green', 'fireball'),
-  mobCase('legs_red', 'glider'),
-  mobCase('blinky', 'glider'),
-  mobCase('baby_blinky', 'glider'),
-  mobCase('limpa', 'bug'),
-  mobCase('limpy', 'paramecium'),
-  mobCase('bouncer', 'pink_ball'),
-  mobCase('omni', 'blob'),
-  mobCase('screamer', 'fireball'),
-  mobCase('baby_screamer', 'fireball'),
-  mobCase('snappy', 'teeth'),
-  mobCase('nibble', 'skitter'),
+  mobCase('walker', 'walker_3d'),
+  mobCase('legs_green', 'legs_green'),
+  mobCase('legs_red', 'legs_red'),
+  mobCase('blinky', 'blinky'),
+  mobCase('baby_blinky', 'baby_blinky'),
+  mobCase('limpa', 'limpa'),
+  mobCase('limpy', 'limpy'),
+  mobCase('bouncer', 'bouncer'),
+  mobCase('omni', 'omni'),
+  mobCase('screamer', 'screamer'),
+  mobCase('baby_screamer', 'baby_screamer'),
+  mobCase('snappy', 'snappy'),
+  mobCase('nibble', 'nibble'),
   mobCase('golem_blue', 'tank'),
   mobCase('golem_yellow', 'puppet'),
   mobCase('laser_shooter', null),
@@ -819,11 +819,13 @@ describe('properties of a conversion', () => {
     expect(sanitizeStoredLevels([level], bounds, ConfigRegistry.getLevelTextLimits())).toEqual([level]);
   });
 
-  it('round trips through a pack file of version 4', () => {
+  it('round trips through a pack file of version 13 (the CC3D walker is a version 13 id)', () => {
     const { level } = convertCc3dLevel(richLevel());
     expect(level.launcherLinks?.length).toBeGreaterThan(0);
     const text = serializePack('Pack', [level]);
-    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_LAUNCHERS);
+    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V13);
+    // The launchers alone need version 4: only the monster raised the version.
+    expect(PACK_JSON_VERSION_V13).toBeGreaterThan(PACK_JSON_VERSION_LAUNCHERS);
     const parsed = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), Date.now, undefined, ConfigRegistry.getLevelTextLimits());
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.levels).toEqual([level]);
@@ -889,7 +891,7 @@ describe('properties of a conversion', () => {
         buttonY: point(l.from).y,
         clonerX: point(l.to as number).x,
         clonerY: point(l.to as number).y,
-        templateType: 'walker',
+        templateType: 'walker_3d',
         templateDir: 'E'
       }))
     );
