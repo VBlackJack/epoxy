@@ -1987,6 +1987,31 @@
         "cleared": {"label": "Tracks at ({x}, {y}) cleared."}
       }
     },
+    "extra_players": {
+      "heading": "Second player at ({x}, {y})",
+      "character": {
+        "legend": "Character",
+        "chip": {"label": "Chip"},
+        "melinda": {"label": "Melinda"}
+      },
+      "remove": {
+        "action": "Remove this player"
+      },
+      "rotate": {
+        "hint": "Press Shift+R to turn this player a quarter turn."
+      },
+      "count": {
+        "label": "{count, plural, one {# player} other {# players}}"
+      },
+      "status": {
+        "on_start": {"label": "A second player cannot start on the player start cell."},
+        "too_many": {"label": "A level has at most {count} more players: remove one first."},
+        "start_on_extra": {"label": "The player start cannot move onto the start of another player."},
+        "rotated": {"label": "Player at ({x}, {y}) turned to face {side}."},
+        "character": {"label": "Player at ({x}, {y}) is now {name}."},
+        "removed": {"label": "Player at ({x}, {y}) removed."}
+      }
+    },
     "cell_speech": {
       "port_input": {
         "label": "{role} input from ({x}, {y})"
@@ -2011,6 +2036,9 @@
       },
       "player": {
         "label": "Player start, facing {side}"
+      },
+      "extra_player": {
+        "label": "Second player, {name}, facing {side}"
       },
       "cloner": {
         "label": "clones {name} facing {side}"
@@ -3371,6 +3399,7 @@
         "dropped_entities": "{count, plural, one {# creature or block was} other {# creatures or blocks were}} removed.",
         "dropped_links": "{count, plural, one {# link was} other {# links were}} removed.",
         "start_moved": "The player start was moved inside the level.",
+        "dropped_players": "{count, plural, one {# second player was} other {# second players were}} removed.",
         "dropped_edges": "{count, plural, one {# cell lost its thin walls} other {# cells lost their thin walls}}.",
         "dropped_underlays": "{count, plural, one {# cell lost its hidden terrain} other {# cells lost their hidden terrain}}.",
         "border_kept": "The outer ring was closed with walls."
@@ -3445,6 +3474,9 @@
       },
       "character_melinda": {
         "label": "Melinda (no sliding on ice, hiking boots needed on dirt and gravel)"
+      },
+      "players": {
+        "label": "Players"
       },
       "win_rule_exit": {
         "label": "Reach the exit"
@@ -3558,6 +3590,12 @@
         },
         "player_start_desc": {
           "label": "Where the player begins the level. There is only one: placing it again moves it."
+        },
+        "extra_player_start": {
+          "label": "Second Player"
+        },
+        "extra_player_start_desc": {
+          "label": "The start of another player, for a level played by several characters you swap between. Click to place one, then pick its character in the Cell section; the direction control sets its facing. The eraser removes it."
         },
         "canopy": {
           "label": "Canopy"

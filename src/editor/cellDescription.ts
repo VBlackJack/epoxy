@@ -21,6 +21,7 @@ import { t } from '../i18n/I18nManager';
 import { closedSidesAt } from './editorCellEdges';
 import { EditorMap } from './editorDocument';
 import { holdsShotLauncher, holdsShotTrigger, launcherCountAt, triggerCountAt } from './editorLauncherLinks';
+import { CHARACTER_NAME_KEYS } from './extraPlayerEdits';
 import { entityHasFacing } from './entityFacing';
 import { underlayAt } from './editorUnderlays';
 import type { ToolMessage } from './editorTools';
@@ -47,6 +48,7 @@ const CLONER_KEY ='editor.cell_speech.cloner.label';
 const CLONER_TEMPLATE_KEY = 'editor.layout.status.cloner_template.label';
 const CLONERS_TEMPLATE_KEY = 'editor.layout.status.cloners_template.label';
 const EMPTY_CLONER_KEY = 'editor.layout.status.wire_empty_cloner.label';
+const EXTRA_PLAYER_KEY = 'editor.cell_speech.extra_player.label';
 const PLAYER_KEY = 'editor.cell_speech.player.label';
 const SIDE_LIST_SEPARATOR_KEY = 'editor.cell_speech.list_separator.label';
 const SIDE_KEYS: Record<Direction, string> = {
@@ -213,5 +215,7 @@ export function describeEditorCell(input: CellDescriptionInput): ToolMessage[] {
   if (map.playerStart.x === x && map.playerStart.y === y) {
     parts.push({ key: PLAYER_KEY, params: { side: sideOf(map.playerStart.dir) } });
   }
+  const other = map.extraPlayers?.find((p) => p.x === x && p.y === y);
+  if (other) parts.push({ key: EXTRA_PLAYER_KEY, params: { name: t(CHARACTER_NAME_KEYS[other.character]), side: sideOf(other.dir) } });
   return parts;
 }

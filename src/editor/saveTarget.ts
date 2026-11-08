@@ -121,6 +121,8 @@ function playfieldSignature(level: CompiledLevel): string {
     unordered(level.trapLinks),
     unordered(level.cloneLinks),
     canonicalJson(level.playerStart),
+    // Only a level with several players carries them, so the signature of every other level stays as it was.
+    ...(level.extraPlayers ? [canonicalJson(level.extraPlayers)] : []),
     canonicalJson(level.cellEdges ?? []),
     canonicalJson(level.underlays ?? []),
     // Only a level with track cells carries them, so the signature of every other level stays as it was.

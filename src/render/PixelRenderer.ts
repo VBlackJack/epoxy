@@ -6702,6 +6702,20 @@ export class PixelRenderer {
     if (this.playerCharacter === MELINDA_CHARACTER && alive) paintMelindaBow(ctx, x, y - hop * size, size, dir);
   }
 
+  /**
+   * Draws a standing player of a given character, whatever the level plays with: the editor shows each start of a level
+   * with several players as the character it will be. The character the renderer holds is put back afterwards.
+   */
+  public drawPlayerOfCharacter(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, dir: Direction, character: PlayerCharacter): void {
+    const previous = this.playerCharacter;
+    this.playerCharacter = character;
+    try {
+      this.drawPlayer(ctx, x, y, size, dir, false, true);
+    } finally {
+      this.playerCharacter = previous;
+    }
+  }
+
   /** The player of the level's character in the chosen skin, without the mark that tells Melinda from Chip. */
   private drawPlayerBody(
     ctx: CanvasRenderingContext2D,
