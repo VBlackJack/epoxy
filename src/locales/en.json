@@ -3782,8 +3782,8 @@
         "label": "Epoxy draws the direction at random instead of a fixed cycle."
       },
       "socket": {
-        "name": "Socket",
-        "label": "Epoxy sockets only react to the player."
+        "name": "Blue socket",
+        "label": "Epoxy plays the blue socket as its fish gate: shut while a chip is left, then open to the player, a block or a monster, and the first to enter turns it into floor, as in CC3D."
       },
       "slime": {
         "name": "Slime",
@@ -3799,11 +3799,11 @@
       },
       "teleport_blue": {
         "name": "Blue teleport",
-        "label": "The target (the previous blue teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D leaves forward only; Epoxy blocks and monsters leave forward only."
+        "label": "Epoxy plays the blue teleporter as its forward teleporter: the target is the previous blue teleporter in reading order, and the exit of the player, a block or a monster is forward only, as in CC3D."
       },
       "teleport_red": {
         "name": "Red teleport",
-        "label": "The target (the previous red teleport in reading order) is the same, but the exit differs: the Epoxy player leaves facing first, then in the fixed order north, east, south, west, where CC3D tries forward, right, left, back; Epoxy blocks and monsters leave forward only."
+        "label": "Epoxy plays the red teleporter as its turning teleporter: the target is the previous red teleporter in reading order, and the exit of the player, a block or a monster is forward, then right, then left, then back, as in CC3D."
       },
       "appearing_wall": {
         "name": "Appearing wall",
@@ -4872,6 +4872,24 @@
       "name": "Blue Teleporter",
       "desc": {
         "label": "Chains only with blue teleporters. Needs: another blue teleporter."
+      }
+    },
+    "fish_gate": {
+      "name": "Fish Gate",
+      "desc": {
+        "label": "Shut while a chip is left. Once the last chip is in, the player, a block or a monster may enter it, and the first to do so turns it into floor. Needs: chips to collect."
+      }
+    },
+    "teleport_forward": {
+      "name": "Forward Teleporter",
+      "desc": {
+        "label": "Chains only with other forward teleporters, and sends the player, a block or a monster out of the previous one in reading order, straight ahead only. Needs: another forward teleporter."
+      }
+    },
+    "teleport_turning": {
+      "name": "Turning Teleporter",
+      "desc": {
+        "label": "Chains only with other turning teleporters, and sends the player, a block or a monster out of the previous one in reading order: straight ahead, else to the right, else to the left, else back. Needs: another turning teleporter."
       }
     },
     "teleport_yellow": {

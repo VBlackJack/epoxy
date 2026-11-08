@@ -1305,7 +1305,8 @@ export class LevelValidator {
       const ty = fy + v.dy;
       if (tx < 0 || ty < 0 || tx >= width || ty >= height) return null;
       const dest = ConfigRegistry.getTile(level.terrain[ty][tx]);
-      if (dest.passableByBlock !== true) return null;
+      // A fish gate is read as open to a block (an over-approximation: it opens once the chips are in).
+      if (dest.passableByBlock !== true && dest.fishGate !== true) return null;
       if (dest.hazard && refused.includes(dest.hazard)) return null;
       if (this.isEdgeBlocked(level.terrain, edgeMask, fx, fy, tx, ty, d)) return null;
       return { x: tx, y: ty };
@@ -1374,7 +1375,8 @@ export class LevelValidator {
           const ny = y + vec.dy;
           if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
           const dest = ConfigRegistry.getTile(level.terrain[ny][nx]);
-          if (dest.passableByBlock !== true) continue;
+          // A fish gate is read as open to a block (an over-approximation: it opens once the chips are in).
+          if (dest.passableByBlock !== true && dest.fishGate !== true) continue;
           if (dest.hazard && refused.includes(dest.hazard)) continue;
           if (this.isEdgeBlocked(level.terrain, edgeMask, x, y, nx, ny, dir)) continue;
           // The player must be able to stand on the cell behind the block to push it this way.
@@ -2370,7 +2372,9 @@ export class LevelValidator {
           // A mirror player walks the terrain its character walks (doors of its key colour open to it): the flood
           // reads every tile the player may enter as open, an over-approximation that never turns a level unwinnable.
           const mirrored = def?.mirrorsCharacter !== undefined && possibleCharacters.includes(def.mirrorsCharacter) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
-          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored) : dest.passableByBlock !== true) continue;
+          // A fish gate is read as open to a monster or a block (an over-approximation: it opens once the chips are in).
+          const opensToMovers = dest.fishGate === true;
+          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers) : dest.passableByBlock !== true && !opensToMovers) continue;
           if (mirrored && dest.requiredKey !== undefined) mirrorOpened.push({ x: nx, y: ny });
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });

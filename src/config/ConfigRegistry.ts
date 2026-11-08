@@ -43,6 +43,7 @@ import {
   findEyeBootsConfigErrors,
   findChargeConfigErrors,
   findGateConfigErrors,
+  findFishGateAndExitErrors,
   findRelayPadConfigErrors,
   findWiredDeviceConfigErrors,
   findPullBootsConfigErrors,
@@ -430,6 +431,10 @@ class ConfigRegistryService {
     const gateErrors = findGateConfigErrors(bundle.tiles.tiles);
     if (gateErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, gateErrors.join('; '));
+    }
+    const fishGateErrors = findFishGateAndExitErrors(bundle.tiles.tiles);
+    if (fishGateErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, fishGateErrors.join('; '));
     }
     const relayErrors = findRelayPadConfigErrors(bundle.tiles.tiles);
     if (relayErrors.length > 0) {

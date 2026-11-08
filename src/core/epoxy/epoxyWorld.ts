@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -481,6 +481,25 @@ export function takeRevealedTerrain(w: EpoxyWorld, x: number, y: number): string
   const revealed = revealedTerrain(w, x, y);
   if (revealed !== null) w.revealedCells.add(y * mapWidth(w) + x);
   return revealed;
+}
+
+/** Whether a tile is a fish gate that lets every mover in now: no chip is left to collect. */
+export function isOpenFishGate(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return tile.fishGate === true && w.chipsRemaining <= 0;
+}
+
+/**
+ * A block or monster has entered an open fish gate: the gate turns into what it hid, or into its unlock terrain, the
+ * way it does under the player (same sound and visual). The caller judges the arrival on what shows afterwards.
+ * Does nothing on any other cell.
+ */
+export function consumeFishGate(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (!isOpenFishGate(w, tile)) return;
+  w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
+  AudioManager.playSfx('socket');
+  ctx.emitVisual('unlock', x, y, 'yellow');
 }
 
 /** The open (true) or closed (false) form of a hold door of the colour in plain sight, undefined when none is. */

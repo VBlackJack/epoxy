@@ -1959,6 +1959,36 @@ export function findGateConfigErrors(tiles: Record<string, TileDefinition>): str
   return errors;
 }
 
+/** The exit orders a teleporter tile may name (the keys of the order table of epoxyTeleports.ts). */
+const TELEPORT_EXIT_ORDERS: readonly string[] = ['forward_only', 'forward_right_left_back'];
+
+/**
+ * Problems of the fish gate and teleporter exit fields. A fish gate is a chip socket (requiresAllChips) on the terrain
+ * layer that no mover enters before the chips are in, so its static passability flags stay false and the engine opens it
+ * from the chip count; the flag is for such a socket only. An exit order is for a teleporter only, and names one of the
+ * known orders. Each entry names the tile.
+ */
+export function findFishGateAndExitErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.fishGate !== undefined) {
+      if (tile.fishGate !== true) errors.push(`${tile.id}.fishGate: expected true`);
+      if (tile.requiresAllChips !== true) errors.push(`${tile.id}.fishGate: a fish gate is a chip socket (requiresAllChips)`);
+      if (tile.layer !== 'terrain') errors.push(`${tile.id}.fishGate: a fish gate is a terrain`);
+      if (tile.passableByPlayer === true || tile.passableByMonster === true || tile.passableByBlock === true) {
+        errors.push(`${tile.id}.fishGate: a fish gate opens from the chip count, so its static passability flags stay false`);
+      }
+    }
+    if (tile.teleportExitOrder !== undefined) {
+      if (!TELEPORT_EXIT_ORDERS.includes(tile.teleportExitOrder)) {
+        errors.push(`${tile.id}.teleportExitOrder: expected one of ${TELEPORT_EXIT_ORDERS.join(', ')}`);
+      }
+      if (tile.isTeleporter !== true) errors.push(`${tile.id}.teleportExitOrder: only a teleporter names an exit order`);
+    }
+  }
+  return errors;
+}
+
 /**
  * Problems of the relay pad fields: a pad is `dark` or `lit` and names its other form, which must be a relay pad of the
  * opposite form that names it back. The lit form is a teleporter of the group "relay" and the dark form is not one;
