@@ -5361,6 +5361,12 @@
         "label": "Un bloc poussable qui ne bouge que vers les trois côtés marqués d'une flèche. Poussé par le quatrième côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
+    "arrow_block_none": {
+      "name": "Bloc fléché verrouillé",
+      "desc": {
+        "label": "Un bloc sans aucune flèche : aucune poussée ne le déplace, qu'elle vienne du joueur, d'un monstre ou d'un autre bloc. Il glisse encore quand il se trouve sur de la glace ou un sol de force."
+      }
+    },
     "ice_block": {
       "name": "Bloc de Glace Glissant",
       "desc": {

@@ -21,6 +21,7 @@ import {
   BLOCK_TARGET_TILE_ID,
   BRIBE_ITEM_ID,
   CELL_EDGE_BITS,
+  CELL_EDGE_CANOPY_BIT,
   CELL_EDGE_SIDE_ORDER,
   FLOOR_TILE_ID,
   OPPOSITE_DIRECTION,
@@ -103,6 +104,8 @@ const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gat
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
+/** The canopy cells of a level without a canopy. */
+const NO_CANOPIES: ReadonlySet<number> = new Set();
 
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
@@ -112,6 +115,7 @@ export class GameEngine {
   /** The panels built from this mask; rebuilt when a level with other cell edges loads. */
   private panelsMask: Uint8Array | null = null;
   private panelsView: ReadonlyMap<number, readonly Direction[]> = NO_PANELS;
+  private canopyView: ReadonlySet<number> = NO_CANOPIES;
 
   private ticksElapsed: number = 0;
   private stepsCount: number = 0;
@@ -863,16 +867,32 @@ export class GameEngine {
    */
   public getPanels(): ReadonlyMap<number, readonly Direction[]> {
     const mask = this.w.edgeMask;
-    if (mask === null) return NO_PANELS;
+    if (mask === null) {
+      this.canopyView = NO_CANOPIES;
+      return NO_PANELS;
+    }
     if (this.panelsMask !== mask) {
       const panels = new Map<number, readonly Direction[]>();
+      const canopies = new Set<number>();
       mask.forEach((bits, index) => {
-        if (bits !== 0) panels.set(index, CELL_EDGE_SIDE_ORDER.filter((side) => (bits & CELL_EDGE_BITS[side]) !== 0));
+        const sides = CELL_EDGE_SIDE_ORDER.filter((side) => (bits & CELL_EDGE_BITS[side]) !== 0);
+        if (sides.length > 0) panels.set(index, sides);
+        if ((bits & CELL_EDGE_CANOPY_BIT) !== 0) canopies.add(index);
       });
       this.panelsMask = mask;
       this.panelsView = panels;
+      this.canopyView = canopies;
     }
     return this.panelsView;
+  }
+
+  /**
+   * The cells a canopy covers, by cell index (y * width + x). Static for the level; empty when it has none. The set
+   * is shared: do not mutate it.
+   */
+  public getCanopyCells(): ReadonlySet<number> {
+    this.getPanels();
+    return this.canopyView;
   }
 
   /**

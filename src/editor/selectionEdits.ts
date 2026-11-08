@@ -57,6 +57,8 @@ export interface ClipEdge {
   dx: number;
   dy: number;
   sides: Direction[];
+  /** A canopy covers the cell. */
+  canopy?: true;
 }
 
 /** The track segments of one track cell of a clip, positioned relative to the clip's top-left cell. */
@@ -225,7 +227,7 @@ export function extractClip(map: EditorMap, rect: CellRect, includePlayerStart: 
     .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, type: e.type, dir: e.dir }));
   const edges: ClipEdge[] = (map.cellEdges ?? [])
     .filter((e) => rectContains(rect, e.x, e.y))
-    .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides] }));
+    .map((e) => ({ dx: e.x - rect.x, dy: e.y - rect.y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) }));
   const railTracks: ClipRailTrack[] = (map.railTracks ?? [])
     .filter((t) => rectContains(rect, t.x, t.y))
     .map((t) => ({ ...t, dx: t.x - rect.x, dy: t.y - rect.y }))
@@ -409,7 +411,7 @@ function stampClip(
     const y = originY + e.dy;
     if (!writtenCells.has(`${x},${y}`)) continue;
     if (ruleset === 'lynx') skipped++;
-    else pastedEdges.push({ x, y, sides: [...e.sides] });
+    else pastedEdges.push({ x, y, sides: [...e.sides], ...(e.canopy === true ? { canopy: true as const } : {}) });
   }
   if (keptEdges.length !== (map.cellEdges?.length ?? 0) || pastedEdges.length > 0) replaceEdges(map, [...keptEdges, ...pastedEdges]);
   const keptRails = (map.railTracks ?? []).filter((t) => !writtenCells.has(`${t.x},${t.y}`));

@@ -205,6 +205,10 @@ entity rover dir=N tick=3 d2b9aad3ae38f179
 entity rover dir=E tick=3 eaa63286267c3b0b
 entity rover dir=S tick=3 e8927e5ef5977bf4
 entity rover dir=W tick=3 26e513070e7ccc0a
+entity arrow_block_none dir=N tick=3 6fd7eb8f572eceb7
+entity arrow_block_none dir=E tick=3 f15bd68d3470c0cd
+entity arrow_block_none dir=S tick=3 30e8c1b6dbbf939a
+entity arrow_block_none dir=W tick=3 046a4891f47e438d
 item key_red tick=13 46b7f1fa3f3e8adb
 item key_blue tick=13 56f472ffae95d0f8
 item key_yellow tick=13 7688e128bff98c6f
@@ -412,6 +416,10 @@ entity rover dir=N tick=13 8431bf882e43731a
 entity rover dir=E tick=13 68ff6f91727e0960
 entity rover dir=S tick=13 526e2b20750f3051
 entity rover dir=W tick=13 68cb5952e2d2f0fe
+entity arrow_block_none dir=N tick=13 e6d10f1e6084c3eb
+entity arrow_block_none dir=E tick=13 5ead0b917d726f63
+entity arrow_block_none dir=S tick=13 bd7d497962350af9
+entity arrow_block_none dir=W tick=13 5d6113c3292b3f35
 player dir=N inWater=false alive=true frame=0 hop=0 15e42441a6916ea4
 player dir=N inWater=false alive=true frame=0 hop=0.3 828043425ac0de71
 player dir=N inWater=false alive=true frame=1 hop=0 df9e7eab2f7b0b94

@@ -358,16 +358,18 @@ describe('thin walls', () => {
     expect(coverage.verdict).toBe('exact');
   });
 
-  it('drops the canopy flag, loses it in coverage and keeps the real edges', () => {
+  it('keeps the canopy flag with the real edges and plays it approximately', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: W | CANOPY }, { code: FLOOR_CODE })]);
-    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: ['W'] }]);
-    expect(coverage.lost).toEqual(['canopy']);
+    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: ['W'], canopy: true }]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['canopy']);
   });
 
-  it('records a canopy alone without an edge', () => {
+  it('keeps a canopy alone as an edge entry with no side', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: CANOPY }, { code: FLOOR_CODE })]);
-    expect(level.cellEdges).toBeUndefined();
-    expect(coverage.lost).toEqual(['canopy']);
+    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: [], canopy: true }]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['canopy']);
   });
 });
 
@@ -442,10 +444,11 @@ describe('directional blocks', () => {
     expect(report.warnings.some((w) => w.includes('four arrows'))).toBe(true);
   });
 
-  it('loses a block with no arrow, which cannot be pushed in CC2', () => {
-    const { level, coverage } = convert([put(1, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: 0 }, { code: FLOOR_CODE })]);
-    expect(level.entities[0].type).toBe('dirt_block');
-    expect(coverage.lost).toEqual(['arrow_block_locked']);
+  it('plays a block with no arrow as the locked arrow block, exactly', () => {
+    const { level, coverage, report } = convert([put(1, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: 0 }, { code: FLOOR_CODE })]);
+    expect(level.entities[0].type).toBe('arrow_block_none');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(report.warnings).toEqual([]);
   });
 
   it('gives the green walls their own approximate keys', () => {

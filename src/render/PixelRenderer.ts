@@ -431,6 +431,12 @@ const SWIVEL_PIVOT_OFFSET_BARS = 0.5;
  */
 const HIDDEN_LAYER_MARKER_DEFAULT = false;
 const HIDDEN_LAYER_MARKER_TILE = 0.22;
+/** A CC2 canopy: a semi-opaque roof over the cell, with diagonal rafters, in every style. */
+const CANOPY_ALPHA = 0.8;
+const CANOPY_RAFTER_ALPHA = 0.45;
+const CANOPY_RAFTER_SPACING_TILE = 0.25;
+const CANOPY_RAFTER_LINE_TILE = 0.04;
+const CANOPY_RAFTER_MIN_LINE_PX = 1;
 const HINT_GLYPH = '?';
 const HINT_FONT_WEIGHT = 'bold';
 /** Forbidden-item barrier: the item's icon, scaled down, under a crossed ring. */
@@ -1678,6 +1684,8 @@ export class PixelRenderer {
       this.usesRunewardCharacters() ? this.playerPoseExtras(engine) : undefined
     );
 
+    this.drawCanopies(sceneCtx, engine, mapWidth, startTileX, endTileX, startTileY, endTileY, originX, originY, region, unit, drawSize);
+
     if (lowCtx) {
       this.presentRetroScene(ctx, lowCtx.canvas, spriteScale);
       this.drawPlannedPath(ctx, camX, camY, tilePixelSize, settings);
@@ -2900,6 +2908,59 @@ export class PixelRenderer {
         this.drawCellOverlay(ctx, edges, marked, px, py, drawSize);
       }
     }
+  }
+
+  /** The canopies of the visible cells, over the terrain, the items, the mobs and the player they hide. */
+  private drawCanopies(
+    ctx: CanvasRenderingContext2D,
+    engine: PlayEngine,
+    mapWidth: number,
+    startTileX: number,
+    endTileX: number,
+    startTileY: number,
+    endTileY: number,
+    originX: number,
+    originY: number,
+    region: { x0: number; y0: number },
+    unit: number,
+    drawSize: number
+  ): void {
+    const canopies = engine.getCanopyCells?.();
+    if (!canopies || canopies.size === 0) return;
+    for (let my = startTileY; my <= endTileY; my++) {
+      for (let mx = startTileX; mx <= endTileX; mx++) {
+        if (!canopies.has(my * mapWidth + mx)) continue;
+        const px = originX + Math.floor((mx - region.x0) * unit);
+        const py = originY + Math.floor((my - region.y0) * unit);
+        this.drawCanopy(ctx, px, py, drawSize);
+      }
+    }
+  }
+
+  /**
+   * A CC2 canopy over one cell: a semi-opaque roof of the style's wall colour with diagonal rafters. It hides
+   * what lies under it, and the level editor draws it too.
+   */
+  public drawCanopy(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    const pal = this.pal();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, size, size);
+    ctx.clip();
+    ctx.globalAlpha = CANOPY_ALPHA;
+    ctx.fillStyle = pal.wallTop;
+    ctx.fillRect(x, y, size, size);
+    ctx.globalAlpha = CANOPY_RAFTER_ALPHA;
+    ctx.strokeStyle = pal.wallShadow;
+    ctx.lineWidth = Math.max(CANOPY_RAFTER_MIN_LINE_PX, size * CANOPY_RAFTER_LINE_TILE);
+    const spacing = Math.max(CANOPY_RAFTER_MIN_LINE_PX * 2, size * CANOPY_RAFTER_SPACING_TILE);
+    ctx.beginPath();
+    for (let offset = -size; offset < size; offset += spacing) {
+      ctx.moveTo(x + offset, y + size);
+      ctx.lineTo(x + offset + size, y);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**

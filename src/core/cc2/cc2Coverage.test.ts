@@ -101,9 +101,9 @@ describe('classifyCc2Level', () => {
     expect(classifyCc2Level(['speed_boots', 'hook']).approx).toEqual(['hook', 'speed_boots']);
   });
 
-  it('plays monsters and blocks as exact and loses the canopy flag', () => {
+  it('plays monsters and blocks as exact and the canopy flag as approximate', () => {
     expect(classifyCc2Level(['bug', 'tank', 'dirt_block', 'cleats']).verdict).toBe('exact');
-    expect(classifyCc2Level([KEY_CANOPY]).verdict).toBe('lost');
+    expect(classifyCc2Level([KEY_CANOPY]).verdict).toBe('approx');
   });
 });
 
