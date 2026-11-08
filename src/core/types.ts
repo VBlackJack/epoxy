@@ -47,6 +47,8 @@ export interface TimingConfig {
   maxUndoSnapshots: number;
   /** Ticks from the moment a blast charge is dropped to its blast. */
   chargeFuseTicks: number;
+  /** Ticks from the moment the player leaves the dynamite they set down to its blast. */
+  dynamiteFuseTicks: number;
   /** Ticks a thrown hurl stone takes to cross one cell (a whole number of at least 1). */
   hurlStepTicks: number;
   timeBonusMultiplier: number;
@@ -1164,10 +1166,17 @@ export interface TileDefinition {
    */
   countsAsChip?: boolean;
   /**
-   * A wall that no blast destroys (the steel wall). Blast charges never remove terrain today, so the flag has no effect on
-   * play yet; it is what a future terrain-breaking blast reads.
+   * A wall that no blast destroys (the steel wall). The blast charge never removes terrain; dynamite does, and spares a
+   * tile flagged blastProof or survivesDynamite.
    */
   blastProof?: boolean;
+  /** Terrain that dynamite leaves as it is although it is no blast-proof wall (the socket and the logic gates). */
+  survivesDynamite?: boolean;
+  /**
+   * Chip's Challenge 2 dynamite, set on the item the player carries and on the lit form it turns into: a blast that
+   * clears items and terrain in a diamond-shaped region (see epoxyDynamite.ts), not the square of the blast charge.
+   */
+  cc2Dynamite?: boolean;
   /**
    * Boots only (the steel foil): while held, a player who bumps a wall whose id is a key here turns it into the tile named by
    * the value, and does not move. Every target must be an impassable terrain, so the foil never opens a way. The boots stay held.
@@ -1972,6 +1981,10 @@ export interface TimedMove {
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
 export interface LitCharge extends GridPoint {
   detonateTick: number;
+  /** Dynamite: the blast follows the Chip's Challenge 2 rules and the fuse is the dynamite fuse. Absent on a blast charge. */
+  dynamite?: true;
+  /** Dynamite set down but not lit yet: the fuse starts once the player leaves the cell. Absent otherwise. */
+  awaitingDeparture?: true;
 }
 
 export interface UndoSnapshot {

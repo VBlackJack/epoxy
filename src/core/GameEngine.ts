@@ -33,6 +33,7 @@ import {
 } from './coreConstants';
 import { countPausedTick } from './epoxy/epoxyCc2Items';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
+import { lightDepartedDynamite, setDownDynamite } from './epoxy/epoxyDynamite';
 import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
 import {
   copySignalPulses,
@@ -72,7 +73,8 @@ import {
   killPlayer,
   mapHeight,
   mapWidth,
-  playerHaste
+  playerHaste,
+  rebuildDeviceLookups
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
@@ -485,7 +487,10 @@ export class GameEngine {
     } else {
       this.w.player.boots.delete(itemId);
     }
-    if (def.collectible === 'charge') {
+    if (def.collectible === 'charge' && def.cc2Dynamite === true) {
+      // Dynamite lights once the player has left the cell, not when it is set down.
+      setDownDynamite(this.w, x, y, itemId);
+    } else if (def.collectible === 'charge') {
       lightCharge(this.w, x, y, def.dropsAs as string, this.ticksElapsed, ConfigRegistry.getGame().timing.chargeFuseTicks);
     } else if (def.collectible === 'gate') {
       // The pad stays for good; the player stands on it and does not jump, since a jump happens on arrival only.
@@ -700,6 +705,8 @@ export class GameEngine {
     this.w.timerPaused = snap.timerPaused ?? false;
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
+    // A blast may have turned a device into floor: the devices are listed from the terrain put back.
+    if (this.w.hasDynamite) rebuildDeviceLookups(this.w);
     this.w.revealedCells = new Set(snap.revealedCells ?? []);
     this.w.swivelEntry = new Map(snap.swivelEntry ?? []);
     if (this.w.signals !== undefined) {
@@ -807,6 +814,7 @@ export class GameEngine {
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
+      lightDepartedDynamite(this.w, this.ticksElapsed);
       const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
       // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
       setPoweredCells(this.ctx);

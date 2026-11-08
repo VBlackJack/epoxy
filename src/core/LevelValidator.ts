@@ -567,6 +567,17 @@ export class LevelValidator {
       }
     }
 
+    // A level that places dynamite may have its walls, doors and hazards blasted away. The walk does not follow the
+    // blast: it reads every such cell as floor from the start (an over-approximation, so it never reports a false
+    // unreachable). What dynamite spares (see survivesDynamite) and the exit stay as they are.
+    const dynamiteLevel = level.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
+    const dynamiteBlastable = (id: string): boolean => {
+      if (id === FLOOR_TILE_ID) return false;
+      const tile = ConfigRegistry.getTile(id);
+      if (tile.blastProof === true || tile.survivesDynamite === true || tile.isLevelExit === true) return false;
+      return tile.passableByPlayer !== true || tile.hazard !== undefined;
+    };
+
     const rankBudget = { left: RANK_STEP_BUDGET };
     const meter = options.meter;
 
@@ -580,6 +591,13 @@ export class LevelValidator {
         const x = cell % width;
         const y = Math.floor(cell / width);
         simTerrain[y][x] = ConfigRegistry.getTile(simTerrain[y][x]).relayTwin ?? simTerrain[y][x];
+      }
+      if (dynamiteLevel) {
+        for (const row of simTerrain) {
+          for (let cx = 0; cx < row.length; cx++) {
+            if (dynamiteBlastable(row[cx])) row[cx] = FLOOR_TILE_ID;
+          }
+        }
       }
       const simItems = level.items.map((row) => [...row]);
       if (meter) meter.cells += 2 * width * height;

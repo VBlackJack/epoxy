@@ -272,11 +272,12 @@ describe('terrain, items and entities', () => {
     expect(convert([put(1, 0, modTile(0x4f, switched))]).level.terrain[0][1]).toBe('rail_se');
   });
 
-  it('approximates a steel wall only next to dynamite', () => {
+  it('plays a steel wall next to dynamite as dynamite alone is played', () => {
     expect(convert([put(1, 0, { code: STEEL_WALL })]).coverage.verdict).toBe('exact');
     const withDynamite = convert([put(1, 0, { code: STEEL_WALL }), put(2, 0, { code: DYNAMITE }, { code: FLOOR_CODE })]);
     expect(withDynamite.coverage.lost).toEqual([]);
-    expect(withDynamite.coverage.approx).toEqual(['dynamite', 'steel_wall_with_destroyer']);
+    expect(withDynamite.coverage.approx).toEqual(['dynamite']);
+    expect(withDynamite.level.items[0][2]).toBe('dynamite');
   });
 });
 

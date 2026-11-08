@@ -103,6 +103,8 @@ export interface EpoxyWorld {
   forceCycleTurn: number;
   /** The blast charges dropped and not yet blasted, in the order they were lit; empty on a level without charges. */
   litCharges: LitCharge[];
+  /** True when the level places dynamite, which can turn terrain into floor; fixed for the level. */
+  hasDynamite: boolean;
   /** True when the level has a turning force floor, even one hidden under a removable top; fixed for the level. */
   hasForceCycle: boolean;
   /** True when the level places a toggle clock; fixed for the level. Only such a level counts paused ticks. */
@@ -209,6 +211,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     toggleParity: 0,
     forceCycleTurn: 0,
     litCharges: [],
+    hasDynamite: false,
     hasForceCycle: false,
     hasToggleClock: false,
     timerPaused: false,
@@ -274,6 +277,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
   w.litCharges = [];
+  w.hasDynamite = w.items.some((row) => row.some((id) => id !== null && ConfigRegistry.getTile(id).cc2Dynamite === true));
   w.hasForceCycle = false;
   w.hasToggleClock = false;
   w.timerPaused = false;
@@ -351,6 +355,31 @@ export function playerHaste(w: EpoxyWorld): number {
 }
 
 /** Lists the cell in the device lookups its terrain belongs to. */
+/**
+ * Lists the devices of the grid again, from the terrain as it is now. Dynamite turns terrain into floor, so a device it
+ * destroyed must leave the lists the laser, hold door, plate and teleporter passes walk. A device hidden under a removable
+ * top stays listed, as at load.
+ */
+export function rebuildDeviceLookups(w: EpoxyWorld): void {
+  w.holdTrapButtons = [];
+  w.targetCells = [];
+  w.laserEmitters = [];
+  w.laserReceivers = [];
+  w.laserGates = [];
+  w.plates = [];
+  w.holdDoors = [];
+  w.teleportersByGroup.clear();
+  const coversTargets = w.level.winRule === 'targets';
+  const width = mapWidth(w);
+  for (let y = 0; y < w.terrain.length; y++) {
+    for (let x = 0; x < w.terrain[y].length; x++) {
+      registerDevices(w, x, y, w.terrain[y][x], coversTargets);
+      const hidden = underlayAt(w.underlays, width, x, y);
+      if (hidden !== undefined) registerDevices(w, x, y, hidden, coversTargets);
+    }
+  }
+}
+
 function registerDevices(w: EpoxyWorld, x: number, y: number, terrainId: string, coversTargets: boolean): void {
   const tile = ConfigRegistry.getTile(terrainId);
   if (tile.buttonAction === 'hold_trap') w.holdTrapButtons.push({ x, y });

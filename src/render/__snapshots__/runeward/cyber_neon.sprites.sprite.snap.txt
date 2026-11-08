@@ -31,6 +31,8 @@ item score_1000 tick=3 226b0f7e7475f06b
 item score_2x tick=3 9dc4d869f1ac3cd6
 item stopwatch_bonus tick=3 1ae2cfa3088dfc87
 item stopwatch_penalty tick=3 e7b25761d8f55c05
+item dynamite tick=3 869d6a4a96c52e01
+item dynamite_lit tick=3 26f200df876b74bc
 entity dirt_block dir=N tick=3 c208acc0b41f0893
 entity dirt_block dir=E tick=3 08943a9bce12316f
 entity dirt_block dir=S tick=3 5785a319cd39bf54
@@ -216,6 +218,8 @@ item score_1000 tick=13 03926704782bbe91
 item score_2x tick=13 faf5439324bf7bab
 item stopwatch_bonus tick=13 1473483471856f8c
 item stopwatch_penalty tick=13 62456e0438778a77
+item dynamite tick=13 79fed0f7e079146f
+item dynamite_lit tick=13 cc989ce425801888
 entity dirt_block dir=N tick=13 8065e546fee0adf5
 entity dirt_block dir=E tick=13 47b3a5e71503940a
 entity dirt_block dir=S tick=13 a163f8311a3c16e1

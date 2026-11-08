@@ -404,6 +404,10 @@ editor tile stopwatch_bonus closed=true 90a2c7236255950c
 editor tile stopwatch_bonus closed=false 1f112a256a27ffad
 editor tile stopwatch_penalty closed=true c2a2788c71c6d415
 editor tile stopwatch_penalty closed=false e00f354b1399c045
+editor tile dynamite closed=true 564bb2ac88e80afe
+editor tile dynamite closed=false 03e61eac45025fad
+editor tile dynamite_lit closed=true 692dee04d0e2f6f1
+editor tile dynamite_lit closed=false 227d8664a105b90d
 editor item over floor key_red f1dd9bc7dc01a55e
 editor item over floor key_blue 358960b8acccd7f6
 editor item over floor key_yellow 86ae9a280afafbe9
@@ -437,6 +441,8 @@ editor item over floor score_1000 a5ba0fdf22bc5247
 editor item over floor score_2x 7085e30176450156
 editor item over floor stopwatch_bonus fec8427f7a4836cf
 editor item over floor stopwatch_penalty 31c4d53848b9551c
+editor item over floor dynamite b05b52366e40eba2
+editor item over floor dynamite_lit b2fe4f3274d4dc72
 editor entity over floor dirt_block 4ae668777fded88e
 editor entity over floor arrow_block_one 5c2161f9b4305a30
 editor entity over floor arrow_block_line bf76c13187fa4140

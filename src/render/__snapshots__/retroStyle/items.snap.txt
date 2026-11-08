@@ -163,6 +163,16 @@ item theme=cyber_neon id=stopwatch_penalty a3d7b6dfb4d566b6
 item theme=arctic_lab id=stopwatch_penalty a649459d31fab88f
 item theme=magma_core id=stopwatch_penalty 0847054f538367ac
 item theme=lynx_lcd id=stopwatch_penalty d8ccf6324fe0c452
+item theme=default id=dynamite be9f03abb45e0cb8
+item theme=cyber_neon id=dynamite 7889e8daaa2245fd
+item theme=arctic_lab id=dynamite fcb85d06cd41dc2c
+item theme=magma_core id=dynamite 3e7af82890a8f9fc
+item theme=lynx_lcd id=dynamite 82c1ec1e6758ec41
+item theme=default id=dynamite_lit 2ebcc4d51b2cbe47
+item theme=cyber_neon id=dynamite_lit d132150eb06f084b
+item theme=arctic_lab id=dynamite_lit 2eba16b7291e1c5a
+item theme=magma_core id=dynamite_lit b454574a0c0c3f38
+item theme=lynx_lcd id=dynamite_lit 70dfa511fcd5f39e
 label theme=default text=10 15b0080dbd9a4fa8
 label theme=cyber_neon text=10 68afb3b3076d2abc
 label theme=arctic_lab text=10 1dc98bf0e0d05135

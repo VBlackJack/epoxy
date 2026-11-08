@@ -68,6 +68,8 @@ const STEEL_FOIL_REASON =
   'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
 const TOGGLE_CLOCK_REASON =
   'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
+const DYNAMITE_REASON =
+  'Epoxy plays dynamite with the CC2 blast of the Lexy Labyrinth engine: lit once the player leaves the cell, a fuse of 85 ticks, a 5 x 5 square without its far corners that destroys items and turns terrain into floor (steel wall, socket and logic gates resist, creatures are killed). Differences: a lit dynamite is an item in Epoxy, so it blocks nothing and never slides on ice or force floors; thin walls on the cells are not destroyed; the explosion animation does not block the player; the fuse may be one tick off [unverified].';
 const GENDER_SIGN_REASON =
   'Epoxy plays the gender sign as a terrain tile that stops the other character.';
 
@@ -128,9 +130,9 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   steel_foil: STEEL_FOIL_REASON,
   // Epoxy: toggle_clock.
   toggle_clock: TOGGLE_CLOCK_REASON,
-  // Epoxy: steel_wall next to dynamite.
+  // Epoxy: steel_wall next to a destroyer other than dynamite; the importer no longer sets this key for dynamite.
   [KEY_STEEL_WALL_DESTROYER]:
-    'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist blasts, but the dynamite itself is approximate [unverified].',
+    'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist dynamite as CC2 does, and the time bomb is not played [unverified].',
   // Epoxy: forbid_key_red/blue/yellow/green.
   no_sign_key: NO_SIGN_REASON,
   // Epoxy: forbid_boots_ice/water/fire/force.
@@ -151,8 +153,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   bowling_ball: 'Epoxy plays the bowling ball as a hurl stone: it flies the same way but its range and what it breaks differ [unverified].',
   // Epoxy: ward.
   helmet: 'Epoxy plays the helmet as a ward, which absorbs the first monster contact; the CC2 helmet protects against other things too [unverified]. The reserved id cc2_helmet stays available for a stricter import.',
-  // Epoxy: charge.
-  dynamite: 'Epoxy plays dynamite as a blast charge: the blast rules differ from CC2 [unverified].',
+  // Epoxy: dynamite and dynamite_lit.
+  dynamite: DYNAMITE_REASON,
   // Epoxy: boots_speed.
   speed_boots: 'Epoxy plays the speed boots as its own speed boots; the speed gain and the ice and force floor behaviour may differ [unverified].',
   // Epoxy: boots_pull.

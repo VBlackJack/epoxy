@@ -3986,15 +3986,17 @@ export class PixelRenderer {
     unit: number,
     drawSize: number
   ): void {
-    const fuseTicks = Math.max(1, ConfigRegistry.getGame().timing.chargeFuseTicks);
+    const timing = ConfigRegistry.getGame().timing;
     const spark = this.pal().bombSpark;
     for (const charge of charges) {
       const at = cell(charge.x, charge.y);
       if (at === null) continue;
-      const left = Math.max(0, charge.detonateTick - tick);
+      const fuseTicks = Math.max(1, charge.dynamite === true ? timing.dynamiteFuseTicks : timing.chargeFuseTicks);
+      // A dynamite whose player has not left yet has not started to burn: its ring stays full and quiet.
+      const left = charge.awaitingDeparture === true ? fuseTicks : Math.max(0, charge.detonateTick - tick);
       const fraction = Math.min(1, left / fuseTicks);
       ctx.save();
-      if (fraction <= CHARGE_FUSE_RING.warnFraction && Math.floor(left / CHARGE_FUSE_RING.blinkTicks) % 2 === 0) {
+      if (charge.awaitingDeparture !== true && fraction <= CHARGE_FUSE_RING.warnFraction && Math.floor(left / CHARGE_FUSE_RING.blinkTicks) % 2 === 0) {
         ctx.globalAlpha = CHARGE_FUSE_RING.flashAlpha;
         ctx.fillStyle = spark;
         ctx.fillRect(at.px, at.py, drawSize, drawSize);
