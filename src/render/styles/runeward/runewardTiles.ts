@@ -53,6 +53,7 @@ import * as marks from './runewardMarks';
 import * as monsters from './runewardMonsters';
 import type { MagePose } from './runewardCharacter';
 import { WIRED_BASE_TILE } from '../../wiredArt';
+import { variantItemPainters, variantTilePainters } from './runewardCc2';
 import { WIRED_TILES, withWiredMark } from './runewardWired';
 import { paintBlueWall, paintExit, paintFloor, paintLava, paintMage, paintSeal, paintWall, paintWater } from './runewardPainters';
 
@@ -324,28 +325,34 @@ function wiredPlainTiles(): Record<string, RunewardTilePainter> {
   return tiles;
 }
 
+/** The terrain painters of the lot modules and the shared tiles, before the look-alikes built on them. */
+const BASE_TILE_PAINTERS: Readonly<Record<string, RunewardTilePainter>> = {
+  ...MECHANISM_TILES,
+  ...HAZARD_TILES,
+  floor: FLOOR_PAINTER,
+  socket: staticTile(paintSeal),
+  invisible_wall: FLOOR_PAINTER,
+  appearing_wall: FLOOR_PAINTER,
+  wall: WALL_PAINTER,
+  blue_wall_real: BLUE_WALL_PAINTER,
+  blue_wall_fake: BLUE_WALL_PAINTER,
+  water: animatedTile(paintWater),
+  fire: animatedTile(paintLava),
+  exit: animatedTile(paintExit),
+  ...devices.TILES,
+  ...items.TILES,
+  ...marks.TILES,
+  ...WIRED_TILES,
+  ...wiredPlainTiles()
+};
+
+/** The item painters, before the look-alikes built on them. */
+const BASE_ITEM_PAINTERS: Readonly<Record<string, RunewardItemPainter>> = { ...MECHANISM_ITEMS, ...items.ITEMS };
+
 /** Ids drawn by a Runeward painter. */
 export const RUNEWARD_PAINTERS: RunewardPainters = {
-  tiles: {
-    ...MECHANISM_TILES,
-    ...HAZARD_TILES,
-    floor: FLOOR_PAINTER,
-    socket: staticTile(paintSeal),
-    invisible_wall: FLOOR_PAINTER,
-    appearing_wall: FLOOR_PAINTER,
-    wall: WALL_PAINTER,
-    blue_wall_real: BLUE_WALL_PAINTER,
-    blue_wall_fake: BLUE_WALL_PAINTER,
-    water: animatedTile(paintWater),
-    fire: animatedTile(paintLava),
-    exit: animatedTile(paintExit),
-    ...devices.TILES,
-    ...items.TILES,
-    ...marks.TILES,
-    ...WIRED_TILES,
-    ...wiredPlainTiles()
-  },
-  items: { ...MECHANISM_ITEMS, ...items.ITEMS },
+  tiles: { ...BASE_TILE_PAINTERS, ...variantTilePainters(BASE_TILE_PAINTERS) },
+  items: { ...BASE_ITEM_PAINTERS, ...variantItemPainters(BASE_ITEM_PAINTERS) },
   entities: { ...blocks.ENTITIES, ...monsters.ENTITIES, ...devices.ENTITIES },
   player: paintPlayer,
   shot: monsters.SHOT,

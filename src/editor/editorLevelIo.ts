@@ -15,7 +15,7 @@
  */
 
 import type { Cc3dLevel } from '../core/cc3d/model';
-import { DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
 import { canonicalUnderlays } from './editorUnderlays';
@@ -83,7 +83,8 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
     timeLimitSeconds: level.timeLimitSeconds,
     chipsRequired: level.chipsRequired,
     winRule: level.winRule ?? DEFAULT_WIN_RULE,
-    ruleset: level.ruleset
+    ruleset: level.ruleset,
+    ...(level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER ? { character: level.character } : {})
   };
 }
 
@@ -110,6 +111,8 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     id: context.id,
     ...(doc.winRule === DEFAULT_WIN_RULE ? {} : { winRule: doc.winRule }),
     ...(doc.ruleset ? { ruleset: doc.ruleset } : {}),
+    // Chip is the default character and stays unwritten, so a level played by Chip keeps the record it always had.
+    ...(doc.character !== undefined && doc.character !== DEFAULT_PLAYER_CHARACTER ? { character: doc.character } : {}),
     number: context.number,
     customTitle: doc.title || context.fallbackTitle,
     customHint: doc.hint,
@@ -122,6 +125,7 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
   // Thin walls exist under the Epoxy ruleset only: a document of another ruleset never exports them.
   // Hidden terrain, shot launcher links and signal links are Epoxy features in the same way.
   if (doc.ruleset !== undefined && doc.ruleset !== DEFAULT_RULESET) {
+    delete level.character;
     delete level.cellEdges;
     delete level.underlays;
     delete level.launcherLinks;

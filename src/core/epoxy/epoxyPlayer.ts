@@ -40,6 +40,8 @@ import {
   killPlayer,
   leaveCell,
   notePulseArrival,
+  playerCharacterOf,
+  playerGripsTile,
   shotAt,
   takeRevealedTerrain
 } from './epoxyWorld';
@@ -153,7 +155,11 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
   const updatedTargetTile = ConfigRegistry.getTile(w.terrain[targetY][targetX]);
   if (!canPlayerEnter(w, updatedTargetTile)) {
     // A barrier against an item the player carries: solid until the item is dropped elsewhere.
-    if (updatedTargetTile.passableByPlayer) w.statusBannerKey = 'hud.messages.forbidden_item';
+    if (updatedTargetTile.forbiddenItem !== undefined && updatedTargetTile.passableByPlayer) {
+      w.statusBannerKey = 'hud.messages.forbidden_item';
+    } else if (updatedTargetTile.bootsForCharacter?.[playerCharacterOf(w)] !== undefined) {
+      w.statusBannerKey = 'hud.messages.needs_hiking_boots';
+    }
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -282,7 +288,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     }
     if (itemDef.collectible === 'chip') {
       w.items[y][x] = null;
-      w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
+      if (itemDef.countsAsChip !== false) w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
       AudioManager.playSfx('chip');
       ctx.emitVisual('chip', x, y, 'green');
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
@@ -386,7 +392,7 @@ function collectBonus(w: EpoxyWorld, itemDef: TileDefinition): void {
 
 function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
   if (tile.slideType === 'ice') {
-    if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
+    if (playerGripsTile(w, tile)) {
       w.player.isSliding = false;
       w.player.slideDir = null;
       return;

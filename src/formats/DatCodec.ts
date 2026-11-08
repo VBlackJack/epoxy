@@ -25,7 +25,8 @@ import {
   DEFAULT_FACING,
   DEFAULT_RULESET,
   FLOOR_TILE_ID,
-  WALL_TILE_ID
+  WALL_TILE_ID,
+  DEFAULT_PLAYER_CHARACTER
 } from '../core/coreConstants';
 import {
   CellUnderlay,
@@ -106,6 +107,7 @@ export type DatRefusalReason =
   | 'too_large'
   | 'player_out_of_range'
   | 'targets_win_rule'
+  | 'melinda_character'
   | 'receivers_win_rule'
   | 'laser_content'
   | 'cc3d_ruleset'
@@ -173,6 +175,8 @@ export function datRefusalReason(level: CompiledLevel): DatRefusalReason | null 
   if (level.cc3d !== undefined || level.ruleset === CC3D_LEVEL_RULESET) return 'cc3d_ruleset';
   // Signal wires, sources and gates have no .DAT form: writing the level would drop its wiring and change its rules.
   if (hasSignalContent(level)) return 'signal_content';
+  // The format has one player: a level played by Melinda would be written as Chip's and play differently.
+  if (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER) return 'melinda_character';
   // The format has no block target and no win by covering targets: writing the level would change its goal.
   if (level.winRule === 'targets') return 'targets_win_rule';
   // Nor does it have laser receivers, emitters, gates or mirrors: they would be written as floor or plain blocks.

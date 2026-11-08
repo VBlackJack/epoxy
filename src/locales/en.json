@@ -273,6 +273,9 @@
       "refused_player_out_of_range": {
         "label": "Not exported: the start of {levels} is outside its map."
       },
+      "refused_melinda_character": {
+        "label": "Not exported: {levels} is played by Melinda, which the .DAT format cannot hold."
+      },
       "refused_targets_win_rule": {
         "label": "Not exported: {levels} is won by covering block targets, which the .DAT format cannot hold."
       },
@@ -1314,6 +1317,9 @@
       },
       "forbidden_item": {
         "label": "This barrier refuses the item you carry: drop it first."
+      },
+      "needs_hiking_boots": {
+        "label": "Melinda needs hiking boots to walk here."
       },
       "drop_cell_occupied": {
         "label": "Nothing can be dropped here: the cell already holds an item."
@@ -3305,6 +3311,15 @@
       "win_rule": {
         "label": "Win Rule"
       },
+      "character": {
+        "label": "Character"
+      },
+      "character_chip": {
+        "label": "Chip"
+      },
+      "character_melinda": {
+        "label": "Melinda (no sliding on ice, hiking boots needed on dirt and gravel)"
+      },
       "win_rule_exit": {
         "label": "Reach the exit"
       },
@@ -4018,6 +4033,24 @@
     "wall": {
       "name": "Wall"
     },
+    "steel_wall": {
+      "name": "Steel Wall",
+      "desc": {
+        "label": "A wall that no blast can destroy."
+      }
+    },
+    "sign_chip_only": {
+      "name": "Sign (Chip Only)",
+      "desc": {
+        "label": "Only Chip can step on it; it is a wall for Melinda. Monsters and blocks cross it."
+      }
+    },
+    "sign_melinda_only": {
+      "name": "Sign (Melinda Only)",
+      "desc": {
+        "label": "Only Melinda can step on it; it is a wall for Chip. Monsters and blocks cross it."
+      }
+    },
     "recessed_wall": {
       "name": "Recessed Wall"
     },
@@ -4398,6 +4431,24 @@
     },
     "bomb": {
       "name": "Bomb"
+    },
+    "green_chip": {
+      "name": "Green Chip",
+      "desc": {
+        "label": "Counts as a chip. Every press of a green button turns it into a green bomb, and back."
+      }
+    },
+    "green_bomb": {
+      "name": "Green Bomb",
+      "desc": {
+        "label": "Explodes like a bomb. Every press of a green button turns it into a green chip, and back."
+      }
+    },
+    "hiking_boots": {
+      "name": "Hiking Boots",
+      "desc": {
+        "label": "Let Melinda walk on dirt and gravel. They do nothing for Chip."
+      }
     },
     "score_10": {
       "name": "Bonus Flag (10 points)"

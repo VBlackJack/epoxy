@@ -30,6 +30,9 @@ import {
   CHANNEL_COLOR_NAME_KEY_PREFIX,
   channelOfButtonAction,
   FIRE_LAUNCHERS_ACTION,
+  DEFAULT_PLAYER_CHARACTER,
+  ICE_TILE_ID,
+  MELINDA_CHARACTER,
   toggleWallOtherForm
 } from './coreConstants';
 import { t } from '../i18n/I18nManager';
@@ -49,6 +52,7 @@ import {
   EntityPlacement,
   GridPoint,
   LevelValidationReport,
+  PlayerCharacter,
   TileDefinition,
   ValidationIssue
 } from './types';
@@ -219,6 +223,31 @@ function isPlainGround(tile: TileDefinition): boolean {
   return tile.passableByPlayer === true && !tile.hazard && tile.slideType === undefined;
 }
 
+/**
+ * The level the reach walk reads. With a green button in it, a green chip and a green bomb may be either at the moment
+ * the player gets there, so both read as the chip form (picked up, counted, never lethal): an over-approximation that never
+ * reports a false unreachable. A level with no green button keeps its green items as they stand.
+ */
+function mergeGreenItems(level: CompiledLevel): CompiledLevel {
+  const isGreenButton = (id: string): boolean => ConfigRegistry.getTile(id).buttonAction === 'toggle_walls';
+  const hasButton =
+    level.terrain.some((row) => row.some(isGreenButton)) || (level.underlays ?? []).some((under) => isGreenButton(under.terrain));
+  if (!hasButton) return level;
+  let changed = false;
+  const items = level.items.map((row) =>
+    row.map((id) => {
+      if (id === null) return id;
+      const tile = ConfigRegistry.getTile(id);
+      if (tile.itemTogglesTo === undefined || tile.collectible === 'chip') return id;
+      const other = ConfigRegistry.getTile(tile.itemTogglesTo);
+      if (other.collectible !== 'chip') return id;
+      changed = true;
+      return other.id;
+    })
+  );
+  return changed ? { ...level, items } : level;
+}
+
 /** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
 const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
   'wall',
@@ -304,12 +333,15 @@ export class LevelValidator {
    * `options.blockSearch` picks the block search effort (see `ValidateOptions`).
    */
   public static validate(
-    level: CompiledLevel,
+    checkedLevel: CompiledLevel,
     solutionWins?: SolutionWins,
     options: ValidateOptions = {}
   ): LevelValidationReport {
     // A CC3D level is checked by its own strict validator, not by the Epoxy tile rules.
-    if (level.ruleset === 'cc3d' && level.cc3d) return cc3dValidationReport(level);
+    if (checkedLevel.ruleset === 'cc3d' && checkedLevel.cc3d) return cc3dValidationReport(checkedLevel);
+    // The walk reads the green chips and bombs of a level with a green button as chips (see mergeGreenItems).
+    const level = mergeGreenItems(checkedLevel);
+    const character = level.character ?? DEFAULT_PLAYER_CHARACTER;
     const issues: ValidationIssue[] = [];
     const height = level.terrain.length;
     const width = level.terrain[0]?.length || 0;
@@ -368,7 +400,7 @@ export class LevelValidator {
         }
         if (iId) {
           const iDef = ConfigRegistry.getTile(iId);
-          if (iDef.collectible === 'chip') {
+          if (iDef.collectible === 'chip' && iDef.countsAsChip !== false) {
             chipsPlaced++;
           } else if (iDef.collectible === 'key') {
             keyCounts[iId] = (keyCounts[iId] || 0) + 1;
@@ -491,12 +523,15 @@ export class LevelValidator {
     }
 
     const holdDoorOpenable = this.openableHoldDoorColors(level);
-    const bootBits = this.buildBootBits();
+    const bootBits = this.buildBootBits(character);
     const maskCount = 1 << bootBits.size;
     // A level that places a toll token may pay any thief once, so the walk takes no thief as stealing (an
     // over-approximation: it never reports a false unreachable, at the price of missing a robbery the token covers).
     const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
+    // A character who never slides on ice holds the boots that stop the slide for good.
+    const iceBoots = character === MELINDA_CHARACTER ? ConfigRegistry.getTile(ICE_TILE_ID).protectedByItem : undefined;
     const hasBoot: BootCheck = (boots, bootId) => {
+      if (bootId !== undefined && bootId === iceBoots) return true;
       const bit = bootId ? bootBits.get(bootId) : undefined;
       return bit !== undefined && (boots & bit) !== 0;
     };
@@ -695,7 +730,7 @@ export class LevelValidator {
           if (!item) return boots;
           const itemDef = ConfigRegistry.getTile(item);
           if (itemDef.collectible === 'chip') {
-            collectedChips++;
+            if (itemDef.countsAsChip !== false) collectedChips++;
             simItems[cy][cx] = null;
             changed = true;
           } else if (itemDef.collectible === 'key') {
@@ -909,6 +944,8 @@ export class LevelValidator {
             if (!nextTile.passableByPlayer && !gateCanOpen && !holdDoorCanOpen) {
               continue;
             }
+            // A sign of the other character is a wall, and dirt or gravel asks Melinda for her boots.
+            if (this.characterBars(nextTile, character, curr.boots, bootBits)) continue;
 
             // A barrier against a held item is passable here: the item can be put down
             // before it and fetched later, so reachability stays optimistic about it.
@@ -1493,7 +1530,7 @@ export class LevelValidator {
       if (!item) return;
       const collectible = ConfigRegistry.getTile(item).collectible;
       if (collectible === 'key') keys[item] = (keys[item] || 0) + 1;
-      else if (collectible === 'chip') chips++;
+      else if (collectible === 'chip' && ConfigRegistry.getTile(item).countsAsChip !== false) chips++;
     };
     pickUp(x, y);
     let opening: { x: number; y: number; keyId?: string } | undefined;
@@ -1581,11 +1618,16 @@ export class LevelValidator {
   }
 
   /** One bit per boot type of the tile config, in a stable order. */
-  private static buildBootBits(): Map<string, number> {
+  private static buildBootBits(character: PlayerCharacter = DEFAULT_PLAYER_CHARACTER): Map<string, number> {
     const bits = new Map<string, number>();
     const tiles = Object.values(ConfigRegistry.getTiles().tiles);
     // Only boots that some tile names as protection change what the player survives; the others (slow-time) would only grow the state space.
     const protectingBootIds = new Set(tiles.map((t) => t.protectedByItem).filter((id): id is string => id !== undefined));
+    // The boots a tile asks of this character count too (Melinda's hiking boots); no other character tracks them.
+    for (const tile of tiles) {
+      const needed = tile.bootsForCharacter?.[character];
+      if (needed !== undefined) protectingBootIds.add(needed);
+    }
     const bootIds = tiles
       .filter((t) => t.collectible === 'boot' && protectingBootIds.has(t.id))
       .map((t) => t.id)
@@ -1593,6 +1635,18 @@ export class LevelValidator {
       .slice(0, MAX_TRACKED_BOOT_TYPES);
     bootIds.forEach((id, idx) => bits.set(id, 1 << idx));
     return bits;
+  }
+
+  /**
+   * Whether a tile stops the character: a sign of the other character is a wall, and dirt or gravel asks Melinda for hiking
+   * boots, which count as held when the boots mask has them (the mask grows over the walk, so the answer is optimistic).
+   */
+  private static characterBars(tile: TileDefinition, character: PlayerCharacter, boots: number, bootBits: Map<string, number>): boolean {
+    if (tile.characterOnly !== undefined && tile.characterOnly !== character) return true;
+    const needed = tile.bootsForCharacter?.[character];
+    if (needed === undefined) return false;
+    const bit = bootBits.get(needed);
+    return bit === undefined || (boots & bit) === 0;
   }
 
   /**
@@ -2451,7 +2505,7 @@ export class LevelValidator {
       const collectible = ConfigRegistry.getTile(item).collectible;
       // A key only counts while a door of its colour would still be closed once this one is open.
       if (collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) keys++;
-      else if (collectible === 'chip') chips++;
+      else if (collectible === 'chip' && ConfigRegistry.getTile(item).countsAsChip !== false) chips++;
       else if (collectible === 'boot') mask |= bootBits.get(item) ?? NO_BOOTS;
     };
     const doorIndex = door.y * width + door.x;
@@ -2551,7 +2605,7 @@ export class LevelValidator {
       if (item && collectible === 'key' && (closedByKey[item] || 0) - (item === door.keyId ? 1 : 0) > 0) {
         keyCount++;
       }
-      if (collectible === 'chip') chipCount++;
+      if (collectible === 'chip' && item && ConfigRegistry.getTile(item).countsAsChip !== false) chipCount++;
       for (const dir of ORDERED_DIRECTIONS) {
         const vec = DIRECTION_VECTORS[dir];
         const nx = cell.x + vec.dx;
@@ -2598,7 +2652,8 @@ export class LevelValidator {
     const terrain = level.terrain.map((row) => [...row]);
     const picked = new Set<string>();
     const ownedKeys: Record<string, number> = {};
-    const bootBits = this.buildBootBits();
+    const character = level.character ?? DEFAULT_PLAYER_CHARACTER;
+    const bootBits = this.buildBootBits(character);
     let boots = NO_BOOTS;
     const blockTypes = new Set(
       Object.values(ConfigRegistry.getMonsters().entities)
@@ -2670,6 +2725,7 @@ export class LevelValidator {
           } else if (!nextTile.passableByPlayer) {
             continue;
           }
+          if (this.characterBars(ConfigRegistry.getTile(terrain[ny][nx]), character, boots, bootBits)) continue;
           const tileHere = ConfigRegistry.getTile(terrain[ny][nx]);
           // A jet the player can switch off (its other form is walkable) is no barrier: a bypass through it is real.
           const switchable = toggleWallOtherForm(tileHere);

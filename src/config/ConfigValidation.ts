@@ -32,7 +32,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -49,6 +49,7 @@ import {
   GridConfig,
   LauncherLink,
   LevelTextConfig,
+  PlayerCharacter,
   PlaytestConfig,
   Ruleset,
   SignalLink,
@@ -522,6 +523,11 @@ export function isWinRule(value: unknown): value is WinRule {
   return typeof value === 'string' && (WIN_RULES as readonly string[]).includes(value);
 }
 
+/** True for a value that names a known player character. */
+export function isPlayerCharacter(value: unknown): value is PlayerCharacter {
+  return typeof value === 'string' && (PLAYER_CHARACTERS as readonly string[]).includes(value);
+}
+
 /** True for a CC2 source record: version 1, text fields, a positive order and a coverage with a known verdict. */
 export function isCc2LevelData(value: unknown): value is Cc2LevelData {
   if (!isRecord(value) || value.v !== 1) return false;
@@ -790,6 +796,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const bad: string[] = LEVEL_TEXT_FIELDS.filter((key) => key in record && typeof record[key] !== 'string');
   if ('winRule' in record && !isWinRule(record.winRule)) bad.push('winRule');
   if ('ruleset' in record && !isRuleset(record.ruleset)) bad.push('ruleset');
+  if ('character' in record && !isPlayerCharacter(record.character)) bad.push('character');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   if ('cc2' in record && !isCc2LevelData(record.cc2)) bad.push('cc2');
   const badPassword = typeof record.password !== 'string';
@@ -1059,6 +1066,38 @@ export function findSwivelConfigErrors(tiles: Record<string, TileDefinition>): s
       const expected = rotatedEdgesKey(tile.blockedEdges ?? [], clockwise);
       if ([...(target.blockedEdges ?? [])].sort().join('') !== expected) {
         errors.push(`${id}.swivelTurns.${field}: ${target.id} must close the sides ${id} closes turned a quarter turn`);
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * Problems of the fields of the Chip's Challenge 2 items and character rules of tiles.json: an item that toggles names
+ * another item that toggles back, a chip flag sits on a chip, a character barrier names a known character and a boot
+ * item, and a blast-proof tile is terrain. Each entry names the tile.
+ */
+export function findCharacterItemConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.itemTogglesTo !== undefined) {
+      const other = tiles[tile.itemTogglesTo];
+      if (tile.layer !== 'item') errors.push(`${id}.itemTogglesTo: only an item can toggle into another item`);
+      else if (other === undefined || other.layer !== 'item') errors.push(`${id}.itemTogglesTo: ${tile.itemTogglesTo} is not an item`);
+      else if (other.itemTogglesTo !== id) errors.push(`${id}.itemTogglesTo: ${other.id} does not toggle back to ${id}`);
+    }
+    if (tile.countsAsChip !== undefined && tile.collectible !== 'chip') errors.push(`${id}.countsAsChip: only a chip item can count as a chip`);
+    if (tile.blastProof !== undefined && tile.layer !== 'terrain') errors.push(`${id}.blastProof: only terrain can resist a blast`);
+    if (tile.characterOnly !== undefined) {
+      if (!isPlayerCharacter(tile.characterOnly)) errors.push(`${id}.characterOnly: unknown character ${String(tile.characterOnly)}`);
+      if (tile.layer !== 'terrain') errors.push(`${id}.characterOnly: only terrain can bar a character`);
+    }
+    if (tile.bootsForCharacter !== undefined) {
+      if (tile.layer !== 'terrain') errors.push(`${id}.bootsForCharacter: only terrain can ask for boots`);
+      for (const [character, boot] of Object.entries(tile.bootsForCharacter)) {
+        if (!isPlayerCharacter(character)) errors.push(`${id}.bootsForCharacter: unknown character ${character}`);
+        if (tiles[boot]?.collectible !== 'boot') errors.push(`${id}.bootsForCharacter.${character}: ${boot} is not a boot item`);
       }
     }
   }

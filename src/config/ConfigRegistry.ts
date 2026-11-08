@@ -35,6 +35,7 @@ import {
   ensureUniqueLevelIds,
   findColorChannelConfigErrors,
   findLaserConfigErrors,
+  findCharacterItemConfigErrors,
   findSwivelConfigErrors,
   findRailConfigErrors,
   findSlowTimeConfigErrors,
@@ -69,6 +70,7 @@ import {
   normalizeLauncherLinks,
   normalizeUnderlays,
   registerTerrainTileLookup,
+  isPlayerCharacter,
   isWinRule,
   findAudioConfigErrors,
   findCampaignConfigErrors,
@@ -80,7 +82,7 @@ import {
   findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
-import { DEFAULT_RULESET } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
@@ -380,6 +382,10 @@ class ConfigRegistryService {
     const swivelErrors = findSwivelConfigErrors(bundle.tiles.tiles);
     if (swivelErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, swivelErrors.join('; '));
+    }
+    const characterItemErrors = findCharacterItemConfigErrors(bundle.tiles.tiles);
+    if (characterItemErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, characterItemErrors.join('; '));
     }
     const railErrors = findRailConfigErrors(bundle.tiles.tiles);
     if (railErrors.length > 0) {
@@ -1476,6 +1482,8 @@ class ConfigRegistryService {
       ...(isBlockBudget(bp.blockBudget) ? { blockBudget: { waters: bp.blockBudget.waters, targets: bp.blockBudget.targets } } : {}),
       ...(isCc2LevelData(bp.cc2) ? { cc2: bp.cc2 } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
+      // Chip is the default character and stays unwritten, so a level played by Chip is the same record as before.
+      ...(isPlayerCharacter(bp.character) && bp.character !== DEFAULT_PLAYER_CHARACTER ? { character: bp.character } : {}),
       ...(isRuleset(bp.ruleset) && bp.ruleset !== DEFAULT_RULESET ? { ruleset: bp.ruleset } : {}),
       number: bp.number,
       ...(typeof bp.titleKey === 'string' ? { titleKey: bp.titleKey } : {}),

@@ -17,13 +17,13 @@
 import { PLAYER_START_FACING } from '../core/cc3d/cc3dConstants';
 import { deriveDisplayLayers } from '../core/cc3d/cc3dLayers';
 import type { Cc3dLevel } from '../core/cc3d/model';
-import { DEFAULT_RULESET } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
 import { canonicalJson } from './canonicalJson';
 import { canonicalEdges, cloneEdges } from './editorCellEdges';
 import { canonicalUnderlays, cloneUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks, cloneLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks, cloneSignalLinks } from './editorSignalLinks';
-import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, LauncherLink, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
+import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, LauncherLink, PlayerCharacter, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -81,6 +81,8 @@ export interface EditorMetadata {
   winRule: WinRule;
   /** Absent means the default ruleset. */
   ruleset: Ruleset | undefined;
+  /** The character the level is played with; absent means Chip. */
+  character?: PlayerCharacter;
 }
 
 /** Everything an undo step must bring back: the map and the metadata. */
@@ -161,7 +163,8 @@ export function snapshotDocument(doc: EditorDocument): EditorDocument {
     timeLimitSeconds: doc.timeLimitSeconds,
     chipsRequired: doc.chipsRequired,
     winRule: doc.winRule,
-    ruleset: doc.ruleset
+    ruleset: doc.ruleset,
+    ...(doc.character !== undefined ? { character: doc.character } : {})
   };
 }
 
@@ -193,7 +196,8 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     timeLimitSeconds: doc.timeLimitSeconds,
     chipsRequired: doc.chipsRequired,
     winRule: doc.winRule,
-    ruleset: doc.ruleset
+    ruleset: doc.ruleset,
+    ...(doc.character !== undefined ? { character: doc.character } : {})
   };
 }
 
@@ -237,7 +241,8 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       timeLimitSeconds: doc.timeLimitSeconds,
       chipsRequired: doc.chipsRequired,
       winRule: doc.winRule,
-      ruleset: effectiveRuleset(doc.ruleset)
+      ruleset: effectiveRuleset(doc.ruleset),
+      character: doc.character ?? DEFAULT_PLAYER_CHARACTER
     });
   return normalize(a) === normalize(b);
 }

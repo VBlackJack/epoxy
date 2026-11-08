@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, TOKEN_ITEM_ID } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, TOKEN_ITEM_ID } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, isRemovableTop } from './Underlays';
@@ -137,9 +137,12 @@ export class Pathfinder {
 
     const hasBoot = (node: AStarNode, bootId: string | undefined): boolean =>
       Boolean(bootId) && !node.bootsStolen && player.boots.has(bootId!);
+    const melinda = (level.character ?? DEFAULT_PLAYER_CHARACTER) === MELINDA_CHARACTER;
+    // Melinda never slides on ice, as the engine rules (playerGripsTile).
+    const slidesOn = (tile: TileDefinition, node: AStarNode): boolean =>
+      tile.slideType !== undefined && !hasBoot(node, tile.protectedByItem) && !(melinda && tile.slideType === 'ice');
     const movesPlayerOnItsOwn = (tile: TileDefinition, node: AStarNode): boolean =>
-      Boolean(tile.isTeleporter) ||
-      (tile.slideType !== undefined && !hasBoot(node, tile.protectedByItem));
+      Boolean(tile.isTeleporter) || slidesOn(tile, node);
     const stateKey = (node: AStarNode): string =>
       `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${node.tokensLeft},${JSON.stringify(node.keysUsed)}`;
 
@@ -243,6 +246,8 @@ export class Pathfinder {
 
         // A barrier against an item the player carries stays solid along the whole path
         if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
+        // A sign of the other character is a wall, and dirt or gravel asks Melinda for her boots.
+        if (nextTile.passableByPlayer && !engine.canPlayerStepOn(nextTile)) continue;
 
         // A thief on this step takes the boots before the cell's own hazard applies
         // A held toll token pays a thief that would take the boots, who then takes nothing; one token per visit.
@@ -262,11 +267,13 @@ export class Pathfinder {
         ) {
           continue;
         }
+        // Boots a thief took no longer let Melinda walk on dirt or gravel.
+        if (probe.bootsStolen && nextTile.bootsForCharacter?.[level.character ?? DEFAULT_PLAYER_CHARACTER] !== undefined) continue;
 
         let stepCost = BASE_STEP_COST;
         if (stolenHere) {
           stepCost = THIEF_STEP_COST;
-        } else if (nextTile.slideType !== undefined && !hasBoot(probe, nextTile.protectedByItem)) {
+        } else if (slidesOn(nextTile, probe)) {
           stepCost = SLIDE_STEP_COST;
         }
 
@@ -437,7 +444,7 @@ export class Pathfinder {
         }
 
         if (!nextTile.passableByPlayer) continue;
-        if (nextTile.forbiddenItem && engine.holdsItem(nextTile.forbiddenItem)) continue;
+        if (!engine.canPlayerStepOn(nextTile)) continue;
         if (
           nextTile.hazard === 'fire' &&
           (!nextTile.protectedByItem || !player.boots.has(nextTile.protectedByItem))

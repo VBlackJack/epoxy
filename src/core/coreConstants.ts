@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ButtonAction, ChannelColor, Direction, MirrorAxis, MirrorCorner, Ruleset, WinRule } from './types';
+import { ButtonAction, ChannelColor, Direction, MirrorAxis, MirrorCorner, PlayerCharacter, Ruleset, WinRule } from './types';
 
 /** Terrain id used when a cell has no explicit terrain, or a tile has no transform target. */
 export const FLOOR_TILE_ID = 'floor';
@@ -30,6 +30,21 @@ export const CHIP_ITEM_ID = 'chip';
 
 /** Item id of a bomb hazard. */
 export const BOMB_ITEM_ID = 'bomb';
+
+/** Item id of the hiking boots Melinda needs on dirt and gravel. */
+export const HIKING_BOOTS_ITEM_ID = 'hiking_boots';
+
+/** Terrain id of plain ice; its `protectedByItem` names the boots that stop the slide. */
+export const ICE_TILE_ID = 'ice';
+
+/** Every character a level can be played with, in the order the editor offers them. */
+export const PLAYER_CHARACTERS: readonly PlayerCharacter[] = ['chip', 'melinda'];
+
+/** The character of a level that names none. */
+export const DEFAULT_PLAYER_CHARACTER: PlayerCharacter = 'chip';
+
+/** The character that does not slide on ice and needs hiking boots on dirt and gravel. */
+export const MELINDA_CHARACTER: PlayerCharacter = 'melinda';
 
 /** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
 export const GRAY_BUTTON_RADIUS = 2;

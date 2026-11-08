@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { isRuleset, isWinRule } from '../config/ConfigValidation';
-import { Ruleset, WinRule } from '../core/types';
+import { isPlayerCharacter, isRuleset, isWinRule } from '../config/ConfigValidation';
+import { PlayerCharacter, Ruleset, WinRule } from '../core/types';
 
 /** Win rule field: an unknown entry keeps `current`. */
 export function parseWinRule(raw: string, current: WinRule): WinRule {
   return isWinRule(raw) ? raw : current;
+}
+
+/** Character field: an unknown entry keeps `current`. */
+export function parseCharacter(raw: string, current: PlayerCharacter): PlayerCharacter {
+  return isPlayerCharacter(raw) ? raw : current;
 }
 
 /** Win rules only the Epoxy engine plays: a level using one cannot be a Lynx level. */

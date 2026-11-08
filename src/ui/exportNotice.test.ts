@@ -33,6 +33,16 @@ describe('lossyExportNotice', () => {
     expect(notice).toBe(t('app.export.refused_cc3d_ruleset.label', { levels: 'cc3d_a' }));
   });
 
+  it('names the levels played by Melinda a .DAT export left out', () => {
+    const notice = lossyExportNotice({
+      replaced: [],
+      lost: [],
+      refused: [{ levelId: 'melinda_a', reason: 'melinda_character' }]
+    });
+    expect(notice).toBe(t('app.export.refused_melinda_character.label', { levels: 'melinda_a' }));
+    expect(notice).not.toBe('app.export.refused_melinda_character.label');
+  });
+
   it('names the levels with signal wiring a .DAT export left out, with a label in both languages', () => {
     const notice = lossyExportNotice({
       replaced: [],

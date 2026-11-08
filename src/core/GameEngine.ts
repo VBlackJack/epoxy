@@ -59,6 +59,7 @@ import {
   EpoxyWorld,
   NO_PLAY_START_TICK,
   revealedTerrain,
+  canPlayerEnter,
   createEpoxyWorld,
   getEntityAt,
   holdsItem,
@@ -82,6 +83,7 @@ import {
   SignalLink,
   SignalPulseState,
   SignalState,
+  TileDefinition,
   TimedMove,
   TrapLink,
   UndoSnapshot
@@ -394,6 +396,11 @@ export class GameEngine {
   /** True when the player holds the item: a key of that colour, or those boots. */
   public holdsItem(itemId: string): boolean {
     return holdsItem(this.w, itemId);
+  }
+
+  /** Whether the player, with what they carry now, may step on the tile (the rule of a step, for the path tools). */
+  public canPlayerStepOn(tile: TileDefinition): boolean {
+    return canPlayerEnter(this.w, tile);
   }
 
   /**

@@ -24,7 +24,8 @@ import {
   PACK_JSON_VERSION_PULSE_SINKS,
   PACK_JSON_VERSION_SIGNALS,
   PACK_JSON_VERSION_UNDERLAYS,
-  PACK_JSON_VERSION_V11
+  PACK_JSON_VERSION_V11,
+  PACK_JSON_VERSION_V13
 } from '../config/constants';
 import {
   ensureUniqueLevelIds,
@@ -32,6 +33,7 @@ import {
   LevelSizeBounds,
   sanitizeStoredLevels
 } from '../config/ConfigValidation';
+import { DEFAULT_PLAYER_CHARACTER } from '../core/coreConstants';
 import { cellEdgeMask } from '../core/EdgeRules';
 import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
@@ -68,7 +70,11 @@ export interface PackJsonFile {
 function packFileVersion(levels: readonly CompiledLevel[]): number {
   // A signal link that flips a tile is read by format 11 builds only, whatever ids the level holds.
   const flipVersion = levels.some((level) => usesFlipSinkFormat(level)) ? PACK_JSON_VERSION_V11 : 0;
-  const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), flipVersion);
+  // A level played by Melinda is read as Chip's by a build that does not know the field, so it needs format 13.
+  const characterVersion = levels.some((level) => level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER)
+    ? PACK_JSON_VERSION_V13
+    : flipVersion;
+  const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), characterVersion);
   if (idSetVersion > 0) return idSetVersion;
   if (levels.some((level) => usesPulseSinkFormat(level))) return PACK_JSON_VERSION_PULSE_SINKS;
   if (levels.some((level) => (level.signalLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_SIGNALS;

@@ -1153,6 +1153,25 @@ export interface TileDefinition {
   /** When 'player', only the player's step works the button: monsters and blocks that enter the cell press nothing. */
   buttonWorkedBy?: ButtonWorker;
   togglesTo?: string;
+  /**
+   * An item that swaps to another item at every press of the green button, wherever it lies (the Chip's Challenge 2
+   * green chip and green bomb). The target names this item back.
+   */
+  itemTogglesTo?: string;
+  /**
+   * On a chip item: false when picking it up does not count toward the chips the level requires. Absent or true: it counts,
+   * as the plain chip does.
+   */
+  countsAsChip?: boolean;
+  /**
+   * A wall that no blast destroys (the steel wall). Blast charges never remove terrain today, so the flag has no effect on
+   * play yet; it is what a future terrain-breaking blast reads.
+   */
+  blastProof?: boolean;
+  /** A tile only this character may step on as the player; for the other character it is a wall. Monsters and blocks follow their own flags. */
+  characterOnly?: PlayerCharacter;
+  /** Per character, the boots the player must hold to step on this tile. A character not listed needs none. */
+  bootsForCharacter?: Partial<Record<PlayerCharacter, string>>;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */
   flameTogglesTo?: string;
   isTeleporter?: boolean;
@@ -1571,6 +1590,9 @@ export interface EntityPlacement {
  */
 export type WinRule = 'exit' | 'targets' | 'receivers';
 
+/** The character a level is played with (Epoxy ruleset only); absent on a level means Chip. */
+export type PlayerCharacter = 'chip' | 'melinda';
+
 /**
  * One cell crossed by a laser beam. `horizontal` and `vertical` tell which
  * axes the beam travels along in the cell: both are set where a mirror turns it.
@@ -1611,6 +1633,8 @@ export interface LevelBlueprint {
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
+  /** Character the level is played with; absent means Chip (Epoxy ruleset only). */
+  character?: PlayerCharacter;
   /** Ruleset the level was made for; absent means 'epoxy'. */
   ruleset?: Ruleset;
   /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */
@@ -1799,6 +1823,8 @@ export interface CompiledLevel {
   solution?: string;
   /** Win rule of the level; absent means 'exit'. */
   winRule?: WinRule;
+  /** Character the level is played with; absent means Chip (Epoxy ruleset only). */
+  character?: PlayerCharacter;
   /** Ruleset the level was made for; absent means 'epoxy'. */
   ruleset?: Ruleset;
   /** The CC3D level data; the engine of the 'cc3d' ruleset reads only this. */

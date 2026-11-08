@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -324,6 +324,17 @@ export function isWiredDeviceTileId(id: string | null | undefined): boolean {
   return tile.wireTogglesTo !== undefined || tile.wiredTrap === true || tile.buttonAction === PULSE_WIRED_ACTION;
 }
 
+/**
+ * True when the tile is part of the Chip's Challenge 2 items and characters: a green chip or bomb (`itemTogglesTo`), a
+ * steel wall (`blastProof`), a gender sign (`characterOnly`) or the hiking boots.
+ */
+export function isCharacterContentTileId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  if (id === HIKING_BOOTS_ITEM_ID) return true;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.itemTogglesTo !== undefined || tile.blastProof === true || tile.characterOnly !== undefined;
+}
+
 /** True when the tile is a hurl stone, carried and thrown by the player. */
 export function isStoneTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).collectible === 'stone';
@@ -372,7 +383,7 @@ export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
     isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isWiredDeviceTileId(id) || isRailTileId(id) ||
-    isUnimplementedTileId(id)
+    isCharacterContentTileId(id) || isUnimplementedTileId(id)
   );
 }
 
@@ -484,7 +495,7 @@ export function hasForceCycleContent(
 /** True when the level uses a mechanic that only the Epoxy engine plays: lasers, colour channels, slow time, speed or eye boots, swivel doors, steered monsters, fleeing monsters, arrow blocks, transmogrifiers, turn plates, turning force floors or signal wiring. */
 export function hasEpoxyOnlyContent(
   level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> &
-    Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays' | 'signalLinks'>>
+    Partial<Pick<CompiledLevel, 'cloneLinks' | 'underlays' | 'signalLinks' | 'character'>>
 ): boolean {
   const hasEpoxyOnlyItem = (grid: Array<Array<string | null>> | undefined): boolean =>
     grid?.some((row) => row.some(isEpoxyOnlyItemId)) ?? false;
@@ -496,7 +507,8 @@ export function hasEpoxyOnlyContent(
     hasSwivelContent(level) ||
     hasForceCycleContent(level) ||
     hasEpoxyOnlyMonsterContent(level) ||
-    hasSignalContent(level)
+    hasSignalContent(level) ||
+    (level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER)
   );
 }
 
