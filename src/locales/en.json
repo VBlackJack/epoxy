@@ -877,6 +877,12 @@
         "empty": {
           "label": "Add a level before sharing this pack."
         },
+        "cc2": {
+          "label": "This pack holds imported CC2 levels, which stay on this device and cannot be shared in a link."
+        },
+        "cc2_incoming": {
+          "label": "This link carries CC2 levels, which cannot be shared in a link. It was not opened."
+        },
         "hint": {
           "label": "Long links may not fit in some chat apps. Export the JSON file for big packs."
         },

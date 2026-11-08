@@ -23,6 +23,14 @@ import { mountModals, resetWindowListeners, stubLayout, trackWindowListeners } f
 import type { PackManagerHost } from './packManager';
 
 const SHARE_LIMIT_TOO_SMALL = 10;
+const FAKE_CC2 = {
+  v: 1,
+  sha256: 'f'.repeat(64),
+  file: 'synthetic.c2m',
+  order: 1,
+  gridHash: 'h',
+  coverage: { verdict: 'exact', lost: [] as string[], approx: [] as string[] }
+} as const;
 /** Longest wait for a link, in ms: compression is asynchronous and the suite runs many workers. */
 const WAIT = 8000;
 
@@ -61,7 +69,14 @@ beforeEach(async () => {
   const level = makeLevel('a');
   packs = [
     { id: 'full', name: 'Full pack', builtIn: false, userCreated: true, levels: [level] },
-    { id: 'empty', name: 'Empty pack', builtIn: false, userCreated: true, levels: [] }
+    { id: 'empty', name: 'Empty pack', builtIn: false, userCreated: true, levels: [] },
+    {
+      id: 'licensed',
+      name: 'Licensed pack',
+      builtIn: false,
+      userCreated: true,
+      levels: [level, { ...makeLevel('b'), cc2: { ...FAKE_CC2, coverage: { ...FAKE_CC2.coverage } } }]
+    }
   ];
   vi.spyOn(registry, 'getEditablePacks').mockImplementation(() => packs);
   vi.spyOn(registry, 'exportPackJson').mockImplementation((id, name, compact) => {
@@ -113,6 +128,20 @@ describe('pack manager share controls (DOM)', () => {
     await openManager('empty');
     expect(button('packs-share-copy-btn').disabled).toBe(true);
     expect(button('packs-share-copy-btn').title).toBe('Add a level before sharing this pack.');
+  });
+
+  it('disables the buttons with the CC2 reason while the pack holds a CC2 level', async () => {
+    await openManager('licensed');
+    expect(button('packs-share-copy-btn').disabled).toBe(true);
+    expect(button('packs-share-copy-btn').title).toContain('imported CC2 levels');
+  });
+
+  it('makes no link and serializes nothing for a pack holding a CC2 level', async () => {
+    const exportSpy = vi.spyOn(registry, 'exportPackJson');
+    const { makeShareLink } = await import('./shareActions');
+    const result = await makeShareLink(packs[2], 'Licensed pack');
+    expect(result).toEqual({ ok: false, error: 'cc2_content' });
+    expect(exportSpy).not.toHaveBeenCalled();
   });
 
   it('copies the link of the selected pack and tells so', async () => {
