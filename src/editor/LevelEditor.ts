@@ -159,7 +159,8 @@ import {
   serializeSectionState
 } from './inspectorSections';
 import { CanopyMode, hasCanopyAt, hasCellEdges } from './editorCellEdges';
-import { nextRailPiece } from './railRotation';
+import { nextBrushTile } from './brushCycle';
+import { familyKey, paletteTilesOf, variantFamilyOf } from './paletteVariants';
 import { CellSection } from './cellPanel';
 import { RailTrackPanel } from './railTrackPanel';
 import { rotateRailTracksAt } from './railTrackEdits';
@@ -760,6 +761,8 @@ export class LevelEditor {
   private paletteQuery = '';
   /** The palette entry that last held the focus: it stays the grid's Tab stop through redraws. Session only. */
   private paletteStop: { kind: string; id: string } | null = null;
+  /** The variant each family button shows, keyed by familyKey: the last one in hand. */
+  private readonly variantChoice = new Map<string, string>();
   /** How many entries the last search matched, and the count a screen reader was last told. */
   private searchMatchCount = 0;
   private searchCountAnnounced: number | null = null;
@@ -1657,7 +1660,7 @@ export class LevelEditor {
 
     if (this.paletteQuery !== '') {
       // A search covers every tab, in tab order then config order. The buttons are the ordinary ones: no duplicates, same gating.
-      const everything = ConfigRegistry.getTiles().categories.flatMap((cat) => this.epoxyItemsOf(cat.id));
+      const everything = ConfigRegistry.getTiles().categories.flatMap((cat) => this.epoxyItemsOf(cat.id, false));
       this.appendSearchResults(container, searchPalette(everything, this.paletteQuery), (item) => this.epoxyPaletteButton(item));
     } else if (this.activeCategory === MECHANISMS_CATEGORY) {
       // Sub-headings only label the entries that follow them: they are not focusable and the tab order stays the button order.
@@ -1749,7 +1752,7 @@ export class LevelEditor {
    * The Epoxy and Lynx entries of one tab, in display order: tiles, creatures, then the thin wall (Terrain) and
    * the player start (Entities). Icons are drawn only for the buttons that get built.
    */
-  private epoxyItemsOf(category: string): EpoxyPaletteItem[] {
+  private epoxyItemsOf(category: string, collapseFamilies = true): EpoxyPaletteItem[] {
     const mechanisms = category === MECHANISMS_CATEGORY;
     const items: EpoxyPaletteItem[] = [];
     const add = (brush: Brush, name: string, icon: () => string, group: MechanismGroupId | null = null): void => {
@@ -1766,7 +1769,13 @@ export class LevelEditor {
     };
 
     // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
-    for (const tile of Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true)) {
+    // A variant family (the no signs, the counters...) has one entry showing the variant in hand; a search still lists every variant.
+    const placeable = Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true);
+    const handTile = this.brush.kind === 'terrain' || this.brush.kind === 'item' ? ConfigRegistry.getTile(this.brush.id) : undefined;
+    const handFamily = handTile ? variantFamilyOf(handTile) : null;
+    if (handTile && handFamily !== null && handTile.category === category) this.variantChoice.set(familyKey(category, handFamily), handTile.id);
+    const collapse = collapseFamilies && editableRulesetOf(this.doc.ruleset) !== LYNX_RULESET;
+    for (const tile of collapse ? paletteTilesOf(placeable, category, this.variantChoice) : placeable) {
       add(
         { kind: tile.layer === 'item' ? 'item' : 'terrain', id: tile.id },
         t(tile.i18nKey),
@@ -2034,15 +2043,18 @@ export class LevelEditor {
   private rotateDirection(): void {
     // A rail piece in hand turns itself: the key picks its next starting position instead of the placing side. The
     // brush is set in place, so the tool, a selection and a floating paste stay as they are.
-    if (this.brush.kind === 'terrain' && !this.isCc3d()) {
+    // A tile of a variant family cycles through the family the same way, and says which variant it landed on.
+    if ((this.brush.kind === 'terrain' || this.brush.kind === 'item') && !this.isCc3d()) {
       const tiles = ConfigRegistry.getTiles().tiles;
-      const turned = tiles[this.brush.id] ? nextRailPiece(tiles[this.brush.id], tiles) : null;
-      if (turned !== null) {
-        this.brush = { kind: 'terrain', id: turned };
+      const step = tiles[this.brush.id] ? nextBrushTile(tiles[this.brush.id], tiles) : null;
+      if (step !== null) {
+        this.brush = { kind: tiles[step.id].layer === 'item' ? 'item' : 'terrain', id: step.id };
         this.updateCanvasLabel();
         this.renderPaletteItems();
-        const description = paletteDescription('terrain', turned, t);
-        this.setStatusText(description === undefined ? this.brushLabel(this.brush) : nameWithDescription(this.brushLabel(this.brush), description));
+        const description = paletteDescription(this.brush.kind, step.id, t);
+        const label = this.brushLabel(this.brush);
+        if (step.rail) this.setStatusText(description === undefined ? label : nameWithDescription(label, description));
+        else this.setStatusText(t('editor.palette.status.variant.label', { name: label, position: step.position, count: step.count }));
         return;
       }
     }

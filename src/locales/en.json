@@ -3582,6 +3582,9 @@
         "picked": {
           "label": "Picked: {name}"
         },
+        "variant": {
+          "label": "{name} (variant {position} of {count}, R for the next one)"
+        },
         "saved": {
           "label": "Level saved to local browser library!"
         },

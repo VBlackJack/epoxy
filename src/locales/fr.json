@@ -3582,6 +3582,9 @@
         "picked": {
           "label": "Pipette : {name} sélectionné"
         },
+        "variant": {
+          "label": "{name} (variante {position} sur {count}, R pour la suivante)"
+        },
         "saved": {
           "label": "Niveau sauvegardé dans la bibliothèque locale !"
         },
