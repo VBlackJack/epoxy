@@ -505,3 +505,109 @@ describe('the level data of several players', () => {
     expect(stripInvalidTextFields(stale).extraPlayers).toBeUndefined();
   });
 });
+
+describe('single-player behaviour stays as it was', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  const single = (setup: RoomSetup): CompiledLevel => {
+    const level = room(setup);
+    delete level.extraPlayers;
+    return level;
+  };
+
+  it('teleports between adjacent linked teleporters onto the source cell when it is the only free exit', () => {
+    const level = single({
+      chip: { x: 1, y: 2 },
+      others: [],
+      terrain: [
+        [2, 2, 'teleport'],
+        [3, 2, 'teleport'],
+        [4, 2, 'wall'],
+        [3, 1, 'wall'],
+        [3, 3, 'wall']
+      ]
+    });
+    const engine = start(level);
+    expect(step(engine, 'E')).toBe(true);
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.getPlayer()).toMatchObject({ x: 2, y: 2 });
+  });
+
+  it('leaves the character unwritten after a transmogrifier round trip', () => {
+    const level = single({
+      chip: { x: 1, y: 2 },
+      others: [],
+      terrain: [
+        [2, 2, 'transmogrifier'],
+        [3, 2, 'transmogrifier']
+      ]
+    });
+    const engine = start(level);
+    step(engine, 'E');
+    expect(engine.getPlayer().character).toBe('melinda');
+    step(engine, 'E');
+    expect(engine.getPlayerCharacter()).toBe('chip');
+    expect(engine.getPlayer().character).toBeUndefined();
+    expect('character' in engine.getPlayer()).toBe(false);
+    expect(engine.captureState().player.character).toBeUndefined();
+  });
+});
+
+describe('deaths during a parked player step', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('keeps every player exactly once when a parked slide presses a launcher whose shot kills another parked player', () => {
+    const level = room({
+      chip: { x: 1, y: 1 },
+      others: [
+        { x: 2, y: 4, character: 'chip' },
+        { x: 7, y: 4, character: 'melinda' }
+      ],
+      terrain: [
+        [3, 4, 'force_e'],
+        [4, 4, 'shot_trigger'],
+        [5, 4, 'shot_launcher_e']
+      ]
+    });
+    level.launcherLinks = [{ buttonX: 4, buttonY: 4, launcherX: 5, launcherY: 4 }];
+    const engine = start(level);
+    engine.swapPlayer();
+    expect(step(engine, 'E')).toBe(true);
+    engine.swapPlayer();
+    engine.swapPlayer();
+    expect(engine.getPlayer()).toMatchObject({ x: 1, y: 1 });
+    wait(engine, SLIDE_TICKS);
+    const everyone = [engine.getPlayer(), ...(engine.getParkedPlayers() ?? [])];
+    expect(new Set(everyone).size).toBe(3);
+    expect(everyone.map((p) => `${p.x},${p.y}`).sort()).toEqual(['1,1', '4,4', '7,4']);
+    expect(everyone.filter((p) => !p.alive).length).toBe(1);
+    expect(engine.getPlayer().alive).toBe(false);
+  });
+
+  it('does not make the mirror players copy the forced steps of a parked player', () => {
+    const level = room({
+      chip: { x: 1, y: 2 },
+      others: [{ x: 1, y: 4, character: 'melinda' }],
+      terrain: [
+        [2, 2, 'force_e'],
+        [3, 2, 'force_e'],
+        [4, 2, 'force_e'],
+        [5, 2, 'force_e']
+      ],
+      entities: [{ type: 'mirror_chip', x: 7, y: 4, dir: 'E' }]
+    });
+    const engine = start(level);
+    step(engine, 'E');
+    engine.swapPlayer();
+    const mirrorAt = (): string => engine.getEntities().map((e) => `${e.x},${e.y}`).join(';');
+    const before = mirrorAt();
+    const chipBefore = engine.getParkedPlayers()?.[0].x ?? 0;
+    wait(engine, SLIDE_TICKS);
+    expect(engine.getParkedPlayers()?.[0].x).toBeGreaterThan(chipBefore);
+    expect(mirrorAt()).toBe(before);
+  });
+});

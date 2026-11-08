@@ -91,7 +91,10 @@ function blast(ctx: EpoxyContext, charge: LitCharge): void {
   w.beamDirty = true;
   // Every player in the blast dies; a parked one that dies takes the controlled slot, so the loop reads a copy.
   for (const p of [...playersOf(w)]) {
-    if (p.alive && inBlast(charge.x, charge.y, p.x, p.y)) killPlayerAt(ctx, p, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+    if (!p.alive || !inBlast(charge.x, charge.y, p.x, p.y)) continue;
+    killPlayerAt(ctx, p, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+    // One death loses the level, as for the laser: the others are not looked at.
+    break;
   }
 }
 

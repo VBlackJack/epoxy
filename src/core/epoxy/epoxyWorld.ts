@@ -608,7 +608,11 @@ export function withPlayer<T>(w: EpoxyWorld, p: PlayerState, fn: () => T): T {
     return fn();
   } finally {
     w.swappedIn = outerSwap;
-    if (p.exited === true) {
+    if (w.player !== p) {
+      // A death during the callback already promoted the dead player to the controlled slot, and every other player is
+      // in the queue exactly once: restoring by slot would duplicate `p` and lose the dead one. Only drop `p` if it left.
+      if (p.exited === true) w.parked.splice(w.parked.indexOf(p), 1);
+    } else if (p.exited === true) {
       // The slot holds the controlled player again; the exited one is gone.
       w.player = active;
       w.parked.splice(index, 1);
@@ -640,7 +644,11 @@ export function dropExitedController(w: EpoxyWorld): boolean {
   return true;
 }
 
-/** Hands control to the next parked player; the controlled one goes to the back of the queue. False when nobody is parked. */
+/**
+ * Hands control to the next parked player; the controlled one goes to the back of the queue. False when nobody is parked.
+ * Cooldowns are left as they are, as Lexy's Labyrinth `swap_players` only clears the remembered moves: a player that
+ * receives control mid-slide keeps sliding and its move cooldown has kept running down while it was parked.
+ */
 export function rotatePlayers(w: EpoxyWorld): boolean {
   const next = w.parked.shift();
   if (next === undefined) return false;

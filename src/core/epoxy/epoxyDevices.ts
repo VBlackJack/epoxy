@@ -47,6 +47,7 @@ import {
   getEntityAt,
   holdColorsOpen,
   isInBounds,
+  killPlayer,
   mapWidth,
   removeEntity,
   signalSinkOn,
@@ -345,6 +346,14 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
 function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (!w.player.alive) return;
+  if (w.parked.length === 0) {
+    const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+      ctx.emitVisual('explosion', w.player.x, w.player.y);
+      killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+    }
+    return;
+  }
   // A parked player that burns takes the controlled slot, so the loop reads a copy.
   for (const p of [...playersOf(w)]) {
     const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);

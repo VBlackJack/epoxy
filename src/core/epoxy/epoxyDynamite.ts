@@ -147,5 +147,6 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
   if (terrainChanged) rebuildDeviceLookups(w);
   // A blast changes what stands on a beam path.
   w.beamDirty = true;
-  for (const p of playersKilled) killPlayerAt(ctx, p, CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
+  // One death loses the level, as for the laser: the other players in the blast are not looked at.
+  if (playersKilled.length > 0) killPlayerAt(ctx, playersKilled[0], CHARGE_DEATH_REASON_KEY, CHARGE_BLAST_SFX);
 }

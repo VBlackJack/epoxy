@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -71,7 +71,8 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   if (dropExitedController(w)) return moved;
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
   // They copy the requested direction, before any track redirect of the player's own cell.
-  if (w.player.alive && !w.levelCompleted && w.player.exited !== true) steerMirrors(ctx, requestedDir);
+  // A parked player's forced steps (w.swappedIn set) are not copied: the mirrors follow the controlled player's moves.
+  if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, requestedDir);
   return moved;
 }
 
@@ -313,7 +314,12 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   // A transmogrifier turns the player into the other character on arrival (Lexy's Labyrinth tiletypes.js `transmogrifier`).
-  if (tile.transmogrifies) w.player.character = transmogrifiedCharacter(playerCharacterOf(w));
+  if (tile.transmogrifies) {
+    const switched = transmogrifiedCharacter(playerCharacterOf(w));
+    // With one player the character stays unwritten while it is the level's, so state shapes stay canonical after a round trip.
+    if ((w.level.extraPlayers?.length ?? 0) === 0 && switched === (w.level.character ?? DEFAULT_PLAYER_CHARACTER)) delete w.player.character;
+    else w.player.character = switched;
+  }
 
   const itemId = w.items[y][x];
   if (itemId) {
