@@ -232,6 +232,57 @@ describe('terrain, items and entities', () => {
     expect(coverage.approx).toEqual(['no_sign_boots']);
   });
 
+  it('puts a no-sign over any other carried item on the item layer, keeping the terrain', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x7f }, { code: DYNAMITE }, { code: FLOOR_CODE }),
+      put(2, 0, { code: 0x7f }, { code: 0x68 }, { code: FLOOR_CODE }),
+      put(3, 0, { code: 0x7f }, { code: 0x52 }, { code: FLOOR_CODE }),
+      put(4, 0, { code: 0x7f }, { code: 0x90 }, { code: FLOOR_CODE }),
+      put(5, 0, { code: 0x7f }, { code: 0x59 }, { code: FLOOR_CODE })
+    ]);
+    expect(level.terrain[0].slice(1, 6)).toEqual(['floor', 'floor', 'floor', 'floor', 'floor']);
+    expect(level.items[0].slice(1, 6)).toEqual([
+      'no_sign_dynamite', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
+    ]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toContain('no_sign_item');
+  });
+
+  it('puts a no-sign over a key or boots on any terrain but plain floor on the item layer', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x7f }, { code: 0x26 }, { code: 0x1e }),
+      put(2, 0, { code: 0x7f }, { code: 0x3e }, { code: 0x08 }),
+      put(3, 0, { code: 0x7f }, { code: 0x27 }, { code: 0x03 })
+    ]);
+    expect(level.terrain[0].slice(1, 4)).toEqual(['gravel', 'water', 'ice']);
+    expect(level.items[0].slice(1, 4)).toEqual(['no_sign_key_red', 'no_sign_boots_water', 'no_sign_key_blue']);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['no_sign_item']);
+  });
+
+  it('puts a no-sign over the steel foil and the bribe on the item layer, and drops the toggle clock', () => {
+    const { level, coverage } = convert([
+      put(1, 0, { code: 0x7f }, { code: 0x8c }, { code: FLOOR_CODE }),
+      put(2, 0, { code: 0x7f }, { code: 0x8f }, { code: FLOOR_CODE }),
+      put(3, 0, { code: 0x7f }, { code: 0x4d }, { code: FLOOR_CODE })
+    ]);
+    expect(level.items[0].slice(1, 4)).toEqual(['no_sign_steel_foil', 'no_sign_bribe', null]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(expect.arrayContaining(['no_sign_item', 'no_sign_bonus']));
+  });
+
+  it('drops a bonus item under a no-sign and loses a no-sign over a placeholder item', () => {
+    const bonus = convert([put(1, 0, { code: 0x7f }, { code: 0x7a }, { code: FLOOR_CODE })]);
+    expect(bonus.level.items[0][1]).toBeNull();
+    expect(bonus.coverage.lost).toEqual([]);
+    expect(bonus.coverage.approx).toEqual(['no_sign_bonus']);
+    const bolt = convert([put(1, 0, { code: 0x7f }, { code: 0x62 }, { code: FLOOR_CODE })]);
+    expect(bolt.level.items[0][1]).toBe('no_sign_lightning_bolt');
+    expect(bolt.coverage.approx).toContain('no_sign_item');
+    const railroad = convert([put(1, 0, { code: 0x7f }, { code: 0x6f }, { code: FLOOR_CODE })]);
+    expect(railroad.coverage.lost).toContain('no_sign');
+  });
+
   it('plays an empty no-sign as the plain floor, exactly', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x7f }, { code: FLOOR_CODE })]);
     expect(level.terrain[0][1]).toBe('floor');
@@ -299,16 +350,18 @@ describe('thin walls', () => {
     expect(coverage.verdict).toBe('exact');
   });
 
-  it('drops the canopy flag, loses it in coverage and keeps the real edges', () => {
+  it('keeps the canopy flag with the real edges and plays it approximately', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: W | CANOPY }, { code: FLOOR_CODE })]);
-    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: ['W'] }]);
-    expect(coverage.lost).toEqual(['canopy']);
+    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: ['W'], canopy: true }]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['canopy']);
   });
 
-  it('records a canopy alone without an edge', () => {
+  it('keeps a canopy alone as an edge entry with no side', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: CANOPY }, { code: FLOOR_CODE })]);
-    expect(level.cellEdges).toBeUndefined();
-    expect(coverage.lost).toEqual(['canopy']);
+    expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: [], canopy: true }]);
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['canopy']);
   });
 });
 
@@ -383,10 +436,11 @@ describe('directional blocks', () => {
     expect(report.warnings.some((w) => w.includes('four arrows'))).toBe(true);
   });
 
-  it('loses a block with no arrow, which cannot be pushed in CC2', () => {
-    const { level, coverage } = convert([put(1, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: 0 }, { code: FLOOR_CODE })]);
-    expect(level.entities[0].type).toBe('dirt_block');
-    expect(coverage.lost).toEqual(['arrow_block_locked']);
+  it('plays a block with no arrow as the locked arrow block, exactly', () => {
+    const { level, coverage, report } = convert([put(1, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: 0 }, { code: FLOOR_CODE })]);
+    expect(level.entities[0].type).toBe('arrow_block_none');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(report.warnings).toEqual([]);
   });
 
   it('gives the green walls their own approximate keys', () => {

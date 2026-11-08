@@ -24,7 +24,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { MELINDA_CHARACTER, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
+import { CC2_ID_PREFIX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -58,8 +58,12 @@ import {
   ITEM_MAP,
   KEY_MELINDA_PLAYER,
   KEY_NO_SIGN,
+  KEY_NO_SIGN_BONUS,
   KEY_NO_SIGN_EMPTY,
+  KEY_NO_SIGN_ITEM,
+  NO_SIGN_BLOCKED_TERRAIN,
   NO_SIGN_FORBID_MAP,
+  NO_SIGN_INERT_ITEMS,
   RESERVED_PLAYER_ENTITIES,
   TERRAIN_MAP,
   TRACK_JUNCTION,
@@ -92,7 +96,6 @@ const DIRECTION_COUNT = 4;
 const DEFAULT_ID_PREFIX = 'cc2';
 const EPOXY_RULESET = 'epoxy';
 const KEY_ARROW_BLOCK = 'arrow_block';
-const KEY_ARROW_BLOCK_LOCKED = 'arrow_block_locked';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
 
 /**
@@ -259,7 +262,7 @@ export function cc2GridHash(level: Cc2GridParts): string {
       level.terrain,
       level.items,
       level.entities.map((e) => [e.x, e.y, e.type, e.dir]),
-      (level.cellEdges ?? []).map((e) => [e.x, e.y, e.sides]),
+      (level.cellEdges ?? []).map((e) => (e.canopy === true ? [e.x, e.y, e.sides, true] : [e.x, e.y, e.sides])),
       level.trapLinks.map((l) => [l.buttonX, l.buttonY, l.trapX, l.trapY]),
       level.cloneLinks.map((l) => [l.buttonX, l.buttonY, l.clonerX, l.clonerY, l.templateType, l.templateDir]),
       (level.signalLinks ?? []).map((l) => [l.fromX, l.fromY, l.toX, l.toY]),
@@ -335,10 +338,7 @@ function directionalBlock(tile: Cc2Tile, warnings: string[], where: string): { t
   const arrows = (tile.arrows ?? 0) & WIRE_NIBBLE_MASK;
   const sides = sidesOf(arrows);
   const own = cc2Direction(tile.dir);
-  if (sides.length === 0) {
-    warnings.push(`directional block without arrows at ${where} cannot be pushed in CC2; played as a dirt block`);
-    return { type: DIRT_BLOCK_ID, dir: own, key: KEY_ARROW_BLOCK_LOCKED };
-  }
+  if (sides.length === 0) return { type: LOCKED_ARROW_BLOCK_ID, dir: own };
   if (sides.length === DIRECTION_COUNT) {
     warnings.push(`directional block with four arrows at ${where} played as a dirt block`);
     return { type: DIRT_BLOCK_ID, dir: own, key: KEY_ARROW_BLOCK_CROSS };
@@ -467,7 +467,18 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
           itemId = null;
           keys.add(forbid.key);
         } else if (itemId === null) keys.add(KEY_NO_SIGN_EMPTY);
-        else keys.add(KEY_NO_SIGN);
+        else if (
+          NO_SIGN_ITEM_IDS.includes(itemId) &&
+          !NO_SIGN_BLOCKED_TERRAIN.has(terrainId) &&
+          !terrainId.startsWith(CC2_ID_PREFIX)
+        ) {
+          // The sign lies on the item layer: it cannot be picked up, bars a player carrying the item, and the terrain keeps working.
+          itemId = `${NO_SIGN_ITEM_PREFIX}${itemId}`;
+          keys.add(KEY_NO_SIGN_ITEM);
+        } else if (NO_SIGN_INERT_ITEMS.has(itemId)) {
+          itemId = null;
+          keys.add(KEY_NO_SIGN_BONUS);
+        } else keys.add(KEY_NO_SIGN);
       }
 
       // Panel: thin walls.
@@ -479,9 +490,10 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         else if (panelCode === CC2_CODE_THIN_WALL_E) mask = SIDE_BITS[1];
         else if (panelCode === CC2_CODE_THIN_WALL_SE) mask = SIDE_BITS[1] | SIDE_BITS[2];
         keys.add('thin_wall');
-        if (panelCode === CC2_CODE_THIN_WALL && ((part.panel.flags ?? 0) & CANOPY_BIT) !== 0) keys.add(KEY_CANOPY);
+        const canopy = panelCode === CC2_CODE_THIN_WALL && ((part.panel.flags ?? 0) & CANOPY_BIT) !== 0;
+        if (canopy) keys.add(KEY_CANOPY);
         const sides = sidesOf(mask);
-        if (sides.length > 0) edges.push({ x, y, sides });
+        if (sides.length > 0 || canopy) edges.push({ x, y, sides, ...(canopy ? { canopy: true as const } : {}) });
       }
 
       // Actor.

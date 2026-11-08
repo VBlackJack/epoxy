@@ -34,6 +34,39 @@ export const BOMB_ITEM_ID = 'bomb';
 /** Item id of the hiking boots Melinda needs on dirt and gravel. */
 export const HIKING_BOOTS_ITEM_ID = 'hiking_boots';
 
+/** Prefix of the item-layer no-signs: `no_sign_<item>` bars a player who carries that item, on any terrain. */
+export const NO_SIGN_ITEM_PREFIX = 'no_sign_';
+
+/**
+ * The items a player can carry, hence the items a no-sign can name (one `no_sign_<item>` tile each, in the item layer):
+ * the four keys, every pair of boots and boot-like item (the steel foil too), the blast charge, the dynamite, the pocket gate, the hurl stone,
+ * the toll token, the bribe and the lightning bolt.
+ */
+export const NO_SIGN_ITEM_IDS: readonly string[] = [
+  'key_red',
+  'key_blue',
+  'key_yellow',
+  'key_green',
+  'boots_water',
+  'boots_fire',
+  'boots_ice',
+  'boots_force',
+  'slow_time',
+  'boots_speed',
+  'boots_eye',
+  'boots_pull',
+  'ward',
+  'hiking_boots',
+  'charge',
+  'dynamite',
+  'pocket_gate',
+  'hurl_stone',
+  'toll_token',
+  'steel_foil',
+  'bribe',
+  'lightning_bolt'
+];
+
 /** Item id of the Chip's Challenge 2 steel foil: boots that turn a bumped wall into a steel wall. */
 export const STEEL_FOIL_ITEM_ID = 'steel_foil';
 
@@ -82,7 +115,7 @@ export const STONE_ITEM_ID = 'hurl_stone';
 /** Item id of the toll token a player carries and a thief takes instead of the boots or keys. */
 export const TOKEN_ITEM_ID = 'toll_token';
 
-/** Counted items that are spent at a thief and never set down: the toll token and the bribe. */
+/** Counted items that are spent at a thief and never set down: the toll token, the bribe and the lightning bolt. */
 export const THIEF_PAYMENT_ITEM_IDS: ReadonlySet<string> = new Set([TOKEN_ITEM_ID, BRIBE_ITEM_ID]);
 
 /** Payload of a shot the player threw, as opposed to one a launcher fired. */
@@ -356,6 +389,12 @@ export const CELL_EDGE_BITS: Readonly<Record<Direction, number>> = {
   S: 4,
   W: 8
 };
+
+/** Bit of the canopy flag in the mask of a level's cell edges: a roof over the cell, not a side (see cellEdgeMask). */
+export const CELL_EDGE_CANOPY_BIT = 16;
+
+/** Entity id of the arrow block that shows no arrow: no push moves it (the one block allowed an empty pushArrows list). */
+export const LOCKED_ARROW_BLOCK_ID = 'arrow_block_none';
 
 /** Order in which the sides of a cell edge are stored and listed. */
 export const CELL_EDGE_SIDE_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];

@@ -69,6 +69,15 @@ describe('Pathfinder.findNextObjective', () => {
     expect(Pathfinder.findNextObjective(engineFor(level, [], { key_red: 1 }))).toBeNull();
   });
 
+  it('does not point through a no-sign on the item layer against a held item', () => {
+    const level = corridor({ 8: 'exit' });
+    level.items[2][5] = 'no_sign_key_red';
+    expect(Pathfinder.findNextObjective(engineFor(level))).toEqual({ x: 8, y: 2 });
+    expect(Pathfinder.findNextObjective(engineFor(level, [], { key_red: 1 }))).toBeNull();
+    expect(Pathfinder.findPath(engineFor(level, [], { key_red: 1 }), 8, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engineFor(level), 8, 2).moves).toHaveLength(6);
+  });
+
   it('offers the orange button while a flame jet is lit', () => {
     const lit = corridor({ 4: 'button_orange', 6: 'flame_jet_on', 8: 'exit' });
     expect(Pathfinder.findNextObjective(engineFor(lit))).toEqual({ x: 4, y: 2 });

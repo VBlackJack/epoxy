@@ -127,6 +127,7 @@ const TILE_PREFIX_RULES: ReadonlyArray<{ prefix: string; key: string | null }> =
   { prefix: 'ice', key: 'iceBase' },
   { prefix: 'force_', key: 'forceBase' },
   { prefix: 'forbid_', key: 'forbidSign' },
+  { prefix: 'no_sign_', key: 'forbidSign' },
   { prefix: 'door_', key: null },
   { prefix: 'key_', key: null },
   { prefix: 'button_', key: null },

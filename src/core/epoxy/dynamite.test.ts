@@ -174,7 +174,7 @@ describe('dynamite: configuration', () => {
     }
     expect(isEpoxyOnlyItemId(DYNAMITE)).toBe(true);
     const ids = Object.keys(ConfigRegistry.getTiles().tiles);
-    expect(ids.slice(-2)).toEqual([DYNAMITE, LIT]);
+    expect(ids.slice(-3)).toEqual([DYNAMITE, LIT, 'no_sign_dynamite']);
   });
 
   it('spares exactly the blast-proof wall, the socket and the logic gates among the terrain', () => {

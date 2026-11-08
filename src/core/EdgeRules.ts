@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { CC2_SWIVEL_RULE, CELL_EDGE_BITS, OPPOSITE_DIRECTION } from './coreConstants';
+import { CC2_SWIVEL_RULE, CELL_EDGE_BITS, CELL_EDGE_CANOPY_BIT, OPPOSITE_DIRECTION } from './coreConstants';
 import { CompiledLevel, Direction, TileDefinition } from './types';
 
 /** Whether a rail piece closes the side: the tile is a rail and the side is not one of its open sides. */
@@ -52,7 +52,7 @@ const maskMemo = new WeakMap<object, MaskMemo>();
 
 /**
  * The thin walls a level carries on any terrain (`cellEdges`) as one bit per
- * side per cell, indexed by y * width + x; null when the level has none. Never
+ * side per cell, plus the canopy bit (see `cellHasCanopy`), indexed by y * width + x; null when the level has none. Never
  * throws: an entry that is not a record, lies outside the grid or names an
  * unknown side is skipped. The result is memoised on the `cellEdges` array.
  */
@@ -70,9 +70,13 @@ export function cellEdgeMask(level: CompiledLevel): Uint8Array | null {
     let any = false;
     for (const entry of edges as unknown[]) {
       if (typeof entry !== 'object' || entry === null) continue;
-      const { x, y, sides } = entry as { x?: unknown; y?: unknown; sides?: unknown };
+      const { x, y, sides, canopy } = entry as { x?: unknown; y?: unknown; sides?: unknown; canopy?: unknown };
       if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y)) continue;
       if (x < 0 || x >= width || y < 0 || y >= height || !Array.isArray(sides)) continue;
+      if (canopy === true) {
+        bits[y * width + x] |= CELL_EDGE_CANOPY_BIT;
+        any = true;
+      }
       for (const side of sides as unknown[]) {
         const bit = typeof side === 'string' ? CELL_EDGE_BITS[side as Direction] : undefined;
         if (bit === undefined) continue;
@@ -128,4 +132,15 @@ export function isEdgeBlockedBetween(
     (mask[fromY * width + fromX] & CELL_EDGE_BITS[dir]) !== 0 ||
     (mask[toY * width + toX] & CELL_EDGE_BITS[OPPOSITE_DIRECTION[dir]]) !== 0
   );
+}
+
+/** Whether a canopy covers a cell: it hides what lies under it, and bugs and rovers cannot enter it. */
+export function cellHasCanopy(mask: Uint8Array | null, width: number, x: number, y: number): boolean {
+  return mask !== null && (mask[y * width + x] & CELL_EDGE_CANOPY_BIT) !== 0;
+}
+
+/** Whether a level carries at least one canopy. */
+export function levelHasCanopy(level: CompiledLevel): boolean {
+  const mask = cellEdgeMask(level);
+  return mask !== null && mask.some((bits) => (bits & CELL_EDGE_CANOPY_BIT) !== 0);
 }

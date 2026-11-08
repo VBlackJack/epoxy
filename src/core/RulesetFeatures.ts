@@ -326,8 +326,8 @@ export function isWiredDeviceTileId(id: string | null | undefined): boolean {
 
 /**
  * True when the tile is part of the Chip's Challenge 2 items and characters: a green chip or bomb (`itemTogglesTo`), a
- * steel wall (`blastProof`), a gender sign (`characterOnly`), the hiking boots, the steel foil (`turnsWallsTo`) or the
- * toggle clock (`togglesTimer`). The bribe is a counted item and is caught with the toll token.
+ * steel wall (`blastProof`), a gender sign (`characterOnly`), the hiking boots, the steel foil (`turnsWallsTo`), the
+ * toggle clock (`togglesTimer`) or a no-sign on the item layer. The bribe is a counted item and is caught with the toll token.
  */
 export function isCharacterContentTileId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -335,7 +335,8 @@ export function isCharacterContentTileId(id: string | null | undefined): boolean
   const tile = ConfigRegistry.getTile(id);
   return (
     tile.itemTogglesTo !== undefined || tile.blastProof === true || tile.characterOnly !== undefined ||
-    tile.turnsWallsTo !== undefined || tile.togglesTimer === true
+    tile.turnsWallsTo !== undefined || tile.togglesTimer === true ||
+    (tile.layer === 'item' && tile.forbiddenItem !== undefined)
   );
 }
 

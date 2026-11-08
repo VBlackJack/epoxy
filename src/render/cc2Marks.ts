@@ -313,6 +313,30 @@ export function paintSignPlate(
   ctx.restore();
 }
 
+/** A no-sign: radius of the ring, its line width and the angle of the bar across it, in tiles and radians. */
+const NO_SIGN = { radius: 0.4, line: 0.075, slashAngle: Math.PI * 1.25 } as const;
+
+/** A no-sign: a ring crossed by a bar (`fill` is the ring, `edge` the bar), over the item it names. */
+export function paintNoSign(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  const cx = x + size * HALF;
+  const cy = y + size * HALF;
+  const radius = size * NO_SIGN.radius;
+  const reachX = Math.cos(NO_SIGN.slashAngle) * radius;
+  const reachY = Math.sin(NO_SIGN.slashAngle) * radius;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = lineWidth(size, NO_SIGN.line);
+  ctx.strokeStyle = colours.fill;
+  disc(ctx, cx, cy, radius);
+  ctx.stroke();
+  ctx.strokeStyle = colours.edge;
+  ctx.beginPath();
+  ctx.moveTo(cx + reachX, cy + reachY);
+  ctx.lineTo(cx - reachX, cy - reachY);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /**
  * Melinda's bow, drawn over the player in the cell at (x, y) facing `dir`: two wings and a knot at the head, in pink, so
  * she reads as a different character from Chip in every style, and in every pose.

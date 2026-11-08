@@ -26,7 +26,8 @@ import {
   InvalidLevelError,
   isCompiledLevelShape
 } from './ConfigValidation';
-import { DEFAULT_LEVEL_PASSWORD } from './constants';
+import { DEFAULT_LEVEL_PASSWORD, PACK_JSON_VERSION_V13_IDS } from './constants';
+import { NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
 import { LevelBlueprint, MusicTrackConfig } from '../core/types';
 import { createTestBundle, loadTestConfigs } from '../test/loadTestConfigs';
 
@@ -284,6 +285,20 @@ describe('tiles.json mechanics', () => {
       expect(tile.i18nKey, id).toBe(`tiles.${id}.name`);
       expect(ConfigRegistry.getTiles().categories.some((c) => c.id === tile.category), id).toBe(true);
     }
+  });
+
+  it('has one item-layer no-sign per carried item, each a pack format 13 id', () => {
+    for (const itemId of NO_SIGN_ITEM_IDS) {
+      const sign = ConfigRegistry.getTile(`${NO_SIGN_ITEM_PREFIX}${itemId}`);
+      expect(sign.layer, itemId).toBe('item');
+      expect(sign.forbiddenItem, itemId).toBe(itemId);
+      expect(sign.collectible, itemId).toBeUndefined();
+      expect(PACK_JSON_VERSION_V13_IDS.has(sign.id), itemId).toBe(true);
+      // A sign can only name something the player holds: a key, boots or another counted collectible.
+      expect(['key', 'boot', 'charge', 'gate', 'stone', 'token'], itemId).toContain(ConfigRegistry.getTile(itemId).collectible);
+    }
+    const signs = Object.keys(ConfigRegistry.getTiles().tiles).filter((id) => id.startsWith(NO_SIGN_ITEM_PREFIX));
+    expect(signs.length).toBe(NO_SIGN_ITEM_IDS.length);
   });
 
   it('points every tile reference at an existing tile', () => {

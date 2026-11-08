@@ -4339,6 +4339,138 @@
     "forbid_boots_force": {
       "name": "No Suction Boots Barrier"
     },
+    "no_sign_key_red": {
+      "name": "No Sign: Red Key",
+      "desc": {
+        "label": "No-sign for the item \"Red Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_blue": {
+      "name": "No Sign: Blue Key",
+      "desc": {
+        "label": "No-sign for the item \"Blue Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_yellow": {
+      "name": "No Sign: Yellow Key",
+      "desc": {
+        "label": "No-sign for the item \"Yellow Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_key_green": {
+      "name": "No Sign: Green Master Key",
+      "desc": {
+        "label": "No-sign for the item \"Green Master Key\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_water": {
+      "name": "No Sign: Flippers",
+      "desc": {
+        "label": "No-sign for the item \"Flippers\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_fire": {
+      "name": "No Sign: Fire Boots",
+      "desc": {
+        "label": "No-sign for the item \"Fire Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_ice": {
+      "name": "No Sign: Ice Skates",
+      "desc": {
+        "label": "No-sign for the item \"Ice Skates\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_force": {
+      "name": "No Sign: Suction Boots",
+      "desc": {
+        "label": "No-sign for the item \"Suction Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_slow_time": {
+      "name": "No Sign: Slow-Time Charm",
+      "desc": {
+        "label": "No-sign for the item \"Slow-Time Charm\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_speed": {
+      "name": "No Sign: Speed Boots",
+      "desc": {
+        "label": "No-sign for the item \"Speed Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_eye": {
+      "name": "No Sign: Truesight Boots",
+      "desc": {
+        "label": "No-sign for the item \"Truesight Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_boots_pull": {
+      "name": "No Sign: Grappling Gloves",
+      "desc": {
+        "label": "No-sign for the item \"Grappling Gloves\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_ward": {
+      "name": "No Sign: Ward",
+      "desc": {
+        "label": "No-sign for the item \"Ward\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_hiking_boots": {
+      "name": "No Sign: Hiking Boots",
+      "desc": {
+        "label": "No-sign for the item \"Hiking Boots\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_charge": {
+      "name": "No Sign: Blast Charge",
+      "desc": {
+        "label": "No-sign for the item \"Blast Charge\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_dynamite": {
+      "name": "No Sign: Dynamite",
+      "desc": {
+        "label": "No-sign for the item \"Dynamite\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_pocket_gate": {
+      "name": "No Sign: Pocket Gate",
+      "desc": {
+        "label": "No-sign for the item \"Pocket Gate\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_hurl_stone": {
+      "name": "No Sign: Hurl Stone",
+      "desc": {
+        "label": "No-sign for the item \"Hurl Stone\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_toll_token": {
+      "name": "No Sign: Toll Token",
+      "desc": {
+        "label": "No-sign for the item \"Toll Token\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_steel_foil": {
+      "name": "No Sign: Steel Foil",
+      "desc": {
+        "label": "No-sign for the item \"Steel Foil\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_bribe": {
+      "name": "No Sign: Bribe",
+      "desc": {
+        "label": "No-sign for the item \"Bribe\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
+    "no_sign_lightning_bolt": {
+      "name": "No Sign: Lightning Bolt",
+      "desc": {
+        "label": "No-sign for the item \"Lightning Bolt\": it cannot be picked up here, and a player who carries one cannot enter this cell. The terrain under the sign keeps working; blocks pass, monsters do not."
+      }
+    },
     "door_red": {
       "name": "Red Door"
     },
@@ -5233,6 +5365,12 @@
       "name": "Arrow Block (three ways)",
       "desc": {
         "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
+      }
+    },
+    "arrow_block_none": {
+      "name": "Locked Arrow Block",
+      "desc": {
+        "label": "A block with no arrow: no push moves it, whether from the player, a monster or another block. It still slides when it rides ice or a force floor."
       }
     },
     "ice_block": {

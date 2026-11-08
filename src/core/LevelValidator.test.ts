@@ -105,6 +105,15 @@ describe('LevelValidator', () => {
     expect(report.valid).toBe(true);
   });
 
+  it('never calls a level unwinnable because of a no-sign on the item layer', () => {
+    // The sign bars a carrier of the red key; the validator over-approximates and leaves the corridor open.
+    const level = grid(['#######', '#Pr..E#', '#######']);
+    level.items[1][3] = 'no_sign_key_red';
+    const report = LevelValidator.validate(level);
+    expect(report.valid).toBe(true);
+    expect(report.stats.reachableExit).toBe(true);
+  });
+
   it('reports a socket bypass with its own key', () => {
     const level = grid(['#######', '#P.cSE#', '#.....#', '#######'], { chipsRequired: 1 });
     const found = keys(level);

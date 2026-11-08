@@ -31,8 +31,30 @@ item score_1000 tick=3 8814eb6ac9b62e71
 item score_2x tick=3 64d0ca296125e43a
 item stopwatch_bonus tick=3 2245adfd3efb29c1
 item stopwatch_penalty tick=3 513c8fbfaed60c17
+item no_sign_key_red tick=3 dfd49d3765911f42
+item no_sign_key_blue tick=3 9d28aa117e2fdf91
+item no_sign_key_yellow tick=3 a3a42cec300865d8
+item no_sign_key_green tick=3 0c9887fd8b0a90f9
+item no_sign_boots_water tick=3 c3fdac06d5ac30c6
+item no_sign_boots_fire tick=3 0ba0f460695e84fc
+item no_sign_boots_ice tick=3 858b632f2def3873
+item no_sign_boots_force tick=3 e796674df3b24582
+item no_sign_slow_time tick=3 e2565c921624e458
+item no_sign_boots_speed tick=3 0c216cae35a4c9ee
+item no_sign_boots_eye tick=3 662331bf2bf54775
+item no_sign_boots_pull tick=3 2967ec57b060ac2e
+item no_sign_ward tick=3 3b3f4961e37471d1
+item no_sign_hiking_boots tick=3 fd296d905216e630
+item no_sign_charge tick=3 8d2aacfee10a6f11
+item no_sign_pocket_gate tick=3 460dfeb79bf779f9
+item no_sign_hurl_stone tick=3 71498b916e528c0a
+item no_sign_toll_token tick=3 9516c799bd74cf86
+item no_sign_steel_foil tick=3 c80c7dfdbe545f7a
+item no_sign_bribe tick=3 0457954ad224e4fa
+item no_sign_lightning_bolt tick=3 3140f8eaf4de1fc0
 item dynamite tick=3 dc4033d31324466c
 item dynamite_lit tick=3 2898107276a72b0a
+item no_sign_dynamite tick=3 24026217c21faafb
 entity dirt_block dir=N tick=3 a89c02d8442e4ef9
 entity dirt_block dir=E tick=3 c17c2db2e2d8d795
 entity dirt_block dir=S tick=3 184ce356dd6d4307
@@ -185,6 +207,10 @@ entity rover dir=N tick=3 c520dc09aa1f1523
 entity rover dir=E tick=3 ff48e87e1bdc6b2a
 entity rover dir=S tick=3 e03c872a37c68019
 entity rover dir=W tick=3 02e2fbb4ab02d502
+entity arrow_block_none dir=N tick=3 532e3c2d0f09ca9e
+entity arrow_block_none dir=E tick=3 81a948f0f5a1f5dd
+entity arrow_block_none dir=S tick=3 c739c35339314f95
+entity arrow_block_none dir=W tick=3 50d4408e3c4c0339
 item key_red tick=13 695240323b2b0b76
 item key_blue tick=13 a0e896f011f0817d
 item key_yellow tick=13 69d89faad612807f
@@ -218,8 +244,30 @@ item score_1000 tick=13 59be043af6ec8cbb
 item score_2x tick=13 e8ade3168d8c6fe0
 item stopwatch_bonus tick=13 98ab0dae339ddb6f
 item stopwatch_penalty tick=13 f53160143e273fb7
+item no_sign_key_red tick=13 39966b1d4f73cc27
+item no_sign_key_blue tick=13 1851a04a0f1ae7bd
+item no_sign_key_yellow tick=13 d1611f5de155841d
+item no_sign_key_green tick=13 1948b73ce3ec96c4
+item no_sign_boots_water tick=13 619b21b15ebda3ed
+item no_sign_boots_fire tick=13 5b0722096ee0c756
+item no_sign_boots_ice tick=13 ccbf3a9eedf99061
+item no_sign_boots_force tick=13 516ef5e6cd726a9a
+item no_sign_slow_time tick=13 e5d5c31cb3cce982
+item no_sign_boots_speed tick=13 1132998ed6f44ffa
+item no_sign_boots_eye tick=13 a258a27033cef44b
+item no_sign_boots_pull tick=13 14f6ad7c95c0a600
+item no_sign_ward tick=13 6298dc21b1439618
+item no_sign_hiking_boots tick=13 8e78b57fa45f73ad
+item no_sign_charge tick=13 7213a6647a2ea9e4
+item no_sign_pocket_gate tick=13 2a2ba29c7a5fa187
+item no_sign_hurl_stone tick=13 c3c5e6fb4e1251de
+item no_sign_toll_token tick=13 df6eb6105f64f390
+item no_sign_steel_foil tick=13 4f773b3fb2e9a7ae
+item no_sign_bribe tick=13 ae754162713178dd
+item no_sign_lightning_bolt tick=13 af1bb3700ed05ea6
 item dynamite tick=13 d71f4fe9767ab865
 item dynamite_lit tick=13 eababcc788f2c8d0
+item no_sign_dynamite tick=13 60e90aed8923ec81
 entity dirt_block dir=N tick=13 e90ea48d37902770
 entity dirt_block dir=E tick=13 fe2677eeec74ecd8
 entity dirt_block dir=S tick=13 5d930e94a844a16f
@@ -372,6 +420,10 @@ entity rover dir=N tick=13 f736b86028f91ccc
 entity rover dir=E tick=13 83b65a7d01983ba4
 entity rover dir=S tick=13 aee0a70ae036bde1
 entity rover dir=W tick=13 3be98e0365e15da9
+entity arrow_block_none dir=N tick=13 7e9935e0d0e085d6
+entity arrow_block_none dir=E tick=13 ca710c3b2ccfa73b
+entity arrow_block_none dir=S tick=13 eb95d554ec0eb8d3
+entity arrow_block_none dir=W tick=13 349adf46a9bc5430
 player dir=N inWater=false alive=true frame=0 hop=0 0bc453cb76b4690c
 player dir=N inWater=false alive=true frame=0 hop=0.3 4f98c2a8059f942f
 player dir=N inWater=false alive=true frame=1 hop=0 1495863028d991df

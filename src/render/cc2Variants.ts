@@ -20,11 +20,25 @@
  * vector style and in the art of the Runeward style. Pure module: no DOM.
  */
 
+import { NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
 import type { RunewardArtConfig } from '../core/types';
-import { MELINDA_BOW_COLOURS, MarkColours, paintBoltBadge, paintBribeBadge, paintDynamiteBadge, paintFoilBadge, paintPauseBadge, paintRivets, paintSignPlate, paintToggleBadge, paintTreadBadge } from './cc2Marks';
+import {
+  MELINDA_BOW_COLOURS,
+  MarkColours,
+  paintBoltBadge,
+  paintBribeBadge,
+  paintDynamiteBadge,
+  paintFoilBadge,
+  paintNoSign,
+  paintPauseBadge,
+  paintRivets,
+  paintSignPlate,
+  paintToggleBadge,
+  paintTreadBadge
+} from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'dynamite';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'dynamite';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -32,7 +46,7 @@ export interface Cc2Variant {
   readonly mark: Cc2Mark;
 }
 
-/** Items drawn as another item with a mark. */
+/** Items drawn as another item with a mark; the no-signs come last, so one over the hiking boots finds them already listed. */
 export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   green_chip: { base: 'chip', mark: 'toggle' },
   green_bomb: { base: 'bomb', mark: 'toggle' },
@@ -42,7 +56,8 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   bribe: { base: 'toll_token', mark: 'bribe' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
   dynamite: { base: 'charge', mark: 'dynamite' },
-  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' }
+  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' },
+  ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
 };
 
 /** Terrain drawn as another terrain with a mark. */
@@ -65,6 +80,7 @@ export interface MarkPalette {
   readonly glyphInk: string;
   readonly hintGlyph: string;
   readonly wallShadow: string;
+  readonly forbidSign: string;
 }
 
 /** The colours of a mark in a vector style. */
@@ -82,6 +98,8 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'sign_melinda':
       return { fill: MELINDA_BOW_COLOURS.fill, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'no_sign':
+      return { fill: pal.forbidSign, edge: pal.forbidSign, ink: pal.forbidSign };
     case 'foil':
       return { fill: pal.gray, edge: pal.wallShadow, ink: pal.hintGlyph };
     case 'pause':
@@ -109,6 +127,8 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
     case 'sign_melinda':
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
+    case 'no_sign':
+      return { fill: art.item.forbid.ring, edge: art.item.forbid.slash, ink: art.item.forbid.ring };
     case 'foil':
       return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
     case 'pause':
@@ -150,6 +170,9 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
     case 'sign_chip':
     case 'sign_melinda':
       paintSignPlate(ctx, x, y, size, SIGN_LETTERS[mark], colours);
+      return;
+    case 'no_sign':
+      paintNoSign(ctx, x, y, size, colours);
       return;
   }
 }
