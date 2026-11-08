@@ -212,6 +212,14 @@ entity arrow_block_none dir=N tick=3 6fd7eb8f572eceb7
 entity arrow_block_none dir=E tick=3 f15bd68d3470c0cd
 entity arrow_block_none dir=S tick=3 30e8c1b6dbbf939a
 entity arrow_block_none dir=W tick=3 046a4891f47e438d
+entity mirror_chip dir=N tick=3 079098b820a0d7de
+entity mirror_chip dir=E tick=3 841aeb64266db5a0
+entity mirror_chip dir=S tick=3 d2b2b965ed879981
+entity mirror_chip dir=W tick=3 d97b620e16db2b33
+entity mirror_melinda dir=N tick=3 d7fec3adadaa2a5f
+entity mirror_melinda dir=E tick=3 12432cd6213b9927
+entity mirror_melinda dir=S tick=3 aaccf02811fc3aa2
+entity mirror_melinda dir=W tick=3 ee66ce7d05b543ce
 item key_red tick=13 46b7f1fa3f3e8adb
 item key_blue tick=13 56f472ffae95d0f8
 item key_yellow tick=13 7688e128bff98c6f
@@ -426,6 +434,14 @@ entity arrow_block_none dir=N tick=13 e6d10f1e6084c3eb
 entity arrow_block_none dir=E tick=13 5ead0b917d726f63
 entity arrow_block_none dir=S tick=13 bd7d497962350af9
 entity arrow_block_none dir=W tick=13 5d6113c3292b3f35
+entity mirror_chip dir=N tick=13 6a8aba1565218b6f
+entity mirror_chip dir=E tick=13 589a9432dee830d5
+entity mirror_chip dir=S tick=13 ac204da248171a3b
+entity mirror_chip dir=W tick=13 6c07a7fc3ba2c20c
+entity mirror_melinda dir=N tick=13 f0bbd297cd25bf5d
+entity mirror_melinda dir=E tick=13 299a9b3eb7664337
+entity mirror_melinda dir=S tick=13 f491eaf87d8e4ecc
+entity mirror_melinda dir=W tick=13 94e2440ceb8fc5e1
 player dir=N inWater=false alive=true frame=0 hop=0 15e42441a6916ea4
 player dir=N inWater=false alive=true frame=0 hop=0.3 828043425ac0de71
 player dir=N inWater=false alive=true frame=1 hop=0 df9e7eab2f7b0b94

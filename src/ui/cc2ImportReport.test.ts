@@ -25,8 +25,8 @@ import { importCc2Selection } from './cc2Import';
 import type { Cc2ImportFile } from './cc2Import';
 import { buildCc2PackOutput, cc2FileStem } from './cc2ImportReport';
 
-/** The mirror chip actor has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
-const LOST_ACTOR = 0x65;
+/** A second Melinda has no Epoxy equivalent (one player only), so a level that holds it keeps a reserved id and is lost. */
+const LOST_ACTOR = 0x56;
 const MAX_BYTES = 1 << 20;
 
 function fileOf(path: string, bytes: Uint8Array): Cc2ImportFile {
@@ -76,8 +76,8 @@ describe('the local CC2 import tool output', () => {
     expect(report).toContain('- Levels imported: 2');
     expect(report).toContain('- Coverage: exact 1, approximate 0, not playable 1');
     expect(report).toContain('### 1. Two (two.c2m)');
-    expect(report).toContain('- Lost: mirror_chip');
-    expect(report).toContain('- Mechanics Epoxy cannot play: mirror_chip');
+    expect(report).toContain('- Lost: melinda, multiple_players');
+    expect(report).toContain('- Mechanics Epoxy cannot play: melinda, multiple_players');
     expect(report).not.toMatch(/\[\s*\[/);
   });
 

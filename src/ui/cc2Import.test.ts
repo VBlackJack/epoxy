@@ -34,8 +34,8 @@ import {
 import type { Cc2ImportFile } from './cc2Import';
 
 const MAX_BYTES = 1 << 20;
-/** The mirror chip actor has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
-const LOST_ACTOR = 0x65;
+/** A second Melinda has no Epoxy equivalent (one player only), so a level that holds it keeps a reserved id and is lost. */
+const LOST_ACTOR = 0x56;
 const PURPLE_WALL = 0x73;
 const FORMAT = (bytes: number): string => String(bytes);
 
@@ -156,7 +156,7 @@ describe('building the pack', () => {
     expect(result.levels.map((l) => l.number)).toEqual([1, 2, 3]);
     expect(result.levels.map((l) => l.cc2?.file)).toEqual(['b.c2m', 'a.c2m', 'c.c2m']);
     expect(result.summary).toMatchObject({ levelCount: 3, exact: 2, lost: 1, skipped: 0, appended: 1 });
-    expect(result.summary.lostKeys).toEqual(['mirror_chip']);
+    expect(result.summary.lostKeys).toEqual(['melinda', 'multiple_players']);
     expect(result.sources).toHaveLength(3);
   });
 

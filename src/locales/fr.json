@@ -5466,6 +5466,18 @@
         "label": "Se déplace tour à tour comme les dents, le planeur, le scarabée, la balle rose, les dents timides, la boule de feu, la paramécie et le marcheur, en changeant après 32 pas décidés. Il tue au contact."
       }
     },
+    "mirror_chip": {
+      "name": "Chip miroir",
+      "desc": {
+        "label": "Copie chaque déplacement que Chip tente, même bloqué, et ne fait rien quand Melinda est le joueur. Il suit les règles de Chip : il ouvre les portes vertes sans user la clé, glisse sur la glace, pousse les blocs, prend les clés et les bottes sur son chemin, actionne les boutons, et meurt dans l'eau, le feu et les bombes (le niveau continue). Le toucher tue le joueur, quel que soit celui qui va vers l'autre."
+      }
+    },
+    "mirror_melinda": {
+      "name": "Melinda miroir",
+      "desc": {
+        "label": "Copie chaque déplacement que Melinda tente, même bloqué, et ne fait rien quand Chip est le joueur. Elle suit les règles de Melinda : elle ouvre les portes jaunes sans user la clé, ne glisse pas sur la glace, est arrêtée par la terre et le gravier, pousse les blocs, prend les clés et les bottes sur son chemin, actionne les boutons, et meurt dans l'eau, le feu et les bombes (le niveau continue). La toucher tue le joueur, quel que soit celui qui va vers l'autre."
+      }
+    },
     "skitter": {
       "name": "Fuyard",
       "desc": {
