@@ -25,6 +25,7 @@ import {
   PHASE_LINE_PATTERN,
   STATIONARY_PATTERN
 } from '../coreConstants';
+import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
@@ -45,6 +46,7 @@ import {
   isEdgeBlocked,
   isInBounds,
   killPlayer,
+  mapWidth,
   monsterSlowdown,
   notePulseArrival,
   playerCharacterOf,
@@ -349,6 +351,20 @@ export function canWispEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Directi
 }
 
 /**
+ * Whether a canopy stops a step (CC2 canopy): a bug or a rover cannot enter a cell under a canopy, and a blob does not
+ * step from one canopy to another. Lexy's Labyrinth (tiletypes.js, canopy): blocks_collision bug | rover, and
+ * blocks() refuses a blob that moves between two canopies.
+ */
+function canopyStopsStep(w: EpoxyWorld, def: EntityDefinition | undefined, fromX: number, fromY: number, toX: number, toY: number): boolean {
+  if (w.edgeMask === null || def === undefined) return false;
+  const width = mapWidth(w);
+  const intoCanopy = cellHasCanopy(w.edgeMask, width, toX, toY);
+  if (!intoCanopy) return false;
+  if (def.blockedByCanopy === true) return true;
+  return def.blockedBetweenCanopies === true && cellHasCanopy(w.edgeMask, width, fromX, fromY);
+}
+
+/**
  * Whether the monster may step one cell in `dir`: inside the map, past the cell edges, onto a tile it can
  * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
  * entity check to the caller, which pushes the block in the way (a steered puppet).
@@ -360,6 +376,7 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, dir: Dire
   if (!isInBounds(w, nx, ny)) return false;
   const def = ConfigRegistry.getEntityDef(monster.type);
   if (def?.ignoresCellEdges !== true && isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
+  if (canopyStopsStep(w, def, monster.x, monster.y, nx, ny)) return false;
 
   const destTileId = w.terrain[ny][nx];
   const destTile = ConfigRegistry.getTile(destTileId);

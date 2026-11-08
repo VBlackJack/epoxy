@@ -82,6 +82,11 @@ export interface PlayEngine {
    */
   getPanels?(): ReadonlyMap<number, readonly Direction[]>;
   /**
+   * Optional. The cells a CC2 canopy covers, by cell index (y * width + x). Static level data; an engine without
+   * canopies omits it.
+   */
+  getCanopyCells?(): ReadonlySet<number>;
+  /**
    * Optional. The terrain hidden under the removable tops of the level, by cell index (y * width + x), or
    * undefined when there is none. Static level data for tools; the renderer draws the top only. An engine
    * without underlays omits it.

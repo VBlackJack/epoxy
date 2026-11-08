@@ -34,7 +34,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -567,7 +567,8 @@ export function isRuleset(value: unknown): value is Ruleset {
  * The cell edges of a level in canonical form: only the Epoxy ruleset carries them; entries that
  * are not records, lie outside the grid or hold no valid side are dropped, the sides of a cell
  * are merged into one entry, and the entries are sorted by row, then column, with the sides in
- * N, E, S, W order. Returns null when no edge is left.
+ * N, E, S, W order. A cell flagged `canopy: true` is kept even with no side, and the flag is written
+ * after the sides. Returns null when no edge is left.
  */
 export function normalizeCellEdges(
   edges: unknown,
@@ -580,7 +581,7 @@ export function normalizeCellEdges(
   const bitsByCell = new Map<number, number>();
   for (const entry of edges as unknown[]) {
     if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height) || !Array.isArray(entry.sides)) continue;
-    let bits = 0;
+    let bits = entry.canopy === true ? CELL_EDGE_CANOPY_BIT : 0;
     for (const side of entry.sides as unknown[]) {
       if (typeof side === 'string' && Object.prototype.hasOwnProperty.call(CELL_EDGE_BITS, side)) {
         bits |= CELL_EDGE_BITS[side as Direction];
@@ -596,7 +597,8 @@ export function normalizeCellEdges(
     .map((index) => ({
       x: index % width,
       y: Math.floor(index / width),
-      sides: CELL_EDGE_SIDE_ORDER.filter((side) => ((bitsByCell.get(index) ?? 0) & CELL_EDGE_BITS[side]) !== 0)
+      sides: CELL_EDGE_SIDE_ORDER.filter((side) => ((bitsByCell.get(index) ?? 0) & CELL_EDGE_BITS[side]) !== 0),
+      ...(((bitsByCell.get(index) ?? 0) & CELL_EDGE_CANOPY_BIT) !== 0 ? { canopy: true as const } : {})
     }));
 }
 
@@ -1431,7 +1433,7 @@ const PUSH_ARROW_TURNS: readonly string[] = ['FORWARD', 'RIGHT', 'BACK', 'LEFT']
 
 /**
  * Problems of the pushArrows field of an entity: a block (never a monster) with a non-empty list of
- * unique relative sides (FORWARD, RIGHT, BACK or LEFT). Each entry names the entity.
+ * unique relative sides (FORWARD, RIGHT, BACK or LEFT); only the locked arrow block lists none. Each entry names the entity.
  */
 export function findPushArrowConfigErrors(entities: Record<string, EntityDefinition>): string[] {
   const errors: string[] = [];
@@ -1440,7 +1442,7 @@ export function findPushArrowConfigErrors(entities: Record<string, EntityDefinit
     if (arrows === undefined) continue;
     const { id } = entity;
     if (entity.kind !== 'block') errors.push(`${id}.pushArrows: only a block may show push arrows`);
-    if (!Array.isArray(arrows) || arrows.length === 0) {
+    if (!Array.isArray(arrows) || (arrows.length === 0 && id !== LOCKED_ARROW_BLOCK_ID)) {
       errors.push(`${id}.pushArrows: expected a non-empty array`);
       continue;
     }
@@ -1612,7 +1614,14 @@ export function findSteeringConfigErrors(
 const MONSTER_HAZARDS: readonly string[] = ['water', 'fire', 'bomb', 'slime'];
 
 /** Boolean fields that only a monster may carry (the ghost and rover fields). */
-const MONSTER_FLAG_FIELDS = ['passesSolidTiles', 'ignoresCellEdges', 'ignoresFloorEffects', 'passesItems'] as const;
+const MONSTER_FLAG_FIELDS = [
+  'passesSolidTiles',
+  'ignoresCellEdges',
+  'ignoresFloorEffects',
+  'passesItems',
+  'blockedByCanopy',
+  'blockedBetweenCanopies'
+] as const;
 
 /**
  * Problems of the monster behaviour fields: fleesCharacters lists known characters on a monster that chases or

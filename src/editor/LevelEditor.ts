@@ -637,6 +637,9 @@ const cc3dPreviewClips = new WeakMap<Cc3dClip, Clip>();
 /** The thin walls of a document by cell index, built once per list of edges (a document edit makes a new list). */
 const cellEdgeSidesMemo = new WeakMap<object, ReadonlyMap<number, readonly Direction[]>>();
 
+/** The canopy cells of a document by cell index, built once per list of edges. */
+const cellCanopyMemo = new WeakMap<object, ReadonlySet<number>>();
+
 /** The cells of a document that hide terrain, by cell index, built once per list of underlays. */
 const hiddenTerrainCellsMemo = new WeakMap<object, ReadonlyMap<number, boolean | undefined>>();
 
@@ -6312,6 +6315,20 @@ export class LevelEditor {
     }
     const item = doc.items[y][x];
     if (item) this.renderer.drawItem(ctx, item, x * s, y * s, s);
+    if (!doc.cc3d && this.canopyCells(doc)?.has(y * width + x)) this.renderer.drawCanopy(ctx, x * s, y * s, s);
+  }
+
+  /** The cells a canopy covers in an Epoxy document, by cell index, kept per list so a redraw does not rebuild them. */
+  private canopyCells(doc: EditorDocument): ReadonlySet<number> | null {
+    const edges = doc.cellEdges;
+    if (!edges || edges.length === 0) return null;
+    let cells = cellCanopyMemo.get(edges);
+    if (!cells) {
+      const width = mapWidthOf(doc);
+      cells = new Set(edges.filter((e) => e.canopy === true).map((e) => e.y * width + e.x));
+      cellCanopyMemo.set(edges, cells);
+    }
+    return cells;
   }
 
   /**

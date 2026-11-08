@@ -204,14 +204,10 @@ entity rover dir=N tick=3 f0b83a1426149bff
 entity rover dir=E tick=3 f0ed2a53983977d4
 entity rover dir=S tick=3 eb057b2b1cdbe597
 entity rover dir=W tick=3 beb3fe3a6a3c2e4d
-entity mirror_chip dir=N tick=3 5ebeaf707b65f5f4
-entity mirror_chip dir=E tick=3 dee28f6742063c01
-entity mirror_chip dir=S tick=3 43c1eb34e71d4441
-entity mirror_chip dir=W tick=3 9d013403f0c39e1a
-entity mirror_melinda dir=N tick=3 9d3452131275e6c9
-entity mirror_melinda dir=E tick=3 0f5982ce9cc7bf2f
-entity mirror_melinda dir=S tick=3 27c561dd81a611ea
-entity mirror_melinda dir=W tick=3 ab682920feea9c99
+entity arrow_block_none dir=N tick=3 401aaba537aec833
+entity arrow_block_none dir=E tick=3 d5f51e43c89e3212
+entity arrow_block_none dir=S tick=3 860ca1a595331ce4
+entity arrow_block_none dir=W tick=3 0a02c4562a7163e1
 item key_red tick=13 6a43e0aa7ea7c24d
 item key_blue tick=13 1b07539a3555d9ad
 item key_yellow tick=13 abf6c8b16b112b9b
@@ -418,14 +414,10 @@ entity rover dir=N tick=13 341951b950ec7870
 entity rover dir=E tick=13 4031c6944920f0e4
 entity rover dir=S tick=13 11a6341e71b8b1f9
 entity rover dir=W tick=13 173f7b555471096e
-entity mirror_chip dir=N tick=13 24d01a5b9d0d2c11
-entity mirror_chip dir=E tick=13 7ea6a431c6e4f6c7
-entity mirror_chip dir=S tick=13 98639cc446b28184
-entity mirror_chip dir=W tick=13 e7929cc80db94674
-entity mirror_melinda dir=N tick=13 23dbd142900bdf78
-entity mirror_melinda dir=E tick=13 379efb4a3815a81e
-entity mirror_melinda dir=S tick=13 4cfb7136ecd951cb
-entity mirror_melinda dir=W tick=13 fef206cd4175c236
+entity arrow_block_none dir=N tick=13 3e3f2626b9282e63
+entity arrow_block_none dir=E tick=13 550b92facbbb6370
+entity arrow_block_none dir=S tick=13 1b9c01c40008a982
+entity arrow_block_none dir=W tick=13 d32ddc90a5173a3d
 player dir=N inWater=false alive=true frame=0 hop=0 2771ae0d233879bb
 player dir=N inWater=false alive=true frame=0 hop=0.3 f3ddbde814cef5dd
 player dir=N inWater=false alive=true frame=1 hop=0 597c0e2e95e76cca

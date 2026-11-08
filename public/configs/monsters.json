@@ -249,7 +249,8 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": true,
-      "transmogrifiesTo": "paramecium"
+      "transmogrifiesTo": "paramecium",
+      "blockedByCanopy": true
     },
     "paramecium": {
       "id": "paramecium",
@@ -355,7 +356,8 @@
       "turnOrder": ["FORWARD", "LEFT", "RIGHT", "BACK"],
       "immuneToWater": false,
       "immuneToFire": false,
-      "avoidsFire": false
+      "avoidsFire": false,
+      "blockedBetweenCanopies": true
     },
     "color_block_red": {
       "id": "color_block_red",
@@ -537,7 +539,22 @@
       "avoidsFire": false,
       "emulates": ["teeth", "glider", "bug", "pink_ball", "timid_teeth", "fireball", "paramecium", "walker"],
       "emulationSwitchAttempts": 32,
-      "epoxyOnly": true
+      "epoxyOnly": true,
+      "blockedByCanopy": true
+    },
+    "arrow_block_none": {
+      "id": "arrow_block_none",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_none.name",
+      "pushable": true,
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": []
     },
     "mirror_chip": {
       "id": "mirror_chip",

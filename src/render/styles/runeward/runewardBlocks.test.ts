@@ -54,7 +54,7 @@ const STONE_INSET = 0.06;
 const TURNS_PER_CIRCLE = 4;
 const FACINGS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const CHANNELS: readonly RunewardKeyColour[] = ['red', 'blue', 'yellow', 'green'];
-const ARROW_BLOCK_IDS = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee'];
+const ARROW_BLOCK_IDS = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_none'];
 const MIRROR_IDS = ['mirror_slash', 'mirror_backslash'];
 const ONE_SIDED: readonly MirrorCorner[] = ['NE', 'NW', 'SE', 'SW'];
 const PAINTED_IDS = [
@@ -219,7 +219,8 @@ describe('Runeward block painters', () => {
   describe('arrow blocks', () => {
     it('draws four different pictures for the four facings', () => {
       for (const [, art] of variants()) {
-        for (const id of ARROW_BLOCK_IDS) {
+        // The locked block shows no arrow, so its facing cannot show: it is drawn the same whatever it faces.
+        for (const id of ARROW_BLOCK_IDS.filter((blockId) => (definitionOf(blockId).pushArrows ?? []).length > 0)) {
           const logs = FACINGS.map((facing) => entityLog(id, facing, art).join('\n'));
           expect(new Set(logs).size).toBe(FACINGS.length);
         }
