@@ -215,6 +215,11 @@ export class GameEngine {
    * player, revealed a wall, opened a door). Attempts rejected without any
    * effect (cooldown, ice lock, pushing against a force floor) are left out.
    */
+  /** Debug: pushes since the level loaded that moved a block other than the one pushed directly (chains, partial ones included). */
+  public getChainPushCount(): number {
+    return this.w.chainPushCount;
+  }
+
   public getTimedMoveHistory(): TimedMove[] {
     return this.timedMoveHistory.map((m) => ({ ...m }));
   }
@@ -770,6 +775,7 @@ export class GameEngine {
 
     this.saveUndoSnapshot();
     this.w.gridMutatedByMove = false;
+    this.w.rejectedPushMovedBlocks = false;
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
@@ -795,8 +801,9 @@ export class GameEngine {
     } else {
       // A move that revealed an underlay and was then rejected still spends the key and drops its undo
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
-      this.undoStack.pop();
-      if (this.w.gridMutatedByMove || this.w.player.dir !== dirBefore) {
+      // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
+      if (!this.w.rejectedPushMovedBlocks) this.undoStack.pop();
+      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || this.w.player.dir !== dirBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }
     }

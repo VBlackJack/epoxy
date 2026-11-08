@@ -5079,31 +5079,31 @@
     "arrow_block_one": {
       "name": "Arrow Block (one way)",
       "desc": {
-        "label": "A pushable block that moves only toward the one side that shows an arrow. Pushed from any other side, it stays still."
+        "label": "A pushable block that moves only toward the one side that shows an arrow. Pushed from any other side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "arrow_block_line": {
       "name": "Arrow Block (two ways)",
       "desc": {
-        "label": "A pushable block that moves only toward the two opposite sides that show an arrow. Pushed from any other side, it stays still."
+        "label": "A pushable block that moves only toward the two opposite sides that show an arrow. Pushed from any other side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "arrow_block_corner": {
       "name": "Arrow Block (corner)",
       "desc": {
-        "label": "A pushable block that moves only toward the two adjacent sides that show an arrow. Pushed from any other side, it stays still."
+        "label": "A pushable block that moves only toward the two adjacent sides that show an arrow. Pushed from any other side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "arrow_block_tee": {
       "name": "Arrow Block (three ways)",
       "desc": {
-        "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still."
+        "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "ice_block": {
       "name": "Sliding Ice Block",
       "desc": {
-        "label": "A block the player can push. Turns water into ice when pushed into it, and melts into water in fire; a shot also destroys it, leaving water only on plain floor."
+        "label": "A block the player can push. Turns water into ice when pushed into it, and melts into water in fire; a shot also destroys it, leaving water only on plain floor. Pushed, it moves a line of ice blocks and arrow blocks along with it, never a dirt block; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "bug": {

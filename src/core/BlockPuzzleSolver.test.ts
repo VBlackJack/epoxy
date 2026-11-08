@@ -364,6 +364,10 @@ describe('BlockPuzzleSolver', () => {
     it('judges a mix of dirt and arrow blocks', () => {
       const lanes = [FIRST_LANE_Y, SECOND_LANE_Y];
       const mixed = targetsEngine(lanes, [block('dirt_block', 'N'), block('arrow_block_one', 'E', SECOND_LANE_Y)]);
+      // An arrow block can push a line of blocks, which the search does not model: with another block it judges nothing.
+      expect(BlockPuzzleSolver.verdict(mixed)).toEqual({ kind: 'not_checked' });
+      // The modelling of the mix itself is checked on blocks that cannot chain.
+      delete ConfigRegistry.getEntityDef('arrow_block_one')?.chainPushes;
       expect(BlockPuzzleSolver.verdict(mixed)).toEqual({ kind: 'solved', pushes: CORRIDOR_PUSHES * 2 });
       // Facing north, the arrow block can never travel east, and the dirt block alone covers one target only.
       const stuck = targetsEngine(lanes, [block('dirt_block', 'N'), block('arrow_block_one', 'N', SECOND_LANE_Y)]);

@@ -38,28 +38,86 @@ import {
   shotAt
 } from './epoxyWorld';
 
-export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction): boolean {
+/** Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). */
+function chainsInto(pusher: RuntimeEntity, neighbour: RuntimeEntity): boolean {
+  return ConfigRegistry.getEntityDef(pusher.type)?.chainPushes?.includes(neighbour.type) === true;
+}
+
+/** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
+function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
+  return !isCellClosedTrap(w, block.x, block.y) && isPushAllowed(block, dir);
+}
+
+/**
+ * Plans the line of blocks a push moves, nearest first. Returns undefined when the push is refused: a member
+ * that cannot yield, a sliding member, or a last block with nowhere to go. The plan only decides refusal;
+ * the world is not touched.
+ */
+function planPushLine(
+  w: EpoxyWorld,
+  block: RuntimeEntity,
+  dir: Direction,
+  allowChain: boolean
+): RuntimeEntity[] | undefined {
+  const vec = DIRECTION_VECTORS[dir];
+  const line: RuntimeEntity[] = [block];
+  let current = block;
+  for (;;) {
+    const destX = current.x + vec.dx;
+    const destY = current.y + vec.dy;
+    const next = allowChain && isInBounds(w, destX, destY) ? getEntityAt(w, destX, destY) : undefined;
+    if (next && next.kind === 'block' && chainsInto(current, next)) {
+      // CC2: a block never pushes a sliding block, and a trapped or off-arrow block does not yield.
+      if (next.isSliding || !canBeShoved(w, next, dir)) return undefined;
+      line.push(next);
+      current = next;
+      continue;
+    }
+    if (!isCanBlockEnter(w, current, destX, destY, dir)) return undefined;
+    // Defensive: unreachable from a player push (the player stands behind the line) and puppets do not chain.
+    // A chain never ends on the live player; a lone block keeps its single-push behaviour.
+    if (line.length > 1 && w.player.alive && w.player.x === destX && w.player.y === destY) return undefined;
+    return line;
+  }
+}
+
+export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction, allowChain = true): boolean {
   const w = ctx.world;
-  if (isCellClosedTrap(w, block.x, block.y)) {
+  if (!canBeShoved(w, block, dir)) {
     return false;
   }
-  // An arrow block yields only toward a side that shows an arrow; a refused push is a blocked push.
-  if (!isPushAllowed(block, dir)) {
+  const line = planPushLine(w, block, dir, allowChain);
+  if (!line) {
     return false;
   }
   const vec = DIRECTION_VECTORS[dir];
-  const destX = block.x + vec.dx;
-  const destY = block.y + vec.dy;
 
-  if (!isCanBlockEnter(w, block, destX, destY, dir)) {
-    return false;
+  // Move from the far end. Each move changes the world (leaving a cell, swivels, buttons, teleports), so every
+  // block is checked again just before it moves; the first failure stops the chain. Blocks already moved stay moved.
+  let movedCount = 0;
+  let directMoved = false;
+  for (let i = line.length - 1; i >= 0; i--) {
+    const member = line[i];
+    if (!w.player.alive) break;
+    // Still the same block at its cell and still allowed to yield. A sliding member refuses, but the directly
+    // pushed block keeps the old rule (it may be pushed while it slides).
+    if (getEntityAt(w, member.x, member.y) !== member || !canBeShoved(w, member, dir)) break;
+    if (i > 0 && member.isSliding) break;
+    const destX = member.x + vec.dx;
+    const destY = member.y + vec.dy;
+    if (!isCanBlockEnter(w, member, destX, destY, dir)) break;
+    if (i === 0) {
+      // A push by the player, or by a steered puppet, turns the turret toward the push; the turret's own slide never turns it.
+      const turret = getTurretDef(member.type);
+      if (turret && turnsOnPush(turret)) member.facing = dir;
+    }
+    moveBlockTo(ctx, member, destX, destY, dir);
+    movedCount++;
+    if (i === 0) directMoved = true;
   }
-
-  // A push by the player, or by a steered puppet, turns the turret toward the push; the turret's own slide never turns it.
-  const turret = getTurretDef(block.type);
-  if (turret && turnsOnPush(turret)) block.facing = dir;
-  moveBlockTo(ctx, block, destX, destY, dir);
-  return true;
+  if (movedCount > 1 || (movedCount > 0 && !directMoved)) w.chainPushCount++;
+  if (movedCount > 0 && !directMoved) w.rejectedPushMovedBlocks = true;
+  return directMoved;
 }
 
 export function isCanBlockEnter(

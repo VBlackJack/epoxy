@@ -228,7 +228,7 @@ export function executePlayerMove(ctx: EpoxyContext, dir: Direction, fromSlide: 
         behindTile.buttonAction === 'hold_trap' ||
         behindTileId === BLOCK_TARGET_TILE_ID;
       if (!lockedOnPlate) {
-        attemptPushBlock(ctx, blockBehind, dir);
+        attemptPushBlock(ctx, blockBehind, dir, false);
       }
     }
   }
