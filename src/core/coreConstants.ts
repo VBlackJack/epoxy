@@ -88,6 +88,11 @@ export const DEFAULT_PLAYER_CHARACTER: PlayerCharacter = 'chip';
 /** The character that does not slide on ice and needs hiking boots on dirt and gravel. */
 export const MELINDA_CHARACTER: PlayerCharacter = 'melinda';
 
+/** The character a transmogrifier turns the given character into: Chip becomes Melinda and Melinda becomes Chip. */
+export function transmogrifiedCharacter(character: PlayerCharacter): PlayerCharacter {
+  return character === MELINDA_CHARACTER ? DEFAULT_PLAYER_CHARACTER : MELINDA_CHARACTER;
+}
+
 /** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
 export const GRAY_BUTTON_RADIUS = 2;
 
@@ -344,6 +349,9 @@ export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
 
 /** Prefix of the paused flag of the level timer in a search state key; only a level with a toggle clock has one. */
 export const TIMER_PAUSE_KEY_PREFIX = 'tm';
+
+/** Prefix of the player's character in a search state key; written only while a transmogrifier made it differ from the level's. */
+export const PLAYER_CHARACTER_KEY_PREFIX = 'pc';
 
 /** Prefix of the turning force floor turn in a search state key. */
 export const FORCE_CYCLE_KEY_PREFIX = 'fc';

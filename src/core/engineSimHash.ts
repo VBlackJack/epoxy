@@ -94,6 +94,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           toggleParity: engine.getToggleParity(),
           // Undefined (and so left out of the hash) on a level without a turning force floor.
           forceCycleTurn: engine.getForceCycleTurn?.(),
+          // Undefined (and so left out of the hash) unless a transmogrifier switched the player's character.
+          character: engine.getPlayerCharacterSwitch?.(),
           // Undefined (and so left out of the hash) on a level without a toggle clock.
           timerPaused: engine.isTimerPaused?.(),
           // Undefined (and so left out of the hash) on a level without track cells.

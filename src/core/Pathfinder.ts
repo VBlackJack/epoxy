@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../config/constants';
-import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, DEFAULT_PLAYER_CHARACTER, MELINDA_CHARACTER, THIEF_PAYMENT_ITEM_IDS } from './coreConstants';
+import { BLOCK_TARGET_TILE_ID, channelOfButtonAction, MELINDA_CHARACTER, THIEF_PAYMENT_ITEM_IDS } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
 import { hiddenUnder, isRemovableTop } from './Underlays';
@@ -137,7 +137,9 @@ export class Pathfinder {
 
     const hasBoot = (node: AStarNode, bootId: string | undefined): boolean =>
       Boolean(bootId) && !node.bootsStolen && player.boots.has(bootId!);
-    const melinda = (level.character ?? DEFAULT_PLAYER_CHARACTER) === MELINDA_CHARACTER;
+    // The plan walks as the character the player is now; a transmogrifier on the way is not planned through.
+    const character = engine.getPlayerCharacter();
+    const melinda = character === MELINDA_CHARACTER;
     // Melinda never slides on ice, as the engine rules (playerGripsTile).
     const slidesOn = (tile: TileDefinition, node: AStarNode): boolean =>
       tile.slideType !== undefined && !hasBoot(node, tile.protectedByItem) && !(melinda && tile.slideType === 'ice');
@@ -241,6 +243,9 @@ export class Pathfinder {
         const opensWithNoChipLeft = Boolean(nextTile.requiresAllChips) && engine.getChipsRemaining() === 0;
         if (hiddenId !== undefined && !nextTile.passableByPlayer && !opensWithNoChipLeft) continue;
 
+        // A transmogrifier switches the character the plan walks as: the plan does not cross one.
+        if (nextTile.transmogrifies) continue;
+
         const itemOnNext = items[ny][nx];
         if (itemOnNext && ConfigRegistry.getTile(itemOnNext).hazard === 'bomb') continue;
 
@@ -268,7 +273,7 @@ export class Pathfinder {
           continue;
         }
         // Boots a thief took no longer let Melinda walk on dirt or gravel.
-        if (probe.bootsStolen && nextTile.bootsForCharacter?.[level.character ?? DEFAULT_PLAYER_CHARACTER] !== undefined) continue;
+        if (probe.bootsStolen && nextTile.bootsForCharacter?.[character] !== undefined) continue;
 
         let stepCost = BASE_STEP_COST;
         if (stolenHere) {
