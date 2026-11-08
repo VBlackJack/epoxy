@@ -29,7 +29,7 @@ import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
-import { advanceEmulation } from './epoxyEmulation';
+import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { followRail } from './epoxyRails';
 import { absorbMonsterContact } from './epoxyWard';
@@ -97,9 +97,16 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     return true;
   }
 
-  // A rover decides each step with the behaviour of the monster it is imitating just now (counted here, once per decision).
-  const chosenDir = chooseMonsterDirection(w, entity, advanceEmulation(entity, def));
-  if (!chosenDir) return true;
+  // A rover decides each step with the behaviour of the monster it is imitating just now. Each decision is counted,
+  // except while it slides (Lexy decides nothing then).
+  const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
+  const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+  const chosenDir = chooseMonsterDirection(w, entity, behaviour);
+  if (!chosenDir) {
+    // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
+    if (def?.emulates !== undefined) entity.cooldownTicks = 0;
+    return true;
+  }
 
   const vec = DIRECTION_VECTORS[chosenDir];
   const nx = entity.x + vec.dx;
@@ -229,10 +236,15 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
 
   const currentTile = ConfigRegistry.getTile(w.terrain[monster.y][monster.x]);
   // A monster the floor does not carry (a ghost) is neither slid nor forced; on ice it cannot turn either, so it
-  // goes straight on or stays.
+  // goes straight on and, when blocked, turns round.
   const floorFree = ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true;
   if (floorFree) {
-    if (currentTile.slideType === 'ice') return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
+    if (currentTile.slideType === 'ice') {
+      if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
+      // Blocked on ice, a ghost turns round (it moves on the next step); it cannot choose another way.
+      monster.dir = OPPOSITE_DIRECTION[monster.dir];
+      return null;
+    }
   } else if (currentTile.slideType === 'ice') {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
     if (canMonsterEnter(w, monster, slideDir)) return slideDir;

@@ -2206,6 +2206,8 @@ export class LevelValidator {
    * triggered: a green button opens the closed toggle walls, a red button grants its block cloner, and a bomb is
    * set off. A monster that does not press plates (pressesPlates false) still sets off bombs but works no button.
    * Accepted over-approximations: the flood walks past bombs, and a block used up on a bomb keeps flooding.
+   * A ghost sets off no bomb in play, yet the flood removes the bombs it reaches: that can only turn a level the
+   * walk finds winnable into a false winnable, never the reverse.
    * The player need not reach those cells, so this runs before the reach walk and never makes a reachable
    * exit unreachable.
    */

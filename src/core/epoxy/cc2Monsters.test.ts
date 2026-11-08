@@ -276,7 +276,7 @@ describe('ghost', () => {
   });
 
   it('passes neither steel walls, nor water, nor clone machines, nor the map edge', () => {
-    for (const tile of ['steel_wall', 'water', 'clone_machine']) {
+    for (const tile of ['steel_wall', 'water', 'clone_machine', 'turtle']) {
       const engine = ghostRun({ terrain: [[CENTER + 1, CENTER, tile]] }, 1);
       expect(cellOf(engine, GHOST), tile).not.toBe(`${CENTER + 1},${CENTER}`);
     }
@@ -290,9 +290,12 @@ describe('ghost', () => {
     const forced = ghostRun({ terrain: [[CENTER + 1, CENTER, 'force_n']] }, 2);
     // It steps onto the force floor, then keeps heading east instead of being pushed north.
     expect(cellOf(forced, GHOST)).toBe(`${CENTER + 2},${CENTER}`);
-    const icy = ghostRun({ terrain: [[CENTER + 1, CENTER, 'ice'], [CENTER + 2, CENTER, 'steel_wall']] }, 3);
-    // On ice it goes straight on or stays: the steel wall ahead holds it where it is.
+    const icy = ghostRun({ terrain: [[CENTER + 1, CENTER, 'ice'], [CENTER + 2, CENTER, 'steel_wall']] }, 2);
+    // On ice it goes straight on; blocked, it turns round (and steps back on the next step), as in Lexy.
+    expect(find(icy, GHOST)?.dir).toBe('W');
     expect(cellOf(icy, GHOST)).toBe(`${CENTER + 1},${CENTER}`);
+    run(icy, stepTicks(GHOST));
+    expect(cellOf(icy, GHOST)).toBe(`${CENTER},${CENTER}`);
   });
 
   it('sets off no bomb, is held by no trap, and burns in no fire', () => {
@@ -357,17 +360,24 @@ describe('rover', () => {
     }
   });
 
-  it('moves on to the next behaviour at the 32nd step decision, wrapping round after the last', () => {
+  it('moves on to the next behaviour at the 32nd decision, wrapping round after the last', () => {
     const engine = load(room({ ...POCKET, entities: [monster(ROVER, CENTER, CENTER)] }));
     const list = ConfigRegistry.getEntityDef(ROVER)?.emulates ?? [];
-    for (let i = 0; i < ROVER_SWITCH_ATTEMPTS - 1; i++) stepDecision(engine);
-    expect(find(engine, ROVER)).toMatchObject({ emulatee: 0, emulationMoves: ROVER_SWITCH_ATTEMPTS - 1 });
-    stepDecision(engine);
-    expect(find(engine, ROVER)).toMatchObject({ emulatee: 1, emulationMoves: 0 });
-    for (let behaviour = 2; behaviour <= list.length; behaviour++) {
-      for (let i = 0; i < ROVER_SWITCH_ATTEMPTS; i++) stepDecision(engine);
-      expect(find(engine, ROVER)?.emulatee).toBe(behaviour % list.length);
+    const seen: number[] = [0];
+    let previous = { emulatee: 0, emulationMoves: 0 };
+    for (let tick = 0; tick < stepTicks(ROVER) * ROVER_SWITCH_ATTEMPTS * list.length * 2 && seen.length <= list.length; tick++) {
+      engine.tick();
+      const rover = find(engine, ROVER);
+      const now = { emulatee: rover?.emulatee ?? 0, emulationMoves: rover?.emulationMoves ?? 0 };
+      if (now.emulatee !== previous.emulatee) {
+        // The switch comes with the 32nd decision, which already counts for the new behaviour.
+        expect(previous.emulationMoves).toBe(ROVER_SWITCH_ATTEMPTS - 1);
+        expect(now.emulationMoves).toBe(0);
+        seen.push(now.emulatee);
+      }
+      previous = now;
     }
+    expect(seen).toEqual([...list.keys(), 0]);
   });
 
   it('chases like teeth first and flees like timid teeth in the fifth behaviour', () => {
@@ -394,6 +404,39 @@ describe('rover', () => {
     stepDecision(engine);
     // A bug tries left (north when heading east) before straight on.
     expect(cellOf(engine, ROVER)).toBe(`${CENTER},${CENTER - 1}`);
+  });
+
+  it('counts one decision per tick while blocked, and none while sliding', () => {
+    const blocked = load(
+      room({
+        ...POCKET,
+        terrain: [...(POCKET.terrain ?? []), [CENTER + 1, CENTER, 'steel_wall'], [CENTER - 1, CENTER, 'steel_wall'], [CENTER, CENTER - 1, 'steel_wall'], [CENTER, CENTER + 1, 'steel_wall']],
+        entities: [monster(ROVER, CENTER, CENTER)]
+      })
+    );
+    const rover = find(blocked, ROVER);
+    if (rover === undefined) throw new Error('the rover is missing');
+    rover.emulatee = 2;
+    run(blocked, stepTicks(ROVER));
+    const afterFirst = find(blocked, ROVER)?.emulationMoves ?? 0;
+    run(blocked, 5);
+    expect(find(blocked, ROVER)?.emulationMoves).toBe(afterFirst + 5);
+    const slid = load(
+      room({
+        ...POCKET,
+        terrain: [
+          ...(POCKET.terrain ?? []),
+          [CENTER, CENTER, 'ice'],
+          [CENTER + 1, CENTER, 'steel_wall'],
+          [CENTER - 1, CENTER, 'steel_wall'],
+          [CENTER, CENTER - 1, 'steel_wall'],
+          [CENTER, CENTER + 1, 'steel_wall']
+        ],
+        entities: [monster(ROVER, CENTER, CENTER)]
+      })
+    );
+    run(slid, stepTicks(ROVER) * 2);
+    expect(find(slid, ROVER)?.emulationMoves).toBe(0);
   });
 
   it('restores its behaviour state on undo', () => {

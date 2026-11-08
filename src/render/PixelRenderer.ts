@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { WARD } from './wardShape';
@@ -5714,7 +5714,8 @@ export class PixelRenderer {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
-    const drawAlpha = MONSTER_DRAW_ALPHA[type];
+    // A custom monster that phases through tiles is seen through like the wisp.
+    const drawAlpha = MONSTER_DRAW_ALPHA[type] ?? (ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN ? MONSTER_DRAW_ALPHA.wisp : undefined);
     if (!this.drawingPhased && drawAlpha !== undefined) {
       // A wisp, a ghost or a floor mimic is the same drawing as any other style gives it, seen through.
       ctx.save();

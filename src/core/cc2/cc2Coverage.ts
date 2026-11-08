@@ -175,10 +175,10 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.
   ghost:
-    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; the exact CC2 item and button rules are [unverified].',
+    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; Known difference: a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
   // Epoxy: rover.
   rover:
-    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Which CC2 tics count as one decision, what the rover pushes and where it may walk (it enters exits and sockets in CC2) are [unverified].',
+    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
   [KEY_WIRE]: WIRED_REASON,

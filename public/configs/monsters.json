@@ -517,7 +517,7 @@
       "immuneToFire": true,
       "avoidsFire": false,
       "passesSolidTiles": true,
-      "blockedByTiles": ["steel_wall", "clone_machine"],
+      "blockedByTiles": ["steel_wall", "clone_machine", "turtle"],
       "blockedByHazards": ["water"],
       "ignoresCellEdges": true,
       "ignoresFloorEffects": true,

@@ -29,6 +29,13 @@ export function initialEmulationState(def: EntityDefinition | undefined): Pick<R
   return def?.emulates === undefined ? {} : { emulatee: FIRST_EMULATEE, emulationMoves: NO_MOVES_YET };
 }
 
+/** The definition whose behaviour a monster that emulates others follows now, without counting a decision. */
+export function emulatedDef(entity: RuntimeEntity, def: EntityDefinition | undefined): EntityDefinition | undefined {
+  const list = def?.emulates;
+  if (def === undefined || list === undefined || list.length === 0) return def;
+  return ConfigRegistry.getEntityDef(list[entity.emulatee ?? FIRST_EMULATEE]) ?? def;
+}
+
 /**
  * Counts one step decision of a monster that emulates others and returns the definition whose behaviour decides
  * this step. After `emulationSwitchAttempts` decisions the monster moves on to the next behaviour of the list
