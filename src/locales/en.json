@@ -5142,7 +5142,7 @@
     "arrow_block_none": {
       "name": "Locked Arrow Block",
       "desc": {
-        "label": "A block with no arrow: no push moves it, whether from the player, a monster or another block. It still slides when it rides ice or a force floor, and a sliding block can carry it along."
+        "label": "A block with no arrow: no push moves it, whether from the player, a monster or another block. It still slides when it rides ice or a force floor."
       }
     },
     "ice_block": {

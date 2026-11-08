@@ -214,6 +214,14 @@ describe('locked arrow block', () => {
     expect(findPushArrowConfigErrors(ConfigRegistry.getMonsters().entities)).toEqual([]);
   });
 
+  it('may push others along like the other arrow blocks, and no block lists it', () => {
+    const defs = ConfigRegistry.getMonsters().entities;
+    expect(defs[LOCKED_ARROW_BLOCK_ID].chainPushes).toEqual(defs.arrow_block_one.chainPushes);
+    for (const [id, def] of Object.entries(defs)) {
+      if (id !== LOCKED_ARROW_BLOCK_ID) expect(def.chainPushes ?? [], id).not.toContain(LOCKED_ARROW_BLOCK_ID);
+    }
+  });
+
   it('still refuses an empty arrow list on any other block', () => {
     const entities = structuredClone(ConfigRegistry.getMonsters().entities);
     entities.arrow_block_one = { ...entities.arrow_block_one, pushArrows: [] };

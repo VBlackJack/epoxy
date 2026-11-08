@@ -193,7 +193,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
   [KEY_CANOPY]:
-    'A canopy is a flag on the thin wall of a cell (0x10): Epoxy keeps it with the cell edges, hides the cell under a roof, and bugs and rovers cannot enter it (blobs do not step from one canopy to another). Known difference: the CC2 canopy also shields what lies under it from fire, which Epoxy does not model.',
+    'A canopy is a flag on the thin wall of a cell (0x10): Epoxy keeps it with the cell edges, hides the cell under a roof, and bugs and rovers cannot enter it (blobs do not step from one canopy to another). Known differences: Epoxy draws the canopy semi-opaque over the player, where CC2 hides what is under it fully; the CC2 canopy also shields what lies under it from fire, which Epoxy does not model.',
   [KEY_DATA_LATCH]: 'A CC2 latch is a data latch (its memory follows the first input while the second is on); Epoxy plays it as its toggle latch, which flips on each pulse [unverified].',
   [KEY_WIRE]: WIRED_REASON,
   [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
