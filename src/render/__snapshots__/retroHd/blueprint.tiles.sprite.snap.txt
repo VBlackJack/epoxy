@@ -701,3 +701,6 @@ tile shot_launcher_w closed=true shadowMask=128 hash=1 55ec23b7e1b17112
 tile shot_trigger closed=true isolated 8c9f3e8ab32ed73d
 tile shot_trigger closed=true shadowMask=65 hash=1 3d99ef3e4bc0e755
 tile shot_trigger closed=true shadowMask=128 hash=1 d5fbf598fa46e4a9
+tile rail_junction closed=true isolated 8ee5965306396926
+tile rail_junction closed=true shadowMask=65 hash=1 a248096413bcb30f
+tile rail_junction closed=true shadowMask=128 hash=1 74fa849536a6bf0a

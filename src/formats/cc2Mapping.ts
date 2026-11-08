@@ -160,7 +160,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x62, reserved('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],
   [0x6a, same('stopwatch_penalty', 'time_penalty')],
-  [0x6f, reserved('railroad_sign')],
+  [0x6f, same('railroad_sign')],
   [0x7a, same('score_10', 'bonus_flag_10')],
   [0x7b, same('score_100', 'bonus_flag_100')],
   [0x7c, same('score_1000', 'bonus_flag_1000')],
@@ -240,7 +240,7 @@ export const GENDER_SIGN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<numb
 /** The key of the lost placeholder for a code the table does not know. */
 export const UNKNOWN_KEY = 'unknown';
 
-/** Track junction placeholder (terrain). */
+/** Track junction placeholder (terrain). The importer no longer places it: a track cell is played as `rail_junction`. Kept for the reserved id. */
 export const TRACK_JUNCTION = reserved('track_junction');
 /** Reserved ids for the logic gates Epoxy lacks. */
 export const NAND_GATE = reserved('nand_gate');

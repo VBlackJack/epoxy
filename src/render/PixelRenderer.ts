@@ -21,7 +21,7 @@ import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { WARD } from './wardShape';
 import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
-import { paintRailPiece } from './railArt';
+import { JUNCTION_NO_SWITCH, JUNCTION_SAMPLE_MASK, paintRailJunction, paintRailPiece } from './railArt';
 import { paintRelayPad, paintWiredMark } from './relayArt';
 import {
   WIRED_BASE_TILE,
@@ -793,6 +793,11 @@ export class PixelRenderer {
   private signalStateKey: string = '';
   /** The cells whose signal node is on, read from the engine each frame; undefined without signals. */
   private poweredSignalCells: ReadonlySet<number> | undefined;
+  /** The Chip's Challenge 2 track cells of the running level by cell index (segments and active segment); undefined without any. */
+  private railDrawCells: ReadonlyMap<number, { mask: number; active: number }> | undefined;
+  /** Text key of the state behind `railDrawCells`, so the map is rebuilt, and the terrain cache redrawn, only when a switch moved. */
+  private railDrawKey: string = '';
+  private railStateKey: string = '';
   private readonly cacheRegion = { x0: 0, y0: 0, x1: -1, y1: -1 };
 
   /** Pre-rendered glowing shapes, keyed by kind, style and size. */
@@ -1458,6 +1463,7 @@ export class PixelRenderer {
     this.blockCellsWidth = mapWidth;
     collectBlockCells(entities, mapWidth, this.blockCells);
     this.poweredSignalCells = engine.getPoweredSignalCells?.();
+    this.updateRailDrawCells(engine, mapWidth);
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -2070,6 +2076,7 @@ export class PixelRenderer {
       trapKey === this.trapStateKey &&
       blockKey === this.blockCellsStateKey &&
       signalKey === this.signalStateKey &&
+      this.railDrawKey === this.railStateKey &&
       cacheKey === this.terrainCacheKey
     ) {
       return;
@@ -2077,6 +2084,7 @@ export class PixelRenderer {
     this.trapStateKey = trapKey;
     this.blockCellsStateKey = blockKey;
     this.signalStateKey = signalKey;
+    this.railStateKey = this.railDrawKey;
     if (cacheKey !== this.terrainCacheKey) this.restartFrameBudget();
     this.terrainCacheKey = cacheKey;
 
@@ -2417,6 +2425,12 @@ export class PixelRenderer {
       if (pass !== 'animated') paintCc2Placeholder(ctx, tileId, x, y, size);
       return;
     }
+    // A Chip's Challenge 2 track cell is the floor of the style with its tracks drawn over it, in every style.
+    if (ConfigRegistry.getTile(tileId).railJunction === true) {
+      this.drawTile(ctx, FLOOR_TILE_ID, x, y, size, isEditor, isClosedTrap, pass, neighbours);
+      if (pass !== 'animated') this.paintJunctionTrack(ctx, x, y, size, neighbours);
+      return;
+    }
     const runewardTile = this.runewardPainters();
     const runewardPaint = runewardTile ? findRunewardPainter(runewardTile.tiles, tileId) : undefined;
     if (runewardPaint) {
@@ -2496,6 +2510,59 @@ export class PixelRenderer {
     } else {
       this.drawLegacyTile(ctx, tileId, x, y, size, isEditor, isClosedTrap, pass, neighbours);
     }
+  }
+
+  /**
+   * Reads the track cells of the running level from the engine: the segments each holds (static, from the level) and the
+   * active segment of its switch (live). The map is rebuilt only when a switch moved.
+   */
+  private updateRailDrawCells(engine: PlayEngine, mapWidth: number): void {
+    const state = engine.getRailState?.();
+    if (state === undefined) {
+      this.railDrawCells = undefined;
+      this.railDrawKey = '';
+      return;
+    }
+    const key = state.map(([cell, active]) => `${cell}:${active}`).join(',');
+    if (key === this.railDrawKey && this.railDrawCells !== undefined) return;
+    const masks = new Map<number, number>();
+    for (const cell of engine.getLevel().railTracks ?? []) masks.set(cell.y * mapWidth + cell.x, cell.mask);
+    this.railDrawCells = new Map(state.map(([cell, active]) => [cell, { mask: masks.get(cell) ?? 0, active }]));
+    this.railDrawKey = key;
+  }
+
+  /**
+   * The tracks of a Chip's Challenge 2 track cell: every segment it holds, the active one of a switch in full and the others
+   * faded. A cell with no running level behind it (the editor, an icon) shows a sample junction.
+   */
+  private paintJunctionTrack(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    neighbours: Readonly<TileNeighbours>
+  ): void {
+    const known =
+      neighbours.cx === undefined || neighbours.cy === undefined
+        ? undefined
+        : this.railDrawCells?.get(neighbours.cy * this.blockCellsWidth + neighbours.cx);
+    const mask = known?.mask ?? JUNCTION_SAMPLE_MASK;
+    const active = known?.active ?? JUNCTION_NO_SWITCH;
+    const art = this.runewardPainters() ? this.runewardArt() : null;
+    const pal = this.pal();
+    const neon = this.isHdVector();
+    const colours = art
+      ? {
+          outline: art.ink ? art.ink.line : art.device.swivel.edge,
+          sleeper: art.device.swivel.base,
+          rail: art.gate.barLight,
+          buffer: art.device.swivel.light
+        }
+      : { outline: pal.wallShadow, sleeper: pal.wallBase, rail: pal.wallTop, buffer: pal.wallTop };
+    paintRailJunction(ctx, x, y, size, mask, active, colours, {
+      crisp: art ? false : !neon,
+      glow: !art && neon && this.getActiveTheme() ? pal.wallTop : undefined
+    });
   }
 
   /**

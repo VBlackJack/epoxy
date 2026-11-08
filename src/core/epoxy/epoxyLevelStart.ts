@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, PULSE_WIRED_ACTION } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
+import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
@@ -88,6 +89,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.statusBannerKey = null;
   w.removedUids.clear();
   w.swivelEntry.clear();
+  buildRailCells(w);
   buildLevelLookups(w);
   const signalSpec = compileSignalSpec(level, registryTileLookup);
   // A level with a gray area button needs a runtime even with no wire, to hold the devices the button reaches on.

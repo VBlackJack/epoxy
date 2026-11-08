@@ -25,8 +25,8 @@ import { importCc2Selection } from './cc2Import';
 import type { Cc2ImportFile } from './cc2Import';
 import { buildCc2PackOutput, cc2FileStem } from './cc2ImportReport';
 
-/** The railroad sign has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
-const RAILROAD_SIGN = 0x6f;
+/** The lightning bolt has no Epoxy equivalent yet, so a level that holds it keeps a reserved id and is lost. */
+const LOST_ITEM = 0x62;
 const MAX_BYTES = 1 << 20;
 
 function fileOf(path: string, bytes: Uint8Array): Cc2ImportFile {
@@ -52,7 +52,7 @@ describe('the local CC2 import tool output', () => {
     const files = [
       fileOf('Folder/g.c2g', new TextEncoder().encode('game "Synthetic Game"\nmap "two.c2m"\nmap "one.c2m"\n')),
       fileOf('Folder/one.c2m', c2mFileBytes(makeMap(4, 3, [player(1, 1)]), 'One')),
-      fileOf('Folder/two.c2m', c2mFileBytes(makeMap(4, 3, [player(1, 1), put(2, 1, { code: RAILROAD_SIGN }, { code: FLOOR_CODE })]), 'Two'))
+      fileOf('Folder/two.c2m', c2mFileBytes(makeMap(4, 3, [player(1, 1), put(2, 1, { code: LOST_ITEM }, { code: FLOOR_CODE })]), 'Two'))
     ];
     const result = await importCc2Selection(files, MAX_BYTES, String);
     const output = buildCc2PackOutput(result, files);
@@ -76,8 +76,8 @@ describe('the local CC2 import tool output', () => {
     expect(report).toContain('- Levels imported: 2');
     expect(report).toContain('- Coverage: exact 1, approximate 0, not playable 1');
     expect(report).toContain('### 1. Two (two.c2m)');
-    expect(report).toContain('- Lost: railroad_sign');
-    expect(report).toContain('- Mechanics Epoxy cannot play: railroad_sign');
+    expect(report).toContain('- Lost: lightning_bolt');
+    expect(report).toContain('- Mechanics Epoxy cannot play: lightning_bolt');
     expect(report).not.toMatch(/\[\s*\[/);
   });
 

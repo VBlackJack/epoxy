@@ -312,6 +312,8 @@ editor tile shot_launcher_w closed=true 40bfe603efa976e8
 editor tile shot_launcher_w closed=false c987da00a3c2fcd9
 editor tile shot_trigger closed=true b49d4a82d73511dd
 editor tile shot_trigger closed=false e3dacf2b03dd14ca
+editor tile rail_junction closed=true 6b24e032164515b7
+editor tile rail_junction closed=false 726683c2751fc31f
 editor tile key_red closed=true b999882a932bda35
 editor tile key_red closed=false 667dc51d17972e69
 editor tile key_blue closed=true 966a14bf46249bbe
@@ -376,6 +378,8 @@ editor tile stopwatch_bonus closed=true 90a2c7236255950c
 editor tile stopwatch_bonus closed=false 1f112a256a27ffad
 editor tile stopwatch_penalty closed=true c2a2788c71c6d415
 editor tile stopwatch_penalty closed=false e00f354b1399c045
+editor tile railroad_sign closed=true 9a3b3792677d19c2
+editor tile railroad_sign closed=false 73f48d0d48bcfadc
 editor item over floor key_red 793902e908c53657
 editor item over floor key_blue e2c10be8e321add3
 editor item over floor key_yellow 4d6c148e98e416a3
@@ -408,6 +412,7 @@ editor item over floor score_1000 7328789765729a39
 editor item over floor score_2x c5cbe4d50d1deda8
 editor item over floor stopwatch_bonus 4da399577af2e122
 editor item over floor stopwatch_penalty 74cfdfa76c6d71fb
+editor item over floor railroad_sign 166cf68aa327c6cf
 editor entity over floor dirt_block 5dc9a42579be7c59
 editor entity over floor arrow_block_one c373dc981db3665c
 editor entity over floor arrow_block_line c09dd5781aeab5c3

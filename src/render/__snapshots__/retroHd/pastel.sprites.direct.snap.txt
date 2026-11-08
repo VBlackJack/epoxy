@@ -30,6 +30,7 @@ item score_1000 tick=3 b10e64e5ff57ec70
 item score_2x tick=3 a369f9677f8e612e
 item stopwatch_bonus tick=3 144fcd5dd368ba5d
 item stopwatch_penalty tick=3 c897616fd1b7873b
+item railroad_sign tick=3 43fb5d009596ca70
 entity dirt_block dir=N tick=3 0e3c69b7734d5883
 entity dirt_block dir=E tick=3 e58ffd25f33f16f7
 entity dirt_block dir=S tick=3 758d15377bd65342
@@ -214,6 +215,7 @@ item score_1000 tick=13 ade5139de8b8838b
 item score_2x tick=13 f85f70e9a1cdc70d
 item stopwatch_bonus tick=13 5f988b87c9240b7a
 item stopwatch_penalty tick=13 c0513e6515a5006f
+item railroad_sign tick=13 7d2684df925fdf4e
 entity dirt_block dir=N tick=13 bb50ae174d76ac9c
 entity dirt_block dir=E tick=13 152d693ea5c7db9b
 entity dirt_block dir=S tick=13 1ed1c398f9529ab1

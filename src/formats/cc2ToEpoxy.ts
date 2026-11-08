@@ -26,7 +26,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { MELINDA_CHARACTER } from '../core/coreConstants';
+import { MELINDA_CHARACTER, RAIL_JUNCTION_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -34,6 +34,7 @@ import type {
   CompiledLevel,
   Direction,
   EntityPlacement,
+  RailTrackCell,
   TrapLink
 } from '../core/types';
 import {
@@ -66,7 +67,6 @@ import {
   NO_SIGN_FORBID_MAP,
   RESERVED_PLAYER_ENTITIES,
   TERRAIN_MAP,
-  TRACK_JUNCTION,
   UNKNOWN_ID,
   UNKNOWN_KEY,
   WIRED_FLAME_JET_OFF,
@@ -74,6 +74,7 @@ import {
   WIRED_TRAP
 } from './cc2Mapping';
 import type { Cc2TileMapping } from './cc2Mapping';
+import { decodeCc2Track, isCc2Junction } from './cc2Tracks';
 import { buildCc2Wires, decodeCc2Gate } from './cc2Wires';
 
 /**
@@ -99,21 +100,9 @@ const KEY_ARROW_BLOCK = 'arrow_block';
 const KEY_ARROW_BLOCK_LOCKED = 'arrow_block_locked';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
 
-/**
- * Track segments in the low bits of the track modifier, in the order of the Lexy's Labyrinth railroad track_order:
- * bit 0 NE, bit 1 SE, bit 2 SW, bit 3 NW, bit 4 EW, bit 5 NS. The switch flag (0x40), the active track (bits 8-11) and
- * the entered side (bits 12-13) are not read: a track with a switch is a junction in Epoxy.
- */
-const TRACK_SEGMENTS: ReadonlyArray<{ bit: number; id: string }> = [
-  { bit: 0x01, id: 'rail_ne' },
-  { bit: 0x02, id: 'rail_se' },
-  { bit: 0x04, id: 'rail_sw' },
-  { bit: 0x08, id: 'rail_nw' },
-  { bit: 0x10, id: 'rail_ew' },
-  { bit: 0x20, id: 'rail_ns' }
-];
-const TRACK_SEGMENT_MASK = 0x3f;
+/** Coverage keys of a track cell: a plain one segment track, and a junction (several segments or a switch). */
 const TRACK_KEY = 'track';
+const TRACK_JUNCTION_KEY = 'track_junction';
 const WIRED_TELEPORT_CODE = 0x11;
 const WIRED_TELEPORT_KEY = 'teleport_blue_wired';
 const WIRE_NIBBLE_MASK = 0x0f;
@@ -247,7 +236,7 @@ function stableHash(text: string): string {
 /** The parts of a level the grid hash covers. */
 export type Cc2GridParts = Pick<
   CompiledLevel,
-  'terrain' | 'items' | 'entities' | 'trapLinks' | 'cloneLinks' | 'playerStart' | 'cellEdges' | 'signalLinks'
+  'terrain' | 'items' | 'entities' | 'trapLinks' | 'cloneLinks' | 'playerStart' | 'cellEdges' | 'signalLinks' | 'railTracks'
 >;
 
 /** Hash of the converted grid: terrain, items, entities, edges, links and the start. Titles and limits are outside. */
@@ -261,7 +250,9 @@ export function cc2GridHash(level: Cc2GridParts): string {
       level.trapLinks.map((l) => [l.buttonX, l.buttonY, l.trapX, l.trapY]),
       level.cloneLinks.map((l) => [l.buttonX, l.buttonY, l.clonerX, l.clonerY, l.templateType, l.templateDir]),
       (level.signalLinks ?? []).map((l) => [l.fromX, l.fromY, l.toX, l.toY]),
-      [level.playerStart.x, level.playerStart.y, level.playerStart.dir]
+      [level.playerStart.x, level.playerStart.y, level.playerStart.dir],
+      // Only a level with track cells carries them, so the hash of every other level stays as it was.
+      ...(level.railTracks ? [level.railTracks.map((t) => [t.x, t.y, t.mask, t.active ?? null, t.entry ?? null])] : [])
     ])
   );
 }
@@ -321,11 +312,9 @@ function partsOf(cell: Cc2Cell): CellParts {
   return parts;
 }
 
-/** Epoxy rail piece of a track modifier, or null when it holds several segments (a junction or a switch). */
+/** The Epoxy track cell of a track modifier, with the coverage key of a plain track or a junction. */
 function trackMapping(mod: number | undefined): Cc2TileMapping {
-  const segments = TRACK_SEGMENTS.filter((segment) => ((mod ?? 0) & TRACK_SEGMENT_MASK & segment.bit) !== 0);
-  if (segments.length === 1) return { id: segments[0].id, key: TRACK_KEY };
-  return TRACK_JUNCTION;
+  return { id: RAIL_JUNCTION_TILE_ID, key: isCc2Junction(mod) ? TRACK_JUNCTION_KEY : TRACK_KEY };
 }
 
 /** Arrow-block entity of a directional block. A four-arrow block moves like a dirt block (all pushes allowed). */
@@ -366,6 +355,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const items: (string | null)[][] = [];
   const entities: EntityPlacement[] = [];
   const edges: CellEdge[] = [];
+  const railTracks: RailTrackCell[] = [];
   const traps: number[] = [];
   const cloners = new Map<number, { type: string; dir: Direction } | null>();
   const brownButtons: number[] = [];
@@ -421,6 +411,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         const mapping = terrainMapping(tile, warnings, where, wiredSinkCells.has(index));
         terrainId = mapping.id;
         keys.add(mapping.key);
+        if (code === CC2_CODE_TRACK) railTracks.push({ x, y, ...decodeCc2Track(tile.mod) });
         if (code === CODE_SOCKET) hasSocket = true;
         if (code === CODE_STEEL_WALL) hasSteelWall = true;
         if (code === CODE_TRAP || code === CODE_OPEN_TRAP) traps.push(index);
@@ -617,6 +608,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     cloneLinks
   };
   if (edges.length > 0) level.cellEdges = edges;
+  if (railTracks.length > 0) level.railTracks = railTracks;
   if (wires.links.length > 0) level.signalLinks = wires.links;
   level.cc2 = {
     v: 1,

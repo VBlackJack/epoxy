@@ -61,7 +61,7 @@ interface SignalSinkOptions {
 /**
  * The sink a tile makes of its cell, or null when the tile is not a sink. The one place that says what a sink is,
  * read by the compiler, the pack format predicates and the editor. A hold door drives a colour; a shot launcher, a
- * clone machine and a flip tile (a green toggle wall or a rail switch: any tile with `togglesTo`) fire once on each
+ * clone machine and a flip tile (a green toggle wall or a rail switch: any tile with `togglesTo`, and a Chip's Challenge 2 track cell, whose switch advances) fire once on each
  * rising edge of their input. A flip tile hidden under a removable top is no sink: the per-family toggle parity of the
  * green button counts a hidden wall by its own bookkeeping, and a wire must not change that cell behind its back. A
  * hidden hold door, launcher or clone machine still is a sink. A relay pad (lit or dark: a signal link powers the pad, not
@@ -74,7 +74,7 @@ export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = 
   if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
   if (tile.shotLauncher !== undefined) return { fires: 'launcher' };
   if (tile.isCloneMachine) return { fires: 'cloner' };
-  if (tile.togglesTo !== undefined && options.hidden !== true) return { fires: 'flip' };
+  if ((tile.togglesTo !== undefined || tile.railJunction === true) && options.hidden !== true) return { fires: 'flip' };
   if (tile.relayPad !== undefined && options.hidden !== true) return { powers: true };
   // A purple wall or a wired flame jet flips on every change of its input; a wired trap is a level sink like a relay pad.
   if (tile.wireTogglesTo !== undefined && options.hidden !== true) return { fires: 'flip_edges' };
@@ -247,7 +247,7 @@ export function usesFlipSinkFormat(
   lookup: TerrainTileLookup | null = getRegisteredTerrainLookup()
 ): boolean {
   const isFlip = (id: string | null | undefined): boolean =>
-    id !== null && id !== undefined && (FLIP_SINK_TILE_IDS.has(id) || lookup?.(id)?.togglesTo !== undefined);
+    id !== null && id !== undefined && (FLIP_SINK_TILE_IDS.has(id) || lookup?.(id)?.togglesTo !== undefined || lookup?.(id)?.railJunction === true);
   return (level.signalLinks ?? []).some((link) => {
     if (link === null || typeof link !== 'object') return false;
     const { toX, toY } = link;

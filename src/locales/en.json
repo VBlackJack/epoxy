@@ -4489,6 +4489,18 @@
         "label": "Pick it up and keep it. Each time you step on a thief, one bribe is spent and nothing is taken, whether it guards boots or keys. It cannot be set down, and a thief never takes it."
       }
     },
+    "rail_junction": {
+      "name": "Track Junction",
+      "desc": {
+        "label": "A Chip's Challenge 2 track cell with up to six track segments. You may only come in through a side a track opens, and you leave only along a track that joins the side you came in by; a blocked step is turned onto the track. A cell with a switch uses one track at a time and moves to the next when something leaves it. Blocks may back out. The railroad sign ignores the tracks."
+      }
+    },
+    "railroad_sign": {
+      "name": "Railroad Sign",
+      "desc": {
+        "label": "Pick it up and keep it. While you hold it, track cells no longer limit where you come in or out. A thief takes it with the other boots."
+      }
+    },
     "score_10": {
       "name": "Bonus Flag (10 points)"
     },

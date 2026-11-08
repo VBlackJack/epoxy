@@ -27,6 +27,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
+import { replaceRailTracks, translateRailTracks } from './editorRailTracks';
 import { edgesAt, removeEdgesWhere, replaceEdges, toggleSide, translate as translateEdges } from './editorCellEdges';
 import { cloneMap, EditorMap } from './editorDocument';
 import { pruneUnderlays, removeUnderlaysWhere, replaceUnderlays, translateUnderlays, underlayAt } from './editorUnderlays';
@@ -833,6 +834,8 @@ export function resizeMap(
   // The hidden terrain stays with its cell, then only what the new terrain on top can still hide is kept.
   replaceUnderlays(resized, translateUnderlays(source.underlays ?? [], dx, dy, newWidth, newHeight).filter((u) => alive(u.x, u.y)));
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
+  // The track cells move with their cells; the editor does not edit them.
+  replaceRailTracks(resized, translateRailTracks(source.railTracks ?? [], dx, dy, newWidth, newHeight).filter((t) => alive(t.x, t.y)));
   return {
     map: resized,
     width: newWidth,

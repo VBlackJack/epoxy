@@ -2149,6 +2149,25 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "buttonAction": "fire_launchers"
+    },
+    "rail_junction": {
+      "id": "rail_junction",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.rail_junction.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "railJunction": true
+    },
+    "railroad_sign": {
+      "id": "railroad_sign",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.railroad_sign.name",
+      "laserTransparent": true,
+      "collectible": "boot"
     }
   }
 }

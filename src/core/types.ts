@@ -1106,6 +1106,12 @@ export interface TileDefinition {
    * the door turns behind the actor to close the side it came in by).
    */
   swivelRule?: 'cc2';
+  /**
+   * A Chip's Challenge 2 track cell (terrain): up to six track segments, held per cell in the level's `railTracks`.
+   * Whoever enters must come in through a side an active track opens; it leaves only along a track that joins the side
+   * it came in by (see epoxyRailsCc2). The tile itself closes no side, so beams, shots and the checkers see it as open floor.
+   */
+  railJunction?: boolean;
   deflectionMap?: Partial<Record<Direction, Direction>>;
   forceDirection?: Direction | 'RANDOM';
   /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
@@ -1696,6 +1702,8 @@ export interface LevelBlueprint {
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
   cellEdges?: CellEdge[];
+  /** Track segments of the Chip's Challenge 2 track cells (Epoxy ruleset only); see CompiledLevel.railTracks. */
+  railTracks?: RailTrackCell[];
   /** Terrain hidden under a removable top (Epoxy ruleset only); see CompiledLevel.underlays. */
   underlays?: CellUnderlay[];
   terrainOverrides?: Array<{ x: number; y: number; id: string }>;
@@ -1738,6 +1746,21 @@ export interface CellEdge {
   y: number;
   /** The blocked sides of the cell; a step across a blocked side is stopped from either cell. */
   sides: Direction[];
+}
+
+/**
+ * The track segments of one Chip's Challenge 2 track cell (terrain `rail_junction`, Epoxy ruleset only). `mask` holds one
+ * bit per segment in the order of the Lexy's Labyrinth railroad: bit 0 north-east, 1 south-east, 2 south-west, 3 north-west,
+ * 4 east-west, 5 north-south. A cell with a switch has an `active` segment (0 to 5, the bit number): only that segment
+ * is open until the switch advances. `entry` is the side an actor standing on the cell at the start came in by;
+ * absent means the south side (the track modifier's default of an actor that came in moving north).
+ */
+export interface RailTrackCell {
+  x: number;
+  y: number;
+  mask: number;
+  active?: number;
+  entry?: Direction;
 }
 
 /**
@@ -1888,6 +1911,11 @@ export interface CompiledLevel {
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
   cellEdges?: CellEdge[];
+  /**
+   * The track segments of the Chip's Challenge 2 track cells, one entry per cell whose terrain is `rail_junction`
+   * (Epoxy ruleset only); absent when the level has none.
+   */
+  railTracks?: RailTrackCell[];
   /** Terrain hidden under a removable top, one entry per cell (Epoxy ruleset only); absent when the level has none. */
   underlays?: CellUnderlay[];
   entities: EntityPlacement[];
@@ -2006,6 +2034,8 @@ export interface UndoSnapshot {
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
   swivelEntry?: [number, Direction][];
+  /** The state of the track cells: [cell index, active segment or -1 without a switch, side the last actor came in by]; written only on a level that has track cells. */
+  railState?: [number, number, Direction][];
   /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
   timerPaused?: boolean;
   /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */

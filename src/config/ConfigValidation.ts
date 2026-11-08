@@ -33,7 +33,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CC2_SWIVEL_RULE, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -41,6 +41,7 @@ import {
   CampaignConfig,
   Cc2LevelData,
   CellEdge,
+  RailTrackCell,
   CellUnderlay,
   CompiledLevel,
   DatFormatConfig,
@@ -502,6 +503,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     isRecordList(value.cloneLinks, size, strict) &&
     // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
     (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
+    // Track cells hold one entry per cell at most, by the same rule.
+    (!strict || !Array.isArray(value.railTracks) || value.railTracks.length <= size.width * size.height) &&
     // Underlays hold one entry per cell at most, by the same rule.
     (!strict || !Array.isArray(value.underlays) || value.underlays.length <= size.width * size.height) &&
     // Launcher links hold one entry per cell at most, by the same rule.
@@ -597,6 +600,47 @@ export function normalizeCellEdges(
       y: Math.floor(index / width),
       sides: CELL_EDGE_SIDE_ORDER.filter((side) => ((bitsByCell.get(index) ?? 0) & CELL_EDGE_BITS[side]) !== 0)
     }));
+}
+
+/**
+ * The track cells of a level in canonical form: only the Epoxy ruleset carries them; an entry that is not a record,
+ * lies outside the grid, sits on a cell whose terrain is not the track cell tile, or holds neither a track nor a
+ * switch is dropped. The mask keeps its six track bits, `active` (the switched segment, 0 to 5) is kept as a whole
+ * number in range, and `entry` is kept only when it is a side other than the default one. A cell listed twice keeps
+ * its first entry. Entries are sorted by row, then column. Returns null when no entry is left.
+ */
+export function normalizeRailTracks(
+  tracks: unknown,
+  terrain: readonly (readonly string[])[],
+  ruleset: unknown
+): RailTrackCell[] | null {
+  if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(tracks)) return null;
+  const height = terrain.length;
+  const width = terrain[0]?.length ?? 0;
+  const byCell = new Map<number, RailTrackCell>();
+  for (const entry of tracks as unknown[]) {
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height)) continue;
+    const x = entry.x as number;
+    const y = entry.y as number;
+    if (terrain[y]?.[x] !== RAIL_JUNCTION_TILE_ID) continue;
+    const index = y * width + x;
+    if (byCell.has(index)) continue;
+    const mask = typeof entry.mask === 'number' && Number.isInteger(entry.mask) ? entry.mask & RAIL_TRACK_MASK_ALL : 0;
+    const active =
+      typeof entry.active === 'number' && Number.isInteger(entry.active) && entry.active >= 0 && entry.active < RAIL_TRACK_COUNT
+        ? entry.active
+        : undefined;
+    if (mask === 0 && active === undefined) continue;
+    byCell.set(index, {
+      x,
+      y,
+      mask,
+      ...(active !== undefined ? { active } : {}),
+      ...(isDirection(entry.entry) && entry.entry !== RAIL_DEFAULT_ENTRY ? { entry: entry.entry } : {})
+    });
+  }
+  if (byCell.size === 0) return null;
+  return [...byCell.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
 }
 
 /** Looks a tile of the Epoxy terrain layer up by id; undefined for an item, an unknown id or a foreign tile set. */
@@ -806,6 +850,11 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     edges = normalizeCellEdges(record.cellEdges, level.terrain, record.ruleset);
     if (edges === null || JSON.stringify(edges) !== JSON.stringify(record.cellEdges)) bad.push('cellEdges');
   }
+  let rails: RailTrackCell[] | null = null;
+  if ('railTracks' in record) {
+    rails = normalizeRailTracks(record.railTracks, level.terrain, record.ruleset);
+    if (rails === null || JSON.stringify(rails) !== JSON.stringify(record.railTracks)) bad.push('railTracks');
+  }
   let hidden: CellUnderlay[] | null = null;
   if ('underlays' in record) {
     hidden = normalizeUnderlays(record.underlays, level.terrain, record.ruleset);
@@ -835,6 +884,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
+  if (rails !== null && bad.includes('railTracks')) copy.railTracks = rails;
   if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
   if (links !== null && bad.includes('launcherLinks')) copy.launcherLinks = links;
   if (wires !== null && bad.includes('signalLinks')) copy.signalLinks = wires;
@@ -1137,6 +1187,16 @@ export function findRailConfigErrors(tiles: Record<string, TileDefinition>): str
   for (const tile of Object.values(tiles)) {
     const { id } = tile;
     const sides: unknown = tile.railSides;
+    if (tile.railJunction !== undefined) {
+      if (tile.railJunction !== true) errors.push(`${id}.railJunction: expected true or absent`);
+      else if (tile.layer !== 'terrain') errors.push(`${id}.railJunction: a track cell is a terrain`);
+      else if (tile.passableByPlayer !== true || tile.passableByMonster !== true || tile.passableByBlock !== true) {
+        errors.push(`${id}.railJunction: a track cell must be passable by the player, monsters and blocks`);
+      }
+      if (tile.railSides !== undefined || tile.blockedEdges !== undefined || tile.blockedEntryDirections !== undefined || tile.togglesTo !== undefined) {
+        errors.push(`${id}.railJunction: a track cell keeps its tracks in the level, not in railSides, edges or togglesTo`);
+      }
+    }
     if (sides === undefined) {
       const target = tile.togglesTo === undefined ? undefined : tiles[tile.togglesTo];
       if (target?.railSides !== undefined) errors.push(`${id}.togglesTo: only a rail switch may toggle into a rail`);
