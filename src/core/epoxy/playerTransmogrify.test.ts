@@ -37,6 +37,7 @@ const SIGN_MELINDA = 'sign_melinda_only';
 const ROOM_WIDTH = 9;
 const ROOM_HEIGHT = 5;
 const PAD_X = 2;
+const TEETH_X = 6;
 const COOLDOWN_TICKS = 20;
 const SETTLE_TICKS = 200;
 
@@ -197,6 +198,23 @@ describe('player on a transmogrifier', () => {
     const native = start(room());
     expect(native.getRuntimeKeyExtra()).toBe('');
     expect(native.getPlayerCharacterSwitch()).toBeUndefined();
+  });
+
+  it('makes teeth flee the player once a transmogrifier made her Melinda, and chase Chip before', () => {
+    /** Where the teeth at (6, 2) stand after their first step, the player having stepped east right away. */
+    const teethAfterFirstStep = (level: CompiledLevel): number => {
+      level.entities = [{ type: 'teeth', x: TEETH_X, y: 2, dir: 'W', uid: 1 } as CompiledLevel['entities'][number]];
+      const engine = start(level);
+      expect(engine.attemptPlayerMove('E')).toBe(true);
+      for (let i = 0; i < SETTLE_TICKS; i++) {
+        engine.tick();
+        const teeth = engine.getEntities().find((e) => e.type === 'teeth');
+        if (teeth !== undefined && teeth.x !== TEETH_X) return teeth.x;
+      }
+      return TEETH_X;
+    };
+    expect(teethAfterFirstStep(room())).toBe(TEETH_X - 1);
+    expect(teethAfterFirstStep(padRoom())).toBe(TEETH_X + 1);
   });
 
   it('keeps a character the level names when no transmogrifier is stepped on', () => {
