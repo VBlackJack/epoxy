@@ -422,6 +422,7 @@ const RETRO_MONSTER_SPRITE_BASES: Readonly<Record<string, string>> = {
   baby_screamer: 'fireball',
   walker_3d: 'walker',
   golem_blue: 'tank',
+  golem_yellow: 'tank',
   // Placeholder: the id tables need a sprite name for every entity, but a mirror player is never drawn from it.
   // It is drawn as the player seen through glass by PixelRenderer.drawMirrorPlayer.
   mirror_chip: 'teeth',

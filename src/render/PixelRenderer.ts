@@ -53,6 +53,7 @@ import {
   SHOT_PAINTER_ID,
   GOLEM_CONTROL_PAINTER_ID,
   GOLEM_YELLOW_PAINTER_ID,
+  SAND_PAINTER_ID,
   Cc3dMobBase,
   Cc3dPaintTools,
   isCc3dId,
@@ -576,6 +577,8 @@ const EPOXY_TO_CC3D_PAINTER: Readonly<Record<string, string>> = Object.fromEntri
   // The puppet is the yellow golem and its control the golem control; the skitter is in EPOXY_MOB_BASES.
   ['puppet', GOLEM_YELLOW_PAINTER_ID],
   ['puppet_control', GOLEM_CONTROL_PAINTER_ID],
+  // CC3D sand is drawn by its own painter in every style but Runeward, which paints it itself.
+  ['sand', SAND_PAINTER_ID],
   ...Object.entries(EPOXY_SHOT_PAINTERS)
 ]);
 
