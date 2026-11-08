@@ -752,3 +752,6 @@ tile teleport_forward closed=true shadowMask=128 hash=1 369e5683aceb33f7
 tile teleport_turning closed=true isolated 20abc25d1498a15e
 tile teleport_turning closed=true shadowMask=65 hash=1 9ddeb91df9f2da7e
 tile teleport_turning closed=true shadowMask=128 hash=1 6309f58f83d97648
+tile sand closed=true isolated e507d9b60437df85
+tile sand closed=true shadowMask=65 hash=1 1a5fe4fad082c3d3
+tile sand closed=true shadowMask=128 hash=1 bec86a5e8dd4d203

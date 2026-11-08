@@ -165,13 +165,13 @@ describe('classifyLevel', () => {
     }
   });
 
-  it('plays the yellow golem and its control approximately, the nibble as CC3D does, and names the gravel difference', () => {
-    for (const key of ['golem_yellow', 'golem_control_yellow']) {
-      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+  it('plays the yellow golem, its control and the nibble as CC3D does, and names the golem timing and appearing wall differences', () => {
+    for (const key of ['golem_yellow', 'golem_control_yellow', 'nibble']) {
+      expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
     }
-    expect(EPOXY_COVERAGE.nibble.level).toBe('exact');
-    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/gravel/);
-    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/sand/);
+    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/four ticks/);
+    expect(EPOXY_COVERAGE.golem_yellow.reason).toMatch(/appearing wall/);
+    expect(EPOXY_COVERAGE.sand.reason).toMatch(/yellow golem/);
   });
 
   it('plays the speed orb approximately', () => {

@@ -190,3 +190,46 @@ export function playTimeline(scenario: EvidenceScenario, presses = '', ticks = T
     sameFinal: cc3d.final === epoxy.final
   };
 }
+
+/** What both engines showed at the end of each press window, in order. */
+export interface SettledRun {
+  cc3d: string[];
+  epoxy: string[];
+  pair: DifferentialPair;
+  /** The two lists are equal: the same state after every press. */
+  same: boolean;
+}
+
+/**
+ * Plays both engines with one press per window of `spacing` ticks and records the whole state (blocks,
+ * monsters, the player, the terrain) at the end of each window, and once more before the first press. Two runs that
+ * are equal went through the same states at every press, whatever the order inside a window: a CC3D player settles
+ * a tick before a golem he steered starts to walk, an Epoxy one moves it in the same tick.
+ */
+export function playSettled(scenario: EvidenceScenario, presses: string, spacing = PRESS_SPACING_TICKS): SettledRun {
+  const source = cc3dLevel(scenario.rows, { glyphs: scenario.glyphs });
+  const pair = new DifferentialPair(source, convertCc3dLevel(source).level, SEED);
+  const flat = (grid: string[][], map: (id: string) => string): string => grid.map((row) => row.map(map).join(',')).join(';');
+  const cc3d: string[] = [];
+  const epoxy: string[] = [];
+  const record = (): void => {
+    const a = pair.rig.player;
+    const b = pair.epoxy.getPlayer();
+    const linesA = pair.rig.entities.map((e) => `${pair.epoxyTypeOf(e)}@${e.x},${e.y}`).sort();
+    const linesB = pair.epoxy.getEntities().map((e) => `${e.type}@${e.x},${e.y}`).sort();
+    cc3d.push(`${linesA.join(' ')} P${a.x},${a.y}${a.alive ? '' : 'x'} ${flat(pair.rig.engine.getTerrain(), epoxyIdOf)}`);
+    epoxy.push(`${linesB.join(' ')} P${b.x},${b.y}${b.alive ? '' : 'x'} ${flat(pair.epoxy.getTerrain(), (id) => id)}`);
+  };
+  record();
+  for (const letter of presses) {
+    const dir = letter as Direction;
+    pair.rig.press(dir);
+    pair.epoxy.attemptPlayerMove(dir);
+    for (let tick = 0; tick < spacing; tick++) {
+      pair.rig.tick(1);
+      pair.epoxy.tick();
+    }
+    record();
+  }
+  return { cc3d, epoxy, pair, same: JSON.stringify(cc3d) === JSON.stringify(epoxy) };
+}

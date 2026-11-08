@@ -243,7 +243,7 @@ export const PACK_JSON_VERSION_V12_IDS: ReadonlySet<string> = new Set([
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 13 (see
  * PACK_JSON_VERSION_V13_IDS): the wired devices of the Chip's Challenge 2 family (purple wall and floor, toggle switch,
- * black button, gray area button, wired trap, wired flame jet, Chip's Challenge 2 swivel doors, green chip and bomb, steel wall, hiking boots, gender signs, the track junction and the railroad sign, the no-signs over every carried item, the NAND gate, the data latch, the counter gates, the wire floor, the lightning bolt, steel foil, toggle clock, bribe, dynamite, the floor mimic, timid teeth, ghost, rover, mirror Chip and mirror Melinda monsters, the CC3D walker, bouncer, snappy, nibble, blinky, baby blinky, limpy, limpa, omni, green and red legs, screamer, baby screamer and blue golem monsters), or a level
+ * black button, gray area button, wired trap, wired flame jet, Chip's Challenge 2 swivel doors, green chip and bomb, steel wall, hiking boots, gender signs, the track junction and the railroad sign, the no-signs over every carried item, the NAND gate, the data latch, the counter gates, the wire floor, the lightning bolt, steel foil, toggle clock, bribe, dynamite, the floor mimic, timid teeth, ghost, rover, mirror Chip and mirror Melinda monsters, the CC3D walker, bouncer, snappy, nibble, blinky, baby blinky, limpy, limpa, omni, green and red legs, screamer, baby screamer, blue golem and yellow golem monsters, the sand floor), or a level
  * played by Melinda (its `character` field), a level with a canopy (the `canopy` flag of a cell edge), the locked arrow block (a block no push moves), or a level where one push can move a line of blocks (a block listing `chainPushes`,
  * such as an ice or arrow block, together with another block or a block cloner). An older build would read the tiles as floor,
  * play Melinda as Chip and refuse the chain push, so it must refuse the file.
@@ -306,6 +306,8 @@ export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
   'baby_screamer',
   'walker_3d',
   'golem_blue',
+  'golem_yellow',
+  'sand',
   'steel_foil',
   'toggle_clock',
   'bribe',

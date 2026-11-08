@@ -98,7 +98,9 @@ const MONSTER_VARIANTS: Readonly<Record<string, MonsterVariant>> = {
   baby_screamer: { base: 'fireball', alpha: OPAQUE, scale: BABY_SCALE },
   walker_3d: { base: 'walker', alpha: OPAQUE, dot: 'yellow' },
   // The blue golem: the Runeward tank with a blue dot.
-  golem_blue: { base: 'tank', alpha: OPAQUE, dot: 'blue' }
+  golem_blue: { base: 'tank', alpha: OPAQUE, dot: 'blue' },
+  // The yellow golem: the Runeward tank with a yellow dot (the puppet keeps its stone look).
+  golem_yellow: { base: 'tank', alpha: OPAQUE, dot: 'yellow' }
 };
 
 /** The colour of a monster's dot in the Runeward art. */

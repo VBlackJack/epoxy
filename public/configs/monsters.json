@@ -810,6 +810,24 @@
       "entersTurtles": true,
       "reversedByButton": true,
       "epoxyOnly": true
+    },
+    "golem_yellow": {
+      "id": "golem_yellow",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.golem_yellow.name",
+      "moveIntervalTicks": 3,
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "steeredBy": "steer_monsters",
+      "pressesPlates": true,
+      "pushesBlocks": true,
+      "passesTiles": ["sand", "fire"],
+      "entersTurtles": true,
+      "ignoresSlidingFloors": true,
+      "epoxyOnly": true
     }
   }
 }
