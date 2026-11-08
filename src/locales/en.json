@@ -1016,6 +1016,23 @@
         "label": "Game board"
       }
     },
+    "players": {
+      "group": {
+        "label": "Players"
+      },
+      "current": {
+        "label": "Player: {name}"
+      },
+      "character_chip": {
+        "label": "Chip"
+      },
+      "character_melinda": {
+        "label": "Melinda"
+      },
+      "summary": {
+        "label": "{remaining} on the map, {exited} out"
+      }
+    },
     "inventory": {
       "keys": {
         "label": "ACCESS KEYS"
@@ -1131,6 +1148,9 @@
       },
       "stone": {
         "action": "Throw a Hurl Stone"
+      },
+      "swap": {
+        "action": "Swap players"
       },
       "chips": {
         "short": "CHIPS"
@@ -1287,6 +1307,12 @@
       },
       "replay_action": {
         "action": "Watch Solution Replay"
+      },
+      "swap_done": {
+        "label": "Now playing {name} ({remaining} on the map)"
+      },
+      "swap_refused": {
+        "label": "No other player to swap to"
       },
       "replaying_banner": {
         "label": "REPLAYING SOLUTION ({step}/{total}) - Click or press any key to take control"
@@ -1529,6 +1555,9 @@
       },
       "kb_items": {
         "label": "E / X: Drop the selected item on your cell | C: Select the next held item | Click an inventory slot: drop that item"
+      },
+      "kb_swap": {
+        "label": "V: Swap to the next player (levels with several players)"
       },
       "kb_fov_options": {
         "label": "Zoom: Options > Essential > Zoom"

@@ -58,6 +58,7 @@ import {
   KeybindingsConfig,
   LevelBlueprint,
   LevelPack,
+  PlayerCharacter,
   TimedMove,
   UserSettings,
   WinRule
@@ -90,6 +91,7 @@ import { applyLevelTextInputLimits } from './ui/levelTextInputs';
 import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
+import { playersState, renderPlayersHud, SWAP_DONE_KEY, SWAP_REFUSED_KEY, swapPlayers } from './ui/playerSwap';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchReducedMotion } from './ui/motion';
 import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
@@ -147,7 +149,7 @@ import {
 import { FloatingJoystick, joystickOptionsFromTouchConfig } from './ui/joystick';
 import { setupTouchDrawers } from './ui/touchDrawers';
 import type { TouchDrawers } from './ui/touchDrawers';
-import { collectDueMoves } from './ui/replaySchedule';
+import { applyTimedMove, collectDueMoves } from './ui/replaySchedule';
 import { formatMegabytes, isImportSizeAllowed } from './ui/importLimits';
 import { cc2PackNameFromFile, dropImportJunk, isCc2FileName, folderNameOf, importCc2Selection, CC2_ERROR_NO_LEVELS_KEY } from './ui/cc2Import';
 import { cc2CoverageBadge, cc2ImportNoticeLines, cc2PlayBannerText } from './ui/cc2Display';
@@ -364,6 +366,8 @@ class EpoxyApplication {
 
   private keyIconCache: Record<string, string> = {};
   private bootIconCache: Record<string, string> = {};
+  /** HUD portraits of the characters of a level with several players, redrawn when the graphics change. */
+  private playerPortraitCache: Partial<Record<PlayerCharacter, string>> = {};
   private keySlots: InventorySlotView[] = [];
   private bootSlots: InventorySlotView[] = [];
   private inventoryLabels: Record<string, string> = {};
@@ -828,15 +832,7 @@ class EpoxyApplication {
   /** Applies every recorded move due at the current engine tick; failed moves are skipped. */
   private advanceReplay(): void {
     const { due, nextIndex } = collectDueMoves(this.replayMoves, this.replayIndex, this.engine.getTick());
-    for (const move of due) {
-      if (move.drop) {
-        this.engine.dropItem(move.drop);
-      } else if (move.swap === true) {
-        this.engine.swapPlayer?.();
-      } else {
-        this.engine.attemptPlayerMove(move.dir);
-      }
-    }
+    for (const move of due) applyTimedMove(this.engine, move);
     this.replayIndex = nextIndex;
     if (this.replayIndex >= this.replayMoves.length) {
       this.isReplaying = false;
@@ -3422,6 +3418,8 @@ class EpoxyApplication {
       run(() => this.dropSelectedItem());
     } else if (kb.cycleItem?.includes(e.code)) {
       run(() => this.cycleSelectedItem());
+    } else if (kb.swapPlayer?.includes(e.code)) {
+      run(() => this.swapActivePlayer());
     } else if (kb.restart.includes(e.code)) {
       run(() => this.restartLevel());
     } else if (kb.pause.includes(e.code)) {
@@ -3503,6 +3501,11 @@ class EpoxyApplication {
         this.dropHudItem(itemId);
       });
     }
+    byId('touch-btn-swap')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      this.swapActivePlayer();
+    });
+    byId('hud-btn-swap')?.addEventListener('click', () => this.swapActivePlayer());
     byId('touch-btn-menu')?.addEventListener('click', (e) => {
       this.triggerHaptic();
       this.setDrawerOpen(true, e.currentTarget as HTMLElement);
@@ -3831,6 +3834,7 @@ class EpoxyApplication {
   }
 
   private rebuildHudIcons(): void {
+    this.playerPortraitCache = {};
     for (const k of this.keyIds) {
       this.keyIconCache[k] = this.renderer.renderIconToDataUrl('item', k);
     }
@@ -4008,6 +4012,48 @@ class EpoxyApplication {
     this.engine.dropItem(this.resolveSelectedItem());
   }
 
+  /**
+   * The swap key and buttons: control passes to the next player of a level with several. The result is shown on the
+   * status toast, which is a polite live region, so that it is announced. Nothing happens on a level with one player.
+   */
+  private swapActivePlayer(): void {
+    if (this.activeMode !== 'play') return;
+    if (this.isReplaying) {
+      this.stopAutoMoveAndReplay();
+      this.updateHUD();
+      return;
+    }
+    this.clearAutoMove();
+    const outcome = swapPlayers(this.engine);
+    if (outcome.kind === 'unavailable' || outcome.kind === 'blocked') return;
+    if (outcome.kind === 'refused') {
+      this.showTransientStatus(t(SWAP_REFUSED_KEY));
+      return;
+    }
+    this.showTransientStatus(t(SWAP_DONE_KEY, { name: t(outcome.state.nameKey), remaining: outcome.state.remaining }));
+  }
+
+  /** Shows who is controlled and how many players remain, and the swap buttons, on a level with several players. */
+  private updatePlayersHud(): boolean {
+    const state = playersState(this.engine);
+    let portrait = '';
+    if (state !== null) {
+      portrait = this.playerPortraitCache[state.character] ??= this.renderer.renderPlayerPortrait(state.character);
+    }
+    return renderPlayersHud(
+      {
+        container: byId('hud-players'),
+        portrait: byId<HTMLImageElement>('hud-players-portrait'),
+        current: byId('hud-players-current'),
+        summary: byId('hud-players-summary'),
+        swapButtons: [byId('hud-btn-swap'), byId('touch-btn-swap')]
+      },
+      state,
+      t,
+      portrait
+    );
+  }
+
   /** Drops the item of a clicked inventory slot, which becomes the selected one. */
   private dropHudItem(itemId: string): void {
     if (this.activeMode !== 'play') return;
@@ -4078,6 +4124,8 @@ class EpoxyApplication {
       button.disabled = !this.engine.holdsItem(itemId);
       anyVisible = anyVisible || levelHasItem;
     }
+    // The swap button is one more button on the strip, so it wraps the row like a drop button does.
+    anyVisible = this.updatePlayersHud() || anyVisible;
     document.body.classList.toggle('charge-button-visible', anyVisible);
   }
 
