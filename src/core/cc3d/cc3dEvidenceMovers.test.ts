@@ -21,7 +21,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { EPOXY_COVERAGE } from './epoxyCoverage';
 import { expectAgree } from './cc3dEvidenceAsserts';
-import { device, playTimeline, room, withMob } from './cc3dEvidenceRig';
+import { device, playTimeline, room, stack, withMob } from './cc3dEvidenceRig';
 import type { GlyphMeaning } from './cc3dTestMaps';
 
 /**
@@ -114,6 +114,15 @@ describe('blue socket (the fish gate)', () => {
     expect(t.cc3d.final).toContain('fish_gate');
   });
 
+  it('does not judge the mover again on what it hid: a block that clears a gate over water stays on the water', () => {
+    const glyphs: Record<string, GlyphMeaning> = { Y: stack({ kind: 'water' }, { kind: 'socket' }) };
+    expectAgree({ rows: room('@KY.'), moves: 'E', glyphs }, (pair) => {
+      expect(pair.rig.player.x).toBe(2);
+      expect(pair.rig.terrainAt(3, 1)).toBe('water');
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+  });
+
   it('keeps the red socket for the player alone', () => {
     const redGlyph: Record<string, GlyphMeaning> = { R: device('socket_red') };
     expectAgree({ rows: room('@R.'), moves: 'EE', glyphs: redGlyph }, (pair) => {
@@ -164,6 +173,14 @@ describe('blue teleporter (leaves ahead only)', () => {
     expectAgree({ rows: room('.k.#k..k@'), moves: 'W' }, (pair) => {
       expect(pair.rig.player.x).toBe(1);
     });
+  });
+
+  it('does not send a monster out onto the player', () => {
+    // The player waits ahead of the last pad: the monster has no other way out, so it walks on from the first pad.
+    const t = playTimeline({ rows: room('########', '##.bk..k@.'), moves: '', glyphs: BOUNCER }, '', 40);
+    const early = (bodies: readonly string[]): string[] => trailOf(bodies, []).slice(0, 4);
+    expect(early(t.cc3d.bodies)).toEqual(['4,2', '5,2', '6,2', '7,2']);
+    expect(early(t.epoxy.bodies)).toEqual(early(t.cc3d.bodies));
   });
 
   it('does not land on a teleporter that holds a block', () => {

@@ -173,6 +173,8 @@ export function teleportEntity(
       const vec = DIRECTION_VECTORS[exitDir];
       const exitX = candidate.x + vec.dx;
       const exitY = candidate.y + vec.dy;
+      // An exit named by an order is skipped when the live player stands there (CC3D: the step would hit him).
+      if (origin.teleportExitOrder !== undefined && w.player.alive && w.player.x === exitX && w.player.y === exitY) continue;
       // Same entry rules as a regular step, evaluated as if the entity stood on the candidate pad.
       const probe: RuntimeEntity = { ...entity, x: candidate.x, y: candidate.y, dir: exitDir };
       const canExit =

@@ -224,8 +224,9 @@ export function moveBlockTo(
     return;
   }
 
-  // The first block into an open fish gate turns it into floor.
-  if (isOpenFishGate(w, tile)) consumeFishGate(w, destX, destY);
+  // The first block into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does not
+  // judge it again on what shows (a block that clears a gate over water stays on the water), so neither does Epoxy.
+  if (isOpenFishGate(w, tile)) consumeFishGate(ctx, destX, destY);
 
   // A turn plate turns the arrows of an arrow block that arrives on it; a destroyed block never gets here.
   if (tile.facingTurn !== undefined && blockDef?.pushArrows !== undefined) {

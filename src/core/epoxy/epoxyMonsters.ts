@@ -217,8 +217,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     entity.type = def.transmogrifiesTo;
   }
 
-  // The first monster into an open fish gate turns it into floor (a monster that walks through solid tiles leaves it shut).
-  if (def?.passesSolidTiles !== true && isOpenFishGate(w, destTile)) consumeFishGate(w, nx, ny);
+  // The first monster into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does
+  // not judge it again on what shows, so neither does Epoxy. A monster that walks through solid tiles leaves it shut.
+  if (def?.passesSolidTiles !== true && isOpenFishGate(w, destTile)) consumeFishGate(ctx, nx, ny);
 
   notePulseArrival(w, nx, ny, entity);
 

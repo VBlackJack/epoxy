@@ -1670,10 +1670,10 @@ export interface EntityPlacement {
  */
 export type WinRule = 'exit' | 'targets' | 'receivers';
 
-/** The character a level is played with (Epoxy ruleset only); absent on a level means Chip. */
 /** The exit orders a teleporter tile may name (see TileDefinition.teleportExitOrder). */
 export type TeleportExitOrder = 'forward_only' | 'forward_right_left_back';
 
+/** The character a level is played with (Epoxy ruleset only); absent on a level means Chip. */
 export type PlayerCharacter = 'chip' | 'melinda';
 
 /**

@@ -34,7 +34,7 @@ import { Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../t
 import { attemptPushBlock } from './epoxyBlocks';
 import { resolveMonsterArrival } from './epoxyMonsters';
 import { leaveSwivel } from './epoxySwivels';
-import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, leaveCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
 
 /** Extra ticks a mirror waits between two steps of a force floor, on top of the shared slide delay. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
@@ -112,8 +112,8 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   }
   // A wall that shows itself to the touch of the player is only a wall to a mirror.
   if (tile.revealsToOnTouch) return false;
-  // A socket never opens for a mirror: it picks up no chip.
-  if (tile.requiresAllChips) return false;
+  // A socket never opens for a mirror: it picks up no chip. A fish gate that is already open admits it, as any mover.
+  if (tile.requiresAllChips && !isOpenFishGate(w, tile)) return false;
   if (tile.requiredKey) {
     if (def.mirrorKey !== tile.requiredKey) return false;
     const revealed = takeRevealedTerrain(w, nx, ny);
@@ -122,7 +122,7 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
     ctx.emitVisual('unlock', nx, ny, tile.colorKey || 'yellow');
     tile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   }
-  if (!tile.passableByPlayer) return false;
+  if (!tile.passableByPlayer && !isOpenFishGate(w, tile)) return false;
   const character = def.mirrorsCharacter;
   if (character === undefined) return false;
   if (tile.characterOnly !== undefined && tile.characterOnly !== character) return false;

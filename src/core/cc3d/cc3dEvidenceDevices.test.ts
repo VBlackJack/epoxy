@@ -212,6 +212,10 @@ describe('blue golem', () => {
     expect(t.sameFinal).toBe(true);
     expect(t.cc3d.terrain.length).toBeGreaterThan(1);
     expect(t.epoxy.terrain.length).toBeGreaterThan(1);
+    // The gate is floor at the end, in both engines.
+    expect(t.cc3d.terrain[0]).toContain('fish_gate');
+    expect(t.cc3d.final).not.toContain('fish_gate');
+    expect(t.epoxy.final).not.toContain('fish_gate');
   });
 
   it('differs at an appearing wall: CC3D golems open it, Epoxy ones are refused', () => {

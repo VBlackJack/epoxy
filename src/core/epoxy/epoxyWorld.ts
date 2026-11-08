@@ -477,12 +477,16 @@ export function isOpenFishGate(w: EpoxyWorld, tile: TileDefinition): boolean {
 
 /**
  * A block or monster has entered an open fish gate: the gate turns into what it hid, or into its unlock terrain, the
- * way it does under the player. Does nothing on any other cell.
+ * way it does under the player (same sound and visual). The caller judges the arrival on what shows afterwards.
+ * Does nothing on any other cell.
  */
-export function consumeFishGate(w: EpoxyWorld, x: number, y: number): void {
+export function consumeFishGate(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
   const tile = ConfigRegistry.getTile(w.terrain[y][x]);
   if (!isOpenFishGate(w, tile)) return;
   w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
+  AudioManager.playSfx('socket');
+  ctx.emitVisual('unlock', x, y, 'yellow');
 }
 
 /** The open (true) or closed (false) form of a hold door of the colour in plain sight, undefined when none is. */
