@@ -391,8 +391,12 @@ const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, bl
 const CHARGE_FUSE_RING_START = -Math.PI / 2;
 /** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
 const LURKER_EDITOR_MARKER_ALPHA = 0.55;
-/** Opacity of a wisp, which is drawn see-through (phased) in every style that has no art of its own for it. */
-const WISP_PHASED_ALPHA = 0.7;
+/**
+ * Opacity of the monsters drawn see-through in every style that has no art of its own for them, by entity type: the
+ * wisp and the ghost pass through walls (seen through, the ghost fainter), and the floor mimic is all but invisible
+ * on the floor, keeping a faint mark so it can still be found in the editor.
+ */
+const MONSTER_DRAW_ALPHA: Readonly<Record<string, number>> = { wisp: 0.7, ghost: 0.55, floor_mimic: 0.2 };
 /** Thin wall bar: thickness as a share of the tile, with a floor in pixels per drawing style. */
 const THIN_BAR_TILE = 0.14;
 const THIN_BAR_MIN_PX_NEON = 5;
@@ -5736,10 +5740,12 @@ export class PixelRenderer {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
       return;
     }
-    if (!this.drawingPhased && ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN) {
-      // A wisp is the same drawing as any other style gives it, seen through.
+    // A custom monster that phases through tiles is seen through like the wisp.
+    const drawAlpha = MONSTER_DRAW_ALPHA[type] ?? (ConfigRegistry.getEntityDef(type)?.movementPattern === PHASE_LINE_PATTERN ? MONSTER_DRAW_ALPHA.wisp : undefined);
+    if (!this.drawingPhased && drawAlpha !== undefined) {
+      // A wisp, a ghost or a floor mimic is the same drawing as any other style gives it, seen through.
       ctx.save();
-      ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1) * WISP_PHASED_ALPHA;
+      ctx.globalAlpha = (typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1) * drawAlpha;
       this.drawingPhased = true;
       try {
         this.drawEntity(ctx, type, dir, x, y, size, isEditor);

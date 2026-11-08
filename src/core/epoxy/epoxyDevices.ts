@@ -35,6 +35,7 @@ import {
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
+import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
@@ -410,7 +411,9 @@ export function spawnFromCloner(
     dir: templateDir,
     cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
     isSliding: kind === 'block',
-    ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {})
+    ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {}),
+    // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
+    ...initialEmulationState(def)
   };
   w.entities.push(spawned);
   if (spawned.kind === 'block') {

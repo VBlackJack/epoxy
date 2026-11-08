@@ -301,6 +301,7 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
+      "fleesCharacters": ["melinda"],
       "transmogrifiesTo": "skitter"
     },
     "glider": {
@@ -475,6 +476,67 @@
       "immuneToFire": true,
       "avoidsFire": false,
       "pressesPlates": false,
+      "epoxyOnly": true
+    },
+    "floor_mimic": {
+      "id": "floor_mimic",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.floor_mimic.name",
+      "moveIntervalTicks": 23,
+      "movementPattern": "chase_player",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "epoxyOnly": true
+    },
+    "timid_teeth": {
+      "id": "timid_teeth",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.timid_teeth.name",
+      "moveIntervalTicks": 8,
+      "movementPattern": "chase_player",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "fleesCharacters": ["chip"],
+      "epoxyOnly": true
+    },
+    "ghost": {
+      "id": "ghost",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.ghost.name",
+      "moveIntervalTicks": 5,
+      "movementPattern": "left_skew",
+      "turnOrder": ["FORWARD", "LEFT", "RIGHT", "BACK"],
+      "immuneToWater": false,
+      "immuneToFire": true,
+      "avoidsFire": false,
+      "passesSolidTiles": true,
+      "blockedByTiles": ["steel_wall", "clone_machine", "turtle"],
+      "blockedByHazards": ["water"],
+      "ignoresCellEdges": true,
+      "ignoresFloorEffects": true,
+      "passesItems": true,
+      "epoxyOnly": true
+    },
+    "rover": {
+      "id": "rover",
+      "category": "entities",
+      "kind": "monster",
+      "i18nKey": "entities.rover.name",
+      "moveIntervalTicks": 10,
+      "movementPattern": "emulate_cycle",
+      "turnOrder": ["FORWARD"],
+      "immuneToWater": false,
+      "immuneToFire": false,
+      "avoidsFire": false,
+      "emulates": ["teeth", "glider", "bug", "pink_ball", "timid_teeth", "fireball", "paramecium", "walker"],
+      "emulationSwitchAttempts": 32,
       "epoxyOnly": true
     }
   }

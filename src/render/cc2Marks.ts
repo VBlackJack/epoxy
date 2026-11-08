@@ -16,8 +16,7 @@
 
 /**
  * The marks that tell the Chip's Challenge 2 look-alikes from the Epoxy tile they are drawn on: the green chip and the
- * green bomb are a chip and a bomb with a swap badge, the hiking boots are boots with a tread badge, the lightning bolt is
- * boots with a bolt badge, the steel wall is a
+ * green bomb are a chip and a bomb with a swap badge, the hiking boots are boots with a tread badge, the steel wall is a
  * wall with rivets, a gender sign is a floor with a plate and a letter, and Melinda is the player with a bow. Every
  * mark is drawn over whatever the render style painted below it, so one drawing serves every style; only the colours
  * differ, and each style hands in its own. Pure module: no DOM, only the canvas context it is given.
@@ -43,6 +42,10 @@ const BADGE = { x: 0.76, y: 0.76, radius: 0.19, line: 0.03 } as const;
 const SWAP_ARROWS = { half: 0.1, offset: 0.045, head: 0.05, line: 0.03 } as const;
 /** The zigzag tread inside a hiking boots badge: half width, half height, step count and line width, in tiles. */
 const TREAD = { halfWidth: 0.11, halfHeight: 0.06, steps: 3, line: 0.035 } as const;
+/** The two bars inside a pause badge (toggle clock): half height, offset from the centre, bar width and line width, in tiles. */
+const PAUSE_BARS = { halfHeight: 0.1, offset: 0.055, width: 0.05 } as const;
+/** The sheet inside a foil badge (steel foil): half length of the slanted sheet, its half thickness and the glint line, in tiles. */
+const FOIL_SHEET = { halfLength: 0.12, halfThickness: 0.045, line: 0.025 } as const;
 /** The zigzag bolt inside a lightning badge: points of the bolt as offsets from the badge centre, in tiles, and the line width. */
 const BOLT = {
   points: [
@@ -55,6 +58,8 @@ const BOLT = {
   ],
   line: 0.025
 } as const;
+/** The note inside a bribe badge: half width, half height and line width, in tiles, and the radius of the coin mark on it. */
+const BRIBE_NOTE = { halfWidth: 0.13, halfHeight: 0.085, line: 0.025, coin: 0.035 } as const;
 /** The rivets of a steel wall: inset from the corner, radius, and the inset of the plate outline, in tiles. */
 const RIVETS = { inset: 0.17, radius: 0.055, plateInset: 0.09, line: 0.03 } as const;
 /** The plate of a gender sign: half width, half height, corner radius and line width, in tiles. */
@@ -88,6 +93,21 @@ function lineWidth(size: number, tiles: number): number {
 function disc(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, TAU);
+}
+
+/** The dot in the upper right corner of a monster: centre and radius, in tiles. */
+const MONSTER_DOT = { x: 0.8, y: 0.2, radius: 0.12, line: 0.03 } as const;
+
+/** A coloured dot in the upper right corner of a monster, telling a CC2 look-alike from the monster it is drawn as. */
+export function paintMonsterDot(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  ctx.fillStyle = colours.fill;
+  disc(ctx, x + size * MONSTER_DOT.x, y + size * MONSTER_DOT.y, size * MONSTER_DOT.radius);
+  ctx.fill();
+  ctx.strokeStyle = colours.edge;
+  ctx.lineWidth = lineWidth(size, MONSTER_DOT.line);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** The round badge on the lower right corner of an item. */
@@ -153,6 +173,46 @@ export function paintTreadBadge(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.restore();
 }
 
+/** A toggle clock: the badge holds the pause sign, two upright bars. */
+export function paintPauseBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.fillStyle = colours.ink;
+  const high = size * PAUSE_BARS.halfHeight;
+  const bar = size * PAUSE_BARS.width;
+  const offset = size * PAUSE_BARS.offset;
+  ctx.fillRect(cx - offset - bar / 2, cy - high, bar, high * 2);
+  ctx.fillRect(cx + offset - bar / 2, cy - high, bar, high * 2);
+  ctx.restore();
+}
+
+/** A steel foil: the badge holds a thin slanted sheet of metal with a glint along it. */
+export function paintFoilBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  const half = size * FOIL_SHEET.halfLength;
+  const thick = size * FOIL_SHEET.halfThickness;
+  ctx.fillStyle = colours.ink;
+  ctx.beginPath();
+  ctx.moveTo(cx - half, cy + half - thick);
+  ctx.lineTo(cx - half + thick, cy + half);
+  ctx.lineTo(cx + half, cy - half + thick);
+  ctx.lineTo(cx + half - thick, cy - half);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = colours.fill;
+  ctx.lineWidth = lineWidth(size, FOIL_SHEET.line);
+  ctx.beginPath();
+  ctx.moveTo(cx - half * HALF, cy + half * HALF);
+  ctx.lineTo(cx + half * HALF, cy - half * HALF);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** The lightning bolt: a round badge with a filled zigzag bolt, in the colour of electricity. */
 export function paintBoltBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
   ctx.save();
@@ -171,6 +231,21 @@ export function paintBoltBadge(ctx: CanvasRenderingContext2D, x: number, y: numb
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
+}
+
+/** A bribe: the badge holds a banknote, a small rectangle with a coin mark in its middle. */
+export function paintBribeBadge(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colours: MarkColours): void {
+  ctx.save();
+  paintBadgeBase(ctx, x, y, size, colours);
+  const cx = x + size * BADGE.x;
+  const cy = y + size * BADGE.y;
+  ctx.strokeStyle = colours.ink;
+  ctx.lineWidth = lineWidth(size, BRIBE_NOTE.line);
+  ctx.strokeRect(cx - size * BRIBE_NOTE.halfWidth, cy - size * BRIBE_NOTE.halfHeight, size * BRIBE_NOTE.halfWidth * 2, size * BRIBE_NOTE.halfHeight * 2);
+  ctx.fillStyle = colours.ink;
+  disc(ctx, cx, cy, size * BRIBE_NOTE.coin);
+  ctx.fill();
   ctx.restore();
 }
 

@@ -386,6 +386,12 @@ editor tile hiking_boots closed=true bb8298495a4f6510
 editor tile hiking_boots closed=false bcf62469f15dc175
 editor tile lightning_bolt closed=true c83048dbc4fba2fd
 editor tile lightning_bolt closed=false 30ebcdd93f7255a2
+editor tile steel_foil closed=true 56adddc7be4921e6
+editor tile steel_foil closed=false 9dc383f11ac6934d
+editor tile toggle_clock closed=true 24aef6255262052e
+editor tile toggle_clock closed=false e7d0da43296598c4
+editor tile bribe closed=true 8b6e5859f50385ba
+editor tile bribe closed=false ac014a2df0f193f2
 editor tile score_10 closed=true f6de9bdaadc78f74
 editor tile score_10 closed=false c10caace43006158
 editor tile score_100 closed=true fe39b2704a8264ba
@@ -422,11 +428,14 @@ editor item over floor green_chip f0d7c08544a4d6f4
 editor item over floor green_bomb 3c5a5a23e6557b2e
 editor item over floor hiking_boots 6c83438dc220e033
 editor item over floor lightning_bolt 92f9d9ce444dede2
-editor item over floor score_10 5fe5e45e4a165335
-editor item over floor score_100 c64d448c5a333841
-editor item over floor score_1000 9a4e8186a33aed20
-editor item over floor score_2x e3a6fd73ffb42503
-editor item over floor stopwatch_bonus cfbab8f6ecaa9d9b
+editor item over floor steel_foil f83a093c6ed78e64
+editor item over floor toggle_clock d52280feec6f9833
+editor item over floor bribe b38c166ef5877edf
+editor item over floor score_10 975fc5e8288b3f81
+editor item over floor score_100 63aa765b3624bf6a
+editor item over floor score_1000 4ae5379dde6659cd
+editor item over floor score_2x e472dfbb164517ee
+editor item over floor stopwatch_bonus 0b955a8d6e026b55
 editor item over floor stopwatch_penalty 499276a08264d0b7
 editor entity over floor dirt_block cc7c815bcdf41ac0
 editor entity over floor arrow_block_one 3eafadf248729945
@@ -462,3 +471,7 @@ editor entity over floor skitter e592eecd0ffc7465
 editor entity over floor lurker_dormant 94745176232a2c52
 editor entity over floor lurker e59d0854f72c7d9f
 editor entity over floor wisp 4cb2922902d25843
+editor entity over floor floor_mimic db915618afae38d4
+editor entity over floor timid_teeth 601514348b76518a
+editor entity over floor ghost 3a3325c8745b0ee1
+editor entity over floor rover abc8bd9f71b105f2

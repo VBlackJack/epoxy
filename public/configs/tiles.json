@@ -1126,6 +1126,32 @@
       "laserTransparent": true,
       "collectible": "boot"
     },
+    "steel_foil": {
+      "id": "steel_foil",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.steel_foil.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "turnsWallsTo": { "wall": "steel_wall" }
+    },
+    "toggle_clock": {
+      "id": "toggle_clock",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.toggle_clock.name",
+      "laserTransparent": true,
+      "togglesTimer": true,
+      "blocksBlocks": true
+    },
+    "bribe": {
+      "id": "bribe",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.bribe.name",
+      "laserTransparent": true,
+      "collectible": "token"
+    },
     "score_10": {
       "id": "score_10",
       "category": "items",

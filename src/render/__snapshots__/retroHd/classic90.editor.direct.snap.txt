@@ -386,6 +386,12 @@ editor tile hiking_boots closed=true 38ea1e154e2e081e
 editor tile hiking_boots closed=false 78de2aa083e952c2
 editor tile lightning_bolt closed=true 37390073847a4143
 editor tile lightning_bolt closed=false 7867717ac8184f30
+editor tile steel_foil closed=true b9cd48868076d9b1
+editor tile steel_foil closed=false 80b3056184cfd2ac
+editor tile toggle_clock closed=true 7ae26ea7055b5490
+editor tile toggle_clock closed=false d7ccb3c9c7c381e8
+editor tile bribe closed=true ab9a0500d20e6ae9
+editor tile bribe closed=false 68b06416d03c64da
 editor tile score_10 closed=true 69a1e8c73ea0b29e
 editor tile score_10 closed=false f03e38edf837c7ea
 editor tile score_100 closed=true 6e999fba0b202122
@@ -422,6 +428,9 @@ editor item over floor green_chip f16321ef8fc26fde
 editor item over floor green_bomb 9e3e76f0f8523626
 editor item over floor hiking_boots bcd5594745d1b6b3
 editor item over floor lightning_bolt 18e19b4213733249
+editor item over floor steel_foil c428c44fc7bf2ea0
+editor item over floor toggle_clock 6815b792383817a4
+editor item over floor bribe 0451292f0b5d1809
 editor item over floor score_10 07e51db5a89793af
 editor item over floor score_100 82b54e4fe2197452
 editor item over floor score_1000 63224d9374b28e84
@@ -462,3 +471,7 @@ editor entity over floor skitter 4a0de80ca217053a
 editor entity over floor lurker_dormant 203960b65bb961aa
 editor entity over floor lurker 7ad43c79a5754142
 editor entity over floor wisp 5ede0f0caa9c9f6f
+editor entity over floor floor_mimic f36371e644f32321
+editor entity over floor timid_teeth 192103027f92e1bc
+editor entity over floor ghost 1f05a38228ed23d7
+editor entity over floor rover 8081a328914f5620

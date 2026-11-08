@@ -142,6 +142,9 @@ export function isCanBlockEnter(
 
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
   if (!destTile.passableByBlock) return false;
+  // An item that bars blocks (the toggle clock) keeps them out of its cell.
+  const destItem = w.items[destY][destX];
+  if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
   if (destTile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(destTile.hazard)) {
     return false;
   }

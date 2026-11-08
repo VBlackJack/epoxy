@@ -22,6 +22,9 @@ item green_chip tick=3 0043d7a598949dbb
 item green_bomb tick=3 00d41a64a52e1337
 item hiking_boots tick=3 dab89308359e4ac2
 item lightning_bolt tick=3 c7aea1dcc58fd323
+item steel_foil tick=3 6157b2899c67a5a9
+item toggle_clock tick=3 d9264f66e04e3b6f
+item bribe tick=3 87cdbb2e73d17d37
 item score_10 tick=3 3bb9700f41e71187
 item score_100 tick=3 02905e42dad1e226
 item score_1000 tick=3 8814eb6ac9b62e71
@@ -164,6 +167,22 @@ entity wisp dir=N tick=3 15c74f8aa48d82d1
 entity wisp dir=E tick=3 3efabb2a13a89a9f
 entity wisp dir=S tick=3 452dfce2f3e3123b
 entity wisp dir=W tick=3 f503a1f036124d75
+entity floor_mimic dir=N tick=3 ea9e33f1746b0e15
+entity floor_mimic dir=E tick=3 02bf6775c15db980
+entity floor_mimic dir=S tick=3 7f0828745fce12dd
+entity floor_mimic dir=W tick=3 f8ba486d14db1df3
+entity timid_teeth dir=N tick=3 74447a2c0139ea13
+entity timid_teeth dir=E tick=3 16c85c55b4dcd408
+entity timid_teeth dir=S tick=3 8d300ed525885fbb
+entity timid_teeth dir=W tick=3 48b83675061ad582
+entity ghost dir=N tick=3 d93b926fb47c1fa1
+entity ghost dir=E tick=3 eb6496e7b9d23483
+entity ghost dir=S tick=3 0afd2913211f9611
+entity ghost dir=W tick=3 2aecccf8af8e92d0
+entity rover dir=N tick=3 c520dc09aa1f1523
+entity rover dir=E tick=3 ff48e87e1bdc6b2a
+entity rover dir=S tick=3 e03c872a37c68019
+entity rover dir=W tick=3 02e2fbb4ab02d502
 item key_red tick=13 695240323b2b0b76
 item key_blue tick=13 a0e896f011f0817d
 item key_yellow tick=13 69d89faad612807f
@@ -188,6 +207,9 @@ item green_chip tick=13 e93f0bf9eee9121c
 item green_bomb tick=13 5699f7b9f36d2a3b
 item hiking_boots tick=13 e8a245cfa2639653
 item lightning_bolt tick=13 58e4d103cbfa88b4
+item steel_foil tick=13 ed2b269f607e123a
+item toggle_clock tick=13 22f00b747eacf04c
+item bribe tick=13 fb4e215da25cfeed
 item score_10 tick=13 6db1423786564b9b
 item score_100 tick=13 c6694a3e0a73189d
 item score_1000 tick=13 59be043af6ec8cbb
@@ -330,6 +352,22 @@ entity wisp dir=N tick=13 d9a742d4185fdf13
 entity wisp dir=E tick=13 40d9dc77538b0aba
 entity wisp dir=S tick=13 aad48f6dac7fc113
 entity wisp dir=W tick=13 713e2ed6ff4d4f13
+entity floor_mimic dir=N tick=13 87fe404ea0a63f85
+entity floor_mimic dir=E tick=13 b493cdad87ab18a9
+entity floor_mimic dir=S tick=13 bbc93784eb6d4573
+entity floor_mimic dir=W tick=13 fe576838ad2a8e99
+entity timid_teeth dir=N tick=13 602f74542c663bd4
+entity timid_teeth dir=E tick=13 3442cfdac0084a1a
+entity timid_teeth dir=S tick=13 fb3362d58aa7e321
+entity timid_teeth dir=W tick=13 3d327bdadc8d3a07
+entity ghost dir=N tick=13 a3a1f86c65c0b7a0
+entity ghost dir=E tick=13 14b0c4c75a07837d
+entity ghost dir=S tick=13 2d951ee57f49d276
+entity ghost dir=W tick=13 606a2241297cbabc
+entity rover dir=N tick=13 f736b86028f91ccc
+entity rover dir=E tick=13 83b65a7d01983ba4
+entity rover dir=S tick=13 aee0a70ae036bde1
+entity rover dir=W tick=13 3be98e0365e15da9
 player dir=N inWater=false alive=true frame=0 hop=0 0bc453cb76b4690c
 player dir=N inWater=false alive=true frame=0 hop=0.3 4f98c2a8059f942f
 player dir=N inWater=false alive=true frame=1 hop=0 1495863028d991df

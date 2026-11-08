@@ -20,6 +20,7 @@ import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
 import { CompiledLevel } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
+import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
 import { createSignalRuntime, registryTileLookup, settleWorldSignals } from './epoxySignals';
 import {
@@ -57,7 +58,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
-      ...(hasEntityFacing(def) ? { facing: e.dir } : {})
+      ...(hasEntityFacing(def) ? { facing: e.dir } : {}),
+      // A rover starts on the first behaviour of its list; no other entity has these fields.
+      ...initialEmulationState(def)
     };
   });
 

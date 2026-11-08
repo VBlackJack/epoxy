@@ -34,6 +34,15 @@ export const BOMB_ITEM_ID = 'bomb';
 /** Item id of the hiking boots Melinda needs on dirt and gravel. */
 export const HIKING_BOOTS_ITEM_ID = 'hiking_boots';
 
+/** Item id of the Chip's Challenge 2 steel foil: boots that turn a bumped wall into a steel wall. */
+export const STEEL_FOIL_ITEM_ID = 'steel_foil';
+
+/** Item id of the Chip's Challenge 2 bribe: a counted item that every thief takes instead of what it steals. */
+export const BRIBE_ITEM_ID = 'bribe';
+
+/** Item id of the toggle clock, which pauses and resumes the level timer when stepped on. */
+export const TOGGLE_CLOCK_ITEM_ID = 'toggle_clock';
+
 /** Terrain id of plain ice; its `protectedByItem` names the boots that stop the slide. */
 export const ICE_TILE_ID = 'ice';
 
@@ -66,6 +75,9 @@ export const STONE_ITEM_ID = 'hurl_stone';
 
 /** Item id of the toll token a player carries and a thief takes instead of the boots or keys. */
 export const TOKEN_ITEM_ID = 'toll_token';
+
+/** Counted items that are spent at a thief and never set down: the toll token and the bribe. */
+export const THIEF_PAYMENT_ITEM_IDS: ReadonlySet<string> = new Set([TOKEN_ITEM_ID, BRIBE_ITEM_ID]);
 
 /** Payload of a shot the player threw, as opposed to one a launcher fired. */
 export const STONE_SHOT_PAYLOAD = 'hurl_stone';
@@ -178,6 +190,12 @@ export const CC2_UNIMPLEMENTED_SOURCE = 'cc2';
  */
 export const PHASE_LINE_PATTERN = 'phase_line';
 
+/**
+ * Movement pattern of a monster that borrows the behaviour of other monsters in turn (a rover): its definition
+ * lists them in `emulates` and says after how many step decisions it moves on to the next one.
+ */
+export const EMULATE_CYCLE_PATTERN = 'emulate_cycle';
+
 /** Template cloned by a clone link whose cloner has no entity sitting on it. */
 export const DEFAULT_CLONE_TEMPLATE_TYPE = 'dirt_block';
 
@@ -270,6 +288,9 @@ export const FLAME_TOGGLE_PARITY_BIT = 16;
 
 /** Prefix of the toggle parity in a search state key. */
 export const TOGGLE_PARITY_KEY_PREFIX = 'tp';
+
+/** Prefix of the paused flag of the level timer in a search state key; only a level with a toggle clock has one. */
+export const TIMER_PAUSE_KEY_PREFIX = 'tm';
 
 /** Prefix of the turning force floor turn in a search state key. */
 export const FORCE_CYCLE_KEY_PREFIX = 'fc';

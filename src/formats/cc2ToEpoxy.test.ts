@@ -127,6 +127,19 @@ describe('terrain, items and entities', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
+  it('plays the floor mimic, timid teeth, ghost and rover as Epoxy monsters, two exact and two approximate', () => {
+    const { level, coverage } = convert([
+      put(1, 0, actorTile(0x82, DIR_E), { code: FLOOR_CODE }),
+      put(2, 0, actorTile(0x57, DIR_E), { code: FLOOR_CODE }),
+      put(3, 0, actorTile(0x8b, DIR_E), { code: FLOOR_CODE }),
+      put(4, 0, actorTile(0x69, DIR_E), { code: FLOOR_CODE })
+    ]);
+    expect(level.entities.map((entity) => entity.type)).toEqual(['floor_mimic', 'timid_teeth', 'ghost', 'rover']);
+    expect(coverage.verdict).toBe('approx');
+    expect(coverage.lost).toEqual([]);
+    expect(coverage.approx).toEqual(['ghost', 'rover']);
+  });
+
   it('maps approximate elements to Epoxy ids and says so', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x46 }), put(2, 0, { code: 0x10 }), put(3, 0, { code: 0x68 }, { code: FLOOR_CODE })]);
     expect(level.terrain[0][1]).toBe('force_cycle');
@@ -138,15 +151,13 @@ describe('terrain, items and entities', () => {
 
   it('keeps reserved ids for what Epoxy lacks', () => {
     const { level, coverage, report } = convert([
-      put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }),
-      put(2, 0, { code: 0x6f }, { code: FLOOR_CODE }),
-      put(3, 0, actorTile(0x8b, DIR_W), { code: FLOOR_CODE })
+      put(1, 0, { code: 0x6f }, { code: FLOOR_CODE }),
+      put(3, 0, actorTile(0x65, DIR_W), { code: FLOOR_CODE })
     ]);
-    expect(level.items[0][1]).toBe('cc2_steel_foil');
-    expect(level.items[0][2]).toBe('cc2_railroad_sign');
-    expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_ghost', dir: 'W' }]);
+    expect(level.items[0][1]).toBe('cc2_railroad_sign');
+    expect(level.entities).toEqual([{ x: 3, y: 0, type: 'cc2_mirror_chip', dir: 'W' }]);
     expect(coverage.verdict).toBe('lost');
-    expect(coverage.lost).toEqual(['ghost', 'railroad_sign', 'steel_foil']);
+    expect(coverage.lost).toEqual(['mirror_chip', 'railroad_sign']);
     expect(report.lost.map((entry) => entry.key)).toEqual(coverage.lost);
     expect(report.lost.every((entry) => entry.reason.length > 0)).toBe(true);
   });
@@ -160,10 +171,14 @@ describe('terrain, items and entities', () => {
     expect(coverage.lost).toEqual(['unknown']);
   });
 
-  it('drops an item that has no placeholder and loses its key', () => {
-    const { level, coverage } = convert([put(1, 0, { code: 0x8f }, { code: FLOOR_CODE })]);
-    expect(level.items[0][1]).toBeNull();
-    expect(coverage.lost).toEqual(['bribe']);
+  it('maps the wave 2 items: the bribe is exact, the steel foil and the toggle clock are approximate', () => {
+    const bribe = convert([put(1, 0, { code: 0x8f }, { code: FLOOR_CODE })]);
+    expect(bribe.level.items[0][1]).toBe('bribe');
+    expect(bribe.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    const both = convert([put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }), put(2, 0, { code: 0x4d }, { code: FLOOR_CODE })]);
+    expect(both.level.items[0].slice(1, 3)).toEqual(['steel_foil', 'toggle_clock']);
+    expect(both.coverage).toEqual({ verdict: 'approx', lost: [], approx: ['steel_foil', 'toggle_clock'] });
+    expect(both.report.approx.every((entry) => entry.reason.length > 0)).toBe(true);
   });
 
   it('maps the CC2 wave 1 elements to their Epoxy ids, exactly', () => {
@@ -720,7 +735,7 @@ describe('the validator', () => {
     const clean = LevelValidator.validate(exact.level);
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
     const lost = convertCc2Map(
-      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0x8c }, { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
+      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0x6f }, { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
       OPTIONS
     );
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);

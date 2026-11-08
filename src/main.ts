@@ -22,7 +22,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
-import { CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
+import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, THIEF_PAYMENT_ITEM_IDS, TOKEN_ITEM_ID } from './core/coreConstants';
 import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
@@ -371,7 +371,7 @@ class EpoxyApplication {
 
   private readonly keyIds = ['key_red', 'key_blue', 'key_yellow', 'key_green'];
   /** The boots slots, then the blast charge and the pocket gate, counted items that share their grid. */
-  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID];
+  private readonly bootIds = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force', SLOW_TIME_ITEM_ID, SPEED_BOOTS_ITEM_ID, EYE_BOOTS_ITEM_ID, PULL_BOOTS_ITEM_ID, WARD_ITEM_ID, CHARGE_ITEM_ID, GATE_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID, BRIBE_ITEM_ID, STEEL_FOIL_ITEM_ID];
   /** Held item the drop key puts down; null until the player holds something. */
   private selectedItemId: string | null = null;
   private epoxyBootsLevel: unknown = null;
@@ -3978,7 +3978,7 @@ class EpoxyApplication {
       if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
     for (const id of this.bootIds) {
-      if (id !== TOKEN_ITEM_ID && this.engine.holdsItem(id)) return (this.selectedItemId = id);
+      if (!THIEF_PAYMENT_ITEM_IDS.has(id) && this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
     return null;
   }
@@ -3988,7 +3988,7 @@ class EpoxyApplication {
     const current = this.resolveSelectedItem();
     if (current === null) return;
     // A toll token is never set down, so the cycle skips it.
-    const order = [...this.keyIds, ...this.bootIds].filter((id) => id !== TOKEN_ITEM_ID);
+    const order = [...this.keyIds, ...this.bootIds].filter((id) => !THIEF_PAYMENT_ITEM_IDS.has(id));
     const from = order.indexOf(current);
     for (let step = 1; step <= order.length; step++) {
       const id = order[(from + step) % order.length];
@@ -4016,7 +4016,7 @@ class EpoxyApplication {
     }
     if (!featuresFor(this.engine.getLevel()).itemDrop) return;
     this.clearAutoMove();
-    if (itemId !== TOKEN_ITEM_ID) this.selectedItemId = itemId;
+    if (!THIEF_PAYMENT_ITEM_IDS.has(itemId)) this.selectedItemId = itemId;
     this.engine.dropItem(itemId);
     this.updateHUD();
   }
@@ -4037,7 +4037,7 @@ class EpoxyApplication {
   /** Slot tooltip: the item's name, with the drop hint once it is held. */
   private slotLabel(itemId: string, owned: boolean): string {
     const name = this.getInventoryLabel(itemId);
-    return owned && itemId !== TOKEN_ITEM_ID ? t('hud.inventory.slot_drop.label', { name }) : name;
+    return owned && !THIEF_PAYMENT_ITEM_IDS.has(itemId) ? t('hud.inventory.slot_drop.label', { name }) : name;
   }
 
   /** The Epoxy-only boots the level places, which are the ones whose HUD slot shows. */
@@ -4230,6 +4230,8 @@ class EpoxyApplication {
       !this.engine.isLevelCompleted();
     timeEl.classList.toggle('led-danger', isLowTime);
     timeEl.classList.toggle('led-amber', !isLowTime);
+    // A toggle clock that holds the timer is shown under the counter.
+    byId('hud-time-paused')?.classList.toggle('hidden', this.engine.isTimerPaused?.() !== true);
 
     if (isLowTime && !this.engine.isPaused() && remSec !== this.lastWarnedSecond) {
       this.lastWarnedSecond = remSec;

@@ -301,7 +301,7 @@
         "label": "Not exported: {levels} holds an item only Epoxy plays (such as the Slow-Time Charm, the Speed Boots or the Truesight Boots), which the .DAT format cannot hold."
       },
       "refused_epoxy_only_monsters": {
-        "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter, a Transmogrifier, a Turn Plate, a Turning Force Floor, a Lurker or a Wisp, which the .DAT format cannot hold."
+        "label": "Not exported: {levels} holds a Puppet, a Puppet Control, a Skitter, a Transmogrifier, a Turn Plate, a Turning Force Floor, a Lurker, a Wisp, a Floor Mimic, a Timid Teeth, a Ghost or a Rover, which the .DAT format cannot hold."
       },
       "refused_cell_underlays": {
         "label": "Not exported: {levels} hides terrain under doors, sockets or other removable tiles, which the .DAT format cannot hold."
@@ -1001,6 +1001,9 @@
       "time_unlimited": {
         "label": "---"
       },
+      "time_paused": {
+        "label": "PAUSED"
+      },
       "score": {
         "label": "SCORE"
       },
@@ -1339,8 +1342,20 @@
       "drop_token": {
         "label": "A toll token cannot be set down; it pays a thief."
       },
+      "drop_bribe": {
+        "label": "A bribe cannot be set down; it pays a thief."
+      },
       "thief_paid": {
         "label": "The toll token paid the thief. Nothing was taken!"
+      },
+      "thief_bribed": {
+        "label": "The bribe paid the thief. Nothing was taken!"
+      },
+      "timer_paused": {
+        "label": "The clock is paused."
+      },
+      "timer_resumed": {
+        "label": "The clock is running again."
       },
       "throw_busy": {
         "label": "You cannot throw while you are moving."
@@ -4462,6 +4477,24 @@
         "label": "While the player holds it, the wire floor they stand on sends a signal along its wires."
       }
     },
+    "steel_foil": {
+      "name": "Steel Foil",
+      "desc": {
+        "label": "Pick it up and keep it. Bumping into a plain wall turns that wall into a steel wall; you do not move and the foil is not used up. A thief takes it with the other boots."
+      }
+    },
+    "toggle_clock": {
+      "name": "Toggle Clock",
+      "desc": {
+        "label": "Stays where it is. Stepping on it pauses the level timer, and stepping on it again resumes it. Monsters and blocks cannot enter its cell. It does nothing on a level without a time limit."
+      }
+    },
+    "bribe": {
+      "name": "Bribe",
+      "desc": {
+        "label": "Pick it up and keep it. Each time you step on a thief, one bribe is spent and nothing is taken, whether it guards boots or keys. It cannot be set down, and a thief never takes it."
+      }
+    },
     "score_10": {
       "name": "Bonus Flag (10 points)"
     },
@@ -5245,6 +5278,30 @@
       "name": "Wisp (Passes Through Tiles)",
       "desc": {
         "label": "Drifts straight ahead through walls, doors, water, fire, ice and force floors alike; terrain has no effect on it and it presses no plate. Only a thin wall, the map edge or any other entity (a monster, a block, a mirror, a turret) stops it: it then turns round once, and stays put if it is blocked both ways. It kills on contact. A shot, a laser beam, a thrown stone, a blast or a ward destroys it. It cannot be cloned."
+      }
+    },
+    "floor_mimic": {
+      "name": "Floor Mimic (Looks Like Floor)",
+      "desc": {
+        "label": "Chases the player like teeth, but four times slower, and is drawn almost like plain floor (only a faint mark shows it in the editor). It kills on contact."
+      }
+    },
+    "timid_teeth": {
+      "name": "Timid Teeth",
+      "desc": {
+        "label": "Teeth in reverse: runs away from Chip and chases Melinda. Ordinary teeth chase Chip and run away from Melinda. It kills on contact."
+      }
+    },
+    "ghost": {
+      "name": "Ghost (Passes Walls)",
+      "desc": {
+        "label": "Goes straight on, else turns left, right or back. It walks through walls, doors, sockets and thin walls, but not through steel walls, clone machines or water. Ice, force floors, rails, traps, bombs, fire and slime do not affect it; it walks over items without picking them up and works the buttons it crosses. It kills on contact."
+      }
+    },
+    "rover": {
+      "name": "Rover (Imitates Monsters)",
+      "desc": {
+        "label": "Moves like teeth, glider, bug, pink ball, timid teeth, fireball, paramecium and walker in turn, changing after 32 steps decided. It kills on contact."
       }
     },
     "skitter": {

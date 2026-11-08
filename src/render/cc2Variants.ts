@@ -21,10 +21,10 @@
  */
 
 import type { RunewardArtConfig } from '../core/types';
-import { MELINDA_BOW_COLOURS, MarkColours, paintBoltBadge, paintRivets, paintSignPlate, paintToggleBadge, paintTreadBadge } from './cc2Marks';
+import { MELINDA_BOW_COLOURS, MarkColours, paintBoltBadge, paintBribeBadge, paintFoilBadge, paintPauseBadge, paintRivets, paintSignPlate, paintToggleBadge, paintTreadBadge } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'bolt';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -37,6 +37,9 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   green_chip: { base: 'chip', mark: 'toggle' },
   green_bomb: { base: 'bomb', mark: 'toggle' },
   hiking_boots: { base: 'boots_force', mark: 'tread' },
+  steel_foil: { base: 'boots_ice', mark: 'foil' },
+  toggle_clock: { base: 'stopwatch_bonus', mark: 'pause' },
+  bribe: { base: 'toll_token', mark: 'bribe' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' }
 };
 
@@ -76,6 +79,12 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'sign_melinda':
       return { fill: MELINDA_BOW_COLOURS.fill, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'foil':
+      return { fill: pal.gray, edge: pal.wallShadow, ink: pal.hintGlyph };
+    case 'pause':
+      return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'bribe':
+      return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
 }
 
@@ -95,6 +104,12 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
     case 'sign_melinda':
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
+    case 'foil':
+      return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
+    case 'pause':
+      return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
+    case 'bribe':
+      return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
   }
 }
 
@@ -112,6 +127,15 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'rivets':
       paintRivets(ctx, x, y, size, colours);
+      return;
+    case 'foil':
+      paintFoilBadge(ctx, x, y, size, colours);
+      return;
+    case 'pause':
+      paintPauseBadge(ctx, x, y, size, colours);
+      return;
+    case 'bribe':
+      paintBribeBadge(ctx, x, y, size, colours);
       return;
     case 'sign_chip':
     case 'sign_melinda':

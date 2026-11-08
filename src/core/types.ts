@@ -1168,6 +1168,15 @@ export interface TileDefinition {
    * play yet; it is what a future terrain-breaking blast reads.
    */
   blastProof?: boolean;
+  /**
+   * Boots only (the steel foil): while held, a player who bumps a wall whose id is a key here turns it into the tile named by
+   * the value, and does not move. Every target must be an impassable terrain, so the foil never opens a way. The boots stay held.
+   */
+  turnsWallsTo?: Record<string, string>;
+  /** An item the player works by stepping on it (the toggle clock): the level timer pauses and resumes, and the item stays. */
+  togglesTimer?: boolean;
+  /** An item that a block cannot be pushed onto, as monsters cannot enter a cell holding an item (the toggle clock). */
+  blocksBlocks?: boolean;
   /** A tile only this character may step on as the player; for the other character it is a wall. Monsters and blocks follow their own flags. */
   characterOnly?: PlayerCharacter;
   /** Per character, the boots the player must hold to step on this tile. A character not listed needs none. */
@@ -1367,6 +1376,31 @@ export interface EntityDefinition {
   transmogrifiesTo?: string;
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
+  /**
+   * Characters whose player this monster runs from: a chasing monster flees them and a fleeing one chases them
+   * (the CC2 teeth flee Melinda, the CC2 timid teeth flee Chip). Absent: the pattern applies to every character.
+   */
+  fleesCharacters?: PlayerCharacter[];
+  /** A monster that walks into any tile, doors and walls included (a ghost); see `blockedByTiles` and `blockedByHazards` for what still stops it. */
+  passesSolidTiles?: boolean;
+  /** Tile ids a monster that passes solid tiles still cannot enter. */
+  blockedByTiles?: string[];
+  /** Hazards of the destination tile that stop a monster that passes solid tiles. */
+  blockedByHazards?: Array<NonNullable<TileDefinition['hazard']>>;
+  /** A monster that crosses thin walls and other cell edges as if they were not there. */
+  ignoresCellEdges?: boolean;
+  /**
+   * A monster that the floor does not move or hurt: ice and force floors do not carry it, a rail or a swivel door
+   * does not turn it, a trap does not hold it, and a bomb, fire, slime or a transmogrifier does nothing to it.
+   * Buttons and teleporters still work on it.
+   */
+  ignoresFloorEffects?: boolean;
+  /** A monster that walks over items without being stopped by them or picking them up. */
+  passesItems?: boolean;
+  /** A monster that follows the behaviour of these monsters in turn (movement pattern `emulate_cycle`), in this order. */
+  emulates?: string[];
+  /** Step decisions a monster that `emulates` others takes before it moves on to the next behaviour. */
+  emulationSwitchAttempts?: number;
 }
 
 /** How a turret fires and turns. Only `length`, `turn` and `turnPeriodTicks` are required in the config. */
@@ -1904,6 +1938,10 @@ export interface RuntimeEntity {
   isSliding: boolean;
   /** Turrets only: the way the turret fires; `dir` stays the way it was pushed or slides. */
   facing?: Direction;
+  /** Rovers only: index, in the `emulates` list of the definition, of the monster whose behaviour it follows now. */
+  emulatee?: number;
+  /** Rovers only: step decisions taken since the rover last changed behaviour. */
+  emulationMoves?: number;
 }
 
 export interface PlayerState {
@@ -1980,6 +2018,10 @@ export interface UndoSnapshot {
   revealedCells?: number[];
   /** Swivel doors an actor is standing in: [cell index, side it came in by]; absent when none. */
   swivelEntry?: [number, Direction][];
+  /** True while the level timer is paused by a toggle clock; written only on a level that has one, absent otherwise. */
+  timerPaused?: boolean;
+  /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */
+  pausedTicks?: number;
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
   /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */
