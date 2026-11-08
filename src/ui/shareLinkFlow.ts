@@ -29,7 +29,8 @@ import { SharePreviewChoice, SharePreviewRequest, showSharePreview } from './sha
 const ERROR_KEYS: Record<ShareDecodeError, string> = {
   unsupported: 'app.packs.share.error.unsupported.label',
   newer: 'app.packs.share.error.newer.label',
-  damaged: 'app.packs.share.error.damaged.label'
+  damaged: 'app.packs.share.error.damaged.label',
+  cc2_content: 'app.packs.share.cc2_incoming.label'
 };
 
 /** What the flow needs from the application around it. */
@@ -97,8 +98,8 @@ export class ShareLinkFlow {
   private async process(hash: string): Promise<void> {
     const read = await this.deps.read(hash);
     if (!read.ok) {
-      // A damaged link is useless as it is; the other two may work elsewhere, so they stay in the address bar.
-      if (read.error === 'damaged') this.deps.clearFragment();
+      // A damaged link, or one carrying CC2 content, is useless as it is; the other two may work elsewhere, so they stay in the address bar.
+      if (read.error === 'damaged' || read.error === 'cc2_content') this.deps.clearFragment();
       this.host.showStatus(t(ERROR_KEYS[read.error]));
       return;
     }

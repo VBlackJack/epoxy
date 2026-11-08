@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { LevelPack } from '../core/types';
 import { t } from '../i18n/I18nManager';
 import { encodeShareLink, ShareEncodeError, ShareEncodeResult } from '../packs/shareLink';
+import { SHARE_REFUSAL_KEYS, shareRefusal } from './packManagerModel';
 import { closeDialog, openDialog } from './dialog';
 import { SHARE_COPY_TIMEOUT_MS } from './uiConstants';
 
@@ -34,6 +35,8 @@ let closeBound = false;
 
 /** The link of a pack, or why it could not be made. `displayName` is the name written in the link. */
 export async function makeShareLink(pack: LevelPack, displayName: string): Promise<ShareEncodeResult> {
+  // Second guard, before anything is serialized: licensed CC2 content must never leave the device in a link.
+  if (shareRefusal(pack.levels) === 'cc2_content') return { ok: false, error: 'cc2_content' };
   const text = ConfigRegistry.exportPackJson(pack.id, displayName, true);
   if (text === null) return { ok: false, error: 'unsupported' };
   return encodeShareLink(text, window.location.href, ConfigRegistry.getGame().share.maxLinkChars);
@@ -41,6 +44,7 @@ export async function makeShareLink(pack: LevelPack, displayName: string): Promi
 
 /** The message that tells why no link was made. */
 export function shareEncodeErrorMessage(error: ShareEncodeError): string {
+  if (error === 'cc2_content') return t(SHARE_REFUSAL_KEYS.cc2_content);
   return error === 'too_long' ? t('app.packs.share.too_long.label') : t('app.packs.share.error.encode.label');
 }
 
