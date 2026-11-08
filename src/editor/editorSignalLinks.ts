@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_RULESET } from '../core/coreConstants';
 import { normalizeSignalLinks, signalSinkOf } from '../core/signalLinks';
 import { canonicalSignalPort, formatSignalPort, parseSignalPort } from '../core/signalPorts';
 import type { SignalPortIndex } from '../core/signalPorts';
-import { gateHasPorts } from './signalPortRoles';
+import { gateHasPorts, gateKindOfTile } from './signalPortRoles';
 import type { SignalPortSide } from './signalPortRoles';
 import type { CellUnderlay, SignalLink, TileDefinition } from '../core/types';
 
@@ -154,8 +153,7 @@ export function dropSignalPair(map: SignalLinkHolder, from: Cell, to: Cell): voi
 
 /** The gate kind of the tile on the cell, or undefined when the cell holds no gate. */
 function gateKindAt(map: Pick<SignalLinkHolder, 'terrain'>, cell: Cell): string | undefined {
-  const id = map.terrain[cell.y]?.[cell.x];
-  return id === undefined ? undefined : ConfigRegistry.getTile(id).signalGate;
+  return gateKindOfTile(map.terrain[cell.y]?.[cell.x]);
 }
 
 /**

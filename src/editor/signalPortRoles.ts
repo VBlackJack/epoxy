@@ -56,7 +56,8 @@ export const PORT_ROLE_TAG_KEYS: Readonly<Record<SignalPortRole, string>> = {
 
 export const SIGNAL_PORT_KEYS = {
   both: 'editor.signal_ports.both.label',
-  swapAction: 'editor.signal_ports.swap.action',
+  swapActionInput: 'editor.signal_ports.swap.action_input',
+  swapActionOutput: 'editor.signal_ports.swap.action_output',
   swapAriaInput: 'editor.signal_ports.swap.aria_input',
   swapAriaOutput: 'editor.signal_ports.swap.aria_output',
   swapDone: 'editor.signal_ports.swap.done',

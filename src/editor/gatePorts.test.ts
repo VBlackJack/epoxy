@@ -221,6 +221,19 @@ describe('port tags on the overlay and in the hover description', () => {
     expect(out).toEqual([PORT_ROLE_TAG_KEYS.overflow, PORT_ROLE_TAG_KEYS.underflow]);
   });
 
+  it('puts the tags of two wires from one source to one latch on different lanes', () => {
+    const map = holder('signal_gate_dlatch');
+    appendSignalLink(map, SOURCE_A, GATE);
+    appendSignalLink(map, SOURCE_A, GATE);
+    const level = levelOf(map);
+    expect(level.signalLinks?.map((l) => l.port)).toEqual(['in0', 'in1']);
+    const overlay = deviceOverlayFor(deviceRelations(level, GATE.x, GATE.y), GATE, (p) => gateKindOfTile(level.terrain[p.y]?.[p.x]));
+    expect(overlay.arrows.map((a) => [a.tags?.to, a.lane])).toEqual([
+      [PORT_ROLE_TAG_KEYS.data, 0],
+      [PORT_ROLE_TAG_KEYS.clock, 1]
+    ]);
+  });
+
   it('speaks the input roles of a latch and the output roles of a counter', () => {
     const latch = holder('signal_gate_dlatch');
     appendSignalLink(latch, SOURCE_A, GATE);
@@ -271,9 +284,20 @@ describe('arity warnings of the data latch and the counter', () => {
   });
 
   it('warns about a counter that only counts down, not about one that counts up', () => {
+    // Counting down with nothing on the underflow output does nothing.
     expect(keysFor('signal_counter_2', [wire(SOURCE_A, 'in1')])).toContain('validator.issues.signal_counter_no_up.label');
     expect(keysFor('signal_counter_2', [wire(SOURCE_A)])).not.toContain('validator.issues.signal_counter_no_up.label');
     expect(keysFor('signal_counter_2', [])).toContain('validator.issues.signal_gate_no_input.label');
+  });
+
+  it('accepts a counter that counts down only when its underflow output is wired', () => {
+    const map = holder('signal_counter_2');
+    setSignalLinks(map, [wire(SOURCE_A, 'in1'), { fromX: GATE.x, fromY: GATE.y, toX: SINK_A.x, toY: SINK_A.y, port: 'out1' }]);
+    const issues: ValidationIssue[] = [];
+    checkSignalWiring(levelOf(map), issues);
+    expect(issues.map((i) => i.i18nKey)).not.toContain('validator.issues.signal_counter_no_up.label');
+    // An unported output is the overflow, which never fires on a counter that cannot count up.
+    expect(keysFor('signal_counter_2', [wire(SOURCE_A, 'in1')])).toContain('validator.issues.signal_counter_no_up.label');
   });
 
   it('has the warnings in both languages', () => {

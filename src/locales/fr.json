@@ -1720,7 +1720,7 @@
         "label": "Attention : un verrou de données en ({x}, {y}) (au total : {count}) a un lien d'horloge mais aucun lien de donnée, il ne peut donc mémoriser que l'état éteint."
       },
       "signal_counter_no_up": {
-        "label": "Attention : un compteur en ({x}, {y}) (au total : {count}) ne compte qu'en descendant : sans lien de comptage +, il ne peut que passer sous zéro."
+        "label": "Attention : un compteur en ({x}, {y}) (au total : {count}) ne compte qu'en descendant mais sa sortie de dépassement bas ne mène nulle part, il ne peut donc rien faire."
       },
       "signal_cycle": {
         "label": "Erreur : des liens de signal bouclent sur eux-mêmes en ({x}, {y}) (au total : {count} cases). Un signal ne peut pas boucler."
@@ -2040,7 +2040,8 @@
         "label": "{output} > {input}"
       },
       "swap": {
-        "action": "Échanger les ports",
+        "action_input": "Échanger les entrées",
+        "action_output": "Échanger les sorties",
         "aria_input": "Échanger les ports d'entrée de {name} ({x}, {y})",
         "aria_output": "Échanger les ports de sortie de {name} ({x}, {y})",
         "done": "Ports échangés sur {name} ({x}, {y})."

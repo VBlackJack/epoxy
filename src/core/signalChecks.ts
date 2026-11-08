@@ -39,6 +39,8 @@ type Params = Record<string, string | number>;
 const SIGNAL_DATA_PORT = 0;
 const SIGNAL_CLOCK_PORT = 1;
 const SIGNAL_COUNT_UP_PORT = 0;
+/** The output port of a counter that carries the underflow level. */
+const SIGNAL_UNDERFLOW_PORT = 1;
 
 /** True when the level is played by the Epoxy rules, the only ones with signals. */
 function isEpoxyLevel(level: CompiledLevel): boolean {
@@ -375,6 +377,9 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
     inputPorts.set(link.to, ports);
   }
 
+  // The counters whose underflow output (the second output) has a wire.
+  const underflowUsed = new Set<number>(spec.links.filter((link) => parseSignalPort(link.port).out === SIGNAL_UNDERFLOW_PORT).map((link) => link.from));
+
   const multiSinks: GridPoint[] = [];
   const notBad: GridPoint[] = [];
   const noInput: GridPoint[] = [];
@@ -398,7 +403,8 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
       if (node.kind === 'dlatch') {
         if (!ports.has(SIGNAL_CLOCK_PORT)) latchNoClock.push(cellOf(node.cell));
         if (!ports.has(SIGNAL_DATA_PORT)) latchNoData.push(cellOf(node.cell));
-      } else if (!ports.has(SIGNAL_COUNT_UP_PORT)) {
+      } else if (!ports.has(SIGNAL_COUNT_UP_PORT) && !underflowUsed.has(node.cell)) {
+        // Counting down only is a valid countdown when the underflow output (out1) is wired; unported outputs are the overflow, which never fires then.
         counterNoUp.push(cellOf(node.cell));
       }
     }

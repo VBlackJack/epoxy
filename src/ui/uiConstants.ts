@@ -252,6 +252,8 @@ export const EDITOR_RELATION_MAX_ARROWS = 12;
 export const EDITOR_PORT_TAG_FONT_TILE = 0.3;
 export const EDITOR_PORT_TAG_ALONG_TILE = 0.55;
 export const EDITOR_PORT_TAG_STROKE_WIDTH = 3;
+/** Distance in tiles between the lanes of the tags of wires that join the same two cells. */
+export const EDITOR_PORT_TAG_LANE_TILE = 0.28;
 export const EDITOR_PORT_TAG_MIN_TILE_PX = 14;
 export const EDITOR_PORT_TAG_FONT_FAMILY = 'sans-serif';
 export const EDITOR_PORT_TAG_FILL_COLOR = '#ffffff';

@@ -43,6 +43,8 @@ export interface DeviceOverlayArrow {
   to: OverlayPoint;
   /** Present only on a signal wire with a port tag at one end or both. */
   tags?: DeviceOverlayTags;
+  /** Present with `tags`: 0 for the first tagged arrow between these two cells, 1 for the next, so their tags are drawn side by side, not on top of each other. */
+  lane?: number;
 }
 
 export interface DeviceOverlay {
@@ -66,6 +68,7 @@ export function deviceOverlayFor(
   const arrows: DeviceOverlayArrow[] = [];
   const highlights: DeviceOverlay['highlights'] = [];
   const arrowKeys = new Set<string>();
+  const tagLanes = new Map<string, number>();
   const highlightKeys = new Set<string>();
   let capped = 0;
   const highlight = (x: number, y: number, system: RelationSystem): void => {
@@ -104,7 +107,10 @@ export function deviceOverlayFor(
     }
     arrowKeys.add(key);
     const tags = tagsOf(system, port, from, to);
-    arrows.push({ system, from, to, ...(tags ? { tags } : {}) });
+    const pairKey = `${from.x},${from.y}>${to.x},${to.y}`;
+    const lane = tags ? (tagLanes.get(pairKey) ?? 0) : 0;
+    if (tags) tagLanes.set(pairKey, lane + 1);
+    arrows.push({ system, from, to, ...(tags ? { tags, lane } : {}) });
   };
   // Links first, so that they are never the ones pushed past the cap.
   const ordered = [

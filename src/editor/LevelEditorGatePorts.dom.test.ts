@@ -36,7 +36,7 @@ const CELL_PX = 10;
 const DATA_SOURCE = { x: 2, y: 2 };
 const CLOCK_SOURCE = { x: 2, y: 4 };
 const LATCH = { x: 4, y: 3 };
-const SWAP_LABEL_KEY = 'editor.signal_ports.swap.action';
+const SWAP_LABEL_KEY = 'editor.signal_ports.swap.action_input';
 
 const fake = new FakeIndexedDb();
 let editor: LevelEditor;
@@ -172,6 +172,16 @@ describe('gate ports in the Connections section', () => {
     expect(levelNow().signalLinks).toEqual(before);
     editor.redo();
     expect(levelNow().signalLinks).toEqual(swapped);
+  });
+
+  it('names the two swaps of a counter-to-latch row differently', () => {
+    const level = room('signal_gate_dlatch', [{ fromX: DATA_SOURCE.x, fromY: DATA_SOURCE.y, toX: LATCH.x, toY: LATCH.y, port: 'out1>in0' }]);
+    level.terrain[DATA_SOURCE.y][DATA_SOURCE.x] = 'signal_counter_0';
+    editor.loadCompiledLevel(level);
+    cursorTo(LATCH);
+    const labels = Array.from(controlledRows()[0].querySelectorAll<HTMLButtonElement>('button[data-action="swap-ports"]')).map((b) => b.textContent);
+    expect(labels).toEqual([t('editor.signal_ports.swap.action_input'), t('editor.signal_ports.swap.action_output')]);
+    expect(new Set(labels).size).toBe(2);
   });
 
   it('offers no swap on a plain gate', () => {

@@ -1720,7 +1720,7 @@
         "label": "Warning: A data latch at ({x}, {y}) ({count} in all) has a clock link but no data link, so it can only store off."
       },
       "signal_counter_no_up": {
-        "label": "Warning: A counter at ({x}, {y}) ({count} in all) is wired to count down only: with no count up link it can only underflow."
+        "label": "Warning: A counter at ({x}, {y}) ({count} in all) is wired to count down only but its underflow output goes nowhere, so it can never do anything."
       },
       "signal_cycle": {
         "label": "Error: Signal links loop back on themselves at ({x}, {y}) ({count} cells in all). Signals cannot loop."
@@ -2040,7 +2040,8 @@
         "label": "{output} > {input}"
       },
       "swap": {
-        "action": "Swap ports",
+        "action_input": "Swap inputs",
+        "action_output": "Swap outputs",
         "aria_input": "Swap the input ports of {name} ({x}, {y})",
         "aria_output": "Swap the output ports of {name} ({x}, {y})",
         "done": "Ports swapped on {name} ({x}, {y})."

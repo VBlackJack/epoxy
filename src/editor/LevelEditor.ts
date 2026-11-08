@@ -308,6 +308,7 @@ import {
   EDITOR_PORT_TAG_ALONG_TILE,
   EDITOR_PORT_TAG_FILL_COLOR,
   EDITOR_PORT_TAG_FONT_FAMILY,
+  EDITOR_PORT_TAG_LANE_TILE,
   EDITOR_PORT_TAG_FONT_TILE,
   EDITOR_PORT_TAG_MIN_TILE_PX,
   EDITOR_PORT_TAG_OUTLINE_COLOR,
@@ -5151,7 +5152,7 @@ export class LevelEditor {
     btn.type = 'button';
     btn.className = 'hud-btn small';
     btn.dataset.action = 'swap-ports';
-    btn.textContent = t(SIGNAL_PORT_KEYS.swapAction);
+    btn.textContent = t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapActionInput : SIGNAL_PORT_KEYS.swapActionOutput);
     btn.setAttribute(
       'aria-label',
       t(swap.side === 'input' ? SIGNAL_PORT_KEYS.swapAriaInput : SIGNAL_PORT_KEYS.swapAriaOutput, { name, x: swap.cell.x, y: swap.cell.y })
@@ -6696,7 +6697,7 @@ export class LevelEditor {
   }
 
   /** The port tags of a signal wire: the output port beside its start, the input port beside its head. */
-  private drawPortTags(from: { x: number; y: number }, to: { x: number; y: number }, tags: DeviceOverlayTags, s: number): void {
+  private drawPortTags(from: { x: number; y: number }, to: { x: number; y: number }, tags: DeviceOverlayTags, lane: number, s: number): void {
     if (s < EDITOR_PORT_TAG_MIN_TILE_PX) return;
     const c = EDITOR_TILE_CENTER_OFFSET;
     const x0 = (from.x + c) * s;
@@ -6708,6 +6709,10 @@ export class LevelEditor {
     const along = Math.min(EDITOR_PORT_TAG_ALONG_TILE * s, length / 2);
     const ux = (x1 - x0) / length;
     const uy = (y1 - y0) / length;
+    // Tags of wires between the same two cells sit on separate lanes beside the arrow, never on top of each other.
+    const side = EDITOR_PORT_TAG_LANE_TILE * s * (lane + 1);
+    const nx = -uy * side;
+    const ny = ux * side;
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha = 1;
@@ -6722,8 +6727,8 @@ export class LevelEditor {
       ctx.strokeText(text, x, y);
       ctx.fillText(text, x, y);
     };
-    if (tags.from) place(tags.from, x0 + ux * along, y0 + uy * along);
-    if (tags.to) place(tags.to, x1 - ux * along, y1 - uy * along);
+    if (tags.from) place(tags.from, x0 + ux * along + nx, y0 + uy * along + ny);
+    if (tags.to) place(tags.to, x1 - ux * along + nx, y1 - uy * along + ny);
     ctx.restore();
   }
 
@@ -6825,7 +6830,7 @@ export class LevelEditor {
       for (const target of overlay.highlights) this.outlineCell(target.x, target.y, EDITOR_RELATION_COLORS[target.system], s);
       for (const arrow of overlay.arrows) {
         this.drawArrow(EDITOR_RELATION_COLORS[arrow.system], arrow.from, arrow.to, s);
-        if (arrow.tags) this.drawPortTags(arrow.from, arrow.to, arrow.tags, s);
+        if (arrow.tags) this.drawPortTags(arrow.from, arrow.to, arrow.tags, arrow.lane ?? 0, s);
       }
     }
     if (rowCell) this.outlineCell(rowCell.x, rowCell.y, EDITOR_HOVER_OUTLINE_COLOR, s, EDITOR_CONNECTIONS_ROW_OUTLINE_WIDTH);
