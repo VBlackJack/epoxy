@@ -57,7 +57,8 @@ function planPushLine(
   w: EpoxyWorld,
   block: RuntimeEntity,
   dir: Direction,
-  allowChain: boolean
+  allowChain: boolean,
+  guardPlayerCell = false
 ): RuntimeEntity[] | undefined {
   const vec = DIRECTION_VECTORS[dir];
   const line: RuntimeEntity[] = [block];
@@ -74,19 +75,28 @@ function planPushLine(
       continue;
     }
     if (!isCanBlockEnter(w, current, destX, destY, dir)) return undefined;
-    // Defensive: unreachable from a player push (the player stands behind the line) and puppets do not chain.
+    // A player push never reaches this (the player stands behind the line) and puppets do not chain; slide pushes do.
     // A chain never ends on the live player; a lone block keeps its single-push behaviour.
-    if (line.length > 1 && w.player.alive && w.player.x === destX && w.player.y === destY) return undefined;
+    // A push made by a sliding block guards the lone block too: nothing is pushed onto the live player.
+    if ((guardPlayerCell || line.length > 1) && w.player.alive && w.player.x === destX && w.player.y === destY) {
+      return undefined;
+    }
     return line;
   }
 }
 
-export function attemptPushBlock(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction, allowChain = true): boolean {
+export function attemptPushBlock(
+  ctx: EpoxyContext,
+  block: RuntimeEntity,
+  dir: Direction,
+  allowChain = true,
+  guardPlayerCell = false
+): boolean {
   const w = ctx.world;
   if (!canBeShoved(w, block, dir)) {
     return false;
   }
-  const line = planPushLine(w, block, dir, allowChain);
+  const line = planPushLine(w, block, dir, allowChain, guardPlayerCell);
   if (!line) {
     return false;
   }
@@ -243,6 +253,24 @@ export function moveBlockTo(
   }
 }
 
+/**
+ * A sliding block that reaches a resting block it chains into pushes it along the slide. Never pushes a sliding
+ * block, never ends a push on the live player. Counts as a chain push; a slide happens in the tick, not in a
+ * player move, so the move-level partial-push flag is left as it was.
+ */
+function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, ny: number, dir: Direction): boolean {
+  const w = ctx.world;
+  if (!isInBounds(w, nx, ny)) return false;
+  const ahead = getEntityAt(w, nx, ny);
+  if (!ahead || ahead.kind !== 'block' || ahead.isSliding || !chainsInto(slider, ahead)) return false;
+  const flagBefore = w.rejectedPushMovedBlocks;
+  const countBefore = w.chainPushCount;
+  const pushed = attemptPushBlock(ctx, ahead, dir, true, true);
+  w.rejectedPushMovedBlocks = flagBefore;
+  if (pushed) w.chainPushCount = countBefore + 1;
+  return pushed;
+}
+
 /** Advances one block of the entity loop by a tick: a block moves only while it slides. */
 export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
@@ -256,6 +284,11 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   const vec = DIRECTION_VECTORS[slideDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
+
+  if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
+    // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
+    if (!w.player.alive) return;
+  }
 
   if (isCanBlockEnter(w, entity, nx, ny, slideDir)) {
     moveBlockTo(ctx, entity, nx, ny, slideDir);
