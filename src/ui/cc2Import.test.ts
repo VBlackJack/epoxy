@@ -16,7 +16,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PACK_JSON_VERSION_V12 } from '../config/constants';
-import { FLOOR_CODE, actorTile, c2mFileBytes, makeMap, player, put } from '../formats/cc2TestMaps';
+import { c2mFileBytes, makeMap, player, put } from '../formats/cc2TestMaps';
 import { parseC2gScript } from '../formats/C2gScript';
 import { serializePack } from '../packs/packJson';
 import { loadTestConfigs } from '../test/loadTestConfigs';
@@ -34,8 +34,10 @@ import {
 import type { Cc2ImportFile } from './cc2Import';
 
 const MAX_BYTES = 1 << 20;
-/** A second Melinda has no Epoxy equivalent (one player only), so a level that holds it keeps a reserved id and is lost. */
-const LOST_ACTOR = 0x56;
+/** A no-sign over a wall has no Epoxy equivalent, so a level that holds one keeps the cell and loses the key. */
+const NO_SIGN_CODE = 0x7f;
+const NO_SIGN_OVER_CODE = 0x26;
+const WALL_CODE = 0x02;
 const PURPLE_WALL = 0x73;
 const FORMAT = (bytes: number): string => String(bytes);
 
@@ -56,7 +58,7 @@ function scriptFile(path: string, text: string): Cc2ImportFile {
 
 /** A level whose title tells which file it came from. */
 function levelFile(path: string, title: string, broken = false): Cc2ImportFile {
-  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, actorTile(LOST_ACTOR), { code: FLOOR_CODE })] : [])]);
+  const map = makeMap(4, 3, [player(1, 1), ...(broken ? [put(2, 1, { code: NO_SIGN_CODE }, { code: NO_SIGN_OVER_CODE }, { code: WALL_CODE })] : [])]);
   return fileOf(path, c2mFileBytes(map, title));
 }
 
@@ -156,7 +158,7 @@ describe('building the pack', () => {
     expect(result.levels.map((l) => l.number)).toEqual([1, 2, 3]);
     expect(result.levels.map((l) => l.cc2?.file)).toEqual(['b.c2m', 'a.c2m', 'c.c2m']);
     expect(result.summary).toMatchObject({ levelCount: 3, exact: 2, lost: 1, skipped: 0, appended: 1 });
-    expect(result.summary.lostKeys).toEqual(['melinda', 'multiple_players']);
+    expect(result.summary.lostKeys).toEqual(['no_sign']);
     expect(result.sources).toHaveLength(3);
   });
 
@@ -169,6 +171,8 @@ describe('building the pack', () => {
 
   it('writes the pack in format 12 when a reserved id is present, and carries no raw bytes by default', async () => {
     const result = await importCc2Selection([levelFile('a.c2m', 'Lost', true)], MAX_BYTES, FORMAT);
+    // No decodable code keeps a reserved id any more but the placeholder of a cell past an undecodable code.
+    result.levels[0].terrain[0][0] = 'cc2_unknown';
     const text = serializePack('Pack', result.levels);
     expect(JSON.parse(text).version).toBe(PACK_JSON_VERSION_V12);
     expect(text).not.toContain('cc2Sources');

@@ -139,6 +139,8 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
+  // Epoxy: extraPlayers, with the swap move.
+  [KEY_MULTIPLE_PLAYERS]: 'Epoxy plays every player of the level: the first is the start, the others are extra starts in reading order, and a swap hands control to the next one. A player that leaves through an exit is removed and the level ends when all have left. How CC2 chooses the controlled player at start and when one dies or exits, and the exact swap key rules, are [unverified].',
   // Epoxy: steel_foil.
   steel_foil: STEEL_FOIL_REASON,
   // Epoxy: toggle_clock.
@@ -226,7 +228,6 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
 };
 
 const LOST_ENTRIES: Readonly<Record<string, string>> = {
-  [KEY_MULTIPLE_PLAYERS]: 'Epoxy has one player: a level with several players keeps the first and loses the others.',
   no_sign: 'A no-sign over a chip, a bomb, a placeholder item (the railroad sign) or a wall has no Epoxy equivalent: the sign is dropped and the level is not playable as imported.',
   [KEY_UNKNOWN]: 'The importer met a code its table does not know; the cell is kept as the cc2_unknown placeholder.'
 };

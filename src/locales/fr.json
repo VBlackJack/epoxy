@@ -1665,6 +1665,12 @@
       "unreachable_exit": {
         "label": "Erreur : Le portail de sortie est bloqué ou inaccessible."
       },
+      "player_unreachable_exit": {
+        "label": "Erreur : le joueur {player} ne peut pas atteindre le portail de sortie, même avec ce que les autres joueurs peuvent ramasser."
+      },
+      "players_share_start": {
+        "label": "Avertissement : deux joueurs démarrent sur la même case ({x}, {y})."
+      },
       "unreachable_chips_proven": {
         "label": "Avertissement : la simulation n'atteint que {reachable}/{required, plural, one {# puce} other {# puces}}, mais la solution enregistrée gagne."
       },

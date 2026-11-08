@@ -42,7 +42,9 @@ export const DROP_GATE_ACTION = 'DROP_GATE';
 export const DROP_STONE_ACTION = 'DROP_STONE';
 /** The actions that put a held item down or throw it. */
 export type DropAction = typeof DROP_CHARGE_ACTION | typeof DROP_GATE_ACTION | typeof DROP_STONE_ACTION;
-export type SolverAction = Direction | typeof WAIT_ACTION | DropAction;
+/** The swap key: control passes to the next player of a level with several. */
+export const SWAP_ACTION = 'SWAP';
+export type SolverAction = Direction | typeof WAIT_ACTION | DropAction | typeof SWAP_ACTION;
 /** The actions a search tries from a state: a step or a wait (dropping an item is never searched). */
 export type MoveAction = Direction | typeof WAIT_ACTION;
 
@@ -58,11 +60,14 @@ export function isDropAction(action: SolverAction): action is DropAction {
 }
 
 export function isMoveAction(action: SolverAction): action is MoveAction {
-  return !isDropAction(action);
+  return !isDropAction(action) && action !== SWAP_ACTION;
 }
 
 /** Letter standing for a wait in a written action list; moves use N, E, S and W. */
 export const WAIT_LETTER = '.';
+
+/** Letter standing for the swap key (switch Player) in a written action list. */
+export const SWAP_LETTER = 'P';
 
 /** Letter standing for dropping a blast charge in a written action list. */
 export const DROP_CHARGE_LETTER = 'X';
@@ -82,13 +87,14 @@ const DROP_ACTION_LETTERS: Readonly<Record<DropAction, string>> = {
 
 export function encodeActions(actions: readonly SolverAction[]): string {
   return actions
-    .map((a) => (a === WAIT_ACTION ? WAIT_LETTER : isDropAction(a) ? DROP_ACTION_LETTERS[a] : a))
+    .map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a === SWAP_ACTION ? SWAP_LETTER : isDropAction(a) ? DROP_ACTION_LETTERS[a] : a))
     .join('');
 }
 
 export function decodeActions(text: string): SolverAction[] {
   return [...text].map((ch) => {
     if (ch === WAIT_LETTER) return WAIT_ACTION;
+    if (ch === SWAP_LETTER) return SWAP_ACTION;
     if (ch === DROP_CHARGE_LETTER) return DROP_CHARGE_ACTION;
     if (ch === DROP_GATE_LETTER) return DROP_GATE_ACTION;
     if (ch === DROP_STONE_LETTER) return DROP_STONE_ACTION;
@@ -354,6 +360,11 @@ export class PieceSolver {
     if (action === WAIT_ACTION) {
       const ticks = ConfigRegistry.getGame().timing.playerMoveCooldownTicks;
       for (let i = 0; i < ticks; i++) engine.tick();
+      return this.settle(engine);
+    }
+    if (action === SWAP_ACTION) {
+      // A swap that cannot happen (nobody else on the map) breaks the list, like a drop that cannot.
+      if (!engine.swapPlayer()) return false;
       return this.settle(engine);
     }
     if (isDropAction(action)) {

@@ -1665,6 +1665,12 @@
       "unreachable_exit": {
         "label": "Error: The Exit Portal is blocked or unreachable."
       },
+      "player_unreachable_exit": {
+        "label": "Error: Player {player} cannot reach the Exit Portal, even with what the other players can collect."
+      },
+      "players_share_start": {
+        "label": "Warning: Two players start on the same cell ({x}, {y})."
+      },
       "unreachable_chips_proven": {
         "label": "Warning: Only {reachable}/{required, plural, one {# chip is} other {# chips are}} reachable by the simulation, but the stored solution wins."
       },
