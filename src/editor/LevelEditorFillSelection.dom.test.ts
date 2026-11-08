@@ -235,6 +235,19 @@ describe('fill selection on an Epoxy level', () => {
     expect(level.cellEdges).toEqual(ROOM_EDGES);
   });
 
+  it('refuses the canopy brush with its own message and records no step', () => {
+    openRoom();
+    moveCursorTo(2, 2);
+    selectRect(2, 2);
+    clickPalette(t('editor.palette.tools.canopy'));
+    expect(status()).toBe(t('editor.selection.status.fill_refused_canopy'));
+    expect(status()).not.toBe(t('editor.selection.status.fill_refused_cell_edge'));
+    expect(fill()).toBe(true);
+    expect(status()).toBe(t('editor.selection.status.fill_refused_canopy'));
+    expect(byId<HTMLButtonElement>('editor-undo-btn').disabled).toBe(true);
+    expect(editor.exportCompiledLevel().cellEdges).toBeUndefined();
+  });
+
   it('refuses the thin wall brush with a message and records no step', () => {
     openRoom();
     moveCursorTo(2, 2);

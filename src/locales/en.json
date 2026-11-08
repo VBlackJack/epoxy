@@ -2671,7 +2671,8 @@
         "fill_hint": "Shift+F fills the selection with {name}.",
         "filled": "Filled {width} x {height} cells with {name}.",
         "fill_start_kept": "The player start cell was left alone.",
-        "fill_refused_cell_edge": "Thin walls cannot fill a selection: draw them with the brush.",
+        "fill_refused_canopy": "A canopy cannot fill a selection: draw it with the brush.",
+        "fill_refused_cell_edge":"Thin walls cannot fill a selection: draw them with the brush.",
         "fill_refused_entry": "This entry cannot fill a selection.",
         "fill_refused_attributes": "This entry needs a valid colour or setting: choose it in the palette options."
       }
@@ -3453,6 +3454,12 @@
         },
         "player_start_desc": {
           "label": "Where the player begins the level. There is only one: placing it again moves it."
+        },
+        "canopy": {
+          "label": "Canopy"
+        },
+        "canopy_desc": {
+          "label": "A roof over a cell. It blocks bugs and rovers, and a blob stays between canopies. Click or drag to add or remove it; the eraser clears it. Thin walls on the cell are kept."
         },
         "cell_edge_desc": {
           "label": "A thin wall on one side of a cell. Click near a side to add or remove it (keyboard: the side of the direction control)."

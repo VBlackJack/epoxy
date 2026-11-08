@@ -18,6 +18,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Level editor: a Canopy brush in the Terrain tab (Epoxy rules): a click toggles the CC2 canopy on a cell and keeps its thin walls, a drag applies the first cell's choice along the stroke, the eraser clears it. Both locales.
 - Chip's Challenge 2 mirror players (Epoxy rules, pack format 13): mirror Chip and mirror Melinda copy every move the player of their character attempts (blocked ones included), follow that character's terrain rules, open the doors of their own key colour (green for Chip's, yellow for Melinda's), pick up keys and tools but not chips, push one block, press buttons, die on hazards without ending the level, and kill the player on contact. The CC2 import maps them. Both locales.
 - Tools: `npm run import:cc3d` converts a folder of Chuck's Challenge 3D pack folders (XML levels) offline into one native CC3D pack and one Epoxy-rules pack per folder, with a coverage report per pack; level passwords can be carried over from older packs by map id (`CC3D_META_DIR`).
 - Chip's Challenge 2 dynamite (Epoxy rules, pack format 13): set it down, then step off, and it lights; 85 ticks later it blasts a 5 x 5 area without its far corners, destroying walls, doors and most terrain (steel walls, sockets and logic gates resist), items and every creature caught in it, turning floor under a creature into fire. A blast does not set off other dynamite. The CC2 import now maps dynamite to it instead of the Epoxy charge, which is unchanged. Both locales.
