@@ -75,7 +75,7 @@ function planPushLine(
       continue;
     }
     if (!isCanBlockEnter(w, current, destX, destY, dir)) return undefined;
-    // Defensive: unreachable from a player push (the player stands behind the line) and puppets do not chain.
+    // A player push never reaches this (the player stands behind the line) and puppets do not chain; slide pushes do.
     // A chain never ends on the live player; a lone block keeps its single-push behaviour.
     // A push made by a sliding block guards the lone block too: nothing is pushed onto the live player.
     if ((guardPlayerCell || line.length > 1) && w.player.alive && w.player.x === destX && w.player.y === destY) {
