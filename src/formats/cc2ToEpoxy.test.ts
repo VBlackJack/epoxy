@@ -816,7 +816,7 @@ describe('the validator', () => {
     const clean = LevelValidator.validate(exact.level);
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
     const lost = convertCc2Map(
-      makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, actorTile(0x65, DIR_W), { code: FLOOR_CODE }), put(4, 1, { code: 0x14 })]),
+      makeMap(5, 3, [player(0, 1, DIR_E), player(2, 1, DIR_W, MELINDA), put(4, 1, { code: 0x14 })]),
       OPTIONS
     );
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);
