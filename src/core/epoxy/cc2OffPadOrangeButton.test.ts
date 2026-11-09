@@ -135,6 +135,18 @@ describe('teleport_red_cc2_off: an unpowered red pad teleports its mover to itse
     expect(pushed && { x: pushed.x, y: pushed.y }).toEqual(PAD);
   });
 
+  it('does not pull the block behind a player with pull boots who is sent past the pad', () => {
+    const block = { x: START.x - 1, y: PAD.y };
+    const engine = load(room({ terrain: [[PAD, RED_OFF]], entities: [{ type: 'dirt_block', x: block.x, y: block.y, dir: 'E' }] }));
+    engine.getPlayer().boots.add('boots_pull');
+    step(engine, 'E');
+    step(engine, 'E');
+    step(engine, 'E');
+    expect(where(engine)).toEqual({ x: PAD.x + 1, y: PAD.y });
+    const resting = entityOf(engine, 'dirt_block');
+    expect(resting && { x: resting.x, y: resting.y }).toEqual({ x: PAD.x - 2, y: PAD.y });
+  });
+
   it('sends a monster on one cell, out of the pad forward', () => {
     const start = { x: PAD.x - 1, y: PAD.y };
     const engine = load(room({ terrain: [[PAD, RED_OFF]], entities: [{ type: 'pink_ball', x: start.x, y: start.y, dir: 'E' }] }));

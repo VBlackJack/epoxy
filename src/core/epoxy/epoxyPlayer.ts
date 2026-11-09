@@ -258,6 +258,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     !fromSlide &&
     !entityAtTarget &&
     !updatedTargetTile.isTeleporter &&
+    !updatedTargetTile.teleportsToSelf &&
     w.player.alive &&
     !w.levelCompleted &&
     w.player.exited !== true &&
