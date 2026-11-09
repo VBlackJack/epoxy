@@ -31,7 +31,7 @@
  *   CC2_GAME_DIR=<folder> npm run report:cc2replay
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it, vi } from 'vitest';
@@ -44,10 +44,10 @@ import { cc2ReplaySections } from '../src/formats/cc2Model';
 import { decodeCc2Replay } from '../src/formats/cc2Replay';
 import { checkCc2ReplayBest, type Cc2ReplayBestResult, type Cc2ReplayEngine } from '../src/formats/cc2ReplayCheck';
 import { convertC2mBytes } from '../src/ui/cc2Import';
+import { listLevels, pct, table } from './reportUtil';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = resolve(ROOT, 'local', 'cc2');
-const C2M_EXTENSION = '.c2m';
 const REPORT_SUFFIX = '-replay';
 const ENGINE_ENV = 'CC2_REPLAY_ENGINE';
 const ENGINE_BOTH = 'both';
@@ -60,7 +60,6 @@ const VERDICTS = ['exact', 'approx', 'lost'] as const;
 const EXACT = 'exact';
 const NO_REPLAY = 'no replay';
 const DECODE_ERROR = 'decode error';
-const PERCENT = 100;
 const UNLISTED = '-';
 const KEY_BIT_NAMES: ReadonlyArray<readonly [number, string]> = [
   [0x01, 'drop'],
@@ -77,22 +76,6 @@ interface Row {
   check: Cc2ReplayBestResult | null;
   error?: string;
 }
-
-/** Every .c2m under a folder, sorted by relative path. */
-function listLevels(root: string): string[] {
-  const out: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name.toLowerCase().endsWith(C2M_EXTENSION)) out.push(full);
-    }
-  };
-  walk(root);
-  return out.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
-}
-
-const pct = (part: number, whole: number): string => (whole === 0 ? UNLISTED : `${Math.round((part * PERCENT) / whole)}%`);
 
 function keyBitNames(bits: number): string {
   const names = KEY_BIT_NAMES.filter(([bit]) => (bits & bit) !== 0).map(([, name]) => name);
@@ -127,14 +110,6 @@ function tally<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, 
   const counts = new Map<string, number>();
   for (const item of items) counts.set(keyOf(item), (counts.get(keyOf(item)) ?? 0) + 1);
   return counts;
-}
-
-function table(header: readonly string[], rows: ReadonlyArray<ReadonlyArray<string | number>>): string[] {
-  return [
-    `| ${header.join(' | ')} |`,
-    `| ${header.map(() => '---').join(' | ')} |`,
-    ...rows.map((r) => `| ${r.join(' | ')} |`)
-  ];
 }
 
 /** Per unsupported id: the levels with a replay that carry it, and how many of those are exact. */
