@@ -3737,6 +3737,26 @@
   },
   "cc3d": {
     "import": {
+      "report": {
+        "title": {
+          "label": "CC3D import"
+        },
+        "summary": {
+          "label": "{count} levels imported as Epoxy levels: {exact} exact, {approx} approximate, {lost} not fully playable."
+        },
+        "lost": {
+          "label": "Not fully playable (mechanics Epoxy cannot hold), levels: {levels}."
+        },
+        "invalid": {
+          "label": "Levels with validator errors: {levels}."
+        },
+        "failed": {
+          "label": "Levels that failed to convert and were skipped: {levels}."
+        },
+        "more": {
+          "label": "{levels} and {count} more"
+        }
+      },
       "error": {
         "malformed_xml": {
           "label": "The file is not valid XML: {detail} (at {position})."

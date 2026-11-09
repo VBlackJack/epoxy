@@ -1021,6 +1021,12 @@ export function clampLevelText(level: CompiledLevel, limits: LevelTextConfig): C
   return changed ? (copy as unknown as CompiledLevel) : level;
 }
 
+/** The level without its kept CC3D source, which did not hold a well-formed CC3D level. */
+function withoutCc3dSource(level: CompiledLevel): CompiledLevel {
+  const { cc3dSource: _dropped, ...rest } = level;
+  return rest;
+}
+
 /**
  * Keeps the well-formed levels of a persisted list. A level with a non-string
  * text field stays and loses only that field. With `textLimits` the call is at a trust
@@ -1035,7 +1041,8 @@ export function sanitizeStoredLevels(
 ): CompiledLevel[] {
   const levels = values
     .filter((lvl): lvl is CompiledLevel => isCompiledLevelShape(lvl, bounds, textLimits !== undefined))
-    .map(stripInvalidTextFields);
+    .map(stripInvalidTextFields)
+    .map((lvl) => (lvl.cc3dSource !== undefined && !isCc3dLevelShape(lvl.cc3dSource, bounds, textLimits !== undefined) ? withoutCc3dSource(lvl) : lvl));
   return textLimits ? levels.map((lvl) => clampLevelText(lvl, textLimits)) : levels;
 }
 

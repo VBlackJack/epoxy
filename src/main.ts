@@ -37,7 +37,7 @@ import { DatCodec, datRefusalReason } from './formats/DatCodec';
 import { decodeXsbCollection, XSB_EXTENSIONS } from './formats/XsbCodec';
 import { decodeDiggyJson, isDiggyJson } from './formats/DiggyCodec';
 import { isCc3dId } from './render/cc3dPainters';
-import { classifyImportSelection, importCc3dSelection, importDiggySelection, packNameFromFile } from './ui/cc3dImport';
+import { cc3dImportReportLines, classifyImportSelection, importCc3dSelection, importDiggySelection, packNameFromFile } from './ui/cc3dImport';
 import { BlockPuzzleSolver, requestedSearchBudget } from './core/BlockPuzzleSolver';
 import { timedSolution } from './generator/SolutionReplay';
 import {
@@ -1090,7 +1090,7 @@ class EpoxyApplication {
   private async handleCc3dFiles(files: readonly File[]): Promise<void> {
     const packName = files.length === 1 ? packNameFromFile(files[0].name) : t('app.packs.cc3d_default_name.label');
     try {
-      const { levels, skipped, firstError } = await importCc3dSelection(
+      const { levels, summary, skipped, firstError } = await importCc3dSelection(
         files,
         ConfigRegistry.getGame().import.maxFileBytes,
         packName
@@ -1100,6 +1100,12 @@ class EpoxyApplication {
         return;
       }
       await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_files_skipped_toast.label');
+      await choiceDialog({
+        title: t('cc3d.import.report.title.label'),
+        message: cc3dImportReportLines(summary).join(' '),
+        cancelLabel: t('app.packs.manager.convert.saved.close.action'),
+        options: []
+      });
     } catch (err) {
       console.error('CC3D import failed:', err);
       this.showTransientStatus(this.importErrorMessage());
