@@ -303,6 +303,9 @@ export const CC_MONSTER_STEP_TICKS = 4;
  */
 export const CC_FORCE_SLIDE_COOLDOWN_TICKS = 1;
 
+/** Slide delay of a block on ice or a force floor on a classic-rules level: one cell every two ticks, like the player. */
+export const CC_BLOCK_SLIDE_COOLDOWN_TICKS = 1;
+
 /** Ticks a classic blob step lasts (a blob covers a cell at half the speed of the other monsters). */
 export const CC_BLOB_STEP_TICKS = 8;
 

@@ -26,6 +26,7 @@ beforeEach(() => {
 
 /** A force floor lane going east with open floor on both sides, the player on the floor west of it. */
 const FORCE_LANE = ['###############', '#.............#', '#.@>>>>>>>>>..#', '#.............#', '###############'];
+const BLOCK_LANE = ['###############', '#.............#', '#.@.IIIIIIII..#', '#.............#', '###############'];
 const ICE_LANE = ['###############', '#.............#', '#.@IIIIIIII...#', '#.............#', '###############'];
 
 function level(rows: string[], flavor: boolean, extra: Parameters<typeof buildTestLevel>[1] = {}): CompiledLevel {
@@ -142,5 +143,31 @@ describe('classic slide speed', () => {
     classic.engine.attemptPlayerMove('E');
     native.engine.attemptPlayerMove('E');
     expect(cellGaps(classic.engine, classic.w, 30)).toEqual(cellGaps(native.engine, native.w, 30));
+  });
+
+  it('slides a block over ice one cell every two ticks, and at the native pace without the classic rules', () => {
+    const slide = (flavor: boolean): number[] => {
+      const { engine, w } = start(BLOCK_LANE, flavor, { entities: [{ type: 'dirt_block', x: 3, y: 2, dir: 'S' }] });
+      engine.attemptPlayerMove('E');
+      const gaps: number[] = [];
+      let lastX = -1;
+      let since = 0;
+      for (let t = 0; t < 40; t++) {
+        engine.tick();
+        since++;
+        const block = w.entities.find((e) => e.kind === 'block');
+        if (block && block.x !== lastX) {
+          if (lastX >= 0) gaps.push(since);
+          since = 0;
+          lastX = block.x;
+        }
+      }
+      return gaps.slice(1, 5);
+    };
+    const classic = slide(true);
+    const native = slide(false);
+    expect(classic.length).toBeGreaterThanOrEqual(3);
+    expect(classic.every((g) => g === 2)).toBe(true);
+    expect(native.every((g) => g === 3)).toBe(true);
   });
 });
