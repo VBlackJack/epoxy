@@ -7,12 +7,14 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Pack format 16, CC3D imports: the CC3D dirt block now plays by its CC3D rule (it fills water with CC3D dirt, which the next block clears, and it refuses fire and item cells), and the omni leaves CC3D slime. Water and the dirt block are now exact; 218 of 769 community CC3D maps convert exactly, up from 78. Levels imported before keep their tiles until imported again.
 - Pack format 16, CC2 rules: the orange button imported from CC2 is held down by any actor, flying monsters and sliding blocks included; an unpowered CC2 red teleporter sends whoever arrives straight back out forward, or keeps them on the pad when the way ahead is blocked. CC2 appearing walls are now marked approximate (in CC2 blocks, boulders, rovers and rolling balls reveal them too). Levels imported before keep their tiles until imported again.
 - Pack format 16 scaffold: the CC2 orange button that any actor holds down (button_orange_cc2) and the CC3D dirt block (dirt_block_3d), with their art, names and descriptions in both locales; their rules and the imports that use them follow. The unpowered CC2 red teleporter is marked as sending the mover back out, and the omni leaves CC3D slime.
 - The keyboard hint lists the drop key (E) and the item cycle key (C).
 
 ### Changed
 
+- Importing CC3D maps now makes native Epoxy levels played by the Epoxy engine, with every play aid (item drop, hints, tap to walk), instead of levels played by the CC3D engine. Maps that convert with losses or validator errors are still imported and named in a report; a map that cannot be converted is skipped and named. The original map is kept on this device for later re-conversion and is never shared or exported. Packs imported before keep their CC3D levels for now.
 - Look-alike marks (the 2, 3, O, ?, B and H letters on CC2 and CC3D variants) are a small badge in the tile corner instead of a sign in the middle, and are not drawn at all while playing a level imported from CC2 or CC3D, where every such tile follows the imported game. The editor always shows them.
 
 ### Fixed

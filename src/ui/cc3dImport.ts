@@ -16,13 +16,20 @@
 
 import { CC3D_XML_EXTENSION, Cc3dImportError, decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { decodeDiggyFiles, isDiggyFloorFileName } from '../formats/DiggyCodec';
+import { convertCc3dLevel } from '../core/cc3d/cc3dToEpoxy';
+import { classifyLevel } from '../core/cc3d/epoxyCoverage';
+import { LevelValidator } from '../core/LevelValidator';
 import type { CompiledLevel } from '../core/types';
+import { t } from '../i18n/I18nManager';
 import { isCc2FileName } from './cc2Import';
 import { formatMegabytes, isImportSizeAllowed } from './importLimits';
 
 /** i18n key of the message for a file over the size limit. */
 const TOO_LARGE_KEY = 'app.packs.import_too_large.label';
 const FILE_EXTENSION_PATTERN = /\.[^.]+$/;
+/** At most this many level numbers are named in one line of the import report; the rest is counted. */
+const REPORT_LEVELS_LISTED_MAX = 12;
+const REPORT_LEVEL_SEPARATOR = ', ';
 
 /** What the import needs of a browser File; a plain object serves in tests. */
 export interface ImportableFile {
@@ -56,8 +63,23 @@ export function classifyImportSelection(names: readonly string[]): ImportSelecti
   return diggyCount > 0 ? 'mixed' : 'several';
 }
 
+/** What the import made of the levels of a CC3D selection, by level label (the map id of the file, else the level number). Nothing is dropped without being named here. */
+export interface Cc3dImportSummary {
+  /** Levels imported as Epoxy levels. */
+  readonly imported: number;
+  readonly exact: number;
+  readonly approx: number;
+  /** Imported levels the converter marks lost: they hold mechanics Epoxy cannot play. */
+  readonly lostLevels: readonly string[];
+  /** Imported levels whose converted form holds a validator error. */
+  readonly invalidLevels: readonly string[];
+  /** Levels whose conversion threw: reported and left out of the pack. */
+  readonly failedLevels: readonly string[];
+}
+
 export interface Cc3dSelectionResult {
   readonly levels: CompiledLevel[];
+  readonly summary: Cc3dImportSummary;
   /** Number of files that did not import (unreadable or over the size limit). */
   readonly skipped: number;
   /** Why the first of them failed; null when all imported. */
@@ -95,7 +117,63 @@ export async function importCc3dSelection(
   const decoded = decodeCc3dFiles(readable, packName);
   skipped += decoded.failures.length;
   firstError ??= decoded.failures[0]?.error ?? null;
-  return { levels: decoded.levels, skipped, firstError };
+  const converted = convertImportedLevels(decoded.levels);
+  return { levels: converted.levels, summary: converted.summary, skipped, firstError };
+}
+
+/**
+ * Turns the decoded CC3D levels into native Epoxy levels, which the Epoxy engine plays with all its aids. The converted
+ * level keeps the CC3D level it came from in `cc3dSource`, so it can be converted again when the converter improves.
+ * A level the converter marks lost, or the validator flags, is still imported and named in the summary; a level whose
+ * conversion throws is named as failed and left out, and the others go on.
+ */
+export function convertImportedLevels(decoded: readonly CompiledLevel[]): { levels: CompiledLevel[]; summary: Cc3dImportSummary } {
+  const levels: CompiledLevel[] = [];
+  const lostLevels: string[] = [];
+  const invalidLevels: string[] = [];
+  const failedLevels: string[] = [];
+  let exact = 0;
+  let approx = 0;
+  for (const source of decoded) {
+    const cc3d = source.cc3d;
+    if (!cc3d) continue;
+    const label = cc3d.mapId ?? String(source.number);
+    try {
+      const verdict = classifyLevel(cc3d).verdict;
+      const converted = convertCc3dLevel(source).level;
+      const hasErrors = LevelValidator.validate(converted).issues.some((issue) => issue.severity === 'error');
+      levels.push({ ...converted, cc3dSource: cc3d });
+      if (verdict === 'exact') exact++;
+      else if (verdict === 'approx') approx++;
+      else lostLevels.push(label);
+      if (hasErrors) invalidLevels.push(label);
+    } catch {
+      failedLevels.push(label);
+    }
+  }
+  return { levels, summary: { imported: levels.length, exact, approx, lostLevels, invalidLevels, failedLevels } };
+}
+
+function levelNumbersText(numbers: readonly string[]): string {
+  const listed = numbers.slice(0, REPORT_LEVELS_LISTED_MAX).join(REPORT_LEVEL_SEPARATOR);
+  const more = numbers.length - REPORT_LEVELS_LISTED_MAX;
+  return more > 0 ? t('cc3d.import.report.more.label', { levels: listed, count: more }) : listed;
+}
+
+/** The lines of the import report: the counts first, then one line per kind of level that needs a word. */
+export function cc3dImportReportLines(summary: Cc3dImportSummary): string[] {
+  const lines = [
+    t('cc3d.import.report.summary.label', {
+      count: summary.imported,
+      exact: summary.exact,
+      approx: summary.approx,
+      lost: summary.lostLevels.length
+    })
+  ];
+  if (summary.lostLevels.length > 0) lines.push(t('cc3d.import.report.lost.label', { levels: levelNumbersText(summary.lostLevels) }));
+  if (summary.invalidLevels.length > 0) lines.push(t('cc3d.import.report.invalid.label', { levels: levelNumbersText(summary.invalidLevels) }));
+  if (summary.failedLevels.length > 0) lines.push(t('cc3d.import.report.failed.label', { levels: levelNumbersText(summary.failedLevels) }));
+  return lines;
 }
 
 /**

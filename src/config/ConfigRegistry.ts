@@ -1387,7 +1387,8 @@ class ConfigRegistryService {
     return pack && pack.levels.length > 0
       ? serializePack(
           displayName?.trim() || pack.name,
-          pack.levels,
+          // The kept CC3D source stays on this device (like the raw CC2 files): a file or a link never carries it.
+          pack.levels.map(({ cc3dSource: _kept, ...level }) => level),
           { author: pack.author, description: pack.description },
           compact,
           cc2Sources
