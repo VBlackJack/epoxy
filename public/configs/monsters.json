@@ -369,6 +369,8 @@
       "slidesOnForce": true,
       "waterTransformsTo": "floating_block_red",
       "destroyedByFire": false,
+      "refusesHazards": ["fire"],
+      "refusesItems": true,
       "destroyedByBomb": true,
       "plateColor": "red"
     },
@@ -382,6 +384,8 @@
       "slidesOnForce": true,
       "waterTransformsTo": "floating_block_green",
       "destroyedByFire": false,
+      "refusesHazards": ["fire"],
+      "refusesItems": true,
       "destroyedByBomb": true,
       "plateColor": "green"
     },
@@ -395,6 +399,8 @@
       "slidesOnForce": true,
       "waterTransformsTo": "floating_block_blue",
       "destroyedByFire": false,
+      "refusesHazards": ["fire"],
+      "refusesItems": true,
       "destroyedByBomb": true,
       "plateColor": "blue"
     },
@@ -408,6 +414,8 @@
       "slidesOnForce": true,
       "waterTransformsTo": "floating_block_yellow",
       "destroyedByFire": false,
+      "refusesHazards": ["fire"],
+      "refusesItems": true,
       "destroyedByBomb": true,
       "plateColor": "yellow"
     },

@@ -101,9 +101,9 @@ describe('water', () => {
     });
   });
 
-  it('differs for a second block: CC3D refuses it onto a floating colour block, Epoxy lets it be pushed on', () => {
+  it('refuses a second block onto a floating colour block, as CC3D does', () => {
     const rows = room('@CW.', '..K.', '....');
-    expectDisagree({ rows, moves: 'ESSEN' }, 'player', (pair) => {
+    expectAgree({ rows, moves: 'ESSEN' }, (pair) => {
       expect(pair.rig.player.y).toBe(3);
       expect(pair.rig.entities.map((e) => `${e.type}@${e.x},${e.y}`).sort()).toEqual(['cc3d_block_blue@3,1', 'dirt_block@3,2']);
     });
