@@ -211,6 +211,21 @@ export function paintIceBlock(ctx: CanvasRenderingContext2D, size: number, art: 
   ctx.restore();
 }
 
+/** Radius, in tiles, of the dot that tells the CC3D ice block from the plain one. */
+const ICE_3D_DOT_RADIUS = 0.07;
+
+/** The CC3D ice block: the ice block with a dark dot at the centre of its top face. */
+export function paintIceBlock3d(ctx: CanvasRenderingContext2D, size: number, art: Art): void {
+  paintIceBlock(ctx, size, art);
+  const centre = blockFaceCentre(size);
+  ctx.save();
+  ctx.fillStyle = art.block.ice.edge;
+  ctx.beginPath();
+  ctx.arc(centre.x, centre.y, size * ICE_3D_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // ---- Colour blocks: the glyph of the channel --------------------------------------------------
 
 /** Radius of the colour-blind glyph, in tiles. */
@@ -501,6 +516,7 @@ const drawOneSidedMirror: BlockDrawing = (ctx, size, art, _dir, id) => {
 export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = Object.fromEntries([
   ['dirt_block', entityPainter((ctx, size, art) => paintDirtBlock(ctx, size, art), 'dirt_block')],
   ['ice_block', entityPainter((ctx, size, art) => paintIceBlock(ctx, size, art), 'ice_block')],
+  ['ice_block_3d', entityPainter((ctx, size, art) => paintIceBlock3d(ctx, size, art), 'ice_block_3d')],
   ...COLOUR_BLOCK_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawColourBlock, id)]),
   ...ARROW_BLOCK_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawArrowBlock, id)]),
   ...MIRROR_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawMirror, id)]),

@@ -130,7 +130,14 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   transmogrifier_cc2: 'teleportRing',
   teleport_random: 'teleportRing',
   teleport_red_cc2: 'teleportRing',
-  helmet: 'gray'
+  helmet: 'gray',
+  dirt_3d: 'dirtBase',
+  popup_wall_cc2: 'floorBorder',
+  trap_open: 'trapBorder',
+  appearing_wall_any: 'floorBase',
+  slime_3d: 'slimeBase',
+  teleport_red_cc2_off: 'teleportRing',
+  transmogrifier_cc2_off: 'teleportRing'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */

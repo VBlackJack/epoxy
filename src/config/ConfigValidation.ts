@@ -2132,6 +2132,114 @@ export function findFormat14ConfigErrors(
   return { tiles: tileErrors, monsters: monsterErrors };
 }
 
+/** Config problems of the format 15 fields, split by the config file they belong to. */
+export interface Format15ConfigErrors {
+  tiles: string[];
+  monsters: string[];
+}
+
+/**
+ * Problems of the fields format 15 added for the CC2 and CC3D mechanisms. On a tile: `blockClearsTo` names an existing
+ * terrain and goes with a `keptBy` list of block ids on a tile blocks may enter; `barsBlocks` lists block ids on a tile
+ * blocks may enter; `admitsMonsters` lists monster ids on a tile monsters may enter; `closesTo` names another trap on a
+ * trap; `revealedByAny` is true on a tile that has `revealsToOnTouch`; `sparedByBoots` lists boots on a slime that has a
+ * `blockTransformsTo` terrain; `poweredTwin` names a tile that names it back, exactly one of the two being live (a
+ * teleporter or a transmogrifier). On an entity: `slidesOverTiles` lists existing tile ids on a block. Each entry names
+ * the tile or entity.
+ */
+export function findFormat15ConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): Format15ConfigErrors {
+  const tileErrors: string[] = [];
+  const errors: string[] = [];
+  const isLive = (tile: TileDefinition): boolean => tile.isTeleporter === true || tile.transmogrifies === true;
+  const idList = (id: string, field: string, value: unknown, accept: (entry: string) => boolean, what: string): void => {
+    if (!Array.isArray(value) || value.length === 0) {
+      tileErrors.push(`${id}.${field}: expected a non-empty list of ${what} ids`);
+      return;
+    }
+    for (const entry of value) {
+      if (typeof entry !== 'string' || !accept(entry)) tileErrors.push(`${id}.${field}: "${String(entry)}" is not the id of an existing ${what}`);
+    }
+  };
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.blockClearsTo !== undefined) {
+      if (tiles[tile.blockClearsTo]?.layer !== 'terrain') tileErrors.push(`${id}.blockClearsTo: "${String(tile.blockClearsTo)}" is not the id of an existing terrain`);
+      if (tile.passableByBlock !== true) tileErrors.push(`${id}.blockClearsTo: only a tile blocks may enter clears for them`);
+      if (tile.keptBy === undefined) tileErrors.push(`${id}.blockClearsTo: needs a keptBy list`);
+    }
+    if (tile.keptBy !== undefined) {
+      if (tile.blockClearsTo === undefined) tileErrors.push(`${id}.keptBy: needs a blockClearsTo terrain`);
+      if (!Array.isArray(tile.keptBy)) tileErrors.push(`${id}.keptBy: expected a list of block ids`);
+      else for (const blockId of tile.keptBy) {
+        if (typeof blockId !== 'string' || entities[blockId]?.kind !== 'block') tileErrors.push(`${id}.keptBy: "${String(blockId)}" is not the id of an existing block`);
+      }
+    }
+    if (tile.barsBlocks !== undefined) {
+      if (tile.passableByBlock !== true) tileErrors.push(`${id}.barsBlocks: only a tile blocks may enter bars some of them`);
+      idList(id, 'barsBlocks', tile.barsBlocks, (entry) => entities[entry]?.kind === 'block', 'block');
+    }
+    if (tile.admitsMonsters !== undefined) {
+      if (tile.passableByMonster !== true) tileErrors.push(`${id}.admitsMonsters: only a tile monsters may enter admits some of them`);
+      idList(id, 'admitsMonsters', tile.admitsMonsters, (entry) => entities[entry]?.kind === 'monster', 'monster');
+    }
+    if (tile.closesTo !== undefined) {
+      if (tile.isTrap !== true) tileErrors.push(`${id}.closesTo: only a trap closes`);
+      const twin = tiles[tile.closesTo];
+      if (twin === undefined || twin.isTrap !== true) tileErrors.push(`${id}.closesTo: "${String(tile.closesTo)}" is not the id of an existing trap`);
+      else if (twin.closesTo !== undefined) tileErrors.push(`${id}.closesTo: "${tile.closesTo}" must be a trap that stays closed`);
+    }
+    if (tile.closesToWired !== undefined) {
+      if (tile.closesTo === undefined) tileErrors.push(`${id}.closesToWired: needs a closesTo trap`);
+      if (tile.wiredTrap !== true) tileErrors.push(`${id}.closesToWired: only a trap a wire may end on closes into a wired trap`);
+      const wired = tiles[tile.closesToWired];
+      if (wired === undefined || wired.isTrap !== true || wired.wiredTrap !== true || wired.closesTo !== undefined) {
+        tileErrors.push(`${id}.closesToWired: "${String(tile.closesToWired)}" is not the id of an existing wired trap that stays closed`);
+      }
+    }
+    if (tile.heldWhileOccupied !== undefined) {
+      if (tile.heldWhileOccupied !== true) tileErrors.push(`${id}.heldWhileOccupied: expected true`);
+      if (tile.transformsToOnLeave === undefined) tileErrors.push(`${id}.heldWhileOccupied: needs a transformsToOnLeave terrain`);
+    }
+    if (tile.revealedByAny !== undefined) {
+      if (tile.revealedByAny !== true) tileErrors.push(`${id}.revealedByAny: expected true`);
+      if (tile.revealsToOnTouch === undefined) tileErrors.push(`${id}.revealedByAny: needs a revealsToOnTouch terrain`);
+    }
+    if (tile.sparedByBoots !== undefined) {
+      if (tile.hazard !== 'slime') tileErrors.push(`${id}.sparedByBoots: only a tile with the hazard "slime" spares its player`);
+      if (tile.blockTransformsTo === undefined) tileErrors.push(`${id}.sparedByBoots: needs a blockTransformsTo terrain to clean the cell into`);
+      idList(id, 'sparedByBoots', tile.sparedByBoots, (entry) => tiles[entry]?.collectible === 'boot', 'boots');
+    }
+    if (tile.poweredTwin !== undefined) {
+      const twin = tiles[tile.poweredTwin];
+      if (twin === undefined || tile.poweredTwin === id) tileErrors.push(`${id}.poweredTwin: "${String(tile.poweredTwin)}" is not the id of another tile`);
+      else {
+        if (twin.poweredTwin !== id) tileErrors.push(`${id}.poweredTwin: ${tile.poweredTwin} does not name it back`);
+        if (isLive(tile) === isLive(twin)) tileErrors.push(`${id}.poweredTwin: exactly one of the two forms must be a teleporter or a transmogrifier`);
+      }
+    }
+  }
+  for (const entity of Object.values(entities)) {
+    if (entity.chainPushesTransitive !== undefined) {
+      if (entity.chainPushesTransitive !== true) errors.push(`${entity.id}.chainPushesTransitive: expected true`);
+      if (entity.chainPushes === undefined) errors.push(`${entity.id}.chainPushesTransitive: needs a chainPushes list`);
+    }
+    if (entity.slidesOverTiles === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'block') errors.push(`${id}.slidesOverTiles: only a block slides over tiles`);
+    if (!Array.isArray(entity.slidesOverTiles) || entity.slidesOverTiles.length === 0) {
+      errors.push(`${id}.slidesOverTiles: expected a non-empty list of tile ids`);
+      continue;
+    }
+    for (const tileId of entity.slidesOverTiles) {
+      if (typeof tileId !== 'string' || tiles[tileId] === undefined) errors.push(`${id}.slidesOverTiles: "${String(tileId)}" is not the id of an existing tile`);
+    }
+  }
+  return { tiles: tileErrors, monsters: errors };
+}
+
 /**
  * Problems of the relay pad fields: a pad is `dark` or `lit` and names its other form, which must be a relay pad of the
  * opposite form that names it back. The lit form is a teleporter of the group "relay" and the dark form is not one;

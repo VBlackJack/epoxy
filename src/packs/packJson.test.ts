@@ -41,7 +41,8 @@ import {
   PACK_JSON_VERSION_V11_IDS,
   PACK_JSON_VERSION_V12,
   PACK_JSON_VERSION_V13,
-  PACK_JSON_VERSION_V14
+  PACK_JSON_VERSION_V14,
+  PACK_JSON_VERSION_V15
 } from '../config/constants';
 import { usesPulseSinkFormat, usesV7Ids } from '../core/signalLinks';
 import { CompiledLevel } from '../core/types';
@@ -223,12 +224,12 @@ describe('packJson', () => {
     expect(serializePack('N', [plateToDoor])).toBe(
       JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
     );
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V14);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V15);
     // The check reads the shipped ids by name, so it holds without a tile lookup.
     expect(usesPulseSinkFormat(pulse, null)).toBe(true);
     expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
     expect(usesPulseSinkFormat(plateToDoor, null)).toBe(false);
-    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10, PACK_JSON_VERSION_V11, PACK_JSON_VERSION_V12, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V14]) {
+    for (const version of [1, 2, 3, PACK_JSON_VERSION_LAUNCHERS, PACK_JSON_VERSION_SIGNALS, PACK_JSON_VERSION_PULSE_SINKS, PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10, PACK_JSON_VERSION_V11, PACK_JSON_VERSION_V12, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V14, PACK_JSON_VERSION_V15]) {
       const file = { format: PACK_JSON_FORMAT, version, name: 'x', levels: [makeLevel('a')] };
       expect(parse(JSON.stringify(file))).toMatchObject({ ok: true });
     }
@@ -375,8 +376,8 @@ describe('pack format 7 id gate', () => {
     expect(version([cc3d])).toBe(PACK_JSON_VERSION);
   });
 
-  it('reads versions 7 to 14 and refuses version 15', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V14);
+  it('reads versions 7 to 15 and refuses version 16', () => {
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V15);
     const sevenFile = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7, name: 'x', levels: [makeLevel('a')] };
     expect(parse(JSON.stringify(sevenFile))).toMatchObject({ ok: true });
     const level = makeLevel('t');
@@ -384,7 +385,7 @@ describe('pack format 7 id gate', () => {
     const written = parse(serializePack('N', [level]));
     expect(written).toMatchObject({ ok: true });
     if (written.ok) expect(written.levels[0].items[1][1]).toBe('charge');
-    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V14 + 1, name: 'x', levels: [level] };
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V15 + 1, name: 'x', levels: [level] };
     expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
   });
 

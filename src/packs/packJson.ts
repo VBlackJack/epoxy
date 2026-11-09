@@ -25,7 +25,8 @@ import {
   PACK_JSON_VERSION_SIGNALS,
   PACK_JSON_VERSION_UNDERLAYS,
   PACK_JSON_VERSION_V11,
-  PACK_JSON_VERSION_V13
+  PACK_JSON_VERSION_V13,
+  PACK_JSON_VERSION_V15
 } from '../config/constants';
 import {
   ensureUniqueLevelIds,
@@ -36,7 +37,7 @@ import {
 import { DEFAULT_PLAYER_CHARACTER } from '../core/coreConstants';
 import { usesBlockChains } from '../core/blockChains';
 import { cellEdgeMask, levelHasCanopy } from '../core/EdgeRules';
-import { idSetVersionOf, usesFlipSinkFormat, usesPulseSinkFormat, usesSignalPorts } from '../core/signalLinks';
+import { idSetVersionOf, usesFlipSinkFormat, usesPoweredTwinSinkFormat, usesPulseSinkFormat, usesSignalPorts } from '../core/signalLinks';
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { underlayMap } from '../core/Underlays';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits } from './packMetadata';
@@ -87,6 +88,8 @@ function packFileVersion(levels: readonly CompiledLevel[]): number {
     ? PACK_JSON_VERSION_V13
     : flipVersion;
   const idSetVersion = levels.reduce((highest, level) => Math.max(highest, idSetVersionOf(level)), characterVersion);
+  // A signal link ending on a CC2 powered device is ignored by a build that does not know the pair, so it needs format 15.
+  if (levels.some((level) => usesPoweredTwinSinkFormat(level))) return PACK_JSON_VERSION_V15;
   if (idSetVersion > 0) return idSetVersion;
   if (levels.some((level) => usesPulseSinkFormat(level))) return PACK_JSON_VERSION_PULSE_SINKS;
   if (levels.some((level) => (level.signalLinks?.length ?? 0) > 0)) return PACK_JSON_VERSION_SIGNALS;

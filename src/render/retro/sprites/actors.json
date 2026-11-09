@@ -415,6 +415,24 @@
    ".LLLLLLLLLLLLLL.",
    "................"
   ]},
+  "ice_block_3d": { "outline": true, "rows": [
+   "................",
+   ".IIIIIIIIIIIIIK.",
+   ".IJJJJJJJJJJJJK.",
+   ".IJJJJJKKKJJJJK.",
+   ".IJJJJJJJKJJJJK.",
+   ".IJJJJJKKKJJJJK.",
+   ".IJJJJJJJKJJJJK.",
+   ".IJJJJJKKKJJJJK.",
+   ".IJJJJJJJJJJJJK.",
+   ".IJJJJJJJJJJJJK.",
+   ".KKKKKKKKKKKKKK.",
+   ".JKKKKKKKKKKKKL.",
+   ".JKKJKJKKJJKKKL.",
+   ".JKKKJKKKKKJKKL.",
+   ".LLLLLLLLLLLLLL.",
+   "................"
+  ]},
   "arrow_mark_n": { "rows": [
    "................",
    "................",

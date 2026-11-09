@@ -42,7 +42,7 @@ import {
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning' | 'cc2' | 'random' | 'barrier' | 'helmet';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning' | 'cc2' | 'random' | 'barrier' | 'helmet' | '3d' | 'off';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -83,17 +83,27 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   block_barrier_floor: { base: 'floor', mark: 'barrier' },
   transmogrifier_cc2: { base: 'transmogrifier', mark: 'cc2' },
   teleport_random: { base: 'teleport_green', mark: 'random' },
-  teleport_red_cc2: { base: 'teleport_red', mark: 'cc2' }
+  teleport_red_cc2: { base: 'teleport_red', mark: 'cc2' },
+  // The format 15 look-alikes: more Chip's Challenge 2 and Chip's Challenge 3D rules on the tile they resemble.
+  dirt_3d: { base: 'dirt', mark: '3d' },
+  popup_wall_cc2: { base: 'floor', mark: 'cc2' },
+  trap_open: { base: 'trap', mark: 'cc2' },
+  appearing_wall_any: { base: 'appearing_wall', mark: '3d' },
+  slime_3d: { base: 'slime', mark: '3d' },
+  teleport_red_cc2_off: { base: 'teleport_red', mark: 'off' },
+  transmogrifier_cc2_off: { base: 'transmogrifier', mark: 'off' }
 };
 
 /** The letter set on the plate of each gender sign: the initial of the character who may step there. */
-const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda' | 'cc2' | 'random' | 'barrier' | 'helmet', string>> = {
+const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda' | 'cc2' | 'random' | 'barrier' | 'helmet' | '3d' | 'off', string>> = {
   sign_chip: 'C',
   sign_melinda: 'M',
   cc2: '2',
   random: '?',
   barrier: 'B',
-  helmet: 'H'
+  helmet: 'H',
+  '3d': '3',
+  off: 'O'
 };
 
 /** The palette entries a vector style hands in (the same keys as the palette of game.json). */
@@ -143,10 +153,12 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'cc2':
     case 'barrier':
+    case 'off':
       return { fill: pal.gray, edge: pal.wallShadow, ink: pal.hintGlyph };
     case 'random':
       return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'helmet':
+    case '3d':
       return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
 }
@@ -186,10 +198,12 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
     case 'cc2':
     case 'barrier':
+    case 'off':
       return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
     case 'random':
       return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
     case 'helmet':
+    case '3d':
       return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
   }
 }
@@ -239,6 +253,8 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
     case 'random':
     case 'barrier':
     case 'helmet':
+    case '3d':
+    case 'off':
       paintSignPlate(ctx, x, y, size, SIGN_LETTERS[mark], colours);
       return;
     case 'no_sign':

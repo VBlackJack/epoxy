@@ -260,6 +260,29 @@ export function usesFlipSinkFormat(
   });
 }
 
+/** The CC2 powered devices (format 15): a signal link ending on either form of a pair needs pack format 15. */
+const POWERED_TWIN_SINK_IDS: ReadonlySet<string> = new Set([
+  'teleport_red_cc2',
+  'teleport_red_cc2_off',
+  'transmogrifier_cc2',
+  'transmogrifier_cc2_off'
+]);
+
+/**
+ * True when a signal link of the level ends on a CC2 powered device (either form of the red teleporter or of the
+ * transmogrifier). An older build would ignore the link and play the placed form, so the file needs a format that build
+ * refuses. The ids are read by name, so it holds before the configs are loaded.
+ */
+export function usesPoweredTwinSinkFormat(level: Pick<CompiledLevel, 'terrain' | 'signalLinks'>): boolean {
+  return (level.signalLinks ?? []).some((link) => {
+    if (link === null || typeof link !== 'object') return false;
+    const { toX, toY } = link;
+    if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
+    const id = level.terrain[toY]?.[toX];
+    return id !== null && id !== undefined && POWERED_TWIN_SINK_IDS.has(id);
+  });
+}
+
 /**
  * True when a signal link of the level names a port (see signalPorts.ts). An older build keeps the link but ignores the port,
  * so a data latch or a counter would read every wire as its first input; the file needs a format that build refuses.

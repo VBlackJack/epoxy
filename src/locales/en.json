@@ -5056,6 +5056,48 @@
         "label": "While the player holds it, touching a monster or a block does the player no harm."
       }
     },
+    "dirt_3d": {
+      "name": "Dirt (CC3D)",
+      "desc": {
+        "label": "The player clears it by walking in; monsters cannot enter. A dirt block, a colour block or an ice block may enter. A dirt block or a colour block turns it into floor; an ice block passes over and leaves it."
+      }
+    },
+    "popup_wall_cc2": {
+      "name": "Pop-Up Wall (CC2)",
+      "desc": {
+        "label": "The player may step on it; among the monsters only rovers and ghosts may enter; every block but a dirt block may enter. It turns into a wall behind whatever leaves it, unless another actor still stands on it."
+      }
+    },
+    "trap_open": {
+      "name": "Open Trap (CC2)",
+      "desc": {
+        "label": "A trap that starts open and holds nothing. The first time a linked button or wire releases or loses power, it becomes an ordinary trap. Needs: a link from a button or a signal source."
+      }
+    },
+    "appearing_wall_any": {
+      "name": "Appearing Wall (CC3D)",
+      "desc": {
+        "label": "Looks like floor. It turns into a wall when the player bumps into it, when a pushed block hits it or when a monster tries to enter it."
+      }
+    },
+    "slime_3d": {
+      "name": "Slime (CC3D)",
+      "desc": {
+        "label": "Kills the player and most monsters. A player holding both fire boots and water boots survives and turns the cell into floor. A block is destroyed as it cleans the slime."
+      }
+    },
+    "teleport_red_cc2_off": {
+      "name": "Red Teleporter (CC2, Off)",
+      "desc": {
+        "label": "The unpowered form of the CC2 red teleporter: it is not a teleporter, so nothing is sent to it and nothing leaves by it. Needs: a signal link into it."
+      }
+    },
+    "transmogrifier_cc2_off": {
+      "name": "Transmogrifier (CC2, Off)",
+      "desc": {
+        "label": "The unpowered form of the CC2 transmogrifier: whatever arrives on it passes unchanged. Needs: a signal link into it."
+      }
+    },
     "teleport_yellow": {
       "name": "Yellow Teleporter",
       "desc": {
@@ -5680,6 +5722,12 @@
       "name": "Arrow Block (Four Ways)",
       "desc": {
         "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
+      }
+    },
+    "ice_block_3d": {
+      "name": "Ice Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over security gates without opening them, and it passes over CC3D dirt without clearing it."
       }
     },
     "arrow_block_none": {
