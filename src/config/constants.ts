@@ -435,3 +435,15 @@ export const CC2_SOURCES_FIELD = 'cc2Sources';
 
 /** Length of a lower case hex SHA-256 digest. */
 export const SHA256_HEX_LENGTH = 64;
+
+/** Rules version of native Epoxy levels; bump it when a change alters how recorded moves play out. */
+export const NATIVE_RULES_VERSION = 1;
+
+/** Rules version of Epoxy levels played with the classic Chip's Challenge timing; bumping it drops their stored replays. */
+export const CC_RULES_VERSION = 1;
+
+/** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
+export const LYNX_RULES_VERSION = 1;
+
+/** Rules version of the CC3D engine, for replays recorded on CC3D levels. */
+export const CC3D_RULES_VERSION = 1;
