@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Validator: it reads the eight format 15 elements without ever calling a winnable level unwinnable (a wired switched-off teleporter or transmogrifier counts as switched on, the CC3D slime spares a player holding fire and water boots, the CC3D ice block crosses the security gates) and warns about a switched-off twin that no wire reaches. Both locales.
+
 ### Fixed
 
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
