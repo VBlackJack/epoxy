@@ -698,11 +698,42 @@ export function playerGripsTile(w: EpoxyWorld, tile: TileDefinition): boolean {
   return tile.slideType === 'ice' && playerCharacterOf(w) === MELINDA_CHARACTER;
 }
 
-/** Applies the terrain change, if any, of a cell the player or a block has just left. */
-export function leaveCell(w: EpoxyWorld, x: number, y: number): void {
+/** Who leaves a cell, for the tiles that judge the leaver (the CC2 turtle). */
+export interface LeaveOptions {
+  /** The monster or block that leaves; absent for the player. */
+  leaver?: RuntimeEntity;
+  /** The leaver sinks nothing (a glider leaves a CC2 turtle afloat). */
+  afloat?: boolean;
+}
+
+/**
+ * Applies the terrain change, if any, of a cell the player, a monster or a block has just left. A CC2 turtle (a tile
+ * that bars some monsters and sinks on leave) keeps afloat while another actor still stands on the cell, and behind a
+ * leaver that leaves turtles afloat (Lexy's Labyrinth tiletypes.js, turtle.on_depart).
+ */
+export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOptions): void {
   const tile = ConfigRegistry.getTile(w.terrain[y][x]);
-  if (tile.transformsToOnLeave) {
-    w.terrain[y][x] = tile.transformsToOnLeave;
+  if (!tile.transformsToOnLeave) return;
+  if (tile.barsMonsters !== undefined) {
+    if (options?.afloat === true) return;
+    if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y)) return;
+    // A player who stays on the cell holds it up too (when a monster or a block is the one that leaves).
+    if (options?.leaver !== undefined && playerAtCell(w, x, y) !== undefined) return;
+  }
+  w.terrain[y][x] = tile.transformsToOnLeave;
+}
+
+/**
+ * A monster leaves its cell. A monster that may enter turtles sinks the classic turtle it leaves unless it leaves them
+ * afloat; on a CC2 turtle every monster takes part, and the turtle judges who leaves it.
+ */
+export function monsterLeavesCell(w: EpoxyWorld, entity: RuntimeEntity): void {
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const afloat = def?.leavesTurtlesAfloat === true;
+  if (ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).barsMonsters !== undefined) {
+    leaveCell(w, entity.x, entity.y, { leaver: entity, afloat });
+  } else if (def?.entersTurtles === true && !afloat) {
+    leaveCell(w, entity.x, entity.y);
   }
 }
 

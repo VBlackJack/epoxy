@@ -22,7 +22,7 @@ import { attemptPushBlock } from './epoxyBlocks';
 import { railRedirect } from './epoxyRailsCc2';
 import { leaveSwivel } from './epoxySwivels';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
-import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, leaveCell, playerAtCell } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, monsterLeavesCell, playerAtCell } from './epoxyWorld';
 
 /** Whether the entity is a monster that moves only when a steering pad is worked. */
 function isSteered(entity: RuntimeEntity): boolean {
@@ -75,8 +75,7 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, wanted: Direction
 
   leaveSwivel(w, entity.x, entity.y, dir);
   // A steered monster that may enter turtles sinks the one it leaves, as a walking monster does.
-  const def = ConfigRegistry.getEntityDef(entity.type);
-  if (def?.entersTurtles === true && def.leavesTurtlesAfloat !== true) leaveCell(w, entity.x, entity.y);
+  monsterLeavesCell(w, entity);
   entity.x = nx;
   entity.y = ny;
   entity.dir = dir;
