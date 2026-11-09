@@ -157,4 +157,39 @@ describe('wired track switches', () => {
     step(engine, 'E');
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
   });
+
+  const N = 0x1;
+  /** Active segment east-west, with a north-south one; a player walking east enters from the west and leaves east. */
+  const TRACK_EW_SWITCH = 0x470;
+  const SOUTH_ACTIVE_EW = 4;
+
+  it('reports a wire with no source as approximate wired_track_unlinked, not exact', () => {
+    const { level, coverage, report } = convertCc2Map(
+      makeMap(4, 2, [player(0, 0, DIR_E), put(2, 0, modTile(TRACK, TRACK_EW_SWITCH)), put(2, 1, modTile(FLOOR_CODE, N))]),
+      OPTIONS
+    );
+    expect(level.signalLinks ?? []).toEqual([]);
+    expect(coverage.approx).toContain('wired_track_unlinked');
+    expect(report.exact).not.toContain('wired_track');
+    expect(CC2_COVERAGE.wired_track_unlinked.level).toBe('approx');
+  });
+
+  it('does not advance a linked switch when an actor leaves along the active track', () => {
+    const { level, report } = convertCc2Map(
+      makeMap(4, 2, [player(0, 0, DIR_E), put(2, 0, modTile(TRACK, TRACK_EW_SWITCH)), put(2, 1, modTile(PINK, N))]),
+      OPTIONS
+    );
+    expect(level.signalLinks).toEqual([{ fromX: 2, fromY: 1, toX: 2, toY: 0 }]);
+    expect(report.exact).toContain('wired_track');
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const trackCell = 2;
+    const activeNow = (): number | undefined => engine.getRailState()?.find(([cell]) => cell === trackCell)?.[1];
+    expect(activeNow()).toBe(SOUTH_ACTIVE_EW);
+    step(engine, 'E');
+    step(engine, 'E');
+    step(engine, 'E');
+    expect(engine.getPlayer().x).toBe(3);
+    expect(activeNow()).toBe(SOUTH_ACTIVE_EW);
+  });
 });

@@ -48,6 +48,7 @@ export const KEY_TRAP_OPEN = 'trap_open';
 export const KEY_WIRED_TELEPORT = 'wired_teleport';
 export const KEY_WIRED_TRANSMOGRIFIER = 'wired_transmogrifier';
 export const KEY_WIRED_TRACK = 'wired_track';
+export const KEY_WIRED_TRACK_UNLINKED = 'wired_track_unlinked';
 /** The canopy flag of a thin wall: a modifier of the cell, not a terrain. */
 export const KEY_CANOPY = 'canopy';
 /** A code the importer's table does not know; it stands for the cc2_unknown placeholder. */
@@ -61,7 +62,7 @@ const RESERVED_REASON =
 const TELEPORT_REASON =
   'The target and the exit order differ from CC2: the Epoxy player leaves facing first, then in a fixed order, where CC2 tries other sides [unverified].';
 const YELLOW_TELEPORT_REASON =
-  'Epoxy plays the yellow pad as its forward pad: same ring order and forward-only exit as CC2. Two differences: a CC2 yellow pad with no free destination is picked up as an item by the player (in a level with several yellow pads), which Epoxy cannot do, and the CC2 ring ends on the pad itself (the mover leaves forward from it) where the Epoxy forward pad never lands on itself and stays put.';
+  'Epoxy plays the yellow pad as its forward pad: same ring order and forward-only exit as CC2. Three differences: the imported pad is drawn as the forward pad (blue with a forward mark), not yellow; Lexy lets the player steer off the destination pad (teleport-soft) where Epoxy places it on the exit cell; a CC2 yellow pad with no free destination is picked up as an item by the player (in a level with several yellow pads), which Epoxy cannot do, and the CC2 ring ends on the pad itself (the mover leaves forward from it) where the Epoxy forward pad never lands on itself and stays put.';
 const GREEN_BUTTON_REASON =
   'Epoxy plays the green button as CC2 does: it flips the toggle walls and swaps every green chip with a green bomb and back.';
 const MECHANIC_REASON =
@@ -93,7 +94,7 @@ const TOGGLE_CLOCK_REASON =
 const DYNAMITE_REASON =
   'Epoxy plays dynamite with the CC2 blast of the Lexy Labyrinth engine: lit once the player leaves the cell, a fuse of 85 ticks, a 5 x 5 square without its far corners that destroys items and turns terrain into floor (steel wall, socket and logic gates resist, creatures are killed). Differences: a lit dynamite is an item in Epoxy, so it blocks nothing and never slides on ice or force floors; thin walls on the cells are not destroyed and canopies do not shield their cell; a cracked floor would become a hole but Epoxy has no such tile; a no-sign on the cell does not stop the lighting; a lit dynamite does not block re-entry of its cell; the explosion animation does not block the player; the fuse may be one tick off [unverified].';
 const TRACK_REASON =
-  'Epoxy plays a CC2 track cell as a track cell of its own (rail_junction): entering only through a side an open track touches, leaving only along a track that joins the side of entry (a block may back out), a blocked step of the player, a pushed block or a monster turned right, left then back, and a switch that advances when an actor leaves along the active track or a gray button works. The validator and the hints read a track cell as open floor (they over-approximate). Deviations: the thin walls of the cell are not read when a step is turned, the ghost leaves no entry side, and the importer links no wire to a switch (a gray button works it) [unverified against the game: the rules are those of the Lexy Labyrinth engine].';
+  'Epoxy plays a CC2 track cell as a track cell of its own (rail_junction): entering only through a side an open track touches, leaving only along a track that joins the side of entry (a block may back out), a blocked step of the player, a pushed block or a monster turned right, left then back, and a switch that advances when an actor leaves along the active track or a gray button works. The validator and the hints read a track cell as open floor (they over-approximate). Deviations: the thin walls of the cell are not read when a step is turned, the ghost leaves no entry side, and a switch that a wire touches but no source drives is not wire-only (see wired_track_unlinked) [unverified against the game: the rules are those of the Lexy Labyrinth engine].';
 const RAILROAD_SIGN_REASON =
   'Epoxy plays the railroad sign as boots: the player who holds it ignores the track cells (enters and leaves on any side, is never turned, and still moves the switches). A thief takes it with the other boots, as in CC2.';
 const GENDER_SIGN_REASON =
@@ -236,6 +237,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_WIRED_TELEPORT]: 'A wire reaches a teleport (red, yellow, green or blue). CC2 isolates wired blue pads into networks and lets a wire switch a red pad off; Epoxy ignores the wire and keeps one level-wide group.',
   // Epoxy: transmogrifier ignores its wire.
   [KEY_WIRED_TRANSMOGRIFIER]: 'A wire reaches a transmogrifier. A powered CC2 transmogrifier switches on and off with its wire; the Epoxy one is always on.',
+  // Epoxy: rail_junction, a switch no link reaches.
+  [KEY_WIRED_TRACK_UNLINKED]: 'A wire touches a track switch but no supported source drives it (dangling, or fed only by gates Epoxy does not play): the Epoxy switch still moves when an actor leaves along the active track, where CC2 makes a wired switch wire-only.',
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.

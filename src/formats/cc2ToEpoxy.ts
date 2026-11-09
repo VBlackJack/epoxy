@@ -23,6 +23,7 @@ import {
   KEY_TRAP_OPEN,
   KEY_WIRED_TELEPORT,
   KEY_WIRED_TRACK,
+  KEY_WIRED_TRACK_UNLINKED,
   KEY_WIRED_TRANSMOGRIFIER,
   KEY_UNKNOWN,
   KEY_WIRE,
@@ -385,6 +386,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const wires = buildCc2Wires(map, { chargeFloors: hasLightningBolt });
   const chargeFloorCells = new Set((wires.chargeFloors ?? []).map((floor) => floor.y * width + floor.x));
   const wiredSinkCells = new Set(wires.wiredSinks.map((sink) => sink.y * width + sink.x));
+  const linkedCells = new Set(wires.links.map((link) => link.toY * width + link.toX));
 
   // The player is the first chip or Melinda in reading order; every other one is an inert placeholder.
   const parts: CellParts[] = map.cells.map(partsOf);
@@ -443,7 +445,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         }
         if (code === CC2_CODE_TRACK && wiredSinkCells.has(index)) {
           wiredDevices = true;
-          keys.add(KEY_WIRED_TRACK);
+          // Only a switch a link reaches is wire-only in Epoxy; a wire with no supported source leaves it moving on departure.
+          keys.add(linkedCells.has(index) ? KEY_WIRED_TRACK : KEY_WIRED_TRACK_UNLINKED);
         }
       } else {
         keys.add(UNKNOWN_KEY);

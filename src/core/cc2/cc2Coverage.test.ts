@@ -152,7 +152,7 @@ describe('coverage truth policy', () => {
     'wired_trap', 'wired_track', 'green_wall', 'canopy', 'popup_wall'
   ];
   const APPROX_NOW = [
-    'popup_wall_blocks', 'trap_open', 'wired_teleport', 'wired_transmogrifier', 'wired_flame_jet',
+    'popup_wall_blocks', 'trap_open', 'wired_teleport', 'wired_transmogrifier', 'wired_track_unlinked', 'wired_flame_jet',
     'hook', 'multiple_players', 'force_floor_random', 'yellow_tank', 'lightning_bolt', 'counter_gate'
   ];
 
