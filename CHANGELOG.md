@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.26.0] - 2026-11-09
+
 ### Fixed
 
 - Validator: monsters and blocks pressing colour and flame buttons, puppets and golems crossing gravel, sand, turtles or fire, and walls they open are now part of the reach walk, so fewer playable levels are reported unwinnable (native levels included, only errors can disappear). On levels converted from Chuck's Challenge 3D, movers may stop an ice slide, a key thief no longer takes the keys in the walk, and a door no key opens is a warning. Converted CC3D levels with validator errors: 82 to 37. Both locales.
