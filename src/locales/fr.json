@@ -1871,6 +1871,9 @@
       "start_on_entity": {
         "label": "Avertissement : le départ du joueur partage sa case avec un bloc ou un monstre."
       },
+      "unwired_off_twin": {
+        "label": "Avertissement : la case ({x}, {y}) contient un jumeau éteint qu'aucun fil n'atteint, il ne s'allumera jamais."
+      },
       "trap_link_button": {
         "label": "Avertissement : un lien de piège part de ({x}, {y}), qui n'est pas un bouton brun."
       },

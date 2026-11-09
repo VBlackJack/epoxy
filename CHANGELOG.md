@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Validator: it reads the eight format 15 elements without ever calling a winnable level unwinnable (a wired switched-off teleporter or transmogrifier counts as switched on, the CC3D slime spares a player holding fire and water boots, the CC3D ice block crosses the security gates) and warns about a switched-off twin that no wire reaches. Both locales.
 - Pack format 15, blocks: CC3D dirt is cleared by the blocks that enter it, except ice blocks, which pass over it; the CC2 pop-up wall bars dirt blocks, CC3D dirt and slime bar mirrors and turrets; the CC3D ice block pushes a whole line of blocks, mirrors and turrets and slides over the security gates; a block pushed or sliding into a CC3D appearing wall makes it solid.
 
 ### Fixed
