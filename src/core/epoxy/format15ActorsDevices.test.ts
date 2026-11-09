@@ -572,7 +572,7 @@ describe('powered twins: teleporter', () => {
     expect(terrainAt(engine, PAD_B.x, PAD_B.y)).toBe(TELEPORT_OFF);
   });
 
-  it('sends nothing from an off pad: the player walks over it', () => {
+  it('sends the player back out of an off pad forward', () => {
     const engine = load(
       room({
         terrain: [[PAD_A.x, PAD_A.y, TELEPORT_OFF], [PAD_B.x, PAD_B.y, TELEPORT_ON]],
@@ -580,7 +580,7 @@ describe('powered twins: teleporter', () => {
       })
     );
     expect(step(engine, 'E')).toBe(true);
-    expect(engine.getPlayer()).toMatchObject({ x: PAD_A.x, y: PAD_A.y });
+    expect(engine.getPlayer()).toMatchObject({ x: PAD_A.x + 1, y: PAD_A.y });
   });
 
   it('is not a destination while off: a lone live pad and an off pad send nowhere else', () => {

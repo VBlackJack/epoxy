@@ -109,8 +109,11 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
   if (playerAtCell(w, x, y) !== undefined) return true;
+  const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
-    if (e.x !== x || e.y !== y || e.isSliding) return false;
+    if (e.x !== x || e.y !== y) return false;
+    if (anyActor) return true;
+    if (e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
     return entityPressesPlate(e.type, e.kind, ownColor);
   });

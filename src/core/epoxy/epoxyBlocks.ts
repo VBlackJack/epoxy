@@ -334,7 +334,7 @@ export function moveBlockTo(
   }
 
   // A jump resolves the arrival (and the sliding state) at the exit itself.
-  if (tile.isTeleporter && allowTeleport && ctx.teleportEntity(block, destX, destY, dir)) {
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && ctx.teleportEntity(block, destX, destY, dir)) {
     return;
   }
 
