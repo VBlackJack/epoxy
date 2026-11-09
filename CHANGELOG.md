@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.28.0] - 2026-11-09
+
 ### Added
 
 - A hint tile can carry its own text (level editor, Cell section); without one it shows the level hint, and builds that do not know the field show the level hint everywhere. The validator warns about a tile text on a cell that is not a hint tile. Both locales.
