@@ -307,7 +307,7 @@ describe('terrain, items and entities', () => {
     expect(bonus.coverage.approx).toEqual(['no_sign_bonus']);
     const bolt = convert([put(1, 0, { code: 0x7f }, { code: 0x62 }, { code: FLOOR_CODE })]);
     expect(bolt.level.items[0][1]).toBe('no_sign_lightning_bolt');
-    expect(bolt.coverage.approx).toEqual([]);
+    expect(bolt.coverage.approx).toEqual(['lightning_bolt']);
     const railroad = convert([put(1, 0, { code: 0x7f }, { code: 0x6f }, { code: FLOOR_CODE })]);
     expect(railroad.level.items[0][1]).toBe('no_sign_railroad_sign');
     expect(railroad.coverage.lost).toEqual([]);
@@ -804,7 +804,7 @@ describe('wires', () => {
     ]);
     expect(coverage.lost).toEqual(['unknown']);
     expect(report.warnings.some((w) => w.includes('latch'))).toBe(false);
-    expect(coverage.approx).not.toContain('counter_gate');
+    expect(coverage.approx).toContain('counter_gate');
     expect(coverage.approx).not.toContain('data_latch');
   });
 

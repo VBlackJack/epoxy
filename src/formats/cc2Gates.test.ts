@@ -66,7 +66,7 @@ describe('CC2 gates the converter now plays', () => {
       'signal_counter_9'
     ]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).not.toContain('counter_gate');
+    expect(coverage.approx).toContain('counter_gate');
     expect(coverage.approx).not.toContain('data_latch');
     expect(coverage.approx).not.toContain('wire');
   });
@@ -145,8 +145,8 @@ describe('lightning bolt', () => {
     ]);
     const { level, coverage } = convertCc2Map(map, OPTIONS);
     expect(level.items[1][4]).toBe('lightning_bolt');
-    expect(coverage.approx).not.toContain('lightning_bolt');
-    expect(CC2_COVERAGE.lightning_bolt.level).toBe('exact');
+    expect(coverage.approx).toContain('lightning_bolt');
+    expect(CC2_COVERAGE.lightning_bolt.reason).toContain('stands still');
     expect(level.terrain[0][1]).toBe('signal_wire_floor');
     expect(level.terrain[0][2]).toBe('signal_wire_floor');
     const links = level.signalLinks ?? [];

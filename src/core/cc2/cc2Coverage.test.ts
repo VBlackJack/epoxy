@@ -149,12 +149,17 @@ describe('wired devices', () => {
 describe('coverage truth policy', () => {
   const EXACT_NOW = [
     'wire', 'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
-    'wired_trap', 'lightning_bolt', 'green_wall', 'counter_gate', 'canopy', 'popup_wall'
+    'wired_trap', 'green_wall', 'canopy', 'popup_wall'
   ];
   const APPROX_NOW = [
     'popup_wall_blocks', 'trap_open', 'wired_teleport', 'wired_transmogrifier', 'wired_track', 'wired_flame_jet',
-    'hook', 'multiple_players', 'force_floor_random', 'yellow_tank'
+    'hook', 'multiple_players', 'force_floor_random', 'yellow_tank', 'lightning_bolt', 'counter_gate'
   ];
+
+  it('explains the state and result differences of the counter gate and the lightning bolt', () => {
+    expect(CC2_COVERAGE.counter_gate.reason).toMatch(/final count|pulse/);
+    expect(CC2_COVERAGE.lightning_bolt.reason).toMatch(/stands still/);
+  });
 
   it('plays each reclassified key as exact', () => {
     for (const key of EXACT_NOW) expect(CC2_COVERAGE[key]?.level, key).toBe('exact');

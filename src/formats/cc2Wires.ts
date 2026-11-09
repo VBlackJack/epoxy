@@ -19,6 +19,7 @@ import type { SignalLink } from '../core/types';
 import type { Cc2Map } from './cc2Model';
 import { Cc2Layer } from './cc2Model';
 import { cc2TileInfo } from './cc2TileTable';
+import { TRACK_SWITCH_FLAG } from './cc2Tracks';
 
 /**
  * CC2 wires as topology. A wire is an overlay on a cell: the low nibble of the cell modifier names the sides the wire
@@ -66,7 +67,6 @@ const CODE_TELEPORT_LAST = 0x13;
 const CODE_TRANSMOGRIFIER = 0x4e;
 /** The railroad tile; its modifier holds the track bits, and the switch flag marks a switch a wire can advance. */
 const CODE_TRACK = 0x4f;
-const TRACK_SWITCH_FLAG = 0x40;
 /** Sinks and devices that take a wire from any side (no mask of their own). */
 const CODE_CLONER_CC1 = 0x43;
 const CODE_CLONER = 0x44;
