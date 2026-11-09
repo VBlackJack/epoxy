@@ -325,6 +325,24 @@
    ".tttttttttttttt.",
    "................"
   ]},
+  "dirt_block_3d": { "outline": true, "rows": [
+   "................",
+   ".pppppppppppppr.",
+   ".pqqqqqqqqqqqqr.",
+   ".pqqqqqqqrrrqqr.",
+   ".pqqqqqqqqqrqqr.",
+   ".pqqqqqqqrrrqqr.",
+   ".pqqqqqqqqqrqqr.",
+   ".pqqqqqqqrrrqqr.",
+   ".pqqqqpqqqqrqqr.",
+   ".pqqqqqqqqqqqqr.",
+   ".rrrrrrrrrrrrrr.",
+   ".qrrrrrrrrrrrrt.",
+   ".qrrqrrtrrrrqrt.",
+   ".qrtrrrrrqrtrrt.",
+   ".tttttttttttttt.",
+   "................"
+  ]},
   "color_block_red": { "outline": true, "rows": [
    "................",
    ".AAAAAAAAAAAAAC.",

@@ -114,6 +114,9 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   cc3d_slime: ['slime_3d'],
   cc2_powered_devices: ['teleport_red_cc2_off', 'transmogrifier_cc2_off'],
   cc3d_ice_block: ['ice_block_3d'],
+  // Format 16: the CC2 orange button and the CC3D dirt block.
+  cc2_orange_button: ['button_orange_cc2'],
+  cc3d_dirt_block: ['dirt_block_3d'],
   coloured_toggles: [
     ...['red', 'blue', 'yellow'].flatMap((c) => [
       `toggle_wall_${c}_closed`,
@@ -338,6 +341,8 @@ export const PENDING: readonly string[] = [
   'cc3d_slime',
   'cc2_powered_devices',
   'cc3d_ice_block',
+  'cc2_orange_button',
+  'cc3d_dirt_block',
   'coloured_toggles',
   'pressure_plates',
   'flame_jets',

@@ -57,7 +57,7 @@ item dynamite tick=3 593c135d7c6a0fe6
 item dynamite_lit tick=3 fb3b283f13f01a60
 item no_sign_dynamite tick=3 6d798b6c3e81e609
 item no_sign_railroad_sign tick=3 6ace491e8bc7481b
-item helmet tick=3 786a6d29a886d76f
+item helmet tick=3 793d5c27b9bbef26
 entity dirt_block dir=N tick=3 0e3c69b7734d5883
 entity dirt_block dir=E tick=3 e58ffd25f33f16f7
 entity dirt_block dir=S tick=3 758d15377bd65342
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 610fec8a8ff758af
 entity ice_block_3d dir=E tick=3 5cb9739b9c1c17c4
 entity ice_block_3d dir=S tick=3 9f5bb8506505171d
 entity ice_block_3d dir=W tick=3 5157a44ce94da373
+entity dirt_block_3d dir=N tick=3 badf04332734fd17
+entity dirt_block_3d dir=E tick=3 afb6ab59429bcffe
+entity dirt_block_3d dir=S tick=3 65e1cf77cbf03854
+entity dirt_block_3d dir=W tick=3 f1a493f23c78444b
 item key_red tick=13 1e6f3bb88d0ac1d7
 item key_blue tick=13 88b51d3159bbcdc3
 item key_yellow tick=13 899144d925ce82cc
@@ -349,7 +353,7 @@ item dynamite tick=13 21ad82ba54be8471
 item dynamite_lit tick=13 accd49cc17d52fa8
 item no_sign_dynamite tick=13 cd071806a41fff7b
 item no_sign_railroad_sign tick=13 c39f69f6f484ad7c
-item helmet tick=13 61a2958932f7a698
+item helmet tick=13 71ac65651c4da75e
 entity dirt_block dir=N tick=13 bb50ae174d76ac9c
 entity dirt_block dir=E tick=13 152d693ea5c7db9b
 entity dirt_block dir=S tick=13 1ed1c398f9529ab1
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 2645140b8cdad5d7
 entity ice_block_3d dir=E tick=13 55dd5c85d0dc0d3e
 entity ice_block_3d dir=S tick=13 eee2357e7cee252f
 entity ice_block_3d dir=W tick=13 9d56a8045f3cc4f5
+entity dirt_block_3d dir=N tick=13 8ea0f9093f62383b
+entity dirt_block_3d dir=E tick=13 20d0501cef2f59e2
+entity dirt_block_3d dir=S tick=13 4ee6f9bfcd50a6f7
+entity dirt_block_3d dir=W tick=13 49dd79fd5a0bad21
 player dir=N inWater=false alive=true frame=0 hop=0 2561b7f2c394d4e4
 player dir=N inWater=false alive=true frame=0 hop=0.3 c197bb517a36b080
 player dir=N inWater=false alive=true frame=1 hop=0 ab7ac91e28189f78

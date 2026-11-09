@@ -76,6 +76,10 @@ const SIGN_PLATE = { halfWidth: 0.3, halfHeight: 0.24, corner: 0.07, line: 0.035
 const SIGN_LETTER_TILE = 0.34;
 const SIGN_FONT = 'bold {px}px sans-serif';
 const SIGN_FONT_PX_TOKEN = '{px}';
+/** The lettered corner badge of a look-alike tile: centre, side, corner radius and line width, in tiles. */
+const CORNER_BADGE = { x: 0.77, y: 0.77, side: 0.38, corner: 0.08, line: 0.03 } as const;
+/** Height of the letter on a corner badge, in tiles. */
+const CORNER_LETTER_TILE = 0.3;
 /** Where the post of a sign meets the plate: below the plate by this much, in tiles. */
 const SIGN_POST = { width: 0.07, height: 0.14 } as const;
 
@@ -420,6 +424,37 @@ export function paintSignPlate(
   ctx.stroke();
   ctx.fillStyle = colours.ink;
   ctx.font = SIGN_FONT.replace(SIGN_FONT_PX_TOKEN, String(Math.max(1, Math.floor(size * SIGN_LETTER_TILE))));
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(letter, cx, cy + 1);
+  ctx.restore();
+}
+
+/**
+ * A lettered corner badge: a small rounded plate in the lower right corner of the tile (about a quarter of it) with one
+ * letter on it. It tells a look-alike from the tile it is drawn on without hiding that tile, unlike the sign plate.
+ */
+export function paintCornerBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  letter: string,
+  colours: MarkColours
+): void {
+  ctx.save();
+  const cx = x + size * CORNER_BADGE.x;
+  const cy = y + size * CORNER_BADGE.y;
+  const half = (size * CORNER_BADGE.side) / 2;
+  ctx.fillStyle = colours.fill;
+  ctx.strokeStyle = colours.edge;
+  ctx.lineWidth = lineWidth(size, CORNER_BADGE.line);
+  ctx.beginPath();
+  ctx.roundRect(cx - half, cy - half, half * 2, half * 2, size * CORNER_BADGE.corner);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = colours.ink;
+  ctx.font = SIGN_FONT.replace(SIGN_FONT_PX_TOKEN, String(Math.max(1, Math.floor(size * CORNER_LETTER_TILE))));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(letter, cx, cy + 1);

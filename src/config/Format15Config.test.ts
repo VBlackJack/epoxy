@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { findFormat15ConfigErrors } from './ConfigValidation';
 import { ConfigRegistry } from './ConfigRegistry';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V14_IDS, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V15_IDS } from './constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V14_IDS, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V15_IDS } from './constants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
@@ -55,7 +55,7 @@ describe('format 15 ids', () => {
   it('lists exactly the new ids, none of them in an older format', () => {
     expect([...PACK_JSON_VERSION_V15_IDS].sort()).toEqual([...NEW_IDS].sort());
     for (const id of NEW_IDS) expect(PACK_JSON_VERSION_V14_IDS.has(id), id).toBe(false);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V15);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V16);
   });
 
   it('defines every new id in the shipped configs', () => {
@@ -87,7 +87,7 @@ describe('format 15 ids', () => {
     const level = makeLevel('f15');
     level.terrain[1][1] = 'dirt_3d';
     const file = JSON.parse(serializePack('P', [level]));
-    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V15 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
+    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V16 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
     expect(read).toEqual({ ok: false, error: 'version' });
   });
 
@@ -177,7 +177,7 @@ describe('shipped format 15 fields', () => {
   it('lets the CC3D ice block push every block kind and slide over the security gates', () => {
     const { entities } = clones();
     const expected = [
-      'dirt_block', 'ice_block', 'ice_block_3d',
+      'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d',
       'color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow',
       'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross',
       ...MIRROR_AND_TURRET_BLOCKS

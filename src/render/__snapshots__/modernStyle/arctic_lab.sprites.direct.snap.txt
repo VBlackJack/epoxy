@@ -57,7 +57,7 @@ item dynamite tick=3 d31bcd58965eb000
 item dynamite_lit tick=3 bec6259fed74e2e0
 item no_sign_dynamite tick=3 694b8541d31f43dd
 item no_sign_railroad_sign tick=3 8b07d04dc4e89aa2
-item helmet tick=3 db2226c29c1c7518
+item helmet tick=3 2dbddfde769c8f01
 entity dirt_block dir=N tick=3 913f6d67bd667d6b
 entity dirt_block dir=E tick=3 e9af101697659ed9
 entity dirt_block dir=S tick=3 b1f0448dab9cd0f4
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 eabeb146e8b3d2e5
 entity ice_block_3d dir=E tick=3 c5dc68d008f1ed37
 entity ice_block_3d dir=S tick=3 7730aa073e7d61bf
 entity ice_block_3d dir=W tick=3 461204b5c88df697
+entity dirt_block_3d dir=N tick=3 68407f08ba2a5d11
+entity dirt_block_3d dir=E tick=3 1e11357ede63138f
+entity dirt_block_3d dir=S tick=3 9121aca7069c2284
+entity dirt_block_3d dir=W tick=3 b8f0c31a9de3b26d
 item key_red tick=13 0f036c0c8b9234ad
 item key_blue tick=13 dde62c01e90bd6ad
 item key_yellow tick=13 bd3b5697ad3542d5
@@ -349,7 +353,7 @@ item dynamite tick=13 166ad91204040211
 item dynamite_lit tick=13 e3348cc8a21a23b4
 item no_sign_dynamite tick=13 b3e21f9e5f4b8f72
 item no_sign_railroad_sign tick=13 f3bd7844f0827314
-item helmet tick=13 3c7af12ddcc25cf4
+item helmet tick=13 4f44cc7aad588df2
 entity dirt_block dir=N tick=13 047c07d0de6b5b51
 entity dirt_block dir=E tick=13 b6c744917a4ef193
 entity dirt_block dir=S tick=13 27650e8fcdfd6e25
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 9f4af8509962cac8
 entity ice_block_3d dir=E tick=13 09761bb56212da42
 entity ice_block_3d dir=S tick=13 fce1f2596575c399
 entity ice_block_3d dir=W tick=13 452c882194fb035a
+entity dirt_block_3d dir=N tick=13 7c5339c968a6dd54
+entity dirt_block_3d dir=E tick=13 fa2dc2d16d81aabe
+entity dirt_block_3d dir=S tick=13 1de10bd5d812b7d2
+entity dirt_block_3d dir=W tick=13 e976e1fd1a821f57
 player dir=N inWater=false alive=true frame=0 hop=0 48a9a3e12d409f8a
 player dir=N inWater=false alive=true frame=0 hop=0.3 d3e9ed583ea4da24
 player dir=N inWater=false alive=true frame=1 hop=0 f08879c7f7fcb2da

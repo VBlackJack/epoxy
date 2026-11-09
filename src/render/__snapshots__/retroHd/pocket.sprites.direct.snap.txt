@@ -57,7 +57,7 @@ item dynamite tick=3 27ccdf336daea6c7
 item dynamite_lit tick=3 e68141f63d656fa0
 item no_sign_dynamite tick=3 dafac31a435ab761
 item no_sign_railroad_sign tick=3 b716cea21e6b0e55
-item helmet tick=3 d892cec086e268b6
+item helmet tick=3 5e08894625565b4b
 entity dirt_block dir=N tick=3 9290f2cc325fd3b0
 entity dirt_block dir=E tick=3 a1b9be4a50b4320f
 entity dirt_block dir=S tick=3 2e72015ca334274f
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 6b6417c625c0ee17
 entity ice_block_3d dir=E tick=3 ac392a89915fa760
 entity ice_block_3d dir=S tick=3 2f19d423eb611de9
 entity ice_block_3d dir=W tick=3 47fe6cf0373b97ba
+entity dirt_block_3d dir=N tick=3 d131cb1b95c77ca1
+entity dirt_block_3d dir=E tick=3 73c196d0ce3cc2e1
+entity dirt_block_3d dir=S tick=3 f88d47fb2ed194ba
+entity dirt_block_3d dir=W tick=3 a00a616ffbaf780c
 item key_red tick=13 0cd5609bc173c274
 item key_blue tick=13 bd244a7a799c8c58
 item key_yellow tick=13 a080d374756dc853
@@ -349,7 +353,7 @@ item dynamite tick=13 2694b7e1f874a193
 item dynamite_lit tick=13 04e926557b2d3c60
 item no_sign_dynamite tick=13 0832fcf1d15d46b7
 item no_sign_railroad_sign tick=13 c13e28aa3baafbca
-item helmet tick=13 df01a109b94fa3a2
+item helmet tick=13 a19a46a2de36e86a
 entity dirt_block dir=N tick=13 5c19cd7cdeb156da
 entity dirt_block dir=E tick=13 e40df0aee36260c3
 entity dirt_block dir=S tick=13 7fe9f4d2dfe31ed4
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 5f49fb7b6595d7e9
 entity ice_block_3d dir=E tick=13 060cb13a24afb191
 entity ice_block_3d dir=S tick=13 af9db3d07b90f65c
 entity ice_block_3d dir=W tick=13 cb2211b5f178c7eb
+entity dirt_block_3d dir=N tick=13 6a8ab163c0c65bc3
+entity dirt_block_3d dir=E tick=13 1aa88277e1fbb024
+entity dirt_block_3d dir=S tick=13 6b7b4d3670167608
+entity dirt_block_3d dir=W tick=13 4a6a89cf92ae5780
 player dir=N inWater=false alive=true frame=0 hop=0 ff9810949f0db8b7
 player dir=N inWater=false alive=true frame=0 hop=0.3 b299bd45efec4a08
 player dir=N inWater=false alive=true frame=1 hop=0 bbd0b03094aa7ab3

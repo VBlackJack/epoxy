@@ -57,7 +57,7 @@ item dynamite tick=3 f4b6a3d8d2e34348
 item dynamite_lit tick=3 55d281ff24f0087f
 item no_sign_dynamite tick=3 36842570d6615776
 item no_sign_railroad_sign tick=3 8024b2c76ab3e148
-item helmet tick=3 e1a7eaad22acf3a2
+item helmet tick=3 8458f1548d836564
 entity dirt_block dir=N tick=3 9b4c4f6422d6e3b3
 entity dirt_block dir=E tick=3 01d96662f132d228
 entity dirt_block dir=S tick=3 831a93d652e9d48d
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 59ae944d3cf68b7b
 entity ice_block_3d dir=E tick=3 828fee0d48df900e
 entity ice_block_3d dir=S tick=3 81481b12b4a72447
 entity ice_block_3d dir=W tick=3 5c643693ec5ac148
+entity dirt_block_3d dir=N tick=3 4c3e1b8d626d52c7
+entity dirt_block_3d dir=E tick=3 ef9d52fc2fe04c2c
+entity dirt_block_3d dir=S tick=3 5d87200b03789925
+entity dirt_block_3d dir=W tick=3 373925a912eab946
 item key_red tick=13 6a43e0aa7ea7c24d
 item key_blue tick=13 1b07539a3555d9ad
 item key_yellow tick=13 abf6c8b16b112b9b
@@ -349,7 +353,7 @@ item dynamite tick=13 709d5d6061ed4b06
 item dynamite_lit tick=13 48b26fe56241e018
 item no_sign_dynamite tick=13 e2f626d75baa8441
 item no_sign_railroad_sign tick=13 7d802b61a0bedbc3
-item helmet tick=13 98d20cd6988cfc55
+item helmet tick=13 8a6ce1cb7c1b93cc
 entity dirt_block dir=N tick=13 79e803c262e8805d
 entity dirt_block dir=E tick=13 e3c5548ae87a4e96
 entity dirt_block dir=S tick=13 d0e68e64c343cda1
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 e2fbd593f222ba5e
 entity ice_block_3d dir=E tick=13 fc598bc36804aade
 entity ice_block_3d dir=S tick=13 ae760403bf3621dd
 entity ice_block_3d dir=W tick=13 d31eef85c6735566
+entity dirt_block_3d dir=N tick=13 b1bb5b22ccfdbbe1
+entity dirt_block_3d dir=E tick=13 a9907412a8757421
+entity dirt_block_3d dir=S tick=13 82734853c7c3fd5f
+entity dirt_block_3d dir=W tick=13 83f437d70e3ab594
 player dir=N inWater=false alive=true frame=0 hop=0 2771ae0d233879bb
 player dir=N inWater=false alive=true frame=0 hop=0.3 f3ddbde814cef5dd
 player dir=N inWater=false alive=true frame=1 hop=0 597c0e2e95e76cca

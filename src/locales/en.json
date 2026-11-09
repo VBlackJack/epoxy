@@ -1092,7 +1092,7 @@
     },
     "desktop": {
       "key_hint": {
-        "label": "Arrows/WASD: move | U: undo | R: restart | H: objective"
+        "label": "Arrows/WASD: move | U: undo | R: restart | H: objective | E: drop an item | C: cycle items"
       }
     },
     "mobile": {
@@ -5111,7 +5111,7 @@
     "teleport_red_cc2_off": {
       "name": "Red Teleporter (CC2, Off)",
       "desc": {
-        "label": "The unpowered form of the CC2 red teleporter: it is not a teleporter, so nothing is sent to it and nothing leaves by it. Needs: a signal link into it."
+        "label": "The unpowered form of the CC2 red teleporter: it is not a destination, and whatever steps on it is sent straight back out in the direction it was facing, as if it had teleported onto itself. Needs: a signal link into it."
       }
     },
     "transmogrifier_cc2_off": {
@@ -5232,6 +5232,12 @@
       "name": "Signal Plate",
       "desc": {
         "label": "Sends a signal while something stands on it. Needs: a signal link to a gate or a hold door."
+      }
+    },
+    "button_orange_cc2": {
+      "name": "Orange Button (CC2)",
+      "desc": {
+        "label": "A button that stays pressed while anything stands on it: a player, a monster, a block, a sliding or flying one included. Needs: a signal link to a gate or a hold door."
       }
     },
     "signal_button": {
@@ -5744,6 +5750,12 @@
       "name": "Arrow Block (Four Ways)",
       "desc": {
         "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
+      }
+    },
+    "dirt_block_3d": {
+      "name": "Dirt Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that slides on ice and force floors. Pushed into water it turns the water into CC3D dirt, which a second block cannot fill again. It will not enter fire and it will not push onto an item. A bomb destroys it."
       }
     },
     "ice_block_3d": {

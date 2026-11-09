@@ -753,7 +753,7 @@
       "refusesHazards": ["water", "fire"],
       "entersTurtles": true,
       "immuneToSlime": true,
-      "trailTile": "slime",
+      "trailTile": "slime_3d",
       "epoxyOnly": true
     },
     "legs_green": {
@@ -877,7 +877,7 @@
       "i18nKey": "entities.ice_block_3d.name",
       "pushable": true,
       "chainPushes": [
-        "dirt_block", "ice_block", "ice_block_3d",
+        "dirt_block", "dirt_block_3d", "ice_block", "ice_block_3d",
         "color_block_red", "color_block_green", "color_block_blue", "color_block_yellow",
         "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross",
         "mirror_slash", "mirror_backslash", "one_sided_mirror_ne", "one_sided_mirror_nw", "one_sided_mirror_se", "one_sided_mirror_sw",
@@ -892,6 +892,21 @@
       "destroyedByFire": true,
       "destroyedByBomb": true,
       "slidesOverTiles": ["thief", "thief_keys"],
+      "epoxyOnly": true
+    },
+    "dirt_block_3d": {
+      "id": "dirt_block_3d",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.dirt_block_3d.name",
+      "pushable": true,
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt_3d",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "refusesHazards": ["fire"],
+      "refusesItems": true,
       "epoxyOnly": true
     }
   }

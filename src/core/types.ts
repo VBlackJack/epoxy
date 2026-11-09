@@ -1171,6 +1171,12 @@ export interface TileDefinition {
    * A level with a link ending on either form is written as pack format 15.
    */
   poweredTwin?: string;
+  /**
+   * Format 16, the unpowered CC2 red pad: stepping on the tile sends the mover straight back out of it in the direction it
+   * was facing, as the exit of a teleport onto itself. Not a teleporter (no destination, no group), so it never breaks the
+   * live/off pairing of `poweredTwin`. Needs `poweredTwin` and no `isTeleporter`. The engine rule is not wired yet.
+   */
+  teleportsToSelf?: boolean;
   slideType?: 'ice' | 'force';
   blockedEntryDirections?: Direction[];
   blockedEdges?: Direction[];
@@ -1349,6 +1355,12 @@ export interface TileDefinition {
    * arrives on its cell. A laser receiver is a source through laserReceiverGroup.
    */
   signalSource?: 'held' | 'pulse' | 'inverted' | 'toggle' | 'charged';
+  /**
+   * Format 16, the CC2 orange button: a held source that every actor on its cell presses (sliding or flying ones, a block
+   * and a monster alike), whatever `pressesPlates` says about the actor. Needs `signalSource` "held". The engine rule is
+   * not wired yet.
+   */
+  pressedByAnyActor?: boolean;
   /**
    * A toggle switch (signalSource 'toggle'): whether this form is the powered one. The state of the switch is its terrain
    * form, so it lives in the terrain (snapshots and hashes already cover it).
