@@ -154,6 +154,15 @@ export function isCanBlockEnter(
   // An item that bars blocks (the toggle clock) keeps them out of its cell.
   const destItem = w.items[destY][destX];
   if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
+  // A block of the CC3D rules keeps out of any item except a bomb, which it sets off; a floating colour block bars every block.
+  if (
+    destItem !== null &&
+    ConfigRegistry.getEntityDef(block.type)?.refusesItems === true &&
+    ConfigRegistry.getTile(destItem).hazard !== 'bomb'
+  ) {
+    return false;
+  }
+  if (destTile.blocksBlocks === true) return false;
   if (destTile.hazard && ConfigRegistry.getEntityDef(block.type)?.refusesHazards?.includes(destTile.hazard)) {
     return false;
   }

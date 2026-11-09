@@ -2210,6 +2210,7 @@
       "passableByPlayer": true,
       "passableByMonster": true,
       "passableByBlock": true,
+      "blocksBlocks": true,
       "floatingBlockColor": "red",
       "colorKey": "red"
     },
@@ -2222,6 +2223,7 @@
       "passableByPlayer": true,
       "passableByMonster": true,
       "passableByBlock": true,
+      "blocksBlocks": true,
       "floatingBlockColor": "green",
       "colorKey": "green"
     },
@@ -2234,6 +2236,7 @@
       "passableByPlayer": true,
       "passableByMonster": true,
       "passableByBlock": true,
+      "blocksBlocks": true,
       "floatingBlockColor": "blue",
       "colorKey": "blue"
     },
@@ -2246,6 +2249,7 @@
       "passableByPlayer": true,
       "passableByMonster": true,
       "passableByBlock": true,
+      "blocksBlocks": true,
       "floatingBlockColor": "yellow",
       "colorKey": "yellow"
     },

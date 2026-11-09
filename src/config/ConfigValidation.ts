@@ -1195,7 +1195,12 @@ export function findCharacterItemConfigErrors(tiles: Record<string, TileDefiniti
       }
     }
     if (tile.togglesTimer !== undefined && tile.layer !== 'item') errors.push(`${id}.togglesTimer: only an item can toggle the timer`);
-    if (tile.blocksBlocks !== undefined && tile.layer !== 'item') errors.push(`${id}.blocksBlocks: only an item can bar blocks`);
+    if (tile.blocksBlocks !== undefined) {
+      if (typeof tile.blocksBlocks !== 'boolean') errors.push(`${id}.blocksBlocks: expected a boolean`);
+      if (tile.layer !== 'item' && tile.floatingBlockColor === undefined) {
+        errors.push(`${id}.blocksBlocks: only an item or a floating colour block tile can bar blocks`);
+      }
+    }
     if (tile.characterOnly !== undefined) {
       if (!isPlayerCharacter(tile.characterOnly)) errors.push(`${id}.characterOnly: unknown character ${String(tile.characterOnly)}`);
       if (tile.layer !== 'terrain') errors.push(`${id}.characterOnly: only terrain can bar a character`);
@@ -1753,7 +1758,11 @@ export function findMonsterBehaviourConfigErrors(
         errors.push(`${id}.trailTile: "${String(entity.trailTile)}" is not the id of an existing tile`);
       }
     }
-    if (entity.refusesHazards !== undefined && entity.kind === 'monster') {
+    if (entity.refusesItems !== undefined) {
+      if (typeof entity.refusesItems !== 'boolean') errors.push(`${id}.refusesItems: expected a boolean`);
+      if (entity.kind !== 'block') errors.push(`${id}.refusesItems: only a block refuses items`);
+    }
+    if (entity.refusesHazards !== undefined && (entity.kind === 'monster' || entity.kind === 'block')) {
       if (!Array.isArray(entity.refusesHazards)) {
         errors.push(`${id}.refusesHazards: expected a list of hazards`);
       } else {
