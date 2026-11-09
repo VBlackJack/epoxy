@@ -245,7 +245,7 @@ function flipToggleParity(w: EpoxyWorld, bit: number): void {
 
 /**
  * Sets every relay pad a signal link ends on to the form its input asks for: lit while the input is on, dark while it
- * is off. A pad no link ends on is not a node, so it keeps the form it was placed in. Call it after the settle and
+ * is off; a CC2 powered device (`poweredTwin`) likewise takes its live form while on and its off form while off. A pad no link ends on is not a node, so it keeps the form it was placed in. Call it after the settle and
  * before the hold doors, at each settle site; it runs at the load settle too, so a pad starts in the form of its
  * input. The pads are laser transparent, so the beams are not retraced. A pad that lights under an actor makes no
  * jump (a jump happens on arrival only), and a pad that darkens under one leaves the actor standing. Returns true
@@ -263,6 +263,14 @@ export function setPoweredCells(ctx: EpoxyContext): boolean {
     const x = cell % width;
     const y = Math.floor(cell / width);
     const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    if (tile.poweredTwin !== undefined) {
+      // A CC2 powered device shows its live form (a teleporter, a transmogrifier) while its input is on, the other while off.
+      const isLive = tile.isTeleporter === true || tile.transmogrifies === true;
+      if (isLive === signalSinkOn(w, index)) continue;
+      w.terrain[y][x] = tile.poweredTwin;
+      changed = true;
+      continue;
+    }
     // The cell may hold another terrain by now (nothing replaces a pad today): leave it alone.
     if (tile.relayPad === undefined || tile.relayTwin === undefined) continue;
     if ((tile.relayPad === 'lit') === signalSinkOn(w, index)) continue;

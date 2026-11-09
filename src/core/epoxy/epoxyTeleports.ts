@@ -143,6 +143,8 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const group = origin.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
   if (origin.portableTeleporter === true) return livePadsOf(w, group, (tile) => tile.portableTeleporter === true);
   if (origin.relayPad !== undefined) return livePadsOf(w, group, (tile) => tile.relayPad !== undefined);
+  // A powered pad may come alive after the load (its input rises), so the live pads are read from the terrain.
+  if (origin.poweredTwin !== undefined) return livePadsOf(w, group, () => true);
   const linked = w.teleportersByGroup.get(group) ?? [];
   // A teleporter hidden under a removable top is listed too; it takes part once the top is gone.
   return w.underlays === null

@@ -69,7 +69,8 @@ interface SignalSinkOptions {
  * its current form) is a level sink that follows its input; it is never hidden (the level normalisation refuses it), and a
  * hidden one is no sink for the same reason as a hidden flip tile. A wired flip tile (a purple wall or a wired flame jet,
  * `wireTogglesTo`) flips on every change of its input, rising and falling, and a wired trap is a level sink that is open
- * while its input is on; neither is a sink when hidden, for the same reason.
+ * while its input is on; neither is a sink when hidden, for the same reason. Either form of a CC2 powered device
+ * (`poweredTwin`) is a level sink that follows its input, and is no sink when hidden either.
  */
 export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = {}): SignalSinkKind | null {
   if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
@@ -80,6 +81,8 @@ export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = 
   // A purple wall or a wired flame jet flips on every change of its input; a wired trap is a level sink like a relay pad.
   if (tile.wireTogglesTo !== undefined && options.hidden !== true) return { fires: 'flip_edges' };
   if (tile.wiredTrap === true && options.hidden !== true) return { powers: true };
+  // Either form of a CC2 powered device (the red teleporter, the transmogrifier) follows its input like a relay pad.
+  if (tile.poweredTwin !== undefined && options.hidden !== true) return { powers: true };
   return null;
 }
 
