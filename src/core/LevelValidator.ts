@@ -201,6 +201,8 @@ interface DoorRankContext {
   hasToken: boolean;
   /** Whether the block stock would still cover one more demand of this kind; spends nothing. */
   affords: (use: BlockUse) => boolean;
+  /** Whether a block the stock holds clears this tile without being spent (the CC2 slime and its dirt and ice blocks). */
+  clears: (tile: TileDefinition) => boolean;
   /** One flag per cell (y * width + x): cells some state of the walk has already reached. */
   reached: Uint8Array;
   /** Steps left to rank doors precisely, shared by every choice of one validation. */
@@ -697,16 +699,33 @@ export class LevelValidator {
        * player swims the water left; slime and bombs take any block. With fillers F, ice blocks M and all blocks T:
        * water + fire <= F, fire + melt <= M and water + 2 * fire + melt + other <= T.
        */
+      const fillsWater = (type: string): boolean => {
+        const def = ConfigRegistry.getEntityDef(type);
+        return !def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water'; // an ice block fills water too
+      };
+      const meltsFire = (type: string): boolean => {
+        const def = ConfigRegistry.getEntityDef(type);
+        return !!def?.meltsInFireTo && !!def.destroyedByFire;
+      };
+      // A CC2 transmogrifier turns a block into its pair (dirt to ice and back) when it is pushed over one, so a block there
+      // may do what either of the two does (an over-approximation: a block is counted with the union of the pair's uses).
+      const swapsBlocks = level.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).transmogrifyTable === 'cc2')) ||
+        (underlays !== null && [...underlays.values()].some((id) => ConfigRegistry.getTile(id).transmogrifyTable === 'cc2'));
+      const pairOf = (type: string): string | undefined => {
+        if (!swapsBlocks) return undefined;
+        const target = ConfigRegistry.getEntityDef(type)?.transmogrifiesToCc2;
+        return target !== undefined && ConfigRegistry.getEntityDef(target)?.kind === 'block' ? target : undefined;
+      };
       const covers = (next: Record<BlockUse, number>): boolean => {
         let fillers = 0;
         let melters = 0;
         let total = 0;
         for (const [type, count] of blockStock) {
           if (count <= 0) continue;
-          const def = ConfigRegistry.getEntityDef(type);
+          const pair = pairOf(type);
           total += count;
-          if (!def?.refusesHazards?.includes('water') && def?.waterTransformsTo !== 'water') fillers += count; // an ice block fills water too
-          if (def?.meltsInFireTo && def.destroyedByFire) melters += count;
+          if (fillsWater(type) || (pair !== undefined && fillsWater(pair))) fillers += count;
+          if (meltsFire(type) || (pair !== undefined && meltsFire(pair))) melters += count;
         }
         return !(
           next.water + next.fire > fillers ||
@@ -717,6 +736,9 @@ export class LevelValidator {
       const affords = (use: BlockUse): boolean => covers(demandOf(use));
       /** Whether the stock covers the blocks one hazard needs; the running total of earlier hazards is not kept. */
       const trySpend = affords;
+      /** The CC2 slime is cleared by the blocks it lists (a pair swapped by a transmogrifier counts too) without spending them. */
+      const sweepsSlime = (tile: TileDefinition): boolean =>
+        tile.clearedByBlocks?.some((type) => (blockStock.get(type) ?? 0) > 0 || (pairOf(type) !== undefined && (blockStock.get(pairOf(type)!) ?? 0) > 0)) === true;
       // Fires an ice block melted into water. The terrain grid is shared by every boot state and stays fire
       // there: writing water would make the cell harder for a state holding fire boots.
       const meltedFires = new Set<string>();
@@ -1098,7 +1120,7 @@ export class LevelValidator {
             // then pessimistic (unreachable). A dirt block on fire neither burns nor puts it out. A slide that ends in
             // water, slime, fire or a bomb is replayed on the next pass once the blocks are spent.
             if ((nextTile.hazard === 'water' || nextTile.hazard === 'slime') && !protectedHere) {
-              if (trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
+              if ((nextTile.hazard === 'slime' && sweepsSlime(nextTile)) || trySpend(nextTile.hazard === 'water' ? 'water' : 'other')) {
                 simTerrain[ny][nx] = FLOOR_TILE_ID;
                 changed = true;
               } else {
@@ -1149,7 +1171,7 @@ export class LevelValidator {
                 if (lethal) {
                   if (lethal.hazard === 'fire') {
                     settleFire(lethal.x, lethal.y, slide.boots);
-                  } else if (trySpend(lethal.hazard === 'water' ? 'water' : 'other')) {
+                  } else if ((lethal.hazard === 'slime' && sweepsSlime(ConfigRegistry.getTile(simTerrain[lethal.y][lethal.x]))) || trySpend(lethal.hazard === 'water' ? 'water' : 'other')) {
                     if (lethal.hazard === 'bomb') simItems[lethal.y][lethal.x] = null;
                     else simTerrain[lethal.y][lethal.x] = FLOOR_TILE_ID;
                     changed = true;
@@ -1237,6 +1259,7 @@ export class LevelValidator {
               swimProtection,
               hasToken: tokenLevel,
               affords,
+              clears: sweepsSlime,
               reached,
               budget: rankBudget,
               work,
@@ -1389,7 +1412,7 @@ export class LevelValidator {
       landings.push(cur);
       const tile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
       // A block that sank or dissolved rests nowhere further on; fire only destroys the types that burn.
-      if (tile.hazard === 'water' || tile.hazard === 'slime') break;
+      if ((tile.hazard === 'water' || tile.hazard === 'slime') && tile.clearedByBlocks?.includes(type) !== true) break;
       if (tile.hazard === 'fire' && def?.destroyedByFire) break;
       if (tile.slideType !== 'ice') break;
       const key = `${cur.x},${cur.y},${heading}`;
@@ -1436,7 +1459,7 @@ export class LevelValidator {
         const { x, y } = queue[head];
         const here = ConfigRegistry.getTile(level.terrain[y][x]);
         // A block that sank, dissolved or burned is gone: nothing is pushed on from there.
-        if (here.hazard === 'water' || here.hazard === 'slime') continue;
+        if ((here.hazard === 'water' || here.hazard === 'slime') && here.clearedByBlocks?.includes(type) !== true) continue;
         if (here.hazard === 'fire' && ConfigRegistry.getEntityDef(type)?.destroyedByFire) continue;
         for (const dir of ORDERED_DIRECTIONS) {
           const vec = DIRECTION_VECTORS[dir];
@@ -2816,7 +2839,7 @@ export class LevelValidator {
             const swimming = hasBoot(mask, ctx.swimProtection);
             const use: BlockUse =
               tile.hazard === 'water' ? 'water' : tile.hazard === 'fire' ? (swimming ? 'melt' : 'fire') : 'other';
-            if (!ctx.affords(use)) continue;
+            if (!(tile.hazard === 'slime' && ctx.clears(tile)) && !ctx.affords(use)) continue;
           }
         }
         const item = items[ny][nx];
