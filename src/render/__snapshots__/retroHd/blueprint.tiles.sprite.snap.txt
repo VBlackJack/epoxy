@@ -779,3 +779,24 @@ tile teleport_random closed=true shadowMask=128 hash=1 183d6496eb2adc39
 tile teleport_red_cc2 closed=true isolated 81b3bfd63dbfc75d
 tile teleport_red_cc2 closed=true shadowMask=65 hash=1 3334d5d54bbe05fb
 tile teleport_red_cc2 closed=true shadowMask=128 hash=1 40de6f771e1363f5
+tile dirt_3d closed=true isolated dcf25b436eac9164
+tile dirt_3d closed=true shadowMask=65 hash=1 8368a25dff97c4e0
+tile dirt_3d closed=true shadowMask=128 hash=1 f526f2b2adf09f63
+tile popup_wall_cc2 closed=true isolated 1c38207b39f45d97
+tile popup_wall_cc2 closed=true shadowMask=65 hash=1 6a9aaaa58600c911
+tile popup_wall_cc2 closed=true shadowMask=128 hash=1 9e1795672cc8b28f
+tile trap_open closed=true isolated d75a8ff046a09149
+tile trap_open closed=true shadowMask=65 hash=1 c8eba3a30361bb51
+tile trap_open closed=true shadowMask=128 hash=1 e6f7b3921d46a8b6
+tile appearing_wall_any closed=true isolated f0a1258b11675426
+tile appearing_wall_any closed=true shadowMask=65 hash=1 2f0bb4fdd73078c4
+tile appearing_wall_any closed=true shadowMask=128 hash=1 7a810f303b7fca3a
+tile slime_3d closed=true isolated a9155a348f448574
+tile slime_3d closed=true shadowMask=65 hash=1 2fc5ecbfa8f5a556
+tile slime_3d closed=true shadowMask=128 hash=1 d159423711bcc177
+tile teleport_red_cc2_off closed=true isolated f92626ad43011c2f
+tile teleport_red_cc2_off closed=true shadowMask=65 hash=1 739e677df557c3e9
+tile teleport_red_cc2_off closed=true shadowMask=128 hash=1 e04e7d169a2b2a0b
+tile transmogrifier_cc2_off closed=true isolated 862e453c870d3b80
+tile transmogrifier_cc2_off closed=true shadowMask=65 hash=1 e1a2b04cfcadcd6d
+tile transmogrifier_cc2_off closed=true shadowMask=128 hash=1 0a641eca52775f60

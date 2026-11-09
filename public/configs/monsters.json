@@ -869,6 +869,27 @@
       "entersTurtles": true,
       "ignoresSlidingFloors": true,
       "epoxyOnly": true
+    },
+    "ice_block_3d": {
+      "id": "ice_block_3d",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.ice_block_3d.name",
+      "pushable": true,
+      "chainPushes": [
+        "dirt_block", "ice_block", "ice_block_3d",
+        "color_block_red", "color_block_green", "color_block_blue", "color_block_yellow",
+        "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"
+      ],
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "ice",
+      "meltsInFireTo": "water",
+      "shotEffect": "melt",
+      "destroyedByFire": true,
+      "destroyedByBomb": true,
+      "slidesOverTiles": ["thief", "thief_keys"],
+      "epoxyOnly": true
     }
   }
 }

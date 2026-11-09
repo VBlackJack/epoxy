@@ -106,6 +106,14 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   cc2_transmogrifier: ['transmogrifier_cc2'],
   cc2_teleports: ['teleport_random', 'teleport_red_cc2'],
   helmet: ['helmet'],
+  // Format 15: more Chip's Challenge 2 and Chip's Challenge 3D mechanisms.
+  cc3d_dirt: ['dirt_3d'],
+  cc2_popup_wall: ['popup_wall_cc2'],
+  cc2_open_trap: ['trap_open'],
+  cc3d_appearing_wall: ['appearing_wall_any'],
+  cc3d_slime: ['slime_3d'],
+  cc2_powered_devices: ['teleport_red_cc2_off', 'transmogrifier_cc2_off'],
+  cc3d_ice_block: ['ice_block_3d'],
   coloured_toggles: [
     ...['red', 'blue', 'yellow'].flatMap((c) => [
       `toggle_wall_${c}_closed`,
@@ -323,6 +331,13 @@ export const PENDING: readonly string[] = [
   'cc2_transmogrifier',
   'cc2_teleports',
   'helmet',
+  'cc3d_dirt',
+  'cc2_popup_wall',
+  'cc2_open_trap',
+  'cc3d_appearing_wall',
+  'cc3d_slime',
+  'cc2_powered_devices',
+  'cc3d_ice_block',
   'coloured_toggles',
   'pressure_plates',
   'flame_jets',

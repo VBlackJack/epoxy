@@ -174,10 +174,11 @@ describe('dynamite: configuration', () => {
     }
     expect(isEpoxyOnlyItemId(DYNAMITE)).toBe(true);
     const ids = Object.keys(ConfigRegistry.getTiles().tiles);
-    // The CC3D tiles (fish gate and the two teleporters of the CC3D exit orders) were appended after them, then the no-sign of the railroad sign, then the CC3D sand, then the nine tiles of format 14.
-    expect(ids.slice(-17)).toEqual([
+    // The CC3D tiles (fish gate and the two teleporters of the CC3D exit orders) were appended after them, then the no-sign of the railroad sign, then the CC3D sand, then the nine tiles of format 14, then the seven tiles of format 15.
+    expect(ids.slice(-24)).toEqual([
       DYNAMITE, LIT, 'no_sign_dynamite', 'fish_gate', 'teleport_forward', 'teleport_turning', 'no_sign_railroad_sign', 'sand',
-      'slime_cc2', 'turtle_cc2', 'flame_jet_cc2_off', 'flame_jet_cc2_on', 'block_barrier_floor', 'transmogrifier_cc2', 'teleport_random', 'teleport_red_cc2', 'helmet'
+      'slime_cc2', 'turtle_cc2', 'flame_jet_cc2_off', 'flame_jet_cc2_on', 'block_barrier_floor', 'transmogrifier_cc2', 'teleport_random', 'teleport_red_cc2', 'helmet',
+      'dirt_3d', 'popup_wall_cc2', 'trap_open', 'appearing_wall_any', 'slime_3d', 'teleport_red_cc2_off', 'transmogrifier_cc2_off'
     ]);
   });
 

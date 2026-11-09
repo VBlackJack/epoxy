@@ -278,6 +278,11 @@ export function isContactShieldTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).shieldsFromContact === true;
 }
 
+/** True when the tile is one form of a CC2 powered device (the on and off forms name each other, format 15). */
+export function isPoweredTwinTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).poweredTwin !== undefined;
+}
+
 /** True when the tile is a blast charge, carried and dropped by the player, or the lit form it turns into. */
 export function isChargeTileId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -395,7 +400,7 @@ export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
     isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isWiredDeviceTileId(id) || isRailTileId(id) ||
-    isCharacterContentTileId(id) || isUnimplementedTileId(id) || isContactShieldTileId(id)
+    isCharacterContentTileId(id) || isUnimplementedTileId(id) || isContactShieldTileId(id) || isPoweredTwinTileId(id)
   );
 }
 

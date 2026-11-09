@@ -590,6 +590,7 @@ const FLOATING_BLOCK_COLORS: Readonly<Record<string, string>> = Object.fromEntri
 const BLOCK_TYPES:ReadonlySet<string> = new Set([
   'dirt_block',
   'ice_block',
+  'ice_block_3d',
   ...CHANNEL_PAINTER_COLORS.map((c) => `color_block_${c}`)
 ]);
 const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 'glider']);
@@ -6295,7 +6296,7 @@ export class PixelRenderer {
   private paintBlock(ctx: CanvasRenderingContext2D, type: string, x: number, y: number, size: number, dir: Direction): void {
     const pal = this.pal();
     const isModern = this.isHdVector();
-    const isIce = type === 'ice_block';
+    const isIce = type === 'ice_block' || type === 'ice_block_3d';
     const inset = Math.max(1, Math.round(size * BLOCK_INSET_TILE));
     const front = Math.round(size * this.getSettings().wallFrontDepthTile);
     const radius = isModern ? size * BLOCK_RADIUS_TILE : 0;

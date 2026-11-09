@@ -5056,6 +5056,48 @@
         "label": "Tant que le joueur le porte, le contact d'un monstre ou d'un bloc ne fait aucun mal au joueur."
       }
     },
+    "dirt_3d": {
+      "name": "Terre (CC3D)",
+      "desc": {
+        "label": "Le joueur la dégage en y marchant ; les monstres ne peuvent pas y entrer. Un bloc de terre, un bloc de couleur ou un bloc de glace peut y entrer. Un bloc de terre ou de couleur la change en sol ; un bloc de glace passe dessus et la laisse intacte."
+      }
+    },
+    "popup_wall_cc2": {
+      "name": "Mur escamotable (CC2)",
+      "desc": {
+        "label": "Le joueur peut marcher dessus ; parmi les monstres, seuls les rôdeurs et les fantômes peuvent y entrer ; tous les blocs sauf le bloc de terre peuvent y entrer. Il devient un mur derrière ce qui le quitte, sauf si un autre acteur s'y trouve encore."
+      }
+    },
+    "trap_open": {
+      "name": "Piège ouvert (CC2)",
+      "desc": {
+        "label": "Un piège qui commence ouvert et ne retient rien. La première fois qu'un bouton ou un fil relié le relâche ou perd son courant, il devient un piège ordinaire. Nécessite : un lien depuis un bouton ou une source de signal."
+      }
+    },
+    "appearing_wall_any": {
+      "name": "Mur apparaissant (CC3D)",
+      "desc": {
+        "label": "Ressemble à un sol. Il devient un mur quand le joueur le heurte, quand un bloc poussé le heurte ou quand un monstre essaie d'y entrer."
+      }
+    },
+    "slime_3d": {
+      "name": "Gelée (CC3D)",
+      "desc": {
+        "label": "Tue le joueur et la plupart des monstres. Un joueur qui porte à la fois les bottes de feu et les bottes d'eau survit et change la case en sol. Un bloc est détruit en nettoyant la gelée."
+      }
+    },
+    "teleport_red_cc2_off": {
+      "name": "Téléporteur rouge (CC2, éteint)",
+      "desc": {
+        "label": "La forme hors tension du téléporteur rouge CC2 : ce n'est pas un téléporteur, rien n'y est envoyé et rien n'en sort. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "transmogrifier_cc2_off": {
+      "name": "Transmogrificateur (CC2, éteint)",
+      "desc": {
+        "label": "La forme hors tension du transmogrificateur CC2 : ce qui arrive dessus passe sans changement. Nécessite : un lien de signal vers lui."
+      }
+    },
     "teleport_yellow": {
       "name": "Téléporteur Jaune",
       "desc": {
@@ -5680,6 +5722,12 @@
       "name": "Bloc à Flèches (Quatre Sens)",
       "desc": {
         "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
+      }
+    },
+    "ice_block_3d": {
+      "name": "Bloc de glace (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir, et passe sur la terre CC3D sans la dégager."
       }
     },
     "arrow_block_none": {

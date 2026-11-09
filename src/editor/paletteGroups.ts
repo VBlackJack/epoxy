@@ -64,7 +64,8 @@ export function arrangeMechanismSections<T>(entries: readonly GroupedEntry<T>[])
  */
 export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | null {
   // A dark relay pad is no teleporter yet, but it sits with the pads it will join once lit.
-  if (tile.isTeleporter || tile.relayPad !== undefined) return 'teleports';
+  // The unpowered form of a coloured powered pad (format 15) sits with the pads too.
+  if (tile.isTeleporter || tile.relayPad !== undefined || (tile.poweredTwin !== undefined && tile.colorKey !== undefined)) return 'teleports';
   // A shot trigger fires launchers: it sits with them, not with the buttons.
   if (tile.buttonAction === FIRE_LAUNCHERS_ACTION) return 'lasers';
   // A colour toggle button sits with the walls of its channel; the plain toggle button stays with the buttons.
@@ -74,7 +75,7 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.plateColor || tile.holdDoorColor || tile.toggleChannel || tile.floatingBlockColor) return 'colour';
   // A rail switch toggles like a wall, but it sits with the rest of the rails.
   if (tile.railSides !== undefined || tile.railJunction === true) return 'rails';
-  if (tile.togglesTo || tile.flameTogglesTo || tile.wireTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
+  if (tile.togglesTo || tile.flameTogglesTo || tile.wireTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.poweredTwin !== undefined || tile.facingTurn !== undefined) return 'toggles';
   if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
   // A floor that players and monsters cross but no block may enter (the block barrier floor) sits with the blocks.
