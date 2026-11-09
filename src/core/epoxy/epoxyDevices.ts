@@ -19,7 +19,9 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
+  CC_CADENCE_TYPES,
   CHIP_ITEM_ID,
+  ccStepTicks,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   CHANNEL_TOGGLE_PARITY_BITS,
   FIRE_LAUNCHERS_ACTION,
@@ -49,6 +51,7 @@ import {
   isInBounds,
   killPlayer,
   mapWidth,
+  monsterSlowdown,
   removeEntity,
   signalSinkOn,
   killPlayerAt,
@@ -472,7 +475,9 @@ export function spawnFromCloner(
     x: spawnX,
     y: spawnY,
     dir: templateDir,
-    cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+    // In the original the creature let out of a clone machine takes its step out at once, so a classic-rules monster
+    // decides again when that step ends; any other entity waits out its interval.
+    cooldownTicks: w.ccRules && CC_CADENCE_TYPES.includes(templateType) ? ccStepTicks(templateType) * monsterSlowdown(w) - 1 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
     isSliding: kind === 'block',
     ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {}),
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.

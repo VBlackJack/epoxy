@@ -304,6 +304,11 @@ export const CC_BLOB_TYPE = 'blob';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
+/** Ticks one step of a classic monster lasts; the blob steps at half the speed of the others. */
+export function ccStepTicks(type: string): number {
+  return type === CC_BLOB_TYPE ? CC_BLOB_STEP_TICKS : CC_MONSTER_STEP_TICKS;
+}
+
 /** Teeth decide only during the first CC_TEETH_ACTIVE_TICKS ticks of each CC_TEETH_CYCLE_TICKS cycle (they move at half rate). */
 export const CC_TEETH_CYCLE_TICKS = 8;
 export const CC_TEETH_ACTIVE_TICKS = 4;

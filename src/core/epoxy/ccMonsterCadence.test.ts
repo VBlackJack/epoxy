@@ -69,9 +69,11 @@ describe('classic monster cadence', () => {
   });
 
   it('steps a blob every 8 ticks', () => {
-    const cells = track(levelWith(ROOM, 'blob', 'S', true), 10);
+    const cells = track(levelWith(ROOM, 'blob', 'S', true), 9);
     expect(cells[0]).not.toBe('3,3');
     for (let i = 1; i < 8; i++) expect(cells[i]).toBe(cells[0]);
+    // The second decision falls on the ninth tick (tick 8 of the cadence); the seeded draw moves the blob there.
+    expect(cells[8]).not.toBe(cells[7]);
   });
 
   it('keeps the blob interval without the flag', () => {
@@ -122,5 +124,36 @@ describe('classic monster cadence', () => {
       return out;
     };
     expect(run(true)).toEqual(run(false));
+  });
+
+  it('lets a cloned classic monster decide when its step out of the machine ends', () => {
+    const base = levelWith(CORRIDOR, 'bug', 'E', true);
+    const terrain = base.terrain.map((row) => [...row]);
+    terrain[1][1] = 'clone_machine';
+    terrain[1][4] = 'button_red';
+    const run = (flavor: boolean): number[] => {
+      const level: CompiledLevel = {
+        ...base,
+        terrain,
+        entities: [],
+        playerStart: { x: 5, y: 1, dir: 'W' },
+        cloneLinks: [{ buttonX: 4, buttonY: 1, clonerX: 1, clonerY: 1, templateType: 'bug', templateDir: 'E' }],
+        ...(flavor ? {} : { rulesFlavor: undefined })
+      };
+      const engine = new GameEngine();
+      engine.loadLevel(level);
+      const w = (engine as unknown as { w: TestWorld }).w;
+      expect(engine.attemptPlayerMove('W')).toBe(true);
+      const out: number[] = [];
+      for (let i = 0; i < 12; i++) {
+        engine.tick();
+        out.push(w.entities.find((e) => e.kind === 'monster')?.x ?? -1);
+      }
+      return out;
+    };
+    const first = (xsRun: number[]): number => xsRun.findIndex((x) => x > 2);
+    // Classic rules: spawned at x=2 with its step out already taken, it steps on again 4 ticks later.
+    expect(first(run(true))).toBeLessThan(first(run(false)));
+    expect(first(run(true))).toBeLessThanOrEqual(4);
   });
 });
