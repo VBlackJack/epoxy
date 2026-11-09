@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 14, CC2 teleports and jets: the random (green) teleporter draws a destination pad and an exit side from the level random stream, only when used; the CC2 red teleporter leaves forward, right, back, then left of the mover's facing (its wiring is not played yet); the CC2 flame jets follow their wire or orange button only, toggling on press and on release, and burn what stands in them.
+
 ### Fixed
 
 - A CC2 rover that pushes a block no longer steps into a cell its push just closed (a toggle wall); the CC2 coverage notes for the rover were corrected (fake walls bar it, it leaves bonus items, the tool thief stays closed to it).
