@@ -910,10 +910,12 @@ describe('coverage truth', () => {
     expect(coverage.approx).toContain('wired_teleport');
   });
 
-  it('reports a wire that reaches a track switch as wired_track, and a free switch as plain track', () => {
+  it('reports a wire that reaches a track switch as exact wired_track, and a free switch as plain track', () => {
     const wired = convert([put(0, 0, modTile(PINK, E)), put(1, 0, modTile(FLOOR_CODE, E | W)), put(2, 0, modTile(TRACK, TRACK_SWITCH_NORTH_EAST))]);
-    expect(wired.coverage.approx).toContain('wired_track');
+    expect(wired.coverage.approx).not.toContain('wired_track');
+    expect(wired.report.exact).toContain('wired_track');
     const free = convert([put(2, 0, modTile(TRACK, TRACK_SWITCH_NORTH_EAST))]);
     expect(free.coverage.approx).not.toContain('wired_track');
+    expect(free.report.exact).not.toContain('wired_track');
   });
 });

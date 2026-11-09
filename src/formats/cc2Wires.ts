@@ -233,10 +233,11 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
     return wires === 0 ? null : { role: 'sink', kind: 'transmogrifier', supported: false, mask: wires, tunnels: 0 };
   }
   if (code === CODE_TRACK) {
-    // A track switch takes a wire from any side (the modifier holds track bits, not wires); Epoxy links none to it.
+    // A track switch takes a wire from any side (the modifier holds track bits, not wires). The Epoxy track cell is a
+    // flip sink: it advances its switch on the rising edge of its input and a wired switch moves by wire only.
     return ((mod ?? 0) & TRACK_SWITCH_FLAG) === 0
       ? null
-      : { role: 'sink', kind: 'track', supported: false, mask: ALL_SIDES_MASK, tunnels: 0 };
+      : { role: 'sink', kind: 'track', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
   return null;
 }

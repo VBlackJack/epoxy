@@ -55,11 +55,13 @@ export const KEY_UNKNOWN = 'unknown';
 
 const EXACT_REASON = 'Epoxy plays this element as CC2 does.';
 const WIRE_REASON =
-  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. Wired sinks Epoxy does not play as CC2 are reported under their own keys (wired_teleport, wired_transmogrifier, wired_track, wired_flame_jet).';
+  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. Wired sinks Epoxy does not play as CC2 are reported under their own keys (wired_teleport, wired_transmogrifier, wired_flame_jet).';
 const RESERVED_REASON =
   'Epoxy does not play this element: the converter keeps it as a reserved placeholder (a wall for a terrain, inert for an item, motionless for an entity), so the level is not playable as imported.';
 const TELEPORT_REASON =
   'The target and the exit order differ from CC2: the Epoxy player leaves facing first, then in a fixed order, where CC2 tries other sides [unverified].';
+const YELLOW_TELEPORT_REASON =
+  'Epoxy plays the yellow pad as its forward pad: same ring order and forward-only exit as CC2. Two differences: a CC2 yellow pad with no free destination is picked up as an item by the player (in a level with several yellow pads), which Epoxy cannot do, and the CC2 ring ends on the pad itself (the mover leaves forward from it) where the Epoxy forward pad never lands on itself and stays put.';
 const GREEN_BUTTON_REASON =
   'Epoxy plays the green button as CC2 does: it flips the toggle walls and swaps every green chip with a green bomb and back.';
 const MECHANIC_REASON =
@@ -123,7 +125,7 @@ const EXACT_KEYS: readonly string[] = [
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate',
   'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
-  'wired_trap', 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE
+  'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE
 ];
 
 /**
@@ -165,7 +167,9 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   green_wall: 'The solid green wall (0x7d, popdown_wall) bars everything but the ghost in the Lexy Labyrinth engine; Epoxy plays it as a plain wall, which the Epoxy ghost also crosses.',
   [KEY_CANOPY]: CANOPY_REASON,
   popup_wall: 'Epoxy plays the pop-up wall as a recessed wall: the player enters, monsters are barred and the cell turns to wall when its occupant leaves, as popwall does in the Lexy Labyrinth engine. Emitted only when the level holds no ice block, arrow block or rover (those enter a CC2 pop-up wall); see popup_wall_blocks.',
-  [KEY_WIRE]: WIRE_REASON
+  [KEY_WIRE]: WIRE_REASON,
+  [KEY_WIRED_TRACK]:
+    'A wire reaches a track switch: it advances the switch on the rising edge of its input and a wired switch moves by wire only, as the railroad does in the Lexy Labyrinth engine (on_power).'
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
@@ -199,12 +203,14 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: boots_pull.
   hook: 'Epoxy plays the hook as its pull boots: the block directly behind the holder is pulled one step after a voluntary step, as the adhesive trait does in the Lexy Labyrinth engine. Edge rules differ: Epoxy does not pull a block off a matching plate, nor when the holder steps onto a teleporter, nor on forced slide steps.',
   // Epoxy: hint.
-  letter: 'Epoxy plays a letter tile as a hint tile: the text is lost, only the place is kept.',
+  // Epoxy: floor.
+  letter: 'The glyph is lost; the cell plays as floor.',
   // Epoxy: transmogrifier.
   transmogrifier: 'Epoxy swaps monsters of its own pairs, and a powered CC2 transmogrifier follows its wire where the Epoxy one is always on [unverified].',
   // Epoxy: teleport_red, teleport_yellow, teleport_green.
   teleport_red: TELEPORT_REASON,
-  teleport_yellow: TELEPORT_REASON,
+  // Epoxy: teleport_forward (exit forward only, the pad is never its own destination).
+  teleport_yellow: YELLOW_TELEPORT_REASON,
   teleport_green: 'The CC2 green teleport picks a random destination, where the Epoxy one is deterministic [unverified].',
   // Epoxy: teleport_blue plus a relay pad for the wire.
   teleport_blue_wired: `${TELEPORT_REASON} A wired teleport also follows its wire, which the Epoxy relay pad only approximates.`,
@@ -230,8 +236,6 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_WIRED_TELEPORT]: 'A wire reaches a teleport (red, yellow, green or blue). CC2 isolates wired blue pads into networks and lets a wire switch a red pad off; Epoxy ignores the wire and keeps one level-wide group.',
   // Epoxy: transmogrifier ignores its wire.
   [KEY_WIRED_TRANSMOGRIFIER]: 'A wire reaches a transmogrifier. A powered CC2 transmogrifier switches on and off with its wire; the Epoxy one is always on.',
-  // Epoxy: rail switch ignores its wire.
-  [KEY_WIRED_TRACK]: 'A wire reaches a track switch. In CC2 a wired switch is advanced only by power; Epoxy links no wire to a track switch.',
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.
