@@ -258,6 +258,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     !fromSlide &&
     !entityAtTarget &&
     !updatedTargetTile.isTeleporter &&
+    !updatedTargetTile.teleportsToSelf &&
     w.player.alive &&
     !w.levelCompleted &&
     w.player.exited !== true &&
@@ -311,7 +312,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     return;
   }
 
-  if (tile.isTeleporter && allowTeleport) {
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir)) {
       ctx.emitVisual('teleport', w.player.x, w.player.y);
