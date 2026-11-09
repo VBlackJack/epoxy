@@ -34,6 +34,7 @@ import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, EXTRA_PLAYERS_MAX, LOCKED_ARRO
 import type {
   Cc2Coverage,
   CellEdge,
+  CellHint,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -67,6 +68,7 @@ import {
   ITEM_LOST_KEYS,
   ITEM_MAP,
   KEY_MELINDA_PLAYER,
+  HINT_ID,
   KEY_NO_SIGN,
   KEY_NO_SIGN_BONUS,
   KEY_NO_SIGN_EMPTY,
@@ -159,9 +161,9 @@ const GATE_IDS: Readonly<Record<string, string>> = {
   diode: 'signal_gate_or'
 };
 
-/** Markers in the note block that start a hint. */
-const CLUE_MARKER = '[CLUE]';
-const HINT_SEPARATOR = '\n\n';
+/** Tags of the note that start a block; only a [CLUE] block is a hint. */
+const NOTE_TAG_PATTERN = /\[(CLUE|JETLIFE|COM)\]/;
+const CLUE_TAG = 'CLUE';
 
 /** What the caller knows about the source file. */
 export interface Cc2ConvertOptions {
@@ -179,7 +181,10 @@ export interface Cc2ConvertOptions {
   timeLimit?: number;
   title?: string;
   author?: string;
+  /** The level hint: shown by every hint tile that has no text of its own. */
   hint?: string;
+  /** The text of each hint tile, in reading order of the tiles (row by row, left to right); tiles beyond it show the level hint. */
+  hintBlocks?: readonly string[];
 }
 
 /** One element of a verdict list in the report. */
@@ -280,33 +285,76 @@ export function cc2GridHash(level: Cc2GridParts): string {
   );
 }
 
-/** Hint text of a file: the CLUE block, else the [CLUE] blocks of the note. */
+/**
+ * The level hint of a file: the text of its CLUE section. The [CLUE] blocks of the note are not part of it: each one
+ * belongs to one hint tile (see cc2ClueBlocks).
+ */
 export function cc2HintText(file: Cc2File): string | undefined {
   const clue = cc2Text(file, 'CLUE')?.replace(/\r\n?/g, '\n').trim();
-  if (clue) return clue;
+  return clue ? clue : undefined;
+}
+
+/**
+ * The hint texts of the note, in order of appearance. The note is split on the lines that hold a [CLUE], [JETLIFE] or
+ * [COM] tag; the text before the first tag is the author's own comment, and only the [CLUE] blocks are hints (a
+ * [JETLIFE] or [COM] block is not). Blocks are trimmed; an empty one is kept as an empty text, so the n-th block
+ * still goes to the n-th hint tile. Empty when the note holds no [CLUE] block.
+ */
+export function cc2ClueBlocks(file: Cc2File): string[] {
   const note = cc2Text(file, 'NOTE')?.replace(/\r\n?/g, '\n');
-  if (note === undefined || !note.includes(CLUE_MARKER)) return undefined;
-  const blocks = note
-    .split(CLUE_MARKER)
-    .slice(1)
-    .map((block) => block.trim())
-    .filter((block) => block.length > 0);
-  return blocks.length > 0 ? blocks.join(HINT_SEPARATOR) : undefined;
+  if (note === undefined) return [];
+  const blocks: string[] = [];
+  let current: string[] | null = null;
+  const close = (): void => {
+    if (current !== null) blocks.push(current.join('\n').trim());
+    current = null;
+  };
+  for (const line of note.split('\n')) {
+    const tag = NOTE_TAG_PATTERN.exec(line);
+    if (tag === null) {
+      current?.push(line);
+      continue;
+    }
+    close();
+    // The text after the tag on its own line starts the block.
+    current = tag[1] === CLUE_TAG ? [line.slice(tag.index + tag[0].length)] : null;
+  }
+  close();
+  return blocks;
+}
+
+/**
+ * Gives the n-th text to the n-th hint tile in reading order (row by row, left to right). A tile beyond the texts, an
+ * empty text and a text beyond the tiles give nothing, so those tiles show the level hint.
+ */
+function assignHintBlocks(terrain: readonly (readonly string[])[], blocks: readonly string[]): CellHint[] {
+  const hints: CellHint[] = [];
+  let next = 0;
+  terrain.forEach((row, y) =>
+    row.forEach((id, x) => {
+      if (id !== HINT_ID) return;
+      const text = blocks[next++];
+      if (text) hints.push({ x, y, text });
+    })
+  );
+  return hints;
 }
 
 /** Converts a whole decoded file: reads the map, the options and the texts, then converts the map. */
-export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint'>): Cc2ConversionResult {
+export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint' | 'hintBlocks'>): Cc2ConversionResult {
   const map = cc2Map(file);
   if (map === undefined) throw new Error(`CC2 converter: ${options.file} holds no decodable map`);
   const title = cc2Text(file, 'TITL')?.trim();
   const author = cc2Text(file, 'AUTH')?.trim();
   const hint = cc2HintText(file);
+  const hintBlocks = cc2ClueBlocks(file);
   return convertCc2Map(map, {
     ...options,
     timeLimit: cc2Options(file)?.timeLimit ?? 0,
     ...(title ? { title } : {}),
     ...(author ? { author } : {}),
-    ...(hint ? { hint } : {})
+    ...(hint ? { hint } : {}),
+    ...(hintBlocks.length > 0 ? { hintBlocks } : {})
   });
 }
 
@@ -692,6 +740,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   if (edges.length > 0) level.cellEdges = edges;
   if (extraPlayers.length > 0) level.extraPlayers = extraPlayers;
   if (railTracks.length > 0) level.railTracks = railTracks;
+  const cellHints = assignHintBlocks(terrain, options.hintBlocks ?? []);
+  if (cellHints.length > 0) level.cellHints = cellHints;
   if (signalLinks.length > 0) level.signalLinks = signalLinks;
   level.cc2 = {
     v: 1,

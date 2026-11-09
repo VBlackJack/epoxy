@@ -34,7 +34,7 @@ import {
   NAND_GATE,
   COUNTER_GATE
 } from './cc2Mapping';
-import { cc2GridHash, cc2HintText, convertCc2File, convertCc2Map } from './cc2ToEpoxy';
+import { cc2ClueBlocks, cc2GridHash, cc2HintText, convertCc2File, convertCc2Map } from './cc2ToEpoxy';
 import type { Cc2ConvertOptions } from './cc2ToEpoxy';
 import { cc2TileInfo } from './cc2TileTable';
 import { Cc2Layer } from './cc2Model';
@@ -694,13 +694,77 @@ describe('chips and metadata', () => {
     expect(report.title).toBe('Warm Up');
   });
 
-  it('reads hints from CLUE blocks of the note when there is no CLUE section', () => {
+  it('keeps the level hint to the CLUE section and does not glue the note blocks into it', () => {
     const note = (text: string): Cc2File => ({
       sections: [{ kind: 'text', tag: 'NOTE', text, terminated: true, extra: new Uint8Array(0) }],
       trailing: new Uint8Array(0)
     });
-    expect(cc2HintText(note('intro\r\n[CLUE]\r\nfirst hint\r\n[CLUE]\r\nsecond hint'))).toBe('first hint\n\nsecond hint');
+    expect(cc2HintText(note('intro\r\n[CLUE]\r\nfirst hint\r\n[CLUE]\r\nsecond hint'))).toBeUndefined();
     expect(cc2HintText(note('no hint here'))).toBeUndefined();
+  });
+
+  it('splits the note on its tags: the author comment, JETLIFE and COM blocks are not hints', () => {
+    const note = (text: string): Cc2File => ({
+      sections: [{ kind: 'text', tag: 'NOTE', text, terminated: true, extra: new Uint8Array(0) }],
+      trailing: new Uint8Array(0)
+    });
+    expect(cc2ClueBlocks(note('intro\r\n[CLUE]\r\nfirst hint\r\n[CLUE]\r\nsecond\r\nhint\r\n'))).toEqual(['first hint', 'second\nhint']);
+    expect(cc2ClueBlocks(note('comment\n[COM]\nnot a hint\n[CLUE]\none\n[JETLIFE]\n12\n[CLUE]\ntwo'))).toEqual(['one', 'two']);
+    expect(cc2ClueBlocks(note('only a comment'))).toEqual([]);
+    expect(cc2ClueBlocks({ sections: [], trailing: new Uint8Array(0) })).toEqual([]);
+    // An empty block still holds its place, so the next one goes to the next tile.
+    expect(cc2ClueBlocks(note('[CLUE]\n[CLUE]\nsecond'))).toEqual(['', 'second']);
+  });
+
+  describe('hint tiles', () => {
+    const HINT_CODE = 0x45;
+    const hintMap = (tiles: Array<[number, number]>, width = 6, height = 4) =>
+      makeMap(width, height, [player(0, 0), ...tiles.map(([x, y]) => put(x, y, { code: HINT_CODE }))]);
+    const withBlocks = (blocks: string[], hint?: string) => ({ ...OPTIONS, hintBlocks: blocks, ...(hint ? { hint } : {}) });
+
+    it('gives the n-th block to the n-th hint tile in reading order, not in placement order', () => {
+      const { level } = convertCc2Map(hintMap([[4, 2], [1, 0], [3, 0]]), withBlocks(['first', 'second', 'third']));
+      expect(level.cellHints).toEqual([
+        { x: 1, y: 0, text: 'first' },
+        { x: 3, y: 0, text: 'second' },
+        { x: 4, y: 2, text: 'third' }
+      ]);
+      expect(level.customHint).toBeUndefined();
+    });
+
+    it('leaves the tiles beyond the blocks on the level hint (the CLUE section)', () => {
+      const { level } = convertCc2Map(hintMap([[1, 0], [2, 0], [3, 0]]), withBlocks(['only one'], 'Section text'));
+      expect(level.cellHints).toEqual([{ x: 1, y: 0, text: 'only one' }]);
+      expect(level.customHint).toBe('Section text');
+    });
+
+    it('drops the blocks beyond the tiles', () => {
+      const { level } = convertCc2Map(hintMap([[1, 0]]), withBlocks(['one', 'two', 'three']));
+      expect(level.cellHints).toEqual([{ x: 1, y: 0, text: 'one' }]);
+    });
+
+    it('writes no cell hint when there are no blocks or no hint tile', () => {
+      expect(convertCc2Map(hintMap([[1, 0]]), OPTIONS).level.cellHints).toBeUndefined();
+      expect(convertCc2Map(hintMap([]), withBlocks(['lost'])).level.cellHints).toBeUndefined();
+    });
+
+    it('reads the blocks of a file, with the CLUE section as the level hint', () => {
+      const text = (tag: string, body: string) => ({ kind: 'text' as const, tag, text: body, terminated: true, extra: new Uint8Array(0) });
+      const file: Cc2File = {
+        sections: [
+          text('NOTE', 'by me\r\n[CLUE]\r\nLeft sign\r\n[CLUE]\r\nRight sign'),
+          text('CLUE', 'Default sign'),
+          { kind: 'map', tag: 'PACK', map: hintMap([[3, 1], [1, 1], [5, 3]]) }
+        ],
+        trailing: new Uint8Array(0)
+      };
+      const { level } = convertCc2File(file, { file: 'a.c2m', order: 1, sha256: '00'.repeat(32) });
+      expect(level.customHint).toBe('Default sign');
+      expect(level.cellHints).toEqual([
+        { x: 1, y: 1, text: 'Left sign' },
+        { x: 3, y: 1, text: 'Right sign' }
+      ]);
+    });
   });
 
   it('rejects a file with no map', () => {
