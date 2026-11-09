@@ -155,6 +155,36 @@ export function flipWiredCellAt(ctx: EpoxyContext, x: number, y: number): void {
 }
 
 /**
+ * A gray area button flips a flame jet for good, lit or dark. A jet that lights burns nothing at the moment of the flip
+ * (the Lexy Labyrinth engine kills on its own tick); the usual fire rules judge what stands on it afterwards. The lasers
+ * are retraced.
+ */
+function flipFlameJetAt(w: EpoxyWorld, x: number, y: number): void {
+  const next = ConfigRegistry.getTile(w.terrain[y][x]).flameTogglesTo;
+  if (next === undefined) return;
+  w.terrain[y][x] = next;
+  w.beamDirty = true;
+  AudioManager.playSfx(HOLD_DOOR_SFX);
+}
+
+/** A gray area button turns a swivel door a quarter turn clockwise, whoever stands in it. */
+function turnSwivelAt(w: EpoxyWorld, x: number, y: number): void {
+  const next = ConfigRegistry.getTile(w.terrain[y][x]).swivelTurns?.cw;
+  if (next === undefined) return;
+  w.terrain[y][x] = next;
+  w.beamDirty = true;
+  AudioManager.playSfx(HOLD_DOOR_SFX);
+}
+
+/** A gray area button turns a force floor round (a tile that names its reverse in `grayFlipsTo`). */
+function flipGrayCellAt(w: EpoxyWorld, x: number, y: number): void {
+  const next = ConfigRegistry.getTile(w.terrain[y][x]).grayFlipsTo;
+  if (next === undefined) return;
+  w.terrain[y][x] = next;
+  AudioManager.playSfx(HOLD_DOOR_SFX);
+}
+
+/**
  * A gray area button works: every wired device (a sink of the signal network, or an unlinked purple tile, wired jet, wired trap, launcher or clone machine) within GRAY_BUTTON_RADIUS cells of the
  * button, the square 5 by 5 around it, is pulsed once, with no wire from the button. A flip tile flips once, a
  * launcher or a clone machine fires once (under the usual caps), and a level sink (a hold door, a relay pad, a wired
@@ -192,6 +222,10 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       const tile = ConfigRegistry.getTile(w.terrain[y][x]);
       if (tile.wireTogglesTo !== undefined) flipWiredCellAt(ctx, x, y);
       else if (tile.railJunction === true) advanceRailSwitch(w, x, y);
+      else if (tile.togglesTo !== undefined) flipCellAt(w, x, y);
+      else if (tile.flameTogglesTo !== undefined) flipFlameJetAt(w, x, y);
+      else if (tile.swivelTurns !== undefined) turnSwivelAt(w, x, y);
+      else if (tile.grayFlipsTo !== undefined) flipGrayCellAt(w, x, y);
       else if (tile.wiredTrap === true) runtime?.areaPending.add(cell);
       else if (tile.shotLauncher !== undefined) {
         if (!fireLauncherAt(ctx, x, y)) return false;

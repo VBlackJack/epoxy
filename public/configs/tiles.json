@@ -688,7 +688,8 @@
       "passableByBlock": true,
       "slideType": "force",
       "forceDirection": "N",
-      "protectedByItem": "boots_force"
+      "protectedByItem": "boots_force",
+      "grayFlipsTo": "force_s"
     },
     "force_e": {
       "id": "force_e",
@@ -701,7 +702,8 @@
       "passableByBlock": true,
       "slideType": "force",
       "forceDirection": "E",
-      "protectedByItem": "boots_force"
+      "protectedByItem": "boots_force",
+      "grayFlipsTo": "force_w"
     },
     "force_s": {
       "id": "force_s",
@@ -714,7 +716,8 @@
       "passableByBlock": true,
       "slideType": "force",
       "forceDirection": "S",
-      "protectedByItem": "boots_force"
+      "protectedByItem": "boots_force",
+      "grayFlipsTo": "force_n"
     },
     "force_w": {
       "id": "force_w",
@@ -727,7 +730,8 @@
       "passableByBlock": true,
       "slideType": "force",
       "forceDirection": "W",
-      "protectedByItem": "boots_force"
+      "protectedByItem": "boots_force",
+      "grayFlipsTo": "force_e"
     },
     "force_random": {
       "id": "force_random",

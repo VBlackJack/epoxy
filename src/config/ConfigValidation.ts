@@ -1724,6 +1724,7 @@ const MONSTER_FLAG_FIELDS = [
   'ignoresCellEdges',
   'ignoresFloorEffects',
   'passesItems',
+  'picksUpItems',
   'blockedByCanopy',
   'blockedBetweenCanopies',
   'ignoresSlidingFloors',
@@ -1756,6 +1757,18 @@ export function findMonsterBehaviourConfigErrors(
       if (entity.kind !== 'monster') errors.push(`${id}.trailTile: only a monster leaves a trail`);
       if (typeof entity.trailTile !== 'string' || tiles[entity.trailTile] === undefined) {
         errors.push(`${id}.trailTile: "${String(entity.trailTile)}" is not the id of an existing tile`);
+      }
+    }
+    if (entity.entersBarredTiles !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.entersBarredTiles: only a monster enters barred tiles`);
+      if (!Array.isArray(entity.entersBarredTiles)) {
+        errors.push(`${id}.entersBarredTiles: expected a list of tile ids`);
+      } else {
+        for (const tileId of entity.entersBarredTiles) {
+          if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
+            errors.push(`${id}.entersBarredTiles: "${String(tileId)}" is not the id of an existing tile`);
+          }
+        }
       }
     }
     if (entity.refusesItems !== undefined) {
@@ -2058,7 +2071,7 @@ export function findRelayPadConfigErrors(tiles: Record<string, TileDefinition>):
  * Problems of the wired device fields: `wireTogglesTo` names a terrain that names this tile back (a purple wall, a purple
  * floor or a wired flame jet, which no button of the toggle families touches, so the tile carries neither togglesTo nor
  * flameTogglesTo nor a channel); `wiredTrap` sits on a trap; the gray area button is a plain terrain button. Each entry
- * names the tile.
+ * names the tile. `grayFlipsTo` names a terrain that names this tile back (a force floor and its reverse).
  */
 export function findWiredDeviceConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];
@@ -2079,6 +2092,13 @@ export function findWiredDeviceConfigErrors(tiles: Record<string, TileDefinition
       ) {
         errors.push(`${id}.wireTogglesTo: a wired flip tile is in none of the button toggle families`);
       }
+    }
+    if (tile.grayFlipsTo !== undefined) {
+      const twin = typeof tile.grayFlipsTo === 'string' ? tiles[tile.grayFlipsTo] : undefined;
+      if (twin === undefined || twin.grayFlipsTo !== id || twin.layer !== 'terrain') {
+        errors.push(`${id}.grayFlipsTo: expected the id of the terrain of the other form, which names this tile back`);
+      }
+      if (tile.layer !== 'terrain') errors.push(`${id}.grayFlipsTo: a gray button flips a terrain`);
     }
     if (tile.wiredTrap !== undefined && (tile.wiredTrap !== true || tile.isTrap !== true || tile.layer !== 'terrain')) {
       errors.push(`${id}.wiredTrap: expected true, on a terrain trap`);
