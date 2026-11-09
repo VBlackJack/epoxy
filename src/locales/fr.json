@@ -1092,7 +1092,7 @@
     },
     "desktop": {
       "key_hint": {
-        "label": "Flèches/ZQSD : bouger | U : annuler | R : recommencer | H : objectif"
+        "label": "Flèches/ZQSD : bouger | U : annuler | R : recommencer | H : objectif | E : poser un objet | C : changer d'objet"
       }
     },
     "mobile": {

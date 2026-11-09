@@ -1092,7 +1092,7 @@
     },
     "desktop": {
       "key_hint": {
-        "label": "Arrows/WASD: move | U: undo | R: restart | H: objective"
+        "label": "Arrows/WASD: move | U: undo | R: restart | H: objective | E: drop an item | C: cycle items"
       }
     },
     "mobile": {
