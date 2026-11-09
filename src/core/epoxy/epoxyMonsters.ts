@@ -54,7 +54,7 @@ import {
   isEdgeBlocked,
   isInBounds,
   isOpenFishGate,
-  leaveCell,
+  monsterLeavesCell,
   mapWidth,
   monsterSlowdown,
   notePulseArrival,
@@ -149,7 +149,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
   if (def?.trailTile !== undefined) leaveTrail(w, entity, def.trailTile);
   // A monster that may enter turtles sinks the one it leaves, unless it leaves turtles afloat.
-  if (def?.entersTurtles === true && def.leavesTurtlesAfloat !== true) leaveCell(w, entity.x, entity.y);
+  monsterLeavesCell(w, entity);
   entity.x = nx;
   entity.y = ny;
   entity.dir = moveDir;
@@ -259,8 +259,15 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // and a cell holds one terrain, so the kind that arrived is the one the water, fire, bomb and shot checks
   // above judged, and no hazard of the new kind can share the cell. From the next step on the new kind's
   // rules apply.
-  if (!floorFree && destTile.transmogrifies && def?.transmogrifiesTo !== undefined) {
+  if (!floorFree && destTile.transmogrifies && destTile.transmogrifyTable !== 'cc2' && def?.transmogrifiesTo !== undefined) {
     entity.type = def.transmogrifiesTo;
+  }
+  // A CC2 transmogrifier changes only the monster that arrives: the one kind its table names, or for a blob a kind drawn
+  // from the level random stream (drawn only here, so a level without this tile draws nothing more).
+  if (destTile.transmogrifyTable === 'cc2') {
+    const pool = def?.transmogrifiesToCc2Pool;
+    if (def?.transmogrifiesToCc2 !== undefined) entity.type = def.transmogrifiesToCc2;
+    else if (pool !== undefined && pool.length > 0) entity.type = pool[w.rng.nextInt(0, pool.length - 1)];
   }
 
   // The first monster into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does
@@ -508,6 +515,8 @@ export function canMonsterEnter(
     def?.passesTiles?.includes(destTileId) === true ||
     (def?.entersBarredTiles?.includes(destTileId) === true && !(destTile.requiresAllChips === true && w.chipsRemaining > 0)) ||
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
+  // A tile that bars some monsters (the CC2 turtle bars fireballs) refuses the ones it lists, and a ghost its own list.
+  if (destTile.barsMonsters?.includes(monster.type) === true) return false;
   if (
     !destTile.passableByMonster &&
     !passesTile &&

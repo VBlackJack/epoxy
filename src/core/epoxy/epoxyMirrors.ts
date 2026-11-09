@@ -160,7 +160,7 @@ function stepMirror(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   }
 
   leaveSwivel(w, entity.x, entity.y, dir);
-  leaveCell(w, entity.x, entity.y);
+  leaveCell(w, entity.x, entity.y, { leaver: entity });
   entity.x = nx;
   entity.y = ny;
   // A top that goes away under the step (dirt, a blue fake wall) is gone once the mirror has stepped on it.
