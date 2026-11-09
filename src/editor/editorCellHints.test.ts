@@ -82,6 +82,22 @@ describe('setCellHint', () => {
   });
 });
 
+describe('cell hints under a non-Epoxy ruleset', () => {
+  it('offers no panel and no edit on a Lynx document', () => {
+    const base = documentFromLevel(makeLevel('lynx-doc', { terrain: hintMap().terrain }), { title: 'T', hint: '' });
+    const doc = { ...base, ruleset: 'lynx' as const, cellHints: hintMap().cellHints };
+    const panel = new CellHintPanel({ commit: () => undefined } as never, () => doc);
+    expect(panel.render(doc, 2, 1)).toBeNull();
+    expect(withCellHint(doc, 2, 1, 'text')).toBeNull();
+    expect(withCellHint({ ...doc, ruleset: undefined }, 2, 1, 'text')).not.toBeNull();
+  });
+
+  it('drops the cell hints when a Lynx level is loaded', () => {
+    const level = { ...makeLevel('lynx-hints', { terrain: hintMap().terrain }), ruleset: 'lynx' as const, cellHints: hintMap().cellHints };
+    expect(documentFromLevel(level, { title: 'T', hint: '' }).cellHints).toBeUndefined();
+  });
+});
+
 describe('edits that change or move a hint tile', () => {
   it('drops the text of a tile that is painted over, erased or flood filled, and keeps the others', () => {
     const painted = paintTerrain(hintMap(), 2, 1, 'wall').map;

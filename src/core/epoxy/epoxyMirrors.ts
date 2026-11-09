@@ -113,8 +113,16 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
       tile = ConfigRegistry.getTile(hidden);
     }
   }
-  // A wall that shows itself to the touch of the player is only a wall to a mirror.
-  if (tile.revealsToOnTouch) return false;
+  // A wall that shows itself to the touch of the player is only a wall to a mirror. One every actor reveals (the
+  // CC3D appearing wall) shows what it hides to the bump, and the step is still refused.
+  if (tile.revealsToOnTouch) {
+    if (tile.revealedByAny === true) {
+      w.terrain[ny][nx] = tile.revealsToOnTouch;
+      w.beamDirty = true;
+      w.gridMutatedByMove = true;
+    }
+    return false;
+  }
   // A socket never opens for a mirror: it picks up no chip. A fish gate that is already open admits it, as any mover.
   if (tile.requiresAllChips && !isOpenFishGate(w, tile)) return false;
   if (tile.requiredKey) {

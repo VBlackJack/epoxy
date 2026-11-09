@@ -19,7 +19,7 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { clampLevelText, isCompiledLevelShape, normalizeCellHints, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { makeLevel } from '../test/packFixtures';
-import { hintTextAt } from './cellHints';
+import { hintBannerVisible, hintTextAt } from './cellHints';
 import { LevelValidator } from './LevelValidator';
 import type { CompiledLevel } from './types';
 
@@ -54,6 +54,14 @@ describe('hintTextAt', () => {
     expect(hintTextAt({ customHint: 'level', cellHints }, 3, 1, key)).toBe('level');
     expect(hintTextAt({ hintKey: 'a.b', cellHints }, 3, 1, key)).toBe('T(a.b)');
     expect(hintTextAt({}, 3, 1, key)).toBe('');
+  });
+});
+
+describe('hintBannerVisible', () => {
+  it('hides the banner for an empty or whitespace-only text', () => {
+    expect(hintBannerVisible('')).toBe(false);
+    expect(hintBannerVisible('  \n\t ')).toBe(false);
+    expect(hintBannerVisible('Go left')).toBe(true);
   });
 });
 

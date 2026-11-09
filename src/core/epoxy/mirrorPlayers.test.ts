@@ -224,6 +224,20 @@ describe('mirror players: the terrain of their character', () => {
     expect(chip.getTerrain()[5][4]).toBe('floor');
   });
 
+  it('reveals an appearing wall every actor reveals when it bumps it, and stays put', () => {
+    const engine = load(room({ terrain: [[4, 3, 'appearing_wall_any']], entities: [mirror(MIRROR_CHIP, 3, 3)] }));
+    walk(engine, 'E');
+    expect(engine.getTerrain()[3][4]).toBe('wall');
+    expect(cellOf(engine, MIRROR_CHIP)).toBe(at(3, 3));
+  });
+
+  it('leaves a plain appearing wall unrevealed', () => {
+    const engine = load(room({ terrain: [[4, 3, 'appearing_wall']], entities: [mirror(MIRROR_CHIP, 3, 3)] }));
+    walk(engine, 'E');
+    expect(engine.getTerrain()[3][4]).toBe('appearing_wall');
+    expect(cellOf(engine, MIRROR_CHIP)).toBe(at(3, 3));
+  });
+
   it('is stopped by the gender sign of the other character', () => {
     const terrain: Array<[number, number, string]> = [[4, 3, 'sign_melinda_only']];
     const engine = load(room({ terrain, entities: [mirror(MIRROR_CHIP, 3, 3)] }));
