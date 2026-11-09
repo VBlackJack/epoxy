@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { isCompiledLevelShape, sanitizeStoredLevels, stripInvalidTextFields } from '../../config/ConfigValidation';
-import { PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V7 } from '../../config/constants';
+import { PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V7 } from '../../config/constants';
 import { parsePackJson, serializePack } from '../../packs/packJson';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -198,7 +198,7 @@ const mobCase = (key: string, type: string | null, extra: Partial<MobCase['mob']
 });
 
 const MOB_CASES: MobCase[] = [
-  mobCase('block_dirt', 'dirt_block'),
+  mobCase('block_dirt', 'dirt_block_3d'),
   mobCase('block_ice', 'ice_block_3d'),
   ...CC3D_COLORS.map((color): MobCase => ({ key: `block_color_${color}`, type: `color_block_${color}`, mob: { kind: 'block_color', dir: 'N', color } })),
   mobCase('reflector', 'one_sided_mirror_sw', { mirror: 'LU' }),
@@ -583,7 +583,7 @@ describe('arbitration rules', () => {
       F: { stack: [{ kind: 'fire' }], mob: { kind: 'block_color', color: 'red', dir: 'N' } }
     });
     expect(result.level.terrain[1].slice(2, 4)).toEqual(['water', 'fire']);
-    expect(result.level.entities.map((e) => e.type)).toEqual(['dirt_block', 'color_block_red']);
+    expect(result.level.entities.map((e) => e.type)).toEqual(['dirt_block_3d', 'color_block_red']);
     expect(result.level.terrain.flat().some((id) => id.startsWith('floating_block'))).toBe(false);
   });
 
@@ -596,7 +596,7 @@ describe('arbitration rules', () => {
     engine.loadLevel(result.level, 1);
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
     expect(engine.getEntities().map((e) => [e.type, e.x, e.y])).toEqual([
-      ['dirt_block', 2, 1],
+      ['dirt_block_3d', 2, 1],
       ['ice_block_3d', 3, 1]
     ]);
     expect(engine.getTerrain()[1].slice(2, 4)).toEqual(['water', 'fire']);
@@ -823,7 +823,7 @@ describe('properties of a conversion', () => {
     const { level } = convertCc3dLevel(richLevel());
     expect(level.launcherLinks?.length).toBeGreaterThan(0);
     const text = serializePack('Pack', [level]);
-    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V13);
+    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V16);
     const parsed = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), Date.now, undefined, ConfigRegistry.getLevelTextLimits());
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.levels).toEqual([level]);
