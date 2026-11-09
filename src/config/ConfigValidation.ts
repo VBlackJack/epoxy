@@ -2053,7 +2053,7 @@ export function findFormat14ConfigErrors(
   entities: Record<string, EntityDefinition>
 ): Format14ConfigErrors {
   const tileErrors: string[] = [];
-  const errors: string[] = [];
+  const monsterErrors: string[] = [];
   for (const tile of Object.values(tiles)) {
     const { id } = tile;
     if (tile.clearedByBlocks !== undefined) {
@@ -2091,30 +2091,45 @@ export function findFormat14ConfigErrors(
     if (tile.shieldsFromContact !== undefined) {
       if (tile.shieldsFromContact !== true) tileErrors.push(`${id}.shieldsFromContact: expected true`);
       if (tile.collectible !== 'boot') tileErrors.push(`${id}.shieldsFromContact: only boots (collectible "boot") shield from contact`);
+      if (tile.absorbsMonsterContact !== undefined) tileErrors.push(`${id}.shieldsFromContact: a boot does not also absorb monster contact`);
     }
   }
   const sources = new Map<string, string>();
   for (const entity of Object.values(entities)) {
+    const pool = entity.transmogrifiesToCc2Pool;
+    if (pool !== undefined) {
+      if (entity.kind !== 'monster') monsterErrors.push(`${entity.id}.transmogrifiesToCc2Pool: only a monster has a pool`);
+      if (entity.transmogrifiesToCc2 !== undefined) monsterErrors.push(`${entity.id}.transmogrifiesToCc2Pool: exclusive with transmogrifiesToCc2`);
+      if (!Array.isArray(pool) || pool.length === 0) {
+        monsterErrors.push(`${entity.id}.transmogrifiesToCc2Pool: expected a non-empty list of monster ids`);
+      } else {
+        for (const member of pool) {
+          if (typeof member !== 'string' || entities[member]?.kind !== 'monster') {
+            monsterErrors.push(`${entity.id}.transmogrifiesToCc2Pool: "${String(member)}" is not the id of an existing monster`);
+          }
+        }
+      }
+    }
     const target = entity.transmogrifiesToCc2;
     if (target === undefined) continue;
     const { id } = entity;
-    if (entity.kind !== 'monster' && entity.kind !== 'block') errors.push(`${id}.transmogrifiesToCc2: only a monster or a block may transmogrify`);
+    if (entity.kind !== 'monster' && entity.kind !== 'block') monsterErrors.push(`${id}.transmogrifiesToCc2: only a monster or a block may transmogrify`);
     if (typeof target !== 'string') {
-      errors.push(`${id}.transmogrifiesToCc2: expected an entity id`);
+      monsterErrors.push(`${id}.transmogrifiesToCc2: expected an entity id`);
       continue;
     }
-    if (target === id) errors.push(`${id}.transmogrifiesToCc2: an entity cannot transmogrify into itself`);
+    if (target === id) monsterErrors.push(`${id}.transmogrifiesToCc2: an entity cannot transmogrify into itself`);
     const other = entities[target];
     if (other === undefined) {
-      errors.push(`${id}.transmogrifiesToCc2: unknown entity ${target}`);
+      monsterErrors.push(`${id}.transmogrifiesToCc2: unknown entity ${target}`);
       continue;
     }
-    if (other.kind !== entity.kind) errors.push(`${id}.transmogrifiesToCc2: ${target} is not of the same kind`);
+    if (other.kind !== entity.kind) monsterErrors.push(`${id}.transmogrifiesToCc2: ${target} is not of the same kind`);
     const rival = sources.get(target);
-    if (rival !== undefined) errors.push(`${id}.transmogrifiesToCc2: ${rival} already becomes ${target}`);
+    if (rival !== undefined) monsterErrors.push(`${id}.transmogrifiesToCc2: ${rival} already becomes ${target}`);
     sources.set(target, id);
   }
-  return { tiles: tileErrors, monsters: errors };
+  return { tiles: tileErrors, monsters: monsterErrors };
 }
 
 /**

@@ -383,7 +383,8 @@
       "avoidsFire": false,
       "blockedBetweenCanopies": true,
       "immuneToSlime": true,
-      "trailTile": "slime"
+      "trailTile": "slime",
+      "transmogrifiesToCc2Pool": ["glider", "paramecium", "fireball", "bug", "walker", "pink_ball", "teeth", "tank", "timid_teeth"]
     },
     "color_block_red": {
       "id": "color_block_red",

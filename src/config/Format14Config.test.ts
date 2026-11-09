@@ -62,7 +62,7 @@ describe('format 14 ids', () => {
     expect(findFishGateAndExitErrors(tiles)).toEqual([]);
   });
 
-  it('writes a pack holding one of the new ids in format 14, and an older version refuses it by id', () => {
+  it('writes a pack holding one of the new ids in format 14, and an older version refuses it by version', () => {
     const { tiles } = clones();
     for (const id of NEW_IDS) {
       const level = makeLevel('f14');
@@ -134,6 +134,21 @@ describe('findFormat14ConfigErrors', () => {
     expect(findFormat14ConfigErrors(tiles, withTarget('bug', 'dirt_block')).monsters).toContain('bug.transmogrifiesToCc2: dirt_block is not of the same kind');
     expect(findFormat14ConfigErrors(tiles, withTarget('bug', 'bug')).monsters).toContain('bug.transmogrifiesToCc2: an entity cannot transmogrify into itself');
     expect(findFormat14ConfigErrors(tiles, withTarget('walker', 'glider')).monsters).toEqual(['walker.transmogrifiesToCc2: bug already becomes glider']);
+  });
+
+  it('gives the blob a pool of monsters, exclusive with a fixed target, each an existing monster', () => {
+    const { tiles, entities } = clones();
+    expect(entities.blob.transmogrifiesToCc2Pool).toEqual(['glider', 'paramecium', 'fireball', 'bug', 'walker', 'pink_ball', 'teeth', 'tank', 'timid_teeth']);
+    const withBlob = (patch: Record<string, unknown>) => ({ ...entities, blob: { ...entities.blob, ...patch } });
+    expect(findFormat14ConfigErrors(tiles, withBlob({ transmogrifiesToCc2Pool: [] })).monsters).toEqual(['blob.transmogrifiesToCc2Pool: expected a non-empty list of monster ids']);
+    expect(findFormat14ConfigErrors(tiles, withBlob({ transmogrifiesToCc2Pool: ['dirt_block'] })).monsters).toEqual(['blob.transmogrifiesToCc2Pool: "dirt_block" is not the id of an existing monster']);
+    expect(findFormat14ConfigErrors(tiles, withBlob({ transmogrifiesToCc2: 'bug' })).monsters).toContain('blob.transmogrifiesToCc2Pool: exclusive with transmogrifiesToCc2');
+  });
+
+  it('refuses a boot that both shields from contact and absorbs monster contact', () => {
+    const { tiles, entities } = clones();
+    const both = { ...tiles.helmet, absorbsMonsterContact: true } as typeof tiles.helmet;
+    expect(findFormat14ConfigErrors({ ...tiles, helmet: both }, entities).tiles).toEqual(['helmet.shieldsFromContact: a boot does not also absorb monster contact']);
   });
 
   it('keeps the CC2 table a permutation: the cycle of the four flyers and walkers, and the pairs', () => {

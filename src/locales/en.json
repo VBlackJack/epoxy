@@ -5035,7 +5035,7 @@
     "transmogrifier_cc2": {
       "name": "Transmogrifier (CC2)",
       "desc": {
-        "label": "Swaps a monster or a block that arrives on it by the Chip's Challenge 2 table: bug into glider, glider into paramecium, paramecium into fireball, fireball into bug; pink ball and walker; teeth and timid teeth; dirt block and ice block. Anything else, items included, passes unchanged."
+        "label": "Swaps a monster or a block that arrives on it by the Chip's Challenge 2 table: bug into glider, glider into paramecium, paramecium into fireball, fireball into bug; pink ball and walker; teeth and timid teeth; dirt block and ice block. A blob becomes a monster drawn by chance from glider, paramecium, fireball, bug, walker, pink ball, teeth, tank and timid teeth (the same draw at every replay). Anything else, items included, passes unchanged."
       }
     },
     "teleport_random": {
@@ -5053,7 +5053,7 @@
     "helmet": {
       "name": "Helmet",
       "desc": {
-        "label": "While the player holds it, touching a monster or a block does them no harm."
+        "label": "While the player holds it, touching a monster or a block does the player no harm."
       }
     },
     "teleport_yellow": {
@@ -5677,7 +5677,7 @@
       }
     },
     "arrow_block_cross": {
-      "name": "Arrow Block (four ways)",
+      "name": "Arrow Block (Four Ways)",
       "desc": {
         "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }

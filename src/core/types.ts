@@ -1245,7 +1245,8 @@ export interface TileDefinition {
    * ahead, or ahead, right, left, back. Absent on a native teleporter, which keeps the player's own order (ahead, then
    * north, east, south, west) and sends blocks and monsters ahead only. Format 14 adds `random` (the exit is drawn
    * among the other pads of the group, from the deterministic random source of the level) and `cc2_red` (the CC2 red
-   * teleporter order).
+   * teleporter order). Deferred for teleport_red_cc2: the CC2 red wiring and the player-chosen exit
+   * (teleport_allow_override) are not modelled and have no field.
    */
   teleportExitOrder?: TeleportExitOrder;
   /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
@@ -1443,6 +1444,11 @@ export interface EntityDefinition {
    * `cc2`. Unlike `transmogrifiesTo` the table need not be symmetric (bug, glider, paramecium and fireball form a cycle).
    */
   transmogrifiesToCc2?: string;
+  /**
+   * Instead of `transmogrifiesToCc2`: the monsters this one may become on a CC2 transmogrifier, one drawn from the level
+   * random source (the CC2 blob). Exclusive with `transmogrifiesToCc2`.
+   */
+  transmogrifiesToCc2Pool?: string[];
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
   /**
@@ -1494,7 +1500,7 @@ export interface EntityDefinition {
   immuneToSlime?: boolean;
   /** A monster that steps onto turtles, which sink into water behind it when it leaves them (the CC3D monsters). */
   entersTurtles?: boolean;
-  /** A monster that `entersTurtles` and leaves them afloat instead of sinking them (the CC3D blinkies). */
+  /** A monster that leaves any turtle it stands on afloat instead of sinking it, turtle_cc2 included (the CC3D blinkies; the glider has it without `entersTurtles`). */
   leavesTurtlesAfloat?: boolean;
   /** Tile the monster leaves on the plain, itemless floor cell it steps out of (the CC3D omni leaves slime). */
   trailTile?: string;

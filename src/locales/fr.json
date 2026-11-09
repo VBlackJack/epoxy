@@ -5035,7 +5035,7 @@
     "transmogrifier_cc2": {
       "name": "Transmogrificateur (CC2)",
       "desc": {
-        "label": "Échange un monstre ou un bloc qui arrive dessus selon la table de Chip's Challenge 2 : scarabée en planeur, planeur en paramécie, paramécie en boule de feu, boule de feu en scarabée ; balle rose et marcheur ; traqueur et dents timides ; bloc de terre et bloc de glace. Tout le reste, objets compris, passe sans changement."
+        "label": "Échange un monstre ou un bloc qui arrive dessus selon la table de Chip's Challenge 2 : scarabée en planeur, planeur en paramécie, paramécie en boule de feu, boule de feu en scarabée ; balle rose et marcheur ; traqueur et dents timides ; bloc de terre et bloc de glace. Un blob devient un monstre tiré au hasard parmi planeur, paramécie, boule de feu, scarabée, marcheur, balle rose, traqueur, tank et dents timides (le même tirage à chaque rejeu). Tout le reste, objets compris, passe sans changement."
       }
     },
     "teleport_random": {
@@ -5053,7 +5053,7 @@
     "helmet": {
       "name": "Casque",
       "desc": {
-        "label": "Tant que le joueur le porte, le contact d'un monstre ou d'un bloc ne lui fait aucun mal."
+        "label": "Tant que le joueur le porte, le contact d'un monstre ou d'un bloc ne fait aucun mal au joueur."
       }
     },
     "teleport_yellow": {
@@ -5677,7 +5677,7 @@
       }
     },
     "arrow_block_cross": {
-      "name": "Bloc à flèches (quatre sens)",
+      "name": "Bloc à Flèches (Quatre Sens)",
       "desc": {
         "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
