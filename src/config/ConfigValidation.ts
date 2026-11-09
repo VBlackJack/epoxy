@@ -2279,6 +2279,27 @@ export function findFormat15ConfigErrors(
 }
 
 /**
+ * Problems of the fields format 16 added: `pressedByAnyActor` is true on a held signal source, and `teleportsToSelf` is
+ * true on a tile that has a `poweredTwin` and is not a teleporter itself.
+ */
+export function findFormat16ConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.pressedByAnyActor !== undefined) {
+      if (tile.pressedByAnyActor !== true) errors.push(`${id}.pressedByAnyActor: expected true`);
+      if (tile.signalSource !== 'held') errors.push(`${id}.pressedByAnyActor: only a held signal source is pressed`);
+    }
+    if (tile.teleportsToSelf !== undefined) {
+      if (tile.teleportsToSelf !== true) errors.push(`${id}.teleportsToSelf: expected true`);
+      if (tile.poweredTwin === undefined) errors.push(`${id}.teleportsToSelf: needs a poweredTwin`);
+      if (tile.isTeleporter === true) errors.push(`${id}.teleportsToSelf: a teleporter has a destination of its own`);
+    }
+  }
+  return errors;
+}
+
+/**
  * Problems of the relay pad fields: a pad is `dark` or `lit` and names its other form, which must be a relay pad of the
  * opposite form that names it back. The lit form is a teleporter of the group "relay" and the dark form is not one;
  * both are plain terrain that every mover can enter. Each entry names the tile.

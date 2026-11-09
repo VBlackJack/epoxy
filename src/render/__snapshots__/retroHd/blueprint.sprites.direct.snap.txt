@@ -57,7 +57,7 @@ item dynamite tick=3 dc4033d31324466c
 item dynamite_lit tick=3 2898107276a72b0a
 item no_sign_dynamite tick=3 24026217c21faafb
 item no_sign_railroad_sign tick=3 84755ce9ebe881c3
-item helmet tick=3 f3884ff7bd95b8a5
+item helmet tick=3 7f4971347a35e189
 entity dirt_block dir=N tick=3 a89c02d8442e4ef9
 entity dirt_block dir=E tick=3 c17c2db2e2d8d795
 entity dirt_block dir=S tick=3 184ce356dd6d4307
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 34e01264a025be37
 entity ice_block_3d dir=E tick=3 ea75155ec1dfa846
 entity ice_block_3d dir=S tick=3 0298f86397991474
 entity ice_block_3d dir=W tick=3 2b86c104cd5b29eb
+entity dirt_block_3d dir=N tick=3 862269c79b180c92
+entity dirt_block_3d dir=E tick=3 40f120587c8f28c7
+entity dirt_block_3d dir=S tick=3 a9131653be23e95b
+entity dirt_block_3d dir=W tick=3 800af981a3d2d6fd
 item key_red tick=13 695240323b2b0b76
 item key_blue tick=13 a0e896f011f0817d
 item key_yellow tick=13 69d89faad612807f
@@ -349,7 +353,7 @@ item dynamite tick=13 d71f4fe9767ab865
 item dynamite_lit tick=13 eababcc788f2c8d0
 item no_sign_dynamite tick=13 60e90aed8923ec81
 item no_sign_railroad_sign tick=13 2d97e816e610eb8b
-item helmet tick=13 22a16a9f7946aa50
+item helmet tick=13 37dfa2b7cb2623f1
 entity dirt_block dir=N tick=13 e90ea48d37902770
 entity dirt_block dir=E tick=13 fe2677eeec74ecd8
 entity dirt_block dir=S tick=13 5d930e94a844a16f
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 b66b0b7bb0181157
 entity ice_block_3d dir=E tick=13 c69741ca991dca0d
 entity ice_block_3d dir=S tick=13 51b693094c9f91aa
 entity ice_block_3d dir=W tick=13 89b7816e536caffd
+entity dirt_block_3d dir=N tick=13 8d5fa51e4f73c2c2
+entity dirt_block_3d dir=E tick=13 3eb6c8af4aa0db2e
+entity dirt_block_3d dir=S tick=13 09207836503f8445
+entity dirt_block_3d dir=W tick=13 9796c6249e9b96c0
 player dir=N inWater=false alive=true frame=0 hop=0 0bc453cb76b4690c
 player dir=N inWater=false alive=true frame=0 hop=0.3 4f98c2a8059f942f
 player dir=N inWater=false alive=true frame=1 hop=0 1495863028d991df

@@ -195,7 +195,7 @@ export const RETRO_SPRITE_NAMES: readonly string[] = [
   ...DIRECTIONS.flatMap((d) => framed(`player_${d}`, PLAYER_FRAMES)),
   ...DIRECTIONS.map((d) => `player_swim_${d}`), 'player_dead',
   ...MONSTER_TYPES.flatMap((t) => DIRECTIONS.flatMap((d) => framed(`${t}_${d}`, MONSTER_FRAMES))),
-  'lurker_tell', 'dirt_block', 'ice_block', 'ice_block_3d', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, ...ARROW_MARK_SPRITES, 'block_on_target'
+  'lurker_tell', 'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d', ...COLOR_BLOCK_SPRITES, 'mirror_slash', 'mirror_backslash', ...ONE_SIDED_MIRROR_SPRITES, ...TURRET_SPRITES, ...ARROW_MARK_SPRITES, 'block_on_target'
 ];
 
 /** Names of RETRO_SPRITE_NAMES the sheet does not define. */

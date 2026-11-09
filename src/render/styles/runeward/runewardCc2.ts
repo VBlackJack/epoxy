@@ -26,7 +26,7 @@ import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonster
 import { completePose } from './runewardCharacter';
 import { runewardClockMs, type RunewardPaintEnv } from './runewardEnv';
 import { paintMage } from './runewardPainters';
-import { CC2_ITEM_VARIANTS, CC2_TERRAIN_VARIANTS, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
+import { CC2_ITEM_VARIANTS, CC2_TERRAIN_VARIANTS, drawsMark, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
 import type { RunewardEntityPainter, RunewardItemPainter, RunewardTilePainter } from './runewardTiles';
 
 /** The look-alike tiles over the painters of the tiles they resemble; a base without a painter leaves its look-alike out. */
@@ -37,7 +37,9 @@ export function variantTilePainters(base: Readonly<Record<string, RunewardTilePa
     if (under === undefined) continue;
     painters[id] = (ctx, x, y, size, pass, neighbours, env, isEditor, isClosedTrap) => {
       under(ctx, x, y, size, pass, neighbours, env, isEditor, isClosedTrap);
-      if (pass !== 'animated') paintCc2Mark(ctx, variant.mark, x, y, size, runewardMarkColours(env.art, variant.mark));
+      if (pass !== 'animated' && drawsMark(variant.mark, { isEditor: false, importedLevel: env.hideLookAlikeMarks === true })) {
+        paintCc2Mark(ctx, variant.mark, x, y, size, runewardMarkColours(env.art, variant.mark));
+      }
     };
   }
   return painters;
@@ -52,7 +54,9 @@ export function variantItemPainters(base: Readonly<Record<string, RunewardItemPa
     if (under === undefined) continue;
     painters[id] = (ctx, x, y, size, env) => {
       under(ctx, x, y, size, env);
-      paintCc2Mark(ctx, variant.mark, x, y, size, runewardMarkColours(env.art, variant.mark));
+      if (drawsMark(variant.mark, { isEditor: false, importedLevel: env.hideLookAlikeMarks === true })) {
+        paintCc2Mark(ctx, variant.mark, x, y, size, runewardMarkColours(env.art, variant.mark));
+      }
     };
   }
   return painters;

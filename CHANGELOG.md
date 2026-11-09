@@ -5,6 +5,15 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 16 scaffold: the CC2 orange button that any actor holds down (button_orange_cc2) and the CC3D dirt block (dirt_block_3d), with their art, names and descriptions in both locales; their rules and the imports that use them follow. The unpowered CC2 red teleporter is marked as sending the mover back out, and the omni leaves CC3D slime.
+- The keyboard hint lists the drop key (E) and the item cycle key (C).
+
+### Changed
+
+- Look-alike marks (the 2, 3, O, ?, B and H letters on CC2 and CC3D variants) are a small badge in the tile corner instead of a sign in the middle, and are not drawn at all while playing a level imported from CC2 or CC3D, where every such tile follows the imported game. The editor always shows them.
+
 ### Fixed
 
 - The hint banner no longer opens empty on a hint tile that has no text.

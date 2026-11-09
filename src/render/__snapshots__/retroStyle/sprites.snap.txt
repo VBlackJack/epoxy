@@ -243,6 +243,7 @@ sprite theme=default name=blob_W_0 3a7adae1ccc6fc7d
 sprite theme=default name=blob_W_1 b7115617bd276026
 sprite theme=default name=lurker_tell 2a33fc25efffe3d1
 sprite theme=default name=dirt_block 68eef61904933142
+sprite theme=default name=dirt_block_3d abf3643614967ec6
 sprite theme=default name=ice_block 18235c0eeec770e1
 sprite theme=default name=ice_block_3d b45978c01cef0431
 sprite theme=default name=color_block_red 43e2930fb4acd917
@@ -509,6 +510,7 @@ sprite theme=cyber_neon name=blob_W_0 e7153f2077cbe686
 sprite theme=cyber_neon name=blob_W_1 1f131685d4459090
 sprite theme=cyber_neon name=lurker_tell 031b6cee1b3d20a2
 sprite theme=cyber_neon name=dirt_block 72fc84bd8d00ec5b
+sprite theme=cyber_neon name=dirt_block_3d 339f1a91db34cde6
 sprite theme=cyber_neon name=ice_block 69b589186a933f32
 sprite theme=cyber_neon name=ice_block_3d 084b8e4c201607c0
 sprite theme=cyber_neon name=color_block_red f035975b8e7f691e
@@ -775,6 +777,7 @@ sprite theme=arctic_lab name=blob_W_0 b5d3244350cb026a
 sprite theme=arctic_lab name=blob_W_1 6e57e2d1dea28857
 sprite theme=arctic_lab name=lurker_tell 3adac222a4dd662c
 sprite theme=arctic_lab name=dirt_block df0141235fe53155
+sprite theme=arctic_lab name=dirt_block_3d 90f67c1359953541
 sprite theme=arctic_lab name=ice_block fa219b04df96b6f6
 sprite theme=arctic_lab name=ice_block_3d 915fe8d53a3a434d
 sprite theme=arctic_lab name=color_block_red 3e69eb395120c9ab
@@ -1041,6 +1044,7 @@ sprite theme=magma_core name=blob_W_0 8ef3c397a3c08214
 sprite theme=magma_core name=blob_W_1 72dd73fa65429c3a
 sprite theme=magma_core name=lurker_tell f7f90028905057bd
 sprite theme=magma_core name=dirt_block 300629dd5321cbe0
+sprite theme=magma_core name=dirt_block_3d 125d591bac6b8d10
 sprite theme=magma_core name=ice_block e1774847aa4ca899
 sprite theme=magma_core name=ice_block_3d 7f5a46fea286f588
 sprite theme=magma_core name=color_block_red b2017da11aad8eb0
@@ -1307,6 +1311,7 @@ sprite theme=lynx_lcd name=blob_W_0 e113c5e4615f0d7d
 sprite theme=lynx_lcd name=blob_W_1 c8c7d0f18c5e9ea7
 sprite theme=lynx_lcd name=lurker_tell 9e2ac37225fe9593
 sprite theme=lynx_lcd name=dirt_block 413312964563f553
+sprite theme=lynx_lcd name=dirt_block_3d 8dc8696f8dfc94c7
 sprite theme=lynx_lcd name=ice_block 47303f514f1ac9f7
 sprite theme=lynx_lcd name=ice_block_3d a474b5a6cedead65
 sprite theme=lynx_lcd name=color_block_red 6a7596d8c0fa3662

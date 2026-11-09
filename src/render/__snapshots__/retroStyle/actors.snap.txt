@@ -278,6 +278,11 @@ monster theme=cyber_neon type=ice_block_3d 5411adad99970c60
 monster theme=arctic_lab type=ice_block_3d f3daca8cec503a8f
 monster theme=magma_core type=ice_block_3d 9368394f38579525
 monster theme=lynx_lcd type=ice_block_3d f14f6c2dfda44ac8
+monster theme=default type=dirt_block_3d 262fc4aadfd94c7d
+monster theme=cyber_neon type=dirt_block_3d 7622b078e376a4f3
+monster theme=arctic_lab type=dirt_block_3d 45991cb9e872dbb0
+monster theme=magma_core type=dirt_block_3d dea5bd1d6f093e11
+monster theme=lynx_lcd type=dirt_block_3d 28758d29e5bac50c
 block theme=default name=dirt_block 1ff71eb835c677b8
 block theme=cyber_neon name=dirt_block ed95fa4e09e6764b
 block theme=arctic_lab name=dirt_block b3242ffada28932c

@@ -35,6 +35,7 @@ import {
   paintPauseBadge,
   paintRailBadge,
   paintRivets,
+  paintCornerBadge,
   paintSignPlate,
   paintToggleBadge,
   paintTreadBadge,
@@ -62,7 +63,8 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   railroad_sign: { base: 'boots_fire', mark: 'rail' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
   dynamite: { base: 'charge', mark: 'dynamite' },
-  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' },
+  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' }
+,
   ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
 };
 
@@ -91,10 +93,12 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   appearing_wall_any: { base: 'appearing_wall', mark: '3d' },
   slime_3d: { base: 'slime', mark: '3d' },
   teleport_red_cc2_off: { base: 'teleport_red', mark: 'off' },
-  transmogrifier_cc2_off: { base: 'transmogrifier', mark: 'off' }
+  transmogrifier_cc2_off: { base: 'transmogrifier', mark: 'off' },
+  // The format 16 look-alike: the CC2 orange button, held down by any actor, on the signal plate.
+  button_orange_cc2: { base: 'signal_plate', mark: 'cc2' }
 };
 
-/** The letter set on the plate of each gender sign: the initial of the character who may step there. */
+/** The letter set on the plate of each gender sign, or on the corner badge of a look-alike: its initial or symbol. */
 const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda' | 'cc2' | 'random' | 'barrier' | 'helmet' | '3d' | 'off', string>> = {
   sign_chip: 'C',
   sign_melinda: 'M',
@@ -105,6 +109,24 @@ const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda' | 'cc2' | 'rand
   '3d': '3',
   off: 'O'
 };
+
+/** The marks that only tell a look-alike from the tile it resembles (drawn as a corner badge, never as a real sign). */
+const LOOK_ALIKE_MARKS: ReadonlySet<Cc2Mark> = new Set<Cc2Mark>(['cc2', '3d', 'off', 'random', 'barrier', 'helmet']);
+
+/** Where a mark is drawn: in the editor or in play, and on a level imported from Chip's Challenge 2 or 3D or not. */
+export interface MarkContext {
+  readonly isEditor: boolean;
+  readonly importedLevel: boolean;
+}
+
+/**
+ * True when the mark is drawn. A look-alike badge is left out in play on an imported level, where every such tile
+ * follows the rule of the imported game and the badge carries no information; the editor and native levels keep it,
+ * and the real signs and the no-signs are drawn everywhere.
+ */
+export function drawsMark(mark: Cc2Mark, context: MarkContext): boolean {
+  return context.isEditor || !context.importedLevel || !LOOK_ALIKE_MARKS.has(mark);
+}
 
 /** The palette entries a vector style hands in (the same keys as the palette of game.json). */
 export interface MarkPalette {
@@ -249,13 +271,16 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'sign_chip':
     case 'sign_melinda':
+      paintSignPlate(ctx, x, y, size, SIGN_LETTERS[mark], colours);
+      return;
     case 'cc2':
     case 'random':
     case 'barrier':
     case 'helmet':
     case '3d':
     case 'off':
-      paintSignPlate(ctx, x, y, size, SIGN_LETTERS[mark], colours);
+      // A look-alike wears a small corner badge: the big plate stays for the real signs.
+      paintCornerBadge(ctx, x, y, size, SIGN_LETTERS[mark], colours);
       return;
     case 'no_sign':
       paintNoSign(ctx, x, y, size, colours);

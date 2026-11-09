@@ -137,7 +137,8 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   appearing_wall_any: 'floorBase',
   slime_3d: 'slimeBase',
   teleport_red_cc2_off: 'teleportRing',
-  transmogrifier_cc2_off: 'teleportRing'
+  transmogrifier_cc2_off: 'teleportRing',
+  button_orange_cc2: 'yellow'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */

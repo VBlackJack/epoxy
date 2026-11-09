@@ -57,7 +57,7 @@ item dynamite tick=3 f4997e8726631bd6
 item dynamite_lit tick=3 263e58ca1b42f99b
 item no_sign_dynamite tick=3 90f8574fa859cb36
 item no_sign_railroad_sign tick=3 f8f615fc1a41591b
-item helmet tick=3 0c20149e9f779319
+item helmet tick=3 c4614e516f02fb5c
 entity dirt_block dir=N tick=3 a1211533c63d1907
 entity dirt_block dir=E tick=3 0fa7dc110945824c
 entity dirt_block dir=S tick=3 f983d57bd1250972
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 71927b19409a04cc
 entity ice_block_3d dir=E tick=3 a4e2957c17aaefaa
 entity ice_block_3d dir=S tick=3 186bb2154fe06135
 entity ice_block_3d dir=W tick=3 ba460d4640b0e87b
+entity dirt_block_3d dir=N tick=3 b446461d2802191a
+entity dirt_block_3d dir=E tick=3 e7885e8ee163dc4c
+entity dirt_block_3d dir=S tick=3 5bf7a7ab1f1cf64f
+entity dirt_block_3d dir=W tick=3 566023bc09001408
 item key_red tick=13 67d4f2e8dae3d187
 item key_blue tick=13 7ccc81ea8f3e5b1e
 item key_yellow tick=13 74dde4a3e77d1780
@@ -349,7 +353,7 @@ item dynamite tick=13 1dee269ae3b278c5
 item dynamite_lit tick=13 59d8ac9e0edec0fb
 item no_sign_dynamite tick=13 72dde0556a02cca7
 item no_sign_railroad_sign tick=13 991c6968786277c2
-item helmet tick=13 951b6e47aed0d9ac
+item helmet tick=13 691795162254fd0a
 entity dirt_block dir=N tick=13 d14e4ef6b190c554
 entity dirt_block dir=E tick=13 12f7f41eb2aa418a
 entity dirt_block dir=S tick=13 f017f820ff61c84d
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 9093b7947a657c4e
 entity ice_block_3d dir=E tick=13 bf81bb569a6c794b
 entity ice_block_3d dir=S tick=13 2c9b87a0f98057a9
 entity ice_block_3d dir=W tick=13 1b15ad84f831c041
+entity dirt_block_3d dir=N tick=13 d3670ad594085799
+entity dirt_block_3d dir=E tick=13 d8257004b25b4f77
+entity dirt_block_3d dir=S tick=13 cff10a7f63e9c4c3
+entity dirt_block_3d dir=W tick=13 e9d3a8e1c7a2afeb
 player dir=N inWater=false alive=true frame=0 hop=0 7f565cf26d42eef9
 player dir=N inWater=false alive=true frame=0 hop=0.3 e86b156c23ed5cc7
 player dir=N inWater=false alive=true frame=1 hop=0 f33285f6d2b6e85c
