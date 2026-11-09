@@ -69,6 +69,7 @@ import {
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
   drawsMark,
+  isImportedLevel,
   paintCc2Mark,
   paletteMarkColours,
   type MarkPalette
@@ -1350,7 +1351,7 @@ export class PixelRenderer {
     this.skinActive =
       this.skinEnabled && engine.getLevel().winRule === 'targets' && (this.skinLoader?.ready ?? false);
     this.frameRevealsHiddenWalls = bootsRevealHiddenWalls(engine.getPlayer().boots);
-    this.frameImportedLevel = engine.getLevel().cc2 !== undefined || engine.getLevel().cc3d !== undefined;
+    this.frameImportedLevel = isImportedLevel(engine.getLevel());
     try {
       this.renderScene(ctx, engine);
     } finally {

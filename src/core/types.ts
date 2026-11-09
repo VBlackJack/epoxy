@@ -2125,6 +2125,13 @@ export interface CompiledLevel {
   cc3d?: Cc3dLevel;
   /** Source record of a level imported from a CC2 file; absent on every other level, and ignorable by any reader. */
   cc2?: Cc2LevelData;
+  /**
+   * The CC3D level an Epoxy level was converted from at import, kept so it can be converted again when the converter improves.
+   * Absent on every other level, and ignorable by any reader: no engine reads it (only the 'cc3d' ruleset reads `cc3d`, and a
+   * level that carries `cc3d` is a CC3D room for the editor, the validator and the .DAT export).
+   * Local only: pack files and share links leave it out. Editing the level drops it (an edited level is the user's own).
+   */
+  cc3dSource?: Cc3dLevel;
   number: number;
   titleKey?: string;
   customTitle?: string;

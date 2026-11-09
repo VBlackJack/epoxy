@@ -24,7 +24,7 @@ vi.mock('../audio/AudioManager', () => ({
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { PACK_JSON_FORMAT, PACK_JSON_MAX_VERSION } from '../config/constants';
 import { CompiledLevel } from '../core/types';
-import { importCc3dSelection } from '../ui/cc3dImport';
+import { decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { makeLevel } from '../test/packFixtures';
 import { serializePack } from './packJson';
@@ -65,7 +65,8 @@ function cc3dXml(): string {
 async function makeCc3dLevel(): Promise<CompiledLevel> {
   const text = cc3dXml();
   const file = { name: '1.xml', size: 1, arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer };
-  const { levels } = await importCc3dSelection([file], 1024, 'Pack');
+  // A stored cc3d-ruleset level (packs made before imports became Epoxy levels), so the codec's output is used as is.
+  const { levels } = decodeCc3dFiles([{ name: file.name, bytes: await file.arrayBuffer() }], 'Pack');
   return levels[0];
 }
 

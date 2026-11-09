@@ -14,6 +14,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Importing CC3D maps now makes native Epoxy levels played by the Epoxy engine, with every play aid (item drop, hints, tap to walk), instead of levels played by the CC3D engine. Maps that convert with losses or validator errors are still imported and named in a report; a map that cannot be converted is skipped and named. The original map is kept on this device for later re-conversion and is never shared or exported. Packs imported before keep their CC3D levels for now.
 - Look-alike marks (the 2, 3, O, ?, B and H letters on CC2 and CC3D variants) are a small badge in the tile corner instead of a sign in the middle, and are not drawn at all while playing a level imported from CC2 or CC3D, where every such tile follows the imported game. The editor always shows them.
 
 ### Fixed
