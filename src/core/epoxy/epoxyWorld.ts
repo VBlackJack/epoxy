@@ -21,6 +21,7 @@ import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
+import { usesCcRules } from './ccRules';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -144,6 +145,8 @@ export interface EpoxyWorld {
   hasLaunchers: boolean;
   /** True when shots can exist on this level: it has a shot launcher or places a hurl stone; fixed for the level. */
   hasShots: boolean;
+  /** True when the level plays with the classic Chip's Challenge rules (see usesCcRules); fixed for the level, read by later batches. */
+  ccRules: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -245,6 +248,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasTurrets: false,
     hasLaunchers: false,
     hasShots: false,
+    ccRules: false,
     shotStepTicks: 0,
     launcherLinks: [],
     inTick: false,
@@ -287,6 +291,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
   w.hasLaunchers = false;
   w.hasShots = false;
+  w.ccRules = usesCcRules(w.level);
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();

@@ -900,6 +900,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   if ('character' in record && !isPlayerCharacter(record.character)) bad.push('character');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   if ('cc2' in record && !isCc2LevelData(record.cc2)) bad.push('cc2');
+  if ('rulesFlavor' in record && record.rulesFlavor !== 'cc') bad.push('rulesFlavor');
   const badPassword = typeof record.password !== 'string';
   let edges: CellEdge[] | null = null;
   if ('cellEdges' in record) {

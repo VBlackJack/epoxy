@@ -101,7 +101,8 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
     chipsRequired: level.chipsRequired,
     winRule: level.winRule ?? DEFAULT_WIN_RULE,
     ruleset: level.ruleset,
-    ...(level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER ? { character: level.character } : {})
+    ...(level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER ? { character: level.character } : {}),
+    ...(level.rulesFlavor !== undefined ? { rulesFlavor: level.rulesFlavor } : {})
   };
 }
 
@@ -130,6 +131,7 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     ...(doc.ruleset ? { ruleset: doc.ruleset } : {}),
     // Chip is the default character and stays unwritten, so a level played by Chip keeps the record it always had.
     ...(doc.character !== undefined && doc.character !== DEFAULT_PLAYER_CHARACTER ? { character: doc.character } : {}),
+    ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {}),
     number: context.number,
     customTitle: doc.title || context.fallbackTitle,
     customHint: doc.hint,

@@ -743,6 +743,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const cellHints = assignHintBlocks(terrain, options.hintBlocks ?? []);
   if (cellHints.length > 0) level.cellHints = cellHints;
   if (signalLinks.length > 0) level.signalLinks = signalLinks;
+  level.rulesFlavor = 'cc';
   level.cc2 = {
     v: 1,
     sha256: options.sha256,
