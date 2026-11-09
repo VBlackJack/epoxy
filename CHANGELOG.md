@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Pack format 14, helmet: while held it shields the player from monster and block contact (the mover is stopped instead; hurl stones are not covered, a boots thief takes it). The validator knows the format 14 elements: the CC2 slime is cleared by dirt and ice blocks without spending them, blocks near a CC2 transmogrifier count as either of their pair, and none of the new elements makes a level reported unwinnable.
 - Pack format 14, CC2 teleports and jets: the random (green) teleporter draws a destination pad and an exit side from the level random stream, only when used; the CC2 red teleporter leaves forward, right, back, then left of the mover's facing (its wiring is not played yet); the CC2 flame jets follow their wire or orange button only, toggling on press and on release, and burn what stands in them.
 - Pack format 14, CC2 actors: the CC2 slime is cleared by dirt and ice blocks, which survive it (other blocks are destroyed); the CC2 turtle admits every monster but the fireball and the ghost and stays afloat while another actor is on it or after a glider leaves; the CC2 transmogrifier changes the arriving monster or block by the CC2 table (a blob draws from the level random stream) and switches the player's character.
 
