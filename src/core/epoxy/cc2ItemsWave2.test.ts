@@ -456,10 +456,10 @@ describe('wave 2 items: CC2 import', () => {
     expect(ITEM_MAP.get(CC2_CODE_BRIBE)).toMatchObject({ id: BRIBE, key: 'bribe' });
   });
 
-  it('classifies the bribe as exact and the foil and the clock as approximate', () => {
+  it('classifies the bribe and the foil as exact and the clock as approximate', () => {
     expect(classifyCc2Level(['bribe']).verdict).toBe('exact');
-    expect(classifyCc2Level(['steel_foil']).verdict).toBe('approx');
+    expect(classifyCc2Level(['steel_foil']).verdict).toBe('exact');
     expect(classifyCc2Level(['toggle_clock']).verdict).toBe('approx');
-    expect(classifyCc2Level(['steel_foil', 'toggle_clock']).approx).toEqual(['steel_foil', 'toggle_clock']);
+    expect(classifyCc2Level(['steel_foil', 'toggle_clock']).approx).toEqual(['toggle_clock']);
   });
 });
