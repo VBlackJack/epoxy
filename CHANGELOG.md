@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 14, CC2 teleports and jets: the random (green) teleporter draws a destination pad and an exit side from the level random stream, only when used; the CC2 red teleporter leaves forward, right, back, then left of the mover's facing (its wiring is not played yet); the CC2 flame jets follow their wire or orange button only, toggling on press and on release, and burn what stands in them.
+- Pack format 14, CC2 actors: the CC2 slime is cleared by dirt and ice blocks, which survive it (other blocks are destroyed); the CC2 turtle admits every monster but the fireball and the ghost and stays afloat while another actor is on it or after a glider leaves; the CC2 transmogrifier changes the arriving monster or block by the CC2 table (a blob draws from the level random stream) and switches the player's character.
+
 ### Fixed
 
 - A CC2 rover that pushes a block no longer steps into a cell its push just closed (a toggle wall); the CC2 coverage notes for the rover were corrected (fake walls bar it, it leaves bonus items, the tool thief stays closed to it).

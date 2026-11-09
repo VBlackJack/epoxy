@@ -202,14 +202,14 @@ export function moveBlockTo(
   // A clone spawns in place and leaves no cell behind.
   if (block.x !== destX || block.y !== destY) {
     leaveSwivel(w, block.x, block.y, dir);
-    leaveCell(w, block.x, block.y);
+    leaveCell(w, block.x, block.y, { leaver: block });
   }
   block.x = destX;
   block.y = destY;
   block.dir = dir;
   enterSwivel(w, destX, destY, dir);
 
-  const blockDef = ConfigRegistry.getEntityDef(block.type);
+  let blockDef = ConfigRegistry.getEntityDef(block.type);
   const tileId = w.terrain[destY][destX];
   const tile = ConfigRegistry.getTile(tileId);
   const itemId = w.items[destY][destX];
@@ -238,10 +238,13 @@ export function moveBlockTo(
 
   if (tile.hazard === 'slime') {
     w.terrain[destY][destX] = tile.blockTransformsTo || FLOOR_TILE_ID;
-    removeEntity(w, block.uid);
     AudioManager.playSfx('splash');
     ctx.emitVisual('splash', destX, destY, 'green');
-    return;
+    // A block the slime lists (the CC2 dirt and ice blocks) clears it and survives; any other block is used up.
+    if (tile.clearedByBlocks?.includes(block.type) !== true) {
+      removeEntity(w, block.uid);
+      return;
+    }
   }
 
   if (tile.hazard === 'fire' && blockDef?.destroyedByFire) {
@@ -251,6 +254,12 @@ export function moveBlockTo(
     removeEntity(w, block.uid);
     AudioManager.playSfx('burn');
     return;
+  }
+
+  // A CC2 transmogrifier changes the block that arrives on it into the one its table names; only the type changes.
+  if (tile.transmogrifyTable === 'cc2' && blockDef?.transmogrifiesToCc2 !== undefined) {
+    block.type = blockDef.transmogrifiesToCc2;
+    blockDef = ConfigRegistry.getEntityDef(block.type);
   }
 
   // The first block into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does not

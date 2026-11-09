@@ -54,11 +54,46 @@ function livePadsOf(w: EpoxyWorld, group: string, isPad: (tile: TileDefinition) 
 const EXIT_TURNS: Readonly<Record<TeleportExitOrder, readonly number[]>> = {
   forward_only: [0],
   forward_right_left_back: [0, 1, 3, 2],
-  // Format 14 scaffold: the pad choice of these two orders is engine work of a later batch; until then they only read the
-  // exit sides like forward_right_left_back.
-  random: [0, 1, 3, 2],
-  cc2_red: [0, 1, 3, 2]
+  // Chip's Challenge 2 orders: forward, right, back, left (the green pad turns from the drawn side, the red pad from the
+  // facing of the mover).
+  random: [0, 1, 2, 3],
+  cc2_red: [0, 1, 2, 3]
 };
+
+/** A pad a jump may land on, with the sides tried there in order. */
+interface PadAttempt {
+  pad: GridPoint;
+  dirs: Direction[];
+}
+
+/** Whether a pad names one of the Chip's Challenge 2 orders, which choose their own pad (see `cc2PadPlan`). */
+function isCc2Order(origin: TileDefinition): boolean {
+  return origin.teleportExitOrder === 'random' || origin.teleportExitOrder === 'cc2_red';
+}
+
+/**
+ * The pads a Chip's Challenge 2 teleporter tries, in order, as Lexy's Labyrinth searches them: the ring of its group read
+ * forward from the pad after the one entered, the entered pad last (it is only left forward). A lone pad leaves forward
+ * and draws nothing. The green ('random') pad draws one pad among the others and then one side (both from the level
+ * generator, and only now that the pad is used), and tries that side, then right, back and left; the red pad tries every
+ * pad forward, right, back, left of the facing of the mover.
+ */
+function cc2PadPlan(w: EpoxyWorld, origin: TileDefinition, teleporters: readonly GridPoint[], startIdx: number, facing: Direction): PadAttempt[] {
+  const self = teleporters[startIdx];
+  const others = teleporters.map((_, i) => teleporters[(startIdx + 1 + i) % teleporters.length]).slice(0, -1);
+  const plan: PadAttempt[] = [];
+  if (origin.teleportExitOrder === 'random' && others.length > 0) {
+    const first = w.rng.nextInt(0, others.length - 1);
+    const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
+    const dirs = namedExitDirections(origin, drawn) ?? [drawn];
+    for (let i = 0; i < others.length; i++) plan.push({ pad: others[(first + i) % others.length], dirs });
+  } else if (origin.teleportExitOrder === 'cc2_red') {
+    const dirs = namedExitDirections(origin, facing) ?? [facing];
+    for (const pad of others) plan.push({ pad, dirs });
+  }
+  plan.push({ pad: self, dirs: [facing] });
+  return plan;
+}
 
 /**
  * The sides a mover may leave by, in order, when the teleporter it entered names an exit order, or null for a native
@@ -87,6 +122,21 @@ function padRefusesLanding(w: EpoxyWorld, origin: TileDefinition, pad: GridPoint
   return !moverIsPlayer && playerAtCell(w, pad.x, pad.y) !== undefined;
 }
 
+/** The pads of a native or CC3D teleporter, the previous one in reading order first, each with the same sides. */
+function nativePadPlan(
+  teleporters: readonly GridPoint[],
+  startIdx: number,
+  origin: TileDefinition,
+  dirs: Direction[]
+): PadAttempt[] {
+  const plan: PadAttempt[] = [];
+  const candidateCount = candidateCountOf(origin, teleporters.length);
+  for (let i = 1; i <= candidateCount; i++) {
+    plan.push({ pad: teleporters[(startIdx - i + teleporters.length) % teleporters.length], dirs });
+  }
+  return plan;
+}
+
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const origin = ConfigRegistry.getTile(w.terrain[y][x]);
@@ -109,23 +159,21 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
  */
 export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction): boolean {
   const teleporters = teleportersLinkedTo(w, fromX, fromY);
-  if (teleporters.length <= 1) return false;
-
   const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
   if (startIdx < 0) return false;
 
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
+  if (teleporters.length <= 1 && !isCc2Order(origin)) return false;
   const candidateDirs: Direction[] = namedExitDirections(origin, dir) ?? [
     dir,
     ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
   ];
 
-  const candidateCount = candidateCountOf(origin, teleporters.length);
-  for (let i = 1; i <= candidateCount; i++) {
-    const idx = (startIdx - i + teleporters.length) % teleporters.length;
-    const candidate = teleporters[idx];
-    if (padRefusesLanding(w, origin, candidate, true)) continue;
-    for (const tryDir of candidateDirs) {
+  for (const { pad: candidate, dirs: tryDirs } of isCc2Order(origin)
+    ? cc2PadPlan(w, origin, teleporters, startIdx, dir)
+    : nativePadPlan(teleporters, startIdx, origin, candidateDirs)) {
+    if (!(candidate.x === fromX && candidate.y === fromY) && padRefusesLanding(w, origin, candidate, true)) continue;
+    for (const tryDir of tryDirs) {
       const vec = DIRECTION_VECTORS[tryDir];
       const exitX = candidate.x + vec.dx;
       const exitY = candidate.y + vec.dy;
@@ -164,19 +212,17 @@ export function teleportEntity(
 ): boolean {
   const w = ctx.world;
   const teleporters = teleportersLinkedTo(w, fromX, fromY);
-  if (teleporters.length <= 1) return false;
-
   const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
   if (startIdx < 0) return false;
 
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
+  if (teleporters.length <= 1 && !isCc2Order(origin)) return false;
   const exitDirs = namedExitDirections(origin, dir) ?? [dir];
-  const candidateCount = candidateCountOf(origin, teleporters.length);
-  for (let i = 1; i <= candidateCount; i++) {
-    const idx = (startIdx - i + teleporters.length) % teleporters.length;
-    const candidate = teleporters[idx];
-    if (padRefusesLanding(w, origin, candidate, false)) continue;
-    for (const exitDir of exitDirs) {
+  for (const { pad: candidate, dirs: tryDirs } of isCc2Order(origin)
+    ? cc2PadPlan(w, origin, teleporters, startIdx, dir)
+    : nativePadPlan(teleporters, startIdx, origin, exitDirs)) {
+    if (!(candidate.x === fromX && candidate.y === fromY) && padRefusesLanding(w, origin, candidate, false)) continue;
+    for (const exitDir of tryDirs) {
       const vec = DIRECTION_VECTORS[exitDir];
       const exitX = candidate.x + vec.dx;
       const exitY = candidate.y + vec.dy;
