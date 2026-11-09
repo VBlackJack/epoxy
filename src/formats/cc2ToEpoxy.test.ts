@@ -711,6 +711,8 @@ describe('chips and metadata', () => {
     expect(cc2ClueBlocks(note('intro\r\n[CLUE]\r\nfirst hint\r\n[CLUE]\r\nsecond\r\nhint\r\n'))).toEqual(['first hint', 'second\nhint']);
     expect(cc2ClueBlocks(note('comment\n[COM]\nnot a hint\n[CLUE]\none\n[JETLIFE]\n12\n[CLUE]\ntwo'))).toEqual(['one', 'two']);
     expect(cc2ClueBlocks(note('only a comment'))).toEqual([]);
+    // Text on the tag line itself is dropped, before or after the tag.
+    expect(cc2ClueBlocks(note('x\nbefore [CLUE] after\nbody'))).toEqual(['body']);
     expect(cc2ClueBlocks({ sections: [], trailing: new Uint8Array(0) })).toEqual([]);
     // An empty block still holds its place, so the next one goes to the next tile.
     expect(cc2ClueBlocks(note('[CLUE]\n[CLUE]\nsecond'))).toEqual(['', 'second']);

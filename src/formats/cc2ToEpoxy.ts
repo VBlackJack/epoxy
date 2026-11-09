@@ -316,8 +316,8 @@ export function cc2ClueBlocks(file: Cc2File): string[] {
       continue;
     }
     close();
-    // The text after the tag on its own line starts the block.
-    current = tag[1] === CLUE_TAG ? [line.slice(tag.index + tag[0].length)] : null;
+    // The whole line holding a tag is the separator: any other text on it is ignored.
+    current = tag[1] === CLUE_TAG ? [] : null;
   }
   close();
   return blocks;
