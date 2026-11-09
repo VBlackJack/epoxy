@@ -15,11 +15,12 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, DEFAULT_PLAYER_CHARACTER, PULSE_WIRED_ACTION } from '../coreConstants';
+import { CC_CADENCE_TYPES, DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, DEFAULT_PLAYER_CHARACTER, PULSE_WIRED_ACTION } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
 import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
+import { usesCcRules } from './ccRules';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -45,6 +46,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.trapLinks = level.trapLinks.map((l) => ({ ...l }));
   w.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
   w.nextEntityUid = 1;
+  w.ccMonsterClock = 0;
+  const ccCadence = usesCcRules(level);
   w.rng = new SeededRandom(seed ?? SeededRandom.seedFromString(level.id));
 
   w.entities = level.entities.map((e) => {
@@ -56,7 +59,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       x: e.x,
       y: e.y,
       dir: e.dir,
-      cooldownTicks: def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      // A classic-rules monster decides at tick 0; any other monster waits out its first interval.
+      cooldownTicks: ccCadence && CC_CADENCE_TYPES.includes(e.type) ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),

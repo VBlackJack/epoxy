@@ -723,6 +723,8 @@ export class GameEngine {
       ...(this.getPlayerCharacterSwitch() !== undefined ? { playerCharacter: playerCharacterOf(this.w) } : {}),
       // Only a level with a toggle clock can hold its timer.
       ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
+      // Only a classic-rules level reads the entity-pass clock (the teeth cycle).
+      ...(this.w.ccRules ? { ccMonsterClock: this.w.ccMonsterClock } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
       ...(this.w.litCharges.length > 0 ? { litCharges: copyLitCharges(this.w) } : {}),
       // Only a level that revealed something has revealed cells to put back.
@@ -809,6 +811,7 @@ export class GameEngine {
     this.w.forceCycleTurn = snap.forceCycleTurn ?? 0;
     this.w.timerPaused = snap.timerPaused ?? false;
     this.w.pausedTicks = snap.pausedTicks ?? 0;
+    this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     // A blast may have turned a device into floor: the devices are listed from the terrain put back.
     if (this.w.hasDynamite) rebuildDeviceLookups(this.w);

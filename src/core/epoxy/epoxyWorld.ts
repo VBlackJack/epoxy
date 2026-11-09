@@ -147,6 +147,8 @@ export interface EpoxyWorld {
   hasShots: boolean;
   /** True when the level plays with the classic Chip's Challenge rules (see usesCcRules); fixed for the level, read by later batches. */
   ccRules: boolean;
+  /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
+  ccMonsterClock: number;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -249,6 +251,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasLaunchers: false,
     hasShots: false,
     ccRules: false,
+    ccMonsterClock: 0,
     shotStepTicks: 0,
     launcherLinks: [],
     inTick: false,
