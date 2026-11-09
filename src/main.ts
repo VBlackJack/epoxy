@@ -162,6 +162,7 @@ import {
   sanitizeHighScores,
   StoredHighScore
 } from './storage/persistedState';
+import { isReplayPlayable, replaySignature, shouldReplaceReplay } from './storage/replaySignature';
 import { lossyExportNotice } from './ui/exportNotice';
 import { packDatLinkCapNotice } from './editor/datLinkCap';
 import {
@@ -692,7 +693,14 @@ class EpoxyApplication {
     this.engineSelector.setOnWinCallback((levelId, timeRemaining, steps, score) => {
       // A test play of an editor draft is not a record for the stored level that shares its id.
       if (!this.isReplaying && !this.isTestPlaying()) {
-        this.recordHighScore(levelId, timeRemaining, steps, score, this.engine.getTimedMoveHistory());
+        this.recordHighScore(
+          levelId,
+          timeRemaining,
+          steps,
+          score,
+          this.engine.getTimedMoveHistory(),
+          this.engine.getLevel()
+        );
         this.playtest.won();
       }
       this.stopAutoMoveAndReplay();
@@ -3111,7 +3119,7 @@ class EpoxyApplication {
       const moves =
         current.length > 0
           ? current
-          : this.highScores[this.engine.getLevel().id]?.replayTimedMoves || [];
+          : this.storedReplayFor(this.engine.getLevel()) || [];
       this.startReplay(moves);
     });
 
@@ -3209,14 +3217,32 @@ class EpoxyApplication {
 
       const replay = rec?.replayTimedMoves;
       if (replay && replay.length > 0) {
-        tdAction.appendChild(
-          this.createScoresButton('hud-btn small scores-replay-btn', 'hud.scores_modal.replay_btn.action', () => {
+        const replayBtn = this.createScoresButton(
+          'hud-btn small scores-replay-btn',
+          'hud.scores_modal.replay_btn.action',
+          () => {
             this.closeModal(MODAL_IDS.SCORES);
             this.switchMode('play');
             this.startLevelByIndex(idx, false);
             this.startReplay(replay);
-          })
+          }
         );
+        if (!this.storedReplayFor(lvl)) {
+          // Recorded on another engine or rules version: the score stays, the replay is kept but not played.
+          const reasonId = `scores-replay-reason-${idx}`;
+          const reason = document.createElement('span');
+          reason.id = reasonId;
+          reason.className = 'scores-replay-reason';
+          reason.textContent = t('hud.scores_modal.replay_btn.unavailable.label');
+          replayBtn.setAttribute('aria-disabled', 'true');
+          replayBtn.setAttribute('aria-describedby', reasonId);
+          replayBtn.title = reason.textContent;
+          replayBtn.classList.add('disabled');
+          replayBtn.addEventListener('click', (e) => e.stopImmediatePropagation(), { capture: true });
+          tdAction.append(replayBtn, reason);
+        } else {
+          tdAction.appendChild(replayBtn);
+        }
       }
 
       const codeCell = cell(lvl.password, 'code-cell');
@@ -4423,7 +4449,9 @@ class EpoxyApplication {
         endless: this.isEndlessActive()
       });
     ovNextBtn.classList.toggle('hidden', !buttons.next || offerPlayEpoxy);
-    ovReplayBtn?.classList.toggle('hidden', !buttons.replay);
+    const replayAvailable =
+      this.engine.getTimedMoveHistory().length > 0 || this.storedReplayFor(this.engine.getLevel()) !== null;
+    ovReplayBtn?.classList.toggle('hidden', !buttons.replay || !replayAvailable);
     ovUndoBtn.classList.toggle('hidden', !buttons.undo);
     ovRetryBtn?.classList.toggle('hidden', !buttons.retry);
     byId('overlay-btn-back-to-editor')?.classList.toggle('hidden', !buttons.backToEditor);
@@ -4448,6 +4476,13 @@ class EpoxyApplication {
     return this.testPlayLevel !== null && this.engine.getLevel() === this.testPlayLevel;
   }
 
+  /** The stored replay of a level when it was recorded on the engine and rules version the level has now. */
+  private storedReplayFor(level: CompiledLevel): TimedMove[] | null {
+    const rec = this.highScores[level.id];
+    if (!rec?.replayTimedMoves || rec.replayTimedMoves.length === 0) return null;
+    return isReplayPlayable(level, rec.replaySignature) ? rec.replayTimedMoves : null;
+  }
+
   private persistHighScores(): void {
     try {
       const key = ConfigRegistry.getStorageKey(ConfigRegistry.getGame().storage.highScoresKey);
@@ -4469,17 +4504,24 @@ class EpoxyApplication {
     timeRemaining: number,
     steps: number,
     score: number,
-    timedMoves: TimedMove[]
+    timedMoves: TimedMove[],
+    level: CompiledLevel
   ): void {
     const existing = this.highScores[levelId];
-    const isBetterOrFirst = !existing || steps <= existing.minSteps || score >= existing.bestScore;
+    const signature = replaySignature(level);
+    const isBetterOrFirst = shouldReplaceReplay(
+      level,
+      existing,
+      !existing || steps <= existing.minSteps || score >= existing.bestScore
+    );
     this.highScores[levelId] = {
       // Legacy fields of an older record stay as they were.
       ...existing,
       bestTimeRemaining: existing ? Math.max(existing.bestTimeRemaining, timeRemaining) : timeRemaining,
       minSteps: existing ? Math.min(existing.minSteps, steps) : steps,
       bestScore: existing ? Math.max(existing.bestScore, score) : score,
-      replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves
+      replayTimedMoves: isBetterOrFirst ? timedMoves : existing.replayTimedMoves || timedMoves,
+      replaySignature: isBetterOrFirst ? signature : existing.replaySignature
     };
     this.persistHighScores();
   }

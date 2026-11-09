@@ -1490,7 +1490,10 @@
         "action": "Jouer"
       },
       "replay_btn": {
-        "action": "Replay"
+        "action": "Replay",
+        "unavailable": {
+          "label": "Replay indisponible : les règles ou le moteur du niveau ont changé depuis cette partie"
+        }
       },
       "best_time_cell": {
         "label": "{medal} {seconds}s"
