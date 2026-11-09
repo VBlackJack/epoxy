@@ -271,6 +271,43 @@ function mergeGreenItems(level: CompiledLevel): CompiledLevel {
   return changed ? { ...level, items } : level;
 }
 
+/** Whether a tile is the unpowered form of a CC2 powered device (format 15): its twin teleports or transmogrifies and it does not. */
+function isUnpoweredTwin(tile: TileDefinition): boolean {
+  if (tile.poweredTwin === undefined) return false;
+  const twin = ConfigRegistry.getTile(tile.poweredTwin);
+  return (twin.isTeleporter === true && tile.isTeleporter !== true) || (twin.transmogrifies === true && tile.transmogrifies !== true);
+}
+
+/** The cells (as `y * width + x`) a signal link ends on. */
+function wiredCells(level: CompiledLevel): Set<number> {
+  const width = level.terrain[0]?.length ?? 0;
+  const cells = new Set<number>();
+  for (const link of level.signalLinks ?? []) cells.add(link.toY * width + link.toX);
+  return cells;
+}
+
+/**
+ * The level the reach walk reads, with every unpowered twin a wire ends on (format 15) read as its powered form: a wire may
+ * switch it on at some point of play, so the walk counts it as a teleporter or a transmogrifier (an over-approximation that
+ * never reports a false unreachable). An unwired unpowered twin keeps the form it was placed in, as the engine loads it.
+ */
+function powerWiredTwins(level: CompiledLevel): CompiledLevel {
+  if (!level.signalLinks || level.signalLinks.length === 0) return level;
+  const width = level.terrain[0]?.length ?? 0;
+  const wired = wiredCells(level);
+  let terrain: string[][] | null = null;
+  for (let y = 0; y < level.terrain.length; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!wired.has(y * width + x)) continue;
+      const tile = ConfigRegistry.getTile(level.terrain[y][x]);
+      if (!isUnpoweredTwin(tile)) continue;
+      terrain ??= level.terrain.map((row) => row.slice());
+      terrain[y][x] = tile.poweredTwin as string;
+    }
+  }
+  return terrain ? { ...level, terrain } : level;
+}
+
 /** Tiles that stay solid for the player whatever happens: no pusher can ever stand there. */
 const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
   'wall',
@@ -288,7 +325,25 @@ const PERMANENT_SOLID_TILES: ReadonlySet<string> = new Set([
  */
 const SWIVEL_SEALING_TILE_IDS: ReadonlySet<string> = new Set([WALL_TILE_ID, 'invisible_wall']);
 
-type BootCheck = (boots: number, bootId: string | undefined) => boolean;
+/** Warning for an unpowered twin of a CC2 powered device that no wire ends on (format 15). */
+const UNWIRED_TWIN_ISSUE_KEY = 'validator.issues.unwired_off_twin.label';
+
+/** Whether the boots mask holds a boot; given a list (the CC3D slime), whether it holds every boot of the list. */
+type BootCheck = (boots: number, bootId: string | readonly string[] | undefined) => boolean;
+
+/** The boots a tile asks the player to hold to be safe on it: all of `sparedByBoots` (format 15) or the one it names. */
+function protectionOf(tile: TileDefinition): string | readonly string[] | undefined {
+  return tile.sparedByBoots ?? tile.protectedByItem;
+}
+
+/**
+ * Whether a block of this type clears a water or slime tile it enters. A tile that lists `clearedByBlocks` clears for those;
+ * the CC3D slime lists none and swallows every block it admits (its `barsBlocks` never get that far).
+ */
+function clearsHazard(tile: TileDefinition, type: string): boolean {
+  if (tile.clearedByBlocks !== undefined) return tile.clearedByBlocks.includes(type);
+  return tile.sparedByBoots !== undefined && tile.blockTransformsTo !== undefined && tile.barsBlocks?.includes(type) !== true;
+}
 
 /** Tells whether a level's stored solution wins in the real engine; supplied by callers that can replay it. */
 export type SolutionWins = (level: CompiledLevel) => boolean;
@@ -363,7 +418,7 @@ export class LevelValidator {
     // A CC3D level is checked by its own strict validator, not by the Epoxy tile rules.
     if (checkedLevel.ruleset === 'cc3d' && checkedLevel.cc3d) return cc3dValidationReport(checkedLevel);
     // The walk reads the green chips and bombs of a level with a green button as chips (see mergeGreenItems).
-    const level = mergeGreenItems(checkedLevel);
+    const level = powerWiredTwins(mergeGreenItems(checkedLevel));
     // A transmogrifier lets the player be either character: every rule that depends on the character is read optimistically.
     const characters = this.possibleCharacters(level);
     const issues: ValidationIssue[] = [];
@@ -547,6 +602,7 @@ export class LevelValidator {
     this.checkStartCell(level, issues);
     this.checkSharedStarts(level, issues);
     this.checkLinkEndpoints(level, issues);
+    this.checkUnwiredTwins(checkedLevel, issues);
     // A Lynx level is played by the Lynx engine, not by the Epoxy block rules this reach walk approximates.
     if (level.ruleset !== 'lynx') this.checkHiddenByBlocks(level, issues);
 
@@ -577,10 +633,14 @@ export class LevelValidator {
     const tokenLevel = hasTokenContent({ terrain: level.terrain, items: level.items });
     // A character who never slides on ice holds the boots that stop the slide for good.
     const iceBoots = characters.includes(MELINDA_CHARACTER) ? ConfigRegistry.getTile(ICE_TILE_ID).protectedByItem : undefined;
-    const hasBoot: BootCheck = (boots, bootId) => {
-      if (bootId !== undefined && bootId === iceBoots) return true;
-      const bit = bootId ? bootBits.get(bootId) : undefined;
+    const holds = (boots: number, bootId: string): boolean => {
+      if (bootId === iceBoots) return true;
+      const bit = bootBits.get(bootId);
       return bit !== undefined && (boots & bit) !== 0;
+    };
+    const hasBoot: BootCheck = (boots, bootId) => {
+      if (bootId === undefined) return false;
+      return typeof bootId === 'string' ? bootId !== '' && holds(boots, bootId) : bootId.every((id) => holds(boots, id));
     };
 
     const blockTypes = new Set(
@@ -738,7 +798,9 @@ export class LevelValidator {
       const trySpend = affords;
       /** The CC2 slime is cleared by the blocks it lists (a pair swapped by a transmogrifier counts too) without spending them. */
       const sweepsSlime = (tile: TileDefinition): boolean =>
-        tile.clearedByBlocks?.some((type) => (blockStock.get(type) ?? 0) > 0 || (pairOf(type) !== undefined && (blockStock.get(pairOf(type)!) ?? 0) > 0)) === true;
+        (tile.clearedByBlocks ?? (tile.sparedByBoots !== undefined ? [...blockStock.keys()] : [])).some(
+          (type) => clearsHazard(tile, type) && ((blockStock.get(type) ?? 0) > 0 || (pairOf(type) !== undefined && (blockStock.get(pairOf(type)!) ?? 0) > 0))
+        );
       // Fires an ice block melted into water. The terrain grid is shared by every boot state and stays fire
       // there: writing water would make the cell harder for a state holding fire boots.
       const meltedFires = new Set<string>();
@@ -1106,7 +1168,7 @@ export class LevelValidator {
             const nextBoots = this.bootsOnArrival(curr.boots, nextTile, simItems[ny][nx], bootBits, tokenLevel);
             // A fire an ice block melted is water in the engine: only flippers protect there, not fire boots.
             const meltedHere = nextTile.hazard === 'fire' && meltedFires.has(`${nx},${ny}`);
-            const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : nextTile.protectedByItem);
+            const protectedHere = hasBoot(nextBoots, meltedHere ? swimProtection : protectionOf(nextTile));
 
             // A block pushed in turns water or slime into ground the player can cross.
             // Known limits of this optimistic count: blocks are tallied per type and not by position, and the
@@ -1398,7 +1460,8 @@ export class LevelValidator {
       if (tx < 0 || ty < 0 || tx >= width || ty >= height) return null;
       const dest = ConfigRegistry.getTile(level.terrain[ty][tx]);
       // A fish gate is read as open to a block (an over-approximation: it opens once the chips are in).
-      if (dest.passableByBlock !== true && dest.fishGate !== true) return null;
+      if (dest.passableByBlock !== true && dest.fishGate !== true && def?.slidesOverTiles?.includes(dest.id) !== true) return null;
+      if (dest.barsBlocks?.includes(type) === true) return null;
       if (dest.hazard && refused.includes(dest.hazard)) return null;
       if (this.isEdgeBlocked(level.terrain, edgeMask, fx, fy, tx, ty, d)) return null;
       return { x: tx, y: ty };
@@ -1412,7 +1475,7 @@ export class LevelValidator {
       landings.push(cur);
       const tile = ConfigRegistry.getTile(level.terrain[cur.y][cur.x]);
       // A block that sank or dissolved rests nowhere further on; fire only destroys the types that burn.
-      if ((tile.hazard === 'water' || tile.hazard === 'slime') && tile.clearedByBlocks?.includes(type) !== true) break;
+      if ((tile.hazard === 'water' || tile.hazard === 'slime') && !clearsHazard(tile, type)) break;
       if (tile.hazard === 'fire' && def?.destroyedByFire) break;
       if (tile.slideType !== 'ice') break;
       const key = `${cur.x},${cur.y},${heading}`;
@@ -1459,7 +1522,7 @@ export class LevelValidator {
         const { x, y } = queue[head];
         const here = ConfigRegistry.getTile(level.terrain[y][x]);
         // A block that sank, dissolved or burned is gone: nothing is pushed on from there.
-        if ((here.hazard === 'water' || here.hazard === 'slime') && here.clearedByBlocks?.includes(type) !== true) continue;
+        if ((here.hazard === 'water' || here.hazard === 'slime') && !clearsHazard(here, type)) continue;
         if (here.hazard === 'fire' && ConfigRegistry.getEntityDef(type)?.destroyedByFire) continue;
         for (const dir of ORDERED_DIRECTIONS) {
           const vec = DIRECTION_VECTORS[dir];
@@ -1524,6 +1587,19 @@ export class LevelValidator {
   }
 
   /** Warns about links whose button or target cell is no longer the tile the link needs. */
+  /** An unpowered twin (format 15) that no signal link ends on never switches on: it is dead floor, which is rarely meant. */
+  private static checkUnwiredTwins(level: CompiledLevel, issues: ValidationIssue[]): void {
+    const wired = wiredCells(level);
+    const width = level.terrain[0]?.length ?? 0;
+    for (let y = 0; y < level.terrain.length; y++) {
+      for (let x = 0; x < width; x++) {
+        if (wired.has(y * width + x)) continue;
+        if (!isUnpoweredTwin(ConfigRegistry.getTile(level.terrain[y][x]))) continue;
+        issues.push({ severity: 'warning', i18nKey: UNWIRED_TWIN_ISSUE_KEY, params: { x, y } });
+      }
+    }
+  }
+
   private static checkLinkEndpoints(level: CompiledLevel, issues: ValidationIssue[]): void {
     const tileAt = (x: number, y: number): TileDefinition | undefined => {
       const id = level.terrain[y]?.[x];
@@ -1792,7 +1868,7 @@ export class LevelValidator {
       boots = this.bootsOnArrival(boots, entered, item, bootBits, hasToken);
       // A fire an ice block melted is water now: a swimmer survives it (the slide stops there), fire boots do not.
       const protection =
-        entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) ? swimProtection : entered.protectedByItem;
+        entered.hazard === 'fire' && meltedFires.has(`${x},${y}`) ? swimProtection : protectionOf(entered);
       if (
         (entered.hazard === 'water' || entered.hazard === 'fire' || entered.hazard === 'slime') &&
         !hasBoot(boots, protection)
@@ -1810,6 +1886,7 @@ export class LevelValidator {
     const tiles = Object.values(ConfigRegistry.getTiles().tiles);
     // Only boots that some tile names as protection change what the player survives; the others (slow-time) would only grow the state space.
     const protectingBootIds = new Set(tiles.map((t) => t.protectedByItem).filter((id): id is string => id !== undefined));
+    for (const tile of tiles) for (const id of tile.sparedByBoots ?? []) protectingBootIds.add(id);
     // The boots a tile asks of these characters count too (Melinda's hiking boots); no other character tracks them.
     for (const tile of tiles) {
       for (const character of characters) {
@@ -2514,7 +2591,9 @@ export class LevelValidator {
             (def?.passesTiles?.includes(destId) === true ||
               (def?.entersTurtles === true && destId === TURTLE_TILE_ID) ||
               (dest.hazard === 'fire' && def?.immuneToFire === true));
-          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers || entersByDefinition) : dest.passableByBlock !== true && !opensToMovers) continue;
+          // An ice block of the CC3D crosses the tiles its definition names (the thieves) although blocks are refused there.
+          const blockCrosses = kind === 'block' && def?.slidesOverTiles?.includes(destId) === true;
+          if (kind === 'monster' ? !(dest.passableByMonster || ghostly || mirrored || opensToMovers || entersByDefinition) : dest.passableByBlock !== true && !opensToMovers && !blockCrosses) continue;
           if (mirrored && dest.requiredKey !== undefined) mirrorOpened.push({ x: nx, y: ny });
           seen[ny * width + nx] = 1;
           queue.push({ x: nx, y: ny });
@@ -2761,7 +2840,7 @@ export class LevelValidator {
     // pessimistically (nothing), without simulating the slide or the hazard.
     if (!revealed.passableByPlayer) return [0, 0];
     if (revealed.slideType && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
-    if (revealed.hazard && !hasBoot(door.boots, revealed.protectedByItem)) return [0, 0];
+    if (revealed.hazard && !hasBoot(door.boots, protectionOf(revealed))) return [0, 0];
 
     const heldKeys: Record<string, number> = { ...ctx.ownedKeys };
     heldKeys[door.keyId] = Math.max((heldKeys[door.keyId] || 0) - 1, 0);
@@ -2835,7 +2914,7 @@ export class LevelValidator {
         if (!tile.passableByPlayer) continue;
         if (tile.hazard) {
           const meltedHere = tile.hazard === 'fire' && ctx.meltedFires.has(`${nx},${ny}`);
-          if (!hasBoot(mask, meltedHere ? ctx.swimProtection : tile.protectedByItem)) {
+          if (!hasBoot(mask, meltedHere ? ctx.swimProtection : protectionOf(tile))) {
             const swimming = hasBoot(mask, ctx.swimProtection);
             const use: BlockUse =
               tile.hazard === 'water' ? 'water' : tile.hazard === 'fire' ? (swimming ? 'melt' : 'fire') : 'other';
@@ -3037,8 +3116,13 @@ export class LevelValidator {
           const switchable = toggleWallOtherForm(tileHere);
           const switchedOff = switchable !== undefined && ConfigRegistry.getTile(switchable).passableByPlayer;
           if (tileHere.hazard && !blocksExist && !switchedOff) {
-            const bit = tileHere.protectedByItem ? bootBits.get(tileHere.protectedByItem) : undefined;
-            if (bit === undefined || (boots & bit) === 0) continue;
+            const needed = protectionOf(tileHere);
+            const wanted = needed === undefined ? [] : typeof needed === 'string' ? [needed] : needed;
+            const covered = wanted.length > 0 && wanted.every((id) => {
+              const bit = bootBits.get(id);
+              return bit !== undefined && (boots & bit) !== 0;
+            });
+            if (!covered) continue;
           }
           visited[ny][nx] = true;
           queue.push({ x: nx, y: ny });

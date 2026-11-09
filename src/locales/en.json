@@ -1871,6 +1871,9 @@
       "start_on_entity": {
         "label": "Warning: The player start shares its cell with a block or monster."
       },
+      "unwired_off_twin": {
+        "label": "Warning: The cell ({x}, {y}) holds a switched-off twin that no wire reaches, so it never switches on."
+      },
       "trap_link_button": {
         "label": "Warning: A trap link starts from ({x}, {y}), which is not a brown button."
       },

@@ -43,9 +43,42 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 
-/** Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). */
-function chainsInto(pusher: RuntimeEntity, neighbour: RuntimeEntity): boolean {
-  return ConfigRegistry.getEntityDef(pusher.type)?.chainPushes?.includes(neighbour.type) === true;
+/**
+ * Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). `head` is the block
+ * the push started from: when it pushes a transitive chain (the CC3D ice block) its list governs every block of the
+ * line, whatever the blocks behind it would push themselves; otherwise each block pushes by its own list.
+ */
+function chainsInto(pusher: RuntimeEntity, neighbour: RuntimeEntity, head: RuntimeEntity = pusher): boolean {
+  const headDef = ConfigRegistry.getEntityDef(head.type);
+  const governing = headDef?.chainPushesTransitive === true ? headDef : ConfigRegistry.getEntityDef(pusher.type);
+  return governing?.chainPushes?.includes(neighbour.type) === true;
+}
+
+/** Where a refused push or slide ran into a wall that shows itself to any mover (format 15, the appearing wall). */
+interface PushRefusal {
+  bump?: { x: number; y: number };
+}
+
+/** Records the appearing wall that a block bumps into at the given cell, when the cell is one and the step reaches it. */
+function noteBump(
+  w: EpoxyWorld,
+  block: RuntimeEntity,
+  destX: number,
+  destY: number,
+  dir: Direction,
+  refusal: PushRefusal
+): void {
+  if (!isInBounds(w, destX, destY) || isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return;
+  if (ConfigRegistry.getTile(w.terrain[destY][destX]).revealedByAny === true) refusal.bump = { x: destX, y: destY };
+}
+
+/** Turns the appearing wall a refused block ran into into the terrain it reveals. */
+function revealBump(w: EpoxyWorld, refusal: PushRefusal): void {
+  if (refusal.bump === undefined) return;
+  const revealed = ConfigRegistry.getTile(w.terrain[refusal.bump.y][refusal.bump.x]).revealsToOnTouch;
+  if (revealed === undefined) return;
+  w.terrain[refusal.bump.y][refusal.bump.x] = revealed;
+  w.gridMutatedByMove = true;
 }
 
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
@@ -63,7 +96,9 @@ function planPushLine(
   block: RuntimeEntity,
   dir: Direction,
   allowChain: boolean,
-  guardPlayerCell = false
+  guardPlayerCell = false,
+  refusal?: PushRefusal,
+  head: RuntimeEntity = block
 ): RuntimeEntity[] | undefined {
   const vec = DIRECTION_VECTORS[dir];
   const line: RuntimeEntity[] = [block];
@@ -72,14 +107,17 @@ function planPushLine(
     const destX = current.x + vec.dx;
     const destY = current.y + vec.dy;
     const next = allowChain && isInBounds(w, destX, destY) ? getEntityAt(w, destX, destY) : undefined;
-    if (next && next.kind === 'block' && chainsInto(current, next)) {
+    if (next && next.kind === 'block' && chainsInto(current, next, head)) {
       // CC2: a block never pushes a sliding block, and a trapped or off-arrow block does not yield.
       if (next.isSliding || !canBeShoved(w, next, dir)) return undefined;
       line.push(next);
       current = next;
       continue;
     }
-    if (!isCanBlockEnter(w, current, destX, destY, dir)) return undefined;
+    if (!isCanBlockEnter(w, current, destX, destY, dir)) {
+      if (refusal) noteBump(w, current, destX, destY, dir, refusal);
+      return undefined;
+    }
     // A player push never reaches this (the player stands behind the line) and puppets do not chain; slide pushes do.
     // A chain never ends on the live player; a lone block keeps its single-push behaviour.
     // A push made by a sliding block guards the lone block too: nothing is pushed onto the live player.
@@ -113,7 +151,8 @@ export function attemptPushBlock(
   block: RuntimeEntity,
   requestedDir: Direction,
   allowChain = true,
-  guardPlayerCell = false
+  guardPlayerCell = false,
+  slider?: RuntimeEntity
 ): boolean {
   const w = ctx.world;
   // A block on a Chip's Challenge 2 track cell is turned onto the track when the push is one the tracks refuse.
@@ -121,8 +160,10 @@ export function attemptPushBlock(
   if (!canBeShoved(w, block, dir)) {
     return false;
   }
-  const line = planPushLine(w, block, dir, allowChain, guardPlayerCell);
+  const refusal: PushRefusal = {};
+  const line = planPushLine(w, block, dir, allowChain, guardPlayerCell, refusal, slider ?? block);
   if (!line) {
+    revealBump(w, refusal);
     return false;
   }
   const vec = DIRECTION_VECTORS[dir];
@@ -166,7 +207,11 @@ export function isCanBlockEnter(
   if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
 
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
-  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile)) return false;
+  // A block of the CC3D ice kind slides over some tiles that refuse the others (the thieves), without changing them.
+  const slidesOver = ConfigRegistry.getEntityDef(block.type)?.slidesOverTiles?.includes(destTile.id) === true;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
+  // A tile may bar some blocks although it admits the others (the CC3D dirt and slime bar mirrors and turrets).
+  if (destTile.barsBlocks?.includes(block.type) === true) return false;
   // An item that bars blocks (the toggle clock) keeps them out of its cell.
   const destItem = w.items[destY][destX];
   if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
@@ -222,6 +267,11 @@ export function moveBlockTo(
   if (crushed !== undefined && !shieldedFromContact(crushed)) {
     killPlayerAt(ctx, crushed, 'hud.messages.death_block', 'death');
     return;
+  }
+
+  // Format 15, the CC3D dirt: a block it admits clears it and survives, unless the tile keeps it as it is for that block.
+  if (tile.blockClearsTo !== undefined && tile.keptBy?.includes(block.type) !== true) {
+    w.terrain[destY][destX] = tile.blockClearsTo;
   }
 
   if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb' && blockDef?.destroyedByBomb) {
@@ -316,7 +366,7 @@ function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, 
   if (!ahead || ahead.kind !== 'block' || ahead.isSliding || !chainsInto(slider, ahead)) return false;
   const flagBefore = w.rejectedPushMovedBlocks;
   const countBefore = w.chainPushCount;
-  const pushed = attemptPushBlock(ctx, ahead, dir, true, true);
+  const pushed = attemptPushBlock(ctx, ahead, dir, true, true, slider);
   w.rejectedPushMovedBlocks = flagBefore;
   if (pushed) w.chainPushCount = countBefore + 1;
   return pushed;
@@ -343,7 +393,13 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
 
   if (isCanBlockEnter(w, entity, nx, ny, slideDir)) {
     moveBlockTo(ctx, entity, nx, ny, slideDir);
-  } else if (tile.slideType === 'ice') {
+    return;
+  }
+  // A slide that runs into an appearing wall any mover reveals shows it.
+  const refusal: PushRefusal = {};
+  noteBump(w, entity, nx, ny, slideDir, refusal);
+  revealBump(w, refusal);
+  if (tile.slideType === 'ice') {
     const bounceDir = OPPOSITE_DIRECTION[slideDir];
     const deflected = tile.deflectionMap?.[bounceDir] || bounceDir;
     const bVec = DIRECTION_VECTORS[deflected];

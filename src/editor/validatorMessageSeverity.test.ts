@@ -36,7 +36,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   unreachable_exit: ERR, player_unreachable_exit: ERR, players_share_start: WARN, socket_bypass: ERR, invalid_start: ERR, no_start: ERR, no_targets: ERR, fewer_blocks_than_targets: ERR,
   no_emitter: ERR, no_receiver: ERR,
   targets_unsolvable: WARN, hidden_by_block: WARN, laser_gate_on_beam: WARN, exit_on_receivers_level: WARN,
-  start_on_wall: WARN, start_on_entity: WARN, trap_link_button: WARN, trap_link_target: WARN,
+  start_on_wall: WARN, start_on_entity: WARN, trap_link_button: WARN, trap_link_target: WARN, unwired_off_twin: WARN,
   clone_link_button: WARN, clone_link_target: WARN,
   channel_button_no_walls: WARN, channel_walls_no_button: WARN, hold_door_no_plate: WARN, hold_door_wrong_start: WARN,
   steering_pad_no_puppet: WARN, puppet_no_steering_pad: WARN, puppet_no_steering_pad_nowhere: WARN, lurker_not_on_floor: WARN, wisp_cloned: ERR,
