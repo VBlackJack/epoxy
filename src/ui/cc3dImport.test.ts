@@ -26,7 +26,10 @@ vi.mock('../audio/AudioManager', () => ({
 }));
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { isCompiledLevelShape, sanitizeStoredLevels } from '../config/ConfigValidation';
+import { isCc3dLevelShape, isCompiledLevelShape, sanitizeStoredLevels } from '../config/ConfigValidation';
+import { LevelValidator } from '../core/LevelValidator';
+import { isConvertedCc3dLevel } from '../core/cc3d/cc3dConstants';
+import { ensureUniqueLevelIds } from '../config/ConfigValidation';
 import * as Converter from '../core/cc3d/cc3dToEpoxy';
 import * as Coverage from '../core/cc3d/epoxyCoverage';
 import { featuresFor } from '../core/RulesetFeatures';
@@ -183,17 +186,41 @@ describe('import as Epoxy levels', () => {
     const { levels, summary } = convertImportedLevels(decoded);
     spy.mockRestore();
     expect(levels).toHaveLength(1);
-    expect(summary.lostLevels).toEqual([decoded[0].number]);
+    expect(summary.lostLevels).toEqual(['1']);
     expect(summary.exact + summary.approx).toBe(0);
   });
 
-  it('keeps a level the validator flags and names it', () => {
-    const decoded = decodeCc3dFiles([{ name: '1.xml', bytes: BYTES }], 'Pack').levels;
+  it('keeps a level the validator flags and names exactly that level', () => {
+    const decoded = decodeCc3dFiles(
+      [
+        { name: '1.xml', bytes: BYTES },
+        { name: '2.xml', bytes: BYTES },
+        { name: '3.xml', bytes: BYTES }
+      ],
+      'Pack'
+    ).levels;
+    const real = LevelValidator.validate.bind(LevelValidator);
+    // The converted level of file 2 is the only one the validator reports an error on.
+    const spy = vi.spyOn(LevelValidator, 'validate').mockImplementation((level, ...rest) => {
+      const report = real(level, ...rest);
+      const flagged = level.cc3dSource === undefined && level.number === 2;
+      return flagged ? { ...report, issues: [{ severity: 'error', i18nKey: 'validator.issues.no_exit.label' }] } : { ...report, issues: [] };
+    });
     const { levels, summary } = convertImportedLevels(decoded);
-    // The synthetic level has a fish and no exit: whatever the validator says, the level is imported and named at most once.
-    expect(levels).toHaveLength(1);
-    expect(summary.invalidLevels.every((n) => n === decoded[0].number)).toBe(true);
-    expect(summary.invalidLevels.length).toBeLessThanOrEqual(1);
+    spy.mockRestore();
+    expect(levels).toHaveLength(3);
+    expect(summary.invalidLevels).toEqual(['2']);
+  });
+
+  it('keeps the converted-level marker when the pack code makes an id unique after the suffix', () => {
+    const decoded = decodeCc3dFiles([{ name: '1.xml', bytes: BYTES }], 'Pack').levels;
+    const { levels } = convertImportedLevels(decoded);
+    expect(isConvertedCc3dLevel(levels[0])).toBe(true);
+    expect(isConvertedCc3dLevel({ id: `${levels[0].id}_2` })).toBe(true);
+    const twins = ensureUniqueLevelIds([levels[0], levels[0]], 'Pack');
+    expect(twins[1].id).not.toBe(twins[0].id);
+    expect(isConvertedCc3dLevel(twins[1])).toBe(true);
+    expect(isConvertedCc3dLevel({ id: 'plain_2' })).toBe(false);
   });
 
   it('reports a level whose conversion throws and carries on with the others', () => {
@@ -213,11 +240,11 @@ describe('import as Epoxy levels', () => {
     const { levels, summary } = convertImportedLevels(decoded);
     spy.mockRestore();
     expect(levels.map((l) => l.number)).toEqual([1, 3]);
-    expect(summary.failedLevels).toEqual([2]);
+    expect(summary.failedLevels).toEqual(['2']);
     expect(summary.imported).toBe(2);
   });
 
-  it('counts a level that failed to convert among the skipped ones', async () => {
+  it('keeps a level that failed to convert out of the skipped files count', async () => {
     const real = Converter.convertCc3dLevel;
     const spy = vi.spyOn(Converter, 'convertCc3dLevel').mockImplementation((source) => {
       if (source.number === 1) throw new Error('boom');
@@ -226,18 +253,18 @@ describe('import as Epoxy levels', () => {
     const result = await importCc3dSelection([file('1.xml', VALID, 1), file('2.xml', VALID, 1)], MAX_BYTES, 'Pack');
     spy.mockRestore();
     expect(result.levels).toHaveLength(1);
-    expect(result.skipped).toBe(1);
-    expect(result.summary.failedLevels).toEqual([1]);
+    expect(result.skipped).toBe(0);
+    expect(result.summary.failedLevels).toEqual(['1']);
   });
 
   it('writes one report line of counts, then one line per kind of level that needs a word', () => {
-    const lines = cc3dImportReportLines({ imported: 5, exact: 2, approx: 2, lostLevels: [4], invalidLevels: [], failedLevels: [7] });
+    const lines = cc3dImportReportLines({ imported: 5, exact: 2, approx: 2, lostLevels: ['4'], invalidLevels: [], failedLevels: ['7'] });
     expect(lines).toHaveLength(3);
     expect(lines.every((line) => !line.startsWith('cc3d.'))).toBe(true);
   });
 
   it('caps the level numbers named in a report line and counts the rest', () => {
-    const many = Array.from({ length: 30 }, (_, i) => i + 1);
+    const many = Array.from({ length: 30 }, (_, i) => String(i + 1));
     const lines = cc3dImportReportLines({ imported: 30, exact: 0, approx: 0, lostLevels: many, invalidLevels: [], failedLevels: [] });
     expect(lines[1]).toContain('12');
     expect(lines[1]).not.toContain('13');
@@ -285,6 +312,17 @@ describe('persistence of cc3d packs', () => {
     const reloaded = sanitizeStoredLevels([broken], ConfigRegistry.getLevelSizeBounds());
     expect(reloaded).toHaveLength(1);
     expect(reloaded[0].cc3dSource).toBeUndefined();
+  });
+
+  it('refuses a CC3D payload whose map id or terrain layers are not text', async () => {
+    const { levels } = await importCc3dSelection([file('1.xml', VALID, 1)], MAX_BYTES, 'Pack');
+    const bounds = ConfigRegistry.getLevelSizeBounds();
+    const source = structuredClone(levels[0].cc3dSource) as unknown as Record<string, unknown>;
+    expect(isCc3dLevelShape(source, bounds)).toBe(true);
+    expect(isCc3dLevelShape({ ...source, mapId: 7 }, bounds)).toBe(false);
+    const cells = structuredClone(source.cells) as Array<{ terrain: unknown[] }>;
+    cells[0].terrain = [5];
+    expect(isCc3dLevelShape({ ...source, cells }, bounds)).toBe(false);
   });
 
   it('keeps a cc3d-ruleset level whole through the validation (packs stored before imports became Epoxy levels)', () => {

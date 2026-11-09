@@ -931,6 +931,9 @@
       "imported_files_skipped_toast": {
         "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported; {skipped, plural, one {# file was} other {# files were}} skipped because they cannot be read."
       },
+      "imported_levels_failed_toast": {
+        "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported; {skipped, plural, one {# level} other {# levels}} could not be converted and {skipped, plural, one {was} other {were}} skipped."
+      },
       "import_error": {
         "label": "Could not read this file."
       },
@@ -3742,7 +3745,7 @@
           "label": "CC3D import"
         },
         "summary": {
-          "label": "{count} levels imported as Epoxy levels: {exact} exact, {approx} approximate, {lost} not fully playable."
+          "label": "{count, plural, one {# level imported} other {# levels imported}} as Epoxy levels: {exact, plural, one {# exact} other {# exact}}, {approx, plural, one {# approximate} other {# approximate}}, {lost, plural, one {# not fully playable} other {# not fully playable}}."
         },
         "lost": {
           "label": "Not fully playable (mechanics Epoxy cannot hold), levels: {levels}."
@@ -3752,6 +3755,9 @@
         },
         "failed": {
           "label": "Levels that failed to convert and were skipped: {levels}."
+        },
+        "close": {
+          "label": "Close"
         },
         "more": {
           "label": "{levels} and {count} more"

@@ -63,18 +63,18 @@ export function classifyImportSelection(names: readonly string[]): ImportSelecti
   return diggyCount > 0 ? 'mixed' : 'several';
 }
 
-/** What the import made of the levels of a CC3D selection, by level number. Nothing is dropped without being named here. */
+/** What the import made of the levels of a CC3D selection, by level label (the map id of the file, else the level number). Nothing is dropped without being named here. */
 export interface Cc3dImportSummary {
   /** Levels imported as Epoxy levels. */
   readonly imported: number;
   readonly exact: number;
   readonly approx: number;
   /** Imported levels the converter marks lost: they hold mechanics Epoxy cannot play. */
-  readonly lostLevels: readonly number[];
+  readonly lostLevels: readonly string[];
   /** Imported levels whose converted form holds a validator error. */
-  readonly invalidLevels: readonly number[];
+  readonly invalidLevels: readonly string[];
   /** Levels whose conversion threw: reported and left out of the pack. */
-  readonly failedLevels: readonly number[];
+  readonly failedLevels: readonly string[];
 }
 
 export interface Cc3dSelectionResult {
@@ -118,7 +118,6 @@ export async function importCc3dSelection(
   skipped += decoded.failures.length;
   firstError ??= decoded.failures[0]?.error ?? null;
   const converted = convertImportedLevels(decoded.levels);
-  skipped += converted.summary.failedLevels.length;
   return { levels: converted.levels, summary: converted.summary, skipped, firstError };
 }
 
@@ -130,14 +129,15 @@ export async function importCc3dSelection(
  */
 export function convertImportedLevels(decoded: readonly CompiledLevel[]): { levels: CompiledLevel[]; summary: Cc3dImportSummary } {
   const levels: CompiledLevel[] = [];
-  const lostLevels: number[] = [];
-  const invalidLevels: number[] = [];
-  const failedLevels: number[] = [];
+  const lostLevels: string[] = [];
+  const invalidLevels: string[] = [];
+  const failedLevels: string[] = [];
   let exact = 0;
   let approx = 0;
   for (const source of decoded) {
     const cc3d = source.cc3d;
     if (!cc3d) continue;
+    const label = cc3d.mapId ?? String(source.number);
     try {
       const verdict = classifyLevel(cc3d).verdict;
       const converted = convertCc3dLevel(source).level;
@@ -145,16 +145,16 @@ export function convertImportedLevels(decoded: readonly CompiledLevel[]): { leve
       levels.push({ ...converted, cc3dSource: cc3d });
       if (verdict === 'exact') exact++;
       else if (verdict === 'approx') approx++;
-      else lostLevels.push(source.number);
-      if (hasErrors) invalidLevels.push(source.number);
+      else lostLevels.push(label);
+      if (hasErrors) invalidLevels.push(label);
     } catch {
-      failedLevels.push(source.number);
+      failedLevels.push(label);
     }
   }
   return { levels, summary: { imported: levels.length, exact, approx, lostLevels, invalidLevels, failedLevels } };
 }
 
-function levelNumbersText(numbers: readonly number[]): string {
+function levelNumbersText(numbers: readonly string[]): string {
   const listed = numbers.slice(0, REPORT_LEVELS_LISTED_MAX).join(REPORT_LEVEL_SEPARATOR);
   const more = numbers.length - REPORT_LEVELS_LISTED_MAX;
   return more > 0 ? t('cc3d.import.report.more.label', { levels: listed, count: more }) : listed;

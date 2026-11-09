@@ -387,6 +387,7 @@ export function measureGrid(value: unknown, bounds: LevelSizeBounds): GridSize |
 export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds, strict = false): boolean {
   if (!isRecord(value)) return false;
   const { width, height, cells, mobs, player } = value;
+  if (value.mapId !== undefined && typeof value.mapId !== 'string') return false;
   if (!Number.isInteger(width) || !Number.isInteger(height)) return false;
   if (!isSizeWithinBounds({ width: width as number, height: height as number }, bounds)) return false;
   if (!Array.isArray(cells) || cells.length !== (width as number) * (height as number)) return false;
@@ -395,6 +396,7 @@ export function isCc3dLevelShape(value: unknown, bounds: LevelSizeBounds, strict
       isRecord(cell) &&
       Array.isArray(cell.terrain) &&
       cell.terrain.length > 0 &&
+      cell.terrain.every((layer) => isRecord(layer) && typeof layer.kind === 'string') &&
       Array.isArray(cell.panels) &&
       (!strict || cell.panels.length <= ORDERED_DIRECTIONS.length) &&
       (cell.item === null || isRecord(cell.item))

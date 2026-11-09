@@ -931,6 +931,9 @@
       "imported_files_skipped_toast": {
         "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé ; {skipped, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}} car illisibles."
       },
+      "imported_levels_failed_toast": {
+        "label": "Pack \"{name}\" ({count, plural, one {# niveau} other {# niveaux}}) importé ; {skipped, plural, one {# niveau n'a pas pu être converti et a été ignoré} other {# niveaux n'ont pas pu être convertis et ont été ignorés}}."
+      },
       "import_error": {
         "label": "Impossible de lire ce fichier."
       },
@@ -3742,7 +3745,7 @@
           "label": "Import CC3D"
         },
         "summary": {
-          "label": "{count} niveaux importés comme niveaux Epoxy : {exact} exacts, {approx} approchés, {lost} pas entièrement jouables."
+          "label": "{count, plural, one {# niveau importé} other {# niveaux importés}} comme niveaux Epoxy : {exact, plural, one {# exact} other {# exacts}}, {approx, plural, one {# approché} other {# approchés}}, {lost, plural, one {# pas entièrement jouable} other {# pas entièrement jouables}}."
         },
         "lost": {
           "label": "Pas entièrement jouables (mécanismes qu'Epoxy ne peut pas tenir), niveaux : {levels}."
@@ -3752,6 +3755,9 @@
         },
         "failed": {
           "label": "Niveaux dont la conversion a échoué, ignorés : {levels}."
+        },
+        "close": {
+          "label": "Fermer"
         },
         "more": {
           "label": "{levels} et {count} autres"

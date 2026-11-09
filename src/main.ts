@@ -1095,17 +1095,31 @@ class EpoxyApplication {
         ConfigRegistry.getGame().import.maxFileBytes,
         packName
       );
+      const showReport = (): Promise<unknown> =>
+        choiceDialog({
+          title: t('cc3d.import.report.title.label'),
+          message: cc3dImportReportLines(summary).join(' '),
+          cancelLabel: t('cc3d.import.report.close.label'),
+          options: []
+        });
       if (levels.length === 0) {
+        // Every level failed to convert: nothing is imported, and the report names them.
+        if (summary.failedLevels.length > 0) {
+          await showReport();
+          return;
+        }
         this.showTransientStatus(firstError ? t(firstError.key, { ...firstError.params }) : this.importErrorMessage());
         return;
       }
-      await this.finishPackImport(packName, levels, skipped, 'app.packs.imported_files_skipped_toast.label');
-      await choiceDialog({
-        title: t('cc3d.import.report.title.label'),
-        message: cc3dImportReportLines(summary).join(' '),
-        cancelLabel: t('app.packs.manager.convert.saved.close.action'),
-        options: []
-      });
+      // Unreadable files and levels that failed to convert are told apart; unreadable files come first when both occur.
+      const failed = summary.failedLevels.length;
+      await this.finishPackImport(
+        packName,
+        levels,
+        skipped > 0 ? skipped : failed,
+        skipped > 0 || failed === 0 ? 'app.packs.imported_files_skipped_toast.label' : 'app.packs.imported_levels_failed_toast.label'
+      );
+      await showReport();
     } catch (err) {
       console.error('CC3D import failed:', err);
       this.showTransientStatus(this.importErrorMessage());
