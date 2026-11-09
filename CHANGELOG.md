@@ -5,6 +5,12 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- The hint banner no longer opens empty on a hint tile that has no text.
+- Per-tile hint texts are Epoxy-only in the editor: the Cell section no longer offers them on a Lynx level, whose export drops them, and loading a Lynx level drops any it carries.
+- A mirror player bumping a CC3D appearing wall makes it solid, like any other monster.
+
 ## [2.28.0] - 2026-11-09
 
 ### Added
