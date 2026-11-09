@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.27.0] - 2026-11-09
+
 ### Added
 
 - Pack format 14, CC2 import: slime, turtle, flame jets, the popdown floor, the four-arrow block, the transmogrifier, the green and red teleports and the helmet import as the new format 14 elements; each orange button is linked to the flame jet CC2 connects it to (two sources on one jet are combined, an approximation); coverage reports flame jets, orange buttons, turtles, helmets, popdown floors and green teleports as exact. Mechanisms reference updated (en/fr).
