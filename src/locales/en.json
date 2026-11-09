@@ -1490,7 +1490,10 @@
         "action": "Play"
       },
       "replay_btn": {
-        "action": "Replay"
+        "action": "Replay",
+        "unavailable": {
+          "label": "Replay unavailable: recorded with an earlier version of the game rules"
+        }
       },
       "best_time_cell": {
         "label": "{medal} {seconds}s"

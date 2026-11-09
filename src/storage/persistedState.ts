@@ -20,7 +20,11 @@ import { parseRenderStyleId } from '../render/styles/renderStyles';
 import { sanitizeTimedMoves } from '../ui/replaySchedule';
 
 /** High score as stored: legacy records may carry untimed replayMoves. */
-export type StoredHighScore = LevelHighScore & { replayTimedMoves?: TimedMove[] };
+export type StoredHighScore = LevelHighScore & {
+  replayTimedMoves?: TimedMove[];
+  /** Engine and rules version the replay was recorded on; absent on records made before the tag. */
+  replaySignature?: string;
+};
 
 /**
  * Validates the high score table read from storage. A record that is not an
@@ -42,6 +46,11 @@ export function sanitizeHighScores(value: unknown): Record<string, StoredHighSco
     }
     const record = { ...rec } as unknown as StoredHighScore;
     record.replayTimedMoves = sanitizeTimedMoves(rec.replayTimedMoves);
+    if (typeof rec.replaySignature === 'string' && rec.replaySignature.length > 0) {
+      record.replaySignature = rec.replaySignature;
+    } else {
+      delete record.replaySignature;
+    }
     result[levelId] = record;
   }
   return result;
