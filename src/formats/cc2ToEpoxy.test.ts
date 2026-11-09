@@ -184,13 +184,14 @@ describe('terrain, items and entities', () => {
     expect(coverage.lost).toEqual(['unknown']);
   });
 
-  it('maps the wave 2 items: the bribe is exact, the steel foil and the toggle clock are approximate', () => {
+  it('maps the wave 2 items: the bribe and the steel foil are exact, the toggle clock is approximate', () => {
     const bribe = convert([put(1, 0, { code: 0x8f }, { code: FLOOR_CODE })]);
     expect(bribe.level.items[0][1]).toBe('bribe');
     expect(bribe.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
     const both = convert([put(1, 0, { code: 0x8c }, { code: FLOOR_CODE }), put(2, 0, { code: 0x4d }, { code: FLOOR_CODE })]);
     expect(both.level.items[0].slice(1, 3)).toEqual(['steel_foil', 'toggle_clock']);
-    expect(both.coverage).toEqual({ verdict: 'approx', lost: [], approx: ['steel_foil', 'toggle_clock'] });
+    expect(both.coverage).toEqual({ verdict: 'approx', lost: [], approx: ['toggle_clock'] });
+    expect(both.report.exact).toContain('steel_foil');
     expect(both.report.approx.every((entry) => entry.reason.length > 0)).toBe(true);
   });
 
@@ -239,7 +240,8 @@ describe('terrain, items and entities', () => {
     expect(level.terrain[0][1]).toBe('forbid_key_blue');
     expect(level.items[0][1]).toBeNull();
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(['no_sign_key']);
+    expect(coverage.approx).toEqual([]);
+    expect(coverage.verdict).toBe('exact');
   });
 
   it('turns a no-sign over boots into the matching forbid tile', () => {
@@ -254,7 +256,8 @@ describe('terrain, items and entities', () => {
       'forbid_boots_ice', 'forbid_boots_force', 'forbid_boots_fire', 'forbid_boots_water'
     ]);
     expect(level.items[0].slice(1, 5)).toEqual([null, null, null, null]);
-    expect(coverage.approx).toEqual(['no_sign_boots']);
+    expect(coverage.approx).toEqual([]);
+    expect(coverage.verdict).toBe('exact');
   });
 
   it('puts a no-sign over any other carried item on the item layer, keeping the terrain', () => {
@@ -270,7 +273,7 @@ describe('terrain, items and entities', () => {
       'no_sign_dynamite', 'no_sign_hurl_stone', 'no_sign_ward', 'no_sign_boots_speed', 'no_sign_hiking_boots'
     ]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toContain('no_sign_item');
+    expect(coverage.approx).not.toContain('no_sign_item');
   });
 
   it('puts a no-sign over a key or boots on any terrain but plain floor on the item layer', () => {
@@ -282,7 +285,8 @@ describe('terrain, items and entities', () => {
     expect(level.terrain[0].slice(1, 4)).toEqual(['gravel', 'water', 'ice']);
     expect(level.items[0].slice(1, 4)).toEqual(['no_sign_key_red', 'no_sign_boots_water', 'no_sign_key_blue']);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(['no_sign_item']);
+    expect(coverage.approx).toEqual([]);
+    expect(coverage.verdict).toBe('exact');
   });
 
   it('puts a no-sign over the steel foil and the bribe on the item layer, and drops the toggle clock', () => {
@@ -293,7 +297,7 @@ describe('terrain, items and entities', () => {
     ]);
     expect(level.items[0].slice(1, 4)).toEqual(['no_sign_steel_foil', 'no_sign_bribe', null]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(expect.arrayContaining(['no_sign_item', 'no_sign_bonus']));
+    expect(coverage.approx).toEqual(['no_sign_bonus', 'toggle_clock']);
   });
 
   it('drops a bonus item under a no-sign and signs the lightning bolt and the railroad sign', () => {
@@ -303,11 +307,11 @@ describe('terrain, items and entities', () => {
     expect(bonus.coverage.approx).toEqual(['no_sign_bonus']);
     const bolt = convert([put(1, 0, { code: 0x7f }, { code: 0x62 }, { code: FLOOR_CODE })]);
     expect(bolt.level.items[0][1]).toBe('no_sign_lightning_bolt');
-    expect(bolt.coverage.approx).toContain('no_sign_item');
+    expect(bolt.coverage.approx).toEqual(['lightning_bolt']);
     const railroad = convert([put(1, 0, { code: 0x7f }, { code: 0x6f }, { code: FLOOR_CODE })]);
     expect(railroad.level.items[0][1]).toBe('no_sign_railroad_sign');
     expect(railroad.coverage.lost).toEqual([]);
-    expect(railroad.coverage.approx).toContain('no_sign_item');
+    expect(railroad.coverage.approx).toEqual([]);
   });
 
   it('plays an empty no-sign as the plain floor, exactly', () => {
@@ -388,18 +392,19 @@ describe('thin walls', () => {
     expect(coverage.verdict).toBe('exact');
   });
 
-  it('keeps the canopy flag with the real edges and plays it approximately', () => {
+  it('keeps the canopy flag with the real edges and plays it exactly', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: W | CANOPY }, { code: FLOOR_CODE })]);
     expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: ['W'], canopy: true }]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(['canopy']);
+    expect(coverage.approx).toEqual([]);
+    expect(coverage.verdict).toBe('exact');
   });
 
   it('keeps a canopy alone as an edge entry with no side', () => {
     const { level, coverage } = convert([put(1, 0, { code: THIN_WALL, flags: CANOPY }, { code: FLOOR_CODE })]);
     expect(level.cellEdges).toEqual([{ x: 1, y: 0, sides: [], canopy: true }]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(['canopy']);
+    expect(coverage.approx).toEqual([]);
   });
 });
 
@@ -489,10 +494,10 @@ describe('directional blocks', () => {
     expect(report.warnings).toEqual([]);
   });
 
-  it('gives the green walls their own approximate keys', () => {
+  it('plays the solid green wall exactly and the fake one approximately', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x7d }), put(2, 0, { code: 0x7e })]);
     expect(level.terrain[0].slice(1, 3)).toEqual(['wall', 'blue_wall_fake']);
-    expect(coverage.approx).toEqual(['green_wall', 'green_wall_fake']);
+    expect(coverage.approx).toEqual(['green_wall_fake']);
   });
 
   it('keeps arrow blocks exact in coverage', () => {
@@ -541,7 +546,7 @@ describe('cloners and links', () => {
       put(0, 1, { code: TRAP }),
       put(2, 1, { code: 0x5f })
     ]);
-    const { level, coverage } = convertCc2Map(map, OPTIONS);
+    const { level, coverage, report } = convertCc2Map(map, OPTIONS);
     expect(level.terrain[1][0]).toBe('trap_wired');
     expect(level.terrain[1][2]).toBe('flame_jet_wired_off');
     expect(level.signalLinks).toEqual([
@@ -549,7 +554,8 @@ describe('cloners and links', () => {
       { fromX: 1, fromY: 0, toX: 2, toY: 1 }
     ]);
     expect(coverage.lost).toEqual([]);
-    expect(coverage.approx).toEqual(['wire', 'wired_flame_jet', 'wired_trap']);
+    expect(coverage.approx).toEqual(['wired_flame_jet']);
+    expect(report.exact).toEqual(expect.arrayContaining(['wire', 'wired_trap']));
   });
 
   it('keeps an unwired trap and flame jet plain, and a lit wired jet as the wired on form', () => {
@@ -753,8 +759,8 @@ describe('wires', () => {
     const { level, coverage } = wired();
     expect(level.terrain[0][0]).toBe('signal_plate');
     expect(level.signalLinks).toEqual([{ fromX: 0, fromY: 0, toX: 3, toY: 0 }]);
-    expect(coverage.verdict).toBe('approx');
-    expect(coverage.approx).toEqual(['wire']);
+    expect(coverage.verdict).toBe('exact');
+    expect(coverage.approx).toEqual([]);
   });
 
   it('plays the held pink button as the pressure plate, not the pulse button', () => {
@@ -769,7 +775,9 @@ describe('wires', () => {
       put(1, 0, modTile(FLOOR_CODE, E | W | 0x20)),
       put(4, 0, modTile(FLOOR_CODE, E | W | 0x80))
     ]);
-    expect(convertCc2Map(map, OPTIONS).coverage.approx).toEqual(['wire', 'wire_tunnel']);
+    const tunnels = convertCc2Map(map, OPTIONS);
+    expect(tunnels.coverage.approx).toEqual([]);
+    expect(tunnels.report.exact).toEqual(expect.arrayContaining(['wire', 'wire_tunnel']));
   });
 
   it('maps gates to Epoxy gates and the placeholder for an unknown one', () => {
@@ -823,7 +831,8 @@ describe('wires', () => {
   it('counts a wired teleport as the wired blue teleport', () => {
     const { coverage } = convert([put(1, 0, modTile(0x11, E)), put(2, 0, { code: 0x11 })]);
     expect(coverage.approx).toContain('teleport_blue_wired');
-    expect(coverage.approx).toContain('wire');
+    expect(coverage.approx).toContain('wired_teleport');
+    expect(coverage.approx).not.toContain('wire');
   });
 });
 
@@ -837,5 +846,74 @@ describe('the validator', () => {
     expect(clean.issues.filter((issue) => issue.severity === 'error')).toEqual([]);
     const lost = convertCc2Map(makeMap(5, 3, [player(0, 1, DIR_E), put(2, 1, { code: 0xfa }), put(4, 1, { code: 0x14 })]), OPTIONS);
     expect(LevelValidator.validate(lost.level).issues.some((issue) => issue.i18nKey === 'validator.issues.cc2_unsupported.label')).toBe(true);
+  });
+});
+
+describe('coverage truth', () => {
+  const ICE_BLOCK = 0x1a;
+  const DIRT_BLOCK = 0x17;
+  const ROVER = 0x69;
+  const POPUP_WALL = 0x2d;
+  const OPEN_TRAP = 0x41;
+  const TRANSMOGRIFIER = 0x4e;
+  const TRACK = 0x4f;
+  const TRACK_SWITCH_NORTH_EAST = 0x41;
+
+  it('plays a pop-up wall as exact when no ice block, arrow block or rover can enter it', () => {
+    const { coverage, report } = convert([put(1, 0, { code: POPUP_WALL }), put(2, 0, actorTile(DIRT_BLOCK), { code: FLOOR_CODE })]);
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(report.exact).toContain('popup_wall');
+  });
+
+  it('plays a pop-up wall as approximate when the level holds an ice block, an arrow block or a rover', () => {
+    const withIce = convert([put(1, 0, { code: POPUP_WALL }), put(2, 0, actorTile(ICE_BLOCK), { code: FLOOR_CODE })]);
+    expect(withIce.coverage.approx).toEqual(['popup_wall_blocks']);
+    expect(withIce.report.exact).not.toContain('popup_wall');
+    const withArrow = convert([put(1, 0, { code: POPUP_WALL }), put(2, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: N | S }, { code: FLOOR_CODE })]);
+    expect(withArrow.coverage.approx).toEqual(['popup_wall_blocks']);
+    const withRover = convert([put(1, 0, { code: POPUP_WALL }), put(2, 0, actorTile(ROVER), { code: FLOOR_CODE })]);
+    expect(withRover.coverage.approx).toContain('popup_wall_blocks');
+  });
+
+  it('counts an ice block held by a clone machine as one that can enter a pop-up wall', () => {
+    const { coverage } = convert([put(1, 0, { code: POPUP_WALL }), put(2, 0, actorTile(ICE_BLOCK), { code: CLONER })]);
+    expect(coverage.approx).toContain('popup_wall_blocks');
+  });
+
+  it('plays the open trap (0x41) as the closed trap with its own approximate key', () => {
+    const { level, coverage } = convert([put(1, 0, { code: OPEN_TRAP }), put(2, 0, { code: TRAP })]);
+    expect(level.terrain[0].slice(1, 3)).toEqual(['trap', 'trap']);
+    expect(coverage.approx).toEqual(['trap_open']);
+    const plain = convert([put(1, 0, { code: TRAP })]);
+    expect(plain.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('keeps trap_open for a wired open trap and wired_trap exact for a wired plain trap', () => {
+    const wiredTrap = (code: number) =>
+      convertCc2Map(makeMap(4, 3, [player(0, 2), put(1, 0, modTile(PINK, 0x4)), put(1, 1, modTile(FLOOR_CODE, 0x1 | 0x2 | 0x8)), put(0, 1, { code })]), OPTIONS);
+    const open = wiredTrap(OPEN_TRAP);
+    expect(open.level.terrain[1][0]).toBe('trap_wired');
+    expect(open.coverage.approx).toEqual(['trap_open']);
+    const plain = wiredTrap(TRAP);
+    expect(plain.coverage.approx).toEqual([]);
+    expect(plain.report.exact).toContain('wired_trap');
+  });
+
+  it('reports a wire that reaches a transmogrifier as wired_transmogrifier', () => {
+    const { coverage } = convert([put(0, 0, modTile(PINK, E)), put(1, 0, modTile(FLOOR_CODE, E | W)), put(2, 0, modTile(TRANSMOGRIFIER, W))]);
+    expect(coverage.approx).toContain('wired_transmogrifier');
+    expect(coverage.approx).not.toContain('wire');
+  });
+
+  it('reports a wire that reaches a teleport as wired_teleport', () => {
+    const { coverage } = convert([put(1, 0, modTile(0x10, E)), put(2, 0, { code: 0x10 })]);
+    expect(coverage.approx).toContain('wired_teleport');
+  });
+
+  it('reports a wire that reaches a track switch as wired_track, and a free switch as plain track', () => {
+    const wired = convert([put(0, 0, modTile(PINK, E)), put(1, 0, modTile(FLOOR_CODE, E | W)), put(2, 0, modTile(TRACK, TRACK_SWITCH_NORTH_EAST))]);
+    expect(wired.coverage.approx).toContain('wired_track');
+    const free = convert([put(2, 0, modTile(TRACK, TRACK_SWITCH_NORTH_EAST))]);
+    expect(free.coverage.approx).not.toContain('wired_track');
   });
 });

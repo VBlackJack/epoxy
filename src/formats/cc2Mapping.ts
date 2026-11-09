@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { KEY_TRAP_OPEN } from '../core/cc2/cc2Coverage';
 import { CC2_ID_PREFIX } from '../core/coreConstants';
 
 /**
@@ -104,7 +105,8 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x39, same('button_red')],
   [0x3a, same('button_brown')],
   [0x3f, same('thief', 'thief_tools')],
-  [0x41, same('trap')],
+  // CC2 starts this trap open; Epoxy places the plain closed trap.
+  [0x41, same('trap', KEY_TRAP_OPEN)],
   [0x42, same('trap')],
   [0x43, same('clone_machine')],
   [0x44, same('clone_machine')],

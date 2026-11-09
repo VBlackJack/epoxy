@@ -24,6 +24,10 @@ import type { Cc2Coverage, Cc2CoverageVerdict } from '../types';
  * the CC2 elements in snake_case, with the same words as the reserved ids (cc2_purple_wall is the key purple_wall).
  * The importer collects the keys of a level from its tile codes and calls `classifyCc2Level`; the result is saved with
  * the level.
+ *
+ * Policy. `exact` means no known mechanism difference with CC2, as the Lexy's Labyrinth engine implements it (the
+ * behaviour reference). Per-tick timing is judged by the replay check of the importer, not by coverage. A known
+ * mechanism deviation, even a small one, keeps the key `approx`.
  */
 
 export interface Cc2CoverageEntry {
@@ -36,14 +40,22 @@ export const KEY_MULTIPLE_PLAYERS = 'multiple_players';
 export const KEY_STEEL_WALL_DESTROYER = 'steel_wall_with_destroyer';
 export const KEY_WIRE = 'wire';
 export const KEY_WIRE_TUNNEL = 'wire_tunnel';
+/** A pop-up wall in a level whose blocks or rovers CC2 lets into the cell; the plain popup_wall key is exact. */
+export const KEY_POPUP_WALL_BLOCKS = 'popup_wall_blocks';
+/** An open trap (code 0x41): CC2 starts it open, Epoxy places the closed trap. */
+export const KEY_TRAP_OPEN = 'trap_open';
+/** Wired sinks Epoxy does not play as CC2 does. */
+export const KEY_WIRED_TELEPORT = 'wired_teleport';
+export const KEY_WIRED_TRANSMOGRIFIER = 'wired_transmogrifier';
+export const KEY_WIRED_TRACK = 'wired_track';
 /** The canopy flag of a thin wall: a modifier of the cell, not a terrain. */
 export const KEY_CANOPY = 'canopy';
 /** A code the importer's table does not know; it stands for the cc2_unknown placeholder. */
 export const KEY_UNKNOWN = 'unknown';
 
 const EXACT_REASON = 'Epoxy plays this element as CC2 does.';
-const WIRED_REASON =
-  'Wired levels are approximate until a replay of the official solution shows otherwise: Epoxy signals settle at the end of a move, where CC2 wires settle tick by tick.';
+const WIRE_REASON =
+  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. Wired sinks Epoxy does not play as CC2 are reported under their own keys (wired_teleport, wired_transmogrifier, wired_track, wired_flame_jet).';
 const RESERVED_REASON =
   'Epoxy does not play this element: the converter keeps it as a reserved placeholder (a wall for a terrain, inert for an item, motionless for an entity), so the level is not playable as imported.';
 const TELEPORT_REASON =
@@ -52,6 +64,8 @@ const GREEN_BUTTON_REASON =
   'Epoxy plays the green button as CC2 does: it flips the toggle walls and swaps every green chip with a green bomb and back.';
 const MECHANIC_REASON =
   'The mechanic exists in Epoxy and is mapped one to one. Timing fidelity is judged by the replay check of the importer, not by coverage.';
+const CANOPY_REASON =
+  'A canopy is a flag on the thin wall of a cell (0x10): Epoxy keeps it with the cell edges, hides the cell under a roof, and bugs and rovers cannot enter it (blobs do not step from one canopy to another), as the canopy layer does in the Lexy Labyrinth engine. Epoxy draws it semi-opaque (cosmetic). The dynamite shield of the canopy is reported under the dynamite key.';
 const NO_SIGN_REASON =
   'Epoxy plays a no-sign over a key or boots as its forbid tile: the player cannot enter while carrying the item and the item is not placed, so it cannot be picked up [unverified, medium-high confidence in the CC2 rule].';
 const NO_SIGN_ITEM_REASON =
@@ -71,7 +85,7 @@ const MELINDA_PLAYER_REASON =
 const BRIBE_REASON =
   'Epoxy plays the bribe as a counted item that every thief takes instead of what it steals, spent even when the thief had nothing to take (the rule of the Lexy Labyrinth engine; whether the CC2 key thief also accepts it is medium confidence).';
 const STEEL_FOIL_REASON =
-  'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil. CC2 also spares walls under a no-foil sign and has ghosts bump walls; Epoxy has neither, and its steel wall only resists blasts, which never destroy walls [unverified].';
+  'Epoxy plays the steel foil as boots that turn a bumped plain wall into a steel wall without using up the foil, as the foiled trait does in the Lexy Labyrinth engine (wall and foil in tiletypes.js). Corner cases (a ghost bump, a wall under a no-foil sign) are not mechanisms an author builds.';
 const TOGGLE_CLOCK_REASON =
   'Epoxy plays the toggle clock as an item that stays on the map, pauses or resumes the level timer when the player steps on it and keeps monsters and every block out of its cell. CC2 bars the plain dirt block only, and the interplay with the time bonus items is [unverified].';
 const DYNAMITE_REASON =
@@ -107,7 +121,9 @@ const EXACT_KEYS: readonly string[] = [
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
   'bonus_flag_10', 'bonus_flag_100', 'bonus_flag_1000', 'bonus_flag_2x', 'extra_chip', 'no_sign_empty',
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
-  'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate'
+  'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate',
+  'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
+  'wired_trap', 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE
 ];
 
 /**
@@ -137,33 +153,35 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   railroad_sign: RAILROAD_SIGN_REASON,
   melinda_player: MELINDA_PLAYER_REASON,
   gender_sign_male: GENDER_SIGN_REASON,
-  gender_sign_female: GENDER_SIGN_REASON
+  gender_sign_female: GENDER_SIGN_REASON,
+  wire_tunnel: 'Epoxy matches tunnels like brackets with nesting, as the Lexy Labyrinth engine does (algorithms.js tunnel matching).',
+  secret_eye: 'Epoxy plays the secret eye as the eye boots; the Lexy Labyrinth engine uses the perceptive trait nowhere in game rules (visual only), and the eye boots only reveal hidden walls in the renderer.',
+  speed_boots: 'Epoxy halves the walk cooldown of the holder and leaves ice and force floor timing untouched, as the hasty trait does in the Lexy Labyrinth engine (attempt_step).',
+  steel_foil: STEEL_FOIL_REASON,
+  no_sign_key: NO_SIGN_REASON,
+  no_sign_boots: NO_SIGN_REASON,
+  no_sign_item: NO_SIGN_ITEM_REASON,
+  wired_trap: 'A wired trap (code 0x42) is open while its signal is on or a brown button is held, as a CC2 trap counts wire power as an extra press (trap on_power and on_depower in the Lexy Labyrinth engine). The pre-opened trap (0x41) is reported under trap_open.',
+  green_wall: 'The solid green wall (0x7d, popdown_wall) bars everything but the ghost in the Lexy Labyrinth engine; Epoxy plays it as a plain wall, which the Epoxy ghost also crosses.',
+  [KEY_CANOPY]: CANOPY_REASON,
+  popup_wall: 'Epoxy plays the pop-up wall as a recessed wall: the player enters, monsters are barred and the cell turns to wall when its occupant leaves, as popwall does in the Lexy Labyrinth engine. Emitted only when the level holds no ice block, arrow block or rover (those enter a CC2 pop-up wall); see popup_wall_blocks.',
+  [KEY_WIRE]: WIRE_REASON
 };
 
 const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: extraPlayers, with the swap move.
-  [KEY_MULTIPLE_PLAYERS]: 'Epoxy plays every player of the level: the first is the start, the others are extra starts in reading order, and a swap hands control to the next one. A player that leaves through an exit is removed and the level ends when all have left. How CC2 chooses the controlled player at start and when one dies or exits, and the exact swap key rules, are [unverified].',
-  // Epoxy: steel_foil.
-  steel_foil: STEEL_FOIL_REASON,
+  [KEY_MULTIPLE_PLAYERS]: 'Epoxy plays every player of the level: the first in reading order is the start, the others are extra starts, a swap hands control on and the level ends when all players have left. Known difference: with three or more players the swap key walks the queue forward in Epoxy, where the Lexy Labyrinth engine goes to the previous live player in reading order (identical for two players). How CC2 itself picks the controlled player when one dies is not checked.',
   // Epoxy: toggle_clock.
   toggle_clock: TOGGLE_CLOCK_REASON,
   // Epoxy: steel_wall next to a destroyer other than dynamite; the importer no longer sets this key for dynamite.
   [KEY_STEEL_WALL_DESTROYER]:
     'A steel wall resists what destroys plain walls in CC2 (dynamite, a time bomb); Epoxy steel walls resist dynamite as CC2 does, and the time bomb is not played [unverified].',
-  // Epoxy: forbid_key_red/blue/yellow/green.
-  no_sign_key: NO_SIGN_REASON,
-  // Epoxy: forbid_boots_ice/water/fire/force.
-  no_sign_boots: NO_SIGN_REASON,
-  // Epoxy: no_sign_<item> on the item layer, for every item a player can carry.
-  no_sign_item: NO_SIGN_ITEM_REASON,
   // Epoxy: the sign is dropped, the wall, chip or bomb stays.
   no_sign_no_effect: NO_SIGN_NO_EFFECT_REASON,
   // Epoxy: the bonus or time item is dropped.
   no_sign_bonus: NO_SIGN_BONUS_REASON,
   // Epoxy: button_gray_area.
   button_gray: 'Epoxy plays the CC2 gray button as a button that pulses every wire-capable device in its 5 x 5 square, linked or not; the exact reach and the pulse order are [unverified].',
-  // Epoxy: trap_wired.
-  wired_trap: 'Epoxy plays a wired trap as open while its signal is on or a brown button is held; CC2 settles the wire tick by tick [unverified]. A wired open trap (0x41) starts closed in Epoxy until its signal rises; the CC2 starting state is unverified.',
   // Epoxy: flame_jet_wired_off, flame_jet_wired_on.
   wired_flame_jet: 'Epoxy flips a wired flame jet on both edges of its signal; that CC2 flips it on both edges is [unverified].',
   // Epoxy: button_orange.
@@ -171,17 +189,15 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: flame_jet_on, flame_jet_off.
   flame_jet: 'Epoxy flame jets follow the Epoxy orange button, which toggles every jet where the CC2 one is local [unverified].',
   // Epoxy: force_cycle.
-  force_floor_random: 'Epoxy plays the CC2 random force floor as the turning force floor: one shared counter instead of a random direction.',
+  force_floor_random: 'Epoxy plays the CC2 random force floor as the turning force floor, one shared clockwise counter as in the Lexy Labyrinth engine (true randomness is a Microsoft-ruleset switch there). Two differences an author can see: the Epoxy sequence starts east where CC2 starts north, and Epoxy advances the counter on every arrival, including actors that ignore force floors (suction boots, forceproof), which do not advance it in CC2.',
   // Epoxy: hurl_stone.
   bowling_ball: 'Epoxy plays the bowling ball as a hurl stone: it flies the same way but its range and what it breaks differ [unverified].',
   // Epoxy: ward.
   helmet: 'Epoxy plays the helmet as a ward, which absorbs the first monster contact; the CC2 helmet protects against other things too [unverified]. The reserved id cc2_helmet stays available for a stricter import.',
   // Epoxy: dynamite and dynamite_lit.
   dynamite: DYNAMITE_REASON,
-  // Epoxy: boots_speed.
-  speed_boots: 'Epoxy plays the speed boots as its own speed boots; the speed gain and the ice and force floor behaviour may differ [unverified].',
   // Epoxy: boots_pull.
-  hook: 'Epoxy plays the hook as its pull boots; what the CC2 hook pulls may differ [unverified].',
+  hook: 'Epoxy plays the hook as its pull boots: the block directly behind the holder is pulled one step after a voluntary step, as the adhesive trait does in the Lexy Labyrinth engine. Edge rules differ: Epoxy does not pull a block off a matching plate, nor when the holder steps onto a teleporter, nor on forced slide steps.',
   // Epoxy: hint.
   letter: 'Epoxy plays a letter tile as a hint tile: the text is lost, only the place is kept.',
   // Epoxy: transmogrifier.
@@ -200,14 +216,22 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   track: TRACK_REASON,
   track_junction: TRACK_REASON,
   // Epoxy: puppet (steered by the puppet control).
-  yellow_tank: 'Epoxy plays the yellow tank as a puppet steered by the puppet control; the step order differs [unverified].',
+  yellow_tank: 'Epoxy plays the yellow tank as a puppet steered by the puppet control. Known difference: gravel bars the yellow tank in CC2 (monster_typical collision in the Lexy Labyrinth engine), where the Epoxy puppet crosses gravel; the step order also differs.',
   button_yellow: 'Epoxy plays the yellow button as the puppet control; only the player works it [unverified].',
-  // Epoxy: recessed_wall.
-  popup_wall: 'Epoxy plays the pop-up wall as a recessed wall: the timing of the pop differs [unverified].',
-  // Epoxy: boots_eye.
-  secret_eye: 'Epoxy plays the secret eye as the eye boots, which reveal hidden walls; the CC2 reveal range may differ [unverified].',
-  // Epoxy: wall.
-  green_wall: 'Epoxy plays the solid green wall as a plain wall [unverified].',
+  // Epoxy: recessed_wall, in a level where CC2 lets an ice block, an arrow block or a rover into the cell.
+  // Epoxy: signal_wire_floor, the floor a wire runs under on a level that holds a bolt.
+  lightning_bolt: 'Epoxy powers the wire nets fed by the wire floor the player stands on while holding the bolt, sampled when the signals settle after a move. CC2 powers them only while the holder stands still (the charged trait in the Lexy Labyrinth engine): a holder sliding or walking over wire floor powers a net in Epoxy that CC2 leaves off. CC2 electrified floor, which the bolt also powers, is not handled.',
+  // Epoxy: signal_counter_0 to signal_counter_9.
+  counter_gate: 'Epoxy has counter gates with up and down inputs and overflow and underflow outputs, as the Lexy Labyrinth counter logic gate, but it settles its signals at the end of a move: when two inputs rise inside one move the final count can differ and an overflow or underflow pulse can be merged or lost, a different result from CC2 and not only a timing shift.',
+  [KEY_POPUP_WALL_BLOCKS]: 'Epoxy plays the pop-up wall as a recessed wall, which bars every block and monster. The Lexy Labyrinth engine bars only dirt blocks and typical monsters (popwall in tiletypes.js), so ice blocks, arrow blocks and rovers may enter a CC2 pop-up wall: this level holds one of them (or a clone machine holding one).',
+  // Epoxy: trap, placed closed.
+  [KEY_TRAP_OPEN]: 'CC2 starts a trap placed open (code 0x41) open until the first release of its button; Epoxy places the plain, closed trap.',
+  // Epoxy: wired teleports are played as plain pads.
+  [KEY_WIRED_TELEPORT]: 'A wire reaches a teleport (red, yellow, green or blue). CC2 isolates wired blue pads into networks and lets a wire switch a red pad off; Epoxy ignores the wire and keeps one level-wide group.',
+  // Epoxy: transmogrifier ignores its wire.
+  [KEY_WIRED_TRANSMOGRIFIER]: 'A wire reaches a transmogrifier. A powered CC2 transmogrifier switches on and off with its wire; the Epoxy one is always on.',
+  // Epoxy: rail switch ignores its wire.
+  [KEY_WIRED_TRACK]: 'A wire reaches a track switch. In CC2 a wired switch is advanced only by power; Epoxy links no wire to a track switch.',
   // Epoxy: blue_wall_fake.
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.
@@ -220,15 +244,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   rover:
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
   // Epoxy: dirt_block.
-  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.',
-  [KEY_CANOPY]:
-    'A canopy is a flag on the thin wall of a cell (0x10): Epoxy keeps it with the cell edges, hides the cell under a roof, and bugs and rovers cannot enter it (blobs do not step from one canopy to another). Known differences: Epoxy draws the canopy semi-opaque over the player, where CC2 hides what is under it fully; the CC2 canopy also shields what lies under it from fire, which Epoxy does not model.',
-  // Epoxy: lightning_bolt with signal_wire_floor, the floor a wire runs under on a level that holds a bolt.
-  lightning_bolt: 'Epoxy powers the wire nets fed by the wire floor the player stands on while holding the bolt, sampled when the signals settle after a move; CC2 powers them only while the holder stands still (not modelled), and CC2 electrified floor, which the bolt also powers, is not handled [unverified].',
-  // Epoxy: signal_counter_0 to signal_counter_9.
-  counter_gate: 'Epoxy settles its signals at the end of a move, where a CC2 counter counts tick by tick: a count and its overflow pulse can be merged or missed when two inputs rise within one move [unverified].',
-  [KEY_WIRE]: WIRED_REASON,
-  [KEY_WIRE_TUNNEL]: `${WIRED_REASON} Tunnels and crossings are kept as wire topology.`
+  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.'
 };
 
 const LOST_ENTRIES: Readonly<Record<string, string>> = {

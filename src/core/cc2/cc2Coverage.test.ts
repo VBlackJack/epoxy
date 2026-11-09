@@ -85,7 +85,7 @@ describe('classifyCc2Level', () => {
   });
 
   it('reads the structural keys', () => {
-    expect(classifyCc2Level([KEY_WIRE]).verdict).toBe('approx');
+    expect(classifyCc2Level([KEY_WIRE]).verdict).toBe('exact');
     expect(classifyCc2Level(['steel_wall']).verdict).toBe('exact');
     expect(classifyCc2Level(['steel_wall', KEY_STEEL_WALL_DESTROYER]).verdict).toBe('approx');
     expect(classifyCc2Level(['green_chip', 'green_bomb', 'button_green', 'melinda_player']).verdict).toBe('exact');
@@ -98,12 +98,12 @@ describe('classifyCc2Level', () => {
 
   it('classifies the items the converter maps beyond the first table', () => {
     expect(classifyCc2Level(['time_penalty']).verdict).toBe('exact');
-    expect(classifyCc2Level(['speed_boots', 'hook']).approx).toEqual(['hook', 'speed_boots']);
+    expect(classifyCc2Level(['speed_boots', 'hook']).approx).toEqual(['hook']);
   });
 
-  it('plays monsters and blocks as exact and the canopy flag as approximate', () => {
+  it('plays monsters, blocks and the canopy flag as exact', () => {
     expect(classifyCc2Level(['bug', 'tank', 'dirt_block', 'cleats']).verdict).toBe('exact');
-    expect(classifyCc2Level([KEY_CANOPY]).verdict).toBe('approx');
+    expect(classifyCc2Level([KEY_CANOPY]).verdict).toBe('exact');
   });
 });
 
@@ -137,12 +137,39 @@ describe('wired devices', () => {
     });
   });
 
-  it('plays the gray button area, the wired trap and the wired flame jet as approximate', () => {
+  it('plays the gray button area and the wired flame jet as approximate, the wired trap as exact', () => {
     expect(classifyCc2Level(['button_gray', 'wired_trap', 'wired_flame_jet'])).toEqual({
       verdict: 'approx',
       lost: [],
-      approx: ['button_gray', 'wired_flame_jet', 'wired_trap']
+      approx: ['button_gray', 'wired_flame_jet']
     });
+  });
+});
+
+describe('coverage truth policy', () => {
+  const EXACT_NOW = [
+    'wire', 'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
+    'wired_trap', 'green_wall', 'canopy', 'popup_wall'
+  ];
+  const APPROX_NOW = [
+    'popup_wall_blocks', 'trap_open', 'wired_teleport', 'wired_transmogrifier', 'wired_track', 'wired_flame_jet',
+    'hook', 'multiple_players', 'force_floor_random', 'yellow_tank', 'lightning_bolt', 'counter_gate'
+  ];
+
+  it('explains the state and result differences of the counter gate and the lightning bolt', () => {
+    expect(CC2_COVERAGE.counter_gate.reason).toMatch(/final count|pulse/);
+    expect(CC2_COVERAGE.lightning_bolt.reason).toMatch(/stands still/);
+  });
+
+  it('plays each reclassified key as exact', () => {
+    for (const key of EXACT_NOW) expect(CC2_COVERAGE[key]?.level, key).toBe('exact');
+  });
+
+  it('keeps each known mechanism deviation approximate, with a reason', () => {
+    for (const key of APPROX_NOW) {
+      expect(CC2_COVERAGE[key]?.level, key).toBe('approx');
+      expect(CC2_COVERAGE[key].reason.length, key).toBeGreaterThan(0);
+    }
   });
 });
 

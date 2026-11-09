@@ -19,6 +19,11 @@ import {
   CC2_COVERAGE,
   KEY_CANOPY,
   KEY_MULTIPLE_PLAYERS,
+  KEY_POPUP_WALL_BLOCKS,
+  KEY_TRAP_OPEN,
+  KEY_WIRED_TELEPORT,
+  KEY_WIRED_TRACK,
+  KEY_WIRED_TRANSMOGRIFIER,
   KEY_UNKNOWN,
   KEY_WIRE,
   KEY_WIRE_TUNNEL,
@@ -100,6 +105,9 @@ const DEFAULT_ID_PREFIX = 'cc2';
 const EPOXY_RULESET = 'epoxy';
 const KEY_ARROW_BLOCK = 'arrow_block';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
+const POPUP_WALL_KEY = 'popup_wall';
+/** Coverage keys of the actors a CC2 pop-up wall lets in (ice blocks, arrow blocks, rovers). */
+const POPUP_WALL_ENTERING_KEYS: readonly string[] = ['ice_block', KEY_ARROW_BLOCK, KEY_ARROW_BLOCK_CROSS, 'rover'];
 
 /** Coverage keys of a track cell: a plain one segment track, and a junction (several segments or a switch). */
 const TRACK_KEY = 'track';
@@ -423,12 +431,20 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         if (code === CODE_BUTTON_RED) redButtons.push(index);
         if (code >= TELEPORT_FIRST && code <= TELEPORT_LAST && ((tile.mod ?? 0) & WIRE_NIBBLE_MASK) !== 0) {
           wiredDevices = true;
+          keys.add(KEY_WIRED_TELEPORT);
           if (code === WIRED_TELEPORT_CODE) {
             keys.delete(mapping.key);
             keys.add(WIRED_TELEPORT_KEY);
           }
         }
-        if (code === TRANSMOGRIFIER && ((tile.mod ?? 0) & WIRE_NIBBLE_MASK) !== 0) wiredDevices = true;
+        if (code === TRANSMOGRIFIER && ((tile.mod ?? 0) & WIRE_NIBBLE_MASK) !== 0) {
+          wiredDevices = true;
+          keys.add(KEY_WIRED_TRANSMOGRIFIER);
+        }
+        if (code === CC2_CODE_TRACK && wiredSinkCells.has(index)) {
+          wiredDevices = true;
+          keys.add(KEY_WIRED_TRACK);
+        }
       } else {
         keys.add(UNKNOWN_KEY);
         terrainId = UNKNOWN_ID;
@@ -552,6 +568,11 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     };
   }
   if (extraPlayers.length > 0) keys.add(KEY_MULTIPLE_PLAYERS);
+  // CC2 lets ice blocks, arrow blocks and rovers into a pop-up wall; Epoxy bars them (a clone machine template is an actor too).
+  if (keys.has(POPUP_WALL_KEY) && POPUP_WALL_ENTERING_KEYS.some((key) => keys.has(key))) {
+    keys.delete(POPUP_WALL_KEY);
+    keys.add(KEY_POPUP_WALL_BLOCKS);
+  }
   const melindaFirst = playerTile?.code === CC2_CODE_MELINDA;
 
   // Trap and clone links: a button works the first trap or clone machine after it in reading order, wrapping round
@@ -663,7 +684,9 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
 function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired: boolean): Cc2TileMapping {
   const code = tile.code;
   if (wired) {
-    if (code === CODE_TRAP || code === CODE_OPEN_TRAP) return WIRED_TRAP;
+    if (code === CODE_TRAP) return WIRED_TRAP;
+    // The pre-opened trap keeps its own key: CC2 starts it open, Epoxy closed.
+    if (code === CODE_OPEN_TRAP) return { ...WIRED_TRAP, key: KEY_TRAP_OPEN };
     if (code === CODE_FLAME_JET_OFF) return WIRED_FLAME_JET_OFF;
     if (code === CODE_FLAME_JET_ON) return WIRED_FLAME_JET_ON;
   }

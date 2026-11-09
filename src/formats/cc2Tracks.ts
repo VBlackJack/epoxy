@@ -25,7 +25,7 @@ import { OPPOSITE_DIRECTION, RAIL_DEFAULT_ENTRY, RAIL_TRACK_COUNT, RAIL_TRACK_MA
 import type { Direction, RailTrackCell } from '../core/types';
 
 /** Flag of a cell with a switch. */
-const TRACK_SWITCH_FLAG = 0x40;
+export const TRACK_SWITCH_FLAG = 0x40;
 /** Where the active segment sits, and its width. */
 const TRACK_ACTIVE_SHIFT = 8;
 const TRACK_ACTIVE_MASK = 0x0f;
