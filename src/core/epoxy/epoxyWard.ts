@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { AudioManager } from '../../audio/AudioManager';
-import { removeEntity } from './epoxyWorld';
+import { playerAtCell, removeEntity } from './epoxyWorld';
 import type { EpoxyWorld } from './epoxyWorld';
 
 /** Id of the boots held that absorb a monster contact, or undefined when the player holds none. */
@@ -33,6 +33,16 @@ export function shieldedFromContact(p: { boots: Iterable<string> }): boolean {
     if (ConfigRegistry.getTile(bootId).shieldsFromContact === true) return true;
   }
   return false;
+}
+
+/**
+ * True when a living player in a helmet stands on the cell: a monster, a mirror or a block is stopped there. Nobody
+ * holding any boots (the common case) answers without looking for a player at the cell.
+ */
+export function shieldedPlayerAt(w: EpoxyWorld, x: number, y: number): boolean {
+  if (w.parked.length === 0 && w.player.boots.size === 0) return false;
+  const standing = playerAtCell(w, x, y);
+  return standing !== undefined && shieldedFromContact(standing);
 }
 
 /**

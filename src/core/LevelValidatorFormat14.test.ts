@@ -162,15 +162,15 @@ describe('block puzzle solver: format 14 ids', () => {
     return l;
   };
 
-  it('never calls a level with a format 14 tile or item unsolvable', () => {
+  it('leaves a level with a format 14 tile or item unchecked (never unsolvable)', () => {
     const tiles = ['slime_cc2', 'turtle_cc2', 'block_barrier_floor', 'flame_jet_cc2_on', 'flame_jet_cc2_off', 'teleport_random', 'teleport_red_cc2', 'transmogrifier_cc2'];
     for (const id of tiles) {
       const engine = new GameEngine();
       engine.loadLevel(targets({ terrain: [[4, 2, id]] }));
-      expect(BlockPuzzleSolver.verdict(engine).kind, id).not.toBe('unsolvable');
+      expect(BlockPuzzleSolver.verdict(engine).kind, id).toBe('not_checked');
     }
     const engine = new GameEngine();
     engine.loadLevel(targets({ items: [[2, 1, HELMET]] }));
-    expect(BlockPuzzleSolver.verdict(engine).kind).not.toBe('unsolvable');
+    expect(BlockPuzzleSolver.verdict(engine).kind).toBe('not_checked');
   });
 });

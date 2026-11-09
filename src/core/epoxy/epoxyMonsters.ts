@@ -41,7 +41,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
-import { absorbMonsterContact, shieldedFromContact } from './epoxyWard';
+import { absorbMonsterContact, shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -204,7 +204,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   const touched = playerAtCell(w, nx, ny);
   if (touched !== undefined) {
-    // A helmet shields from the contact (a teleport or clone arrival can still land on the player): the player lives.
+    // A helmet shields from the contact. A step, a teleport exit and a clone exit all probe canMonsterEnter first
+    // and refuse a helmeted player's cell, so this only backs up an arrival that skipped the probe: the player lives.
     if (shieldedFromContact(touched)) return true;
     // A ward destroys the monster that touches the player; the player lives.
     if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
@@ -540,8 +541,7 @@ export function canMonsterEnter(
   }
 
   // A player in a helmet is not hurt by a monster, so the monster is simply stopped at the player's cell.
-  const standing = playerAtCell(w, nx, ny);
-  if (standing !== undefined && shieldedFromContact(standing)) return false;
+  if (shieldedPlayerAt(w, nx, ny)) return false;
 
   if (ignoreOccupant) return true;
   const occupant = getEntityAt(w, nx, ny);
