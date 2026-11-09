@@ -21,8 +21,9 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { expectAgree } from './cc3dEvidenceAsserts';
 import { EPOXY_COVERAGE } from './epoxyCoverage';
-import { holdDoor, plate, room } from './cc3dEvidenceRig';
+import { device, holdDoor, plate, room, withMob } from './cc3dEvidenceRig';
 import type { EvidenceScenario } from './cc3dEvidenceRig';
+import { terrain } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { CC3D_COLORS } from './model';
 import type { Cc3dColor } from './model';
@@ -46,6 +47,10 @@ const GLYPHS: Record<string, GlyphMeaning> = {
   R: { mob: { kind: 'block_color', color: 'red' } },
   Y: { mob: { kind: 'block_color', color: 'yellow' } },
   U: { mob: { kind: 'block_color', color: 'green' } },
+  B: withMob(terrain('water'), { kind: 'block_dirt' }),
+  p: device('trap'),
+  q: device('trap_control'),
+  c: terrain('ice_corner', { corner: ['S', 'E'] }),
   ...Object.fromEntries(CC3D_COLORS.flatMap((color) => [[PLATE_GLYPH[color], plate(color)], [DOOR_GLYPH[color], holdDoor(color)]]))
 };
 const FLOOR = 'floor';
@@ -208,6 +213,33 @@ describe('dirt block', () => {
       expect(pair.epoxy.getTerrain()[1][3]).toBe('floor');
       expect(pair.rig.entities.map((e) => `${e.x},${e.y}`)).toEqual(['3,1']);
       expect(pair.epoxy.getEntities().map((e) => `${e.x},${e.y}`)).toEqual(['3,1']);
+    });
+  });
+
+  it('starts on water in the map: CC3D and Epoxy agree on what the converter makes of it', () => {
+    expectAgree(scenario('@B..', 'E'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.type)).toEqual(pair.rig.entities.map(() => 'dirt_block'));
+      expect(pair.epoxy.getEntities().map((e) => e.type)).toEqual(pair.rig.entities.map(() => 'dirt_block_3d'));
+    });
+  });
+
+  it('is held by a closed trap and rests on a trap control, as in CC3D', () => {
+    expectAgree(scenario('@Kp..', 'EE'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+    expectAgree(scenario('@Kq...', 'E'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+  });
+
+  it('is carried by a teleport as in CC3D', () => {
+    expectAgree(scenario('@Kt..t', 'EE'), () => undefined);
+    expectAgree(scenario('@Kk..k', 'EE'), () => undefined);
+  });
+
+  it('is refused by fire after sliding round an ice corner, as in CC3D', () => {
+    expectAgree({ rows: room('@Kc.', '..F.'), moves: 'E', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.entities).toHaveLength(1);
     });
   });
 

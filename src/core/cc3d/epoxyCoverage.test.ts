@@ -122,8 +122,7 @@ describe('classifyLevel', () => {
 
   it('calls a level with a water cell exact now that the dirt block makes dirt_3d', () => {
     const result = classifyLevel(levelOf(['#####', '#@WX#', '#####']));
-    expect(result.verdict).toBe('exact');
-    expect(result.lost).toEqual([]);
+    expect(result).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
   it('calls a level with an appearing wall approx', () => {
