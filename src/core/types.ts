@@ -1887,6 +1887,8 @@ export interface LevelBlueprint {
   terrain?: string[][];
   /** Thin walls on cells of any terrain (Epoxy ruleset only); see CompiledLevel.cellEdges. */
   cellEdges?: CellEdge[];
+  /** Texts of single hint tiles; see CompiledLevel.cellHints. */
+  cellHints?: CellHint[];
   /** Track segments of the Chip's Challenge 2 track cells (Epoxy ruleset only); see CompiledLevel.railTracks. */
   railTracks?: RailTrackCell[];
   /** Terrain hidden under a removable top (Epoxy ruleset only); see CompiledLevel.underlays. */
@@ -1936,6 +1938,16 @@ export interface CellEdge {
    * when true; a canopy on a cell with no thin wall is an entry with no side.
    */
   canopy?: true;
+}
+
+/**
+ * The text a hint tile shows when the player stands on it, in place of the level hint. One entry per cell at most.
+ * An entry on a cell that is not a hint tile is never shown.
+ */
+export interface CellHint {
+  x: number;
+  y: number;
+  text: string;
 }
 
 /**
@@ -2124,6 +2136,11 @@ export interface CompiledLevel {
   items: (string | null)[][];
   /** Thin walls on cells of any terrain; one entry per cell, absent when the level has none. */
   cellEdges?: CellEdge[];
+  /**
+   * Texts of single hint tiles, one entry per cell at most; a hint tile without an entry shows the level hint. Absent
+   * when the level has none. A build that does not know the field ignores it and shows the level hint everywhere.
+   */
+  cellHints?: CellHint[];
   /**
    * The track segments of the Chip's Challenge 2 track cells, one entry per cell whose terrain is `rail_junction`
    * (Epoxy ruleset only); absent when the level has none.

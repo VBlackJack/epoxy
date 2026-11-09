@@ -19,6 +19,7 @@ import type { CloneLink, EntityPlacement, TrapLink } from '../core/types';
 import { dirtyCc3dCells } from './cc3dLayerDiff';
 import { differingEdgeCells } from './editorCellEdges';
 import { differingExtraPlayerCells } from './editorExtraPlayers';
+import { differingCellHintCells } from './editorCellHints';
 import { differingRailTrackCells } from './editorRailTracks';
 import { differingUnderlayCells } from './editorUnderlays';
 import { differingLauncherLinks } from './editorLauncherLinks';
@@ -95,6 +96,8 @@ function epoxyDirtyCells(before: EditorDocument, after: EditorDocument, width: n
   dirty.push(...differingEdgeCells(before.cellEdges, after.cellEdges));
   // A track cell's segments count at its cell too.
   dirty.push(...differingRailTrackCells(before.railTracks, after.railTracks));
+  // A cell hint counts at its cell too.
+  dirty.push(...differingCellHintCells(before.cellHints, after.cellHints));
   // The other players count at their cells: placed, turned, given another character, moved or removed.
   dirty.push(...differingExtraPlayerCells(before.extraPlayers, after.extraPlayers));
   // Hidden terrain counts at its cell as well.

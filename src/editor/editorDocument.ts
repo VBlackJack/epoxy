@@ -20,12 +20,13 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
 import { canonicalJson } from './canonicalJson';
 import { canonicalEdges, cloneEdges } from './editorCellEdges';
+import { canonicalCellHints, cloneCellHints } from './editorCellHints';
 import { canonicalExtraPlayers, cloneExtraPlayers } from './editorExtraPlayers';
 import { canonicalRailTracks, cloneRailTracks } from './editorRailTracks';
 import { canonicalUnderlays, cloneUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks, cloneLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks, cloneSignalLinks } from './editorSignalLinks';
-import { CellEdge, CellUnderlay, CloneLink, Direction, EntityPlacement, ExtraPlayerStart, LauncherLink, PlayerCharacter, RailTrackCell, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
+import { CellEdge, CellHint, CellUnderlay, CloneLink, Direction, EntityPlacement, ExtraPlayerStart, LauncherLink, PlayerCharacter, RailTrackCell, Ruleset, SignalLink, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -59,6 +60,11 @@ export interface EditorMap {
    * normalizeRailTracks). Not authored by the editor: carried through unchanged. Absent when the level has none, and never held by a CC3D level.
    */
   railTracks?: RailTrackCell[];
+  /**
+   * Texts of single hint tiles (Epoxy ruleset only), in canonical form (see normalizeCellHints), held on hint tiles only.
+   * Absent when the level has none, and never held by a CC3D level.
+   */
+  cellHints?: CellHint[];
   /**
    * Terrain hidden under a removable top such as a door (Epoxy ruleset only), in canonical form (see
    * normalizeUnderlays). Absent when the level has none, and never held by a CC3D level.
@@ -104,6 +110,7 @@ export type EditorDocument = EditorMap & EditorMetadata;
 export function cloneMap(map: EditorMap): EditorMap {
   const cellEdges = map.cc3d ? undefined : cloneEdges(map.cellEdges);
   const railTracks = map.cc3d ? undefined : cloneRailTracks(map.railTracks);
+  const cellHints = map.cc3d ? undefined : cloneCellHints(map.cellHints);
   const extraPlayers = map.cc3d ? undefined : cloneExtraPlayers(map.extraPlayers);
   const underlays = map.cc3d ? undefined : cloneUnderlays(map.underlays);
   const launcherLinks = map.cc3d ? undefined : cloneLauncherLinks(map.launcherLinks);
@@ -119,6 +126,7 @@ export function cloneMap(map: EditorMap): EditorMap {
     ...(map.missingStart ? { missingStart: true } : {}),
     ...(cellEdges ? { cellEdges } : {}),
     ...(railTracks ? { railTracks } : {}),
+    ...(cellHints ? { cellHints } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
     ...(signalLinks ? { signalLinks } : {}),
@@ -132,7 +140,7 @@ export function cloneMap(map: EditorMap): EditorMap {
  * from before.
  */
 export function withEditedMap(doc: EditorDocument, map: EditorMap): EditorDocument {
-  const { missingStart: _previousMissingStart, extraPlayers: _previousExtraPlayers, cellEdges: _previousEdges, railTracks: _previousRailTracks, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
+  const { missingStart: _previousMissingStart, extraPlayers: _previousExtraPlayers, cellEdges: _previousEdges, railTracks: _previousRailTracks, cellHints: _previousCellHints, underlays: _previousUnderlays, launcherLinks: _previousLauncherLinks, signalLinks: _previousSignalLinks, ...rest } = doc;
   return { ...rest, ...map };
 }
 
@@ -191,7 +199,7 @@ export function restoreDocument(snapshot: EditorDocument): EditorDocument {
 
 /** Deep copy of a document; nothing is shared with the source, except the immutable CC3D level. */
 export function cloneDocument(doc: EditorDocument): EditorDocument {
-  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, extraPlayers, missingStart, cellEdges, railTracks, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
+  const { terrain, items, entities, trapLinks, cloneLinks, playerStart, extraPlayers, missingStart, cellEdges, railTracks, cellHints, underlays, launcherLinks, signalLinks, cc3d } = cloneMap(doc);
   return {
     terrain,
     items,
@@ -203,6 +211,7 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     ...(missingStart ? { missingStart } : {}),
     ...(cellEdges ? { cellEdges } : {}),
     ...(railTracks ? { railTracks } : {}),
+    ...(cellHints ? { cellHints } : {}),
     ...(underlays ? { underlays } : {}),
     ...(launcherLinks ? { launcherLinks } : {}),
     ...(signalLinks ? { signalLinks } : {}),
@@ -251,6 +260,7 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       missingStart: doc.missingStart === true,
       cellEdges: hasCc3d ? null : (canonicalEdges(doc.cellEdges, doc.terrain) ?? []),
       railTracks: hasCc3d ? null : (canonicalRailTracks(doc.railTracks, doc.terrain) ?? []),
+      cellHints: hasCc3d ? null : (canonicalCellHints(doc.cellHints, doc.terrain) ?? []),
       underlays: hasCc3d ? null : (canonicalUnderlays(doc.underlays, doc.terrain) ?? []),
       launcherLinks: hasCc3d ? null : (canonicalLauncherLinks(doc.launcherLinks, doc.terrain, doc.underlays) ?? []),
       signalLinks: hasCc3d ? null : (canonicalSignalLinks(doc.signalLinks, doc.terrain) ?? []),

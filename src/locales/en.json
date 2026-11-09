@@ -1862,6 +1862,9 @@
       "rail_track_empty": {
         "label": "Warning: The track cell at ({x}, {y}) has no track segment, so nobody can enter it."
       },
+      "cell_hint_off_tile": {
+        "label": "Warning: The hint text at ({x}, {y}) is never shown: the cell is not a hint tile."
+      },
       "exit_on_receivers_level": {
         "label": "Warning: An exit tile on a receivers level ends it on contact, bypassing the receivers."
       },
@@ -1979,6 +1982,22 @@
     }
   },
   "editor": {
+    "cell_hint": {
+      "heading": "Hint tile at ({x}, {y})",
+      "text": {
+        "label": "Text shown on this tile"
+      },
+      "empty": {
+        "note": "Left empty, this tile shows the level hint."
+      },
+      "clear": {
+        "action": "Use the level hint"
+      },
+      "status": {
+        "set": {"label": "Hint text set on the tile at ({x}, {y})."},
+        "cleared": {"label": "The tile at ({x}, {y}) shows the level hint again."}
+      }
+    },
     "rail_tracks": {
       "heading": "Track cell at ({x}, {y})",
       "segments": {

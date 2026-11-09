@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- A hint tile can carry its own text (level editor, Cell section); without one it shows the level hint, and builds that do not know the field show the level hint everywhere. The validator warns about a tile text on a cell that is not a hint tile. Both locales.
 - Pack format 15, imports: the CC2 pop-up wall and pre-opened trap import as their CC2 tiles; a wire reaching a CC2 red teleporter or transmogrifier switches it on and off (imported off, as CC2 starts it); the four-arrow block is exact now that sliding blocks push. CC3D dirt, appearing walls, slime and ice blocks convert to their CC3D tiles, making dirt, slime, the ice block, colour blocks and both security gates exact; water, the dirt block, the appearing wall and the omni stay approximate with the difference named. Levels imported before keep their tiles until imported again. Mechanisms reference (en/fr) sections 1.15 and 2.3.
 - Pack format 15, actors and devices: the CC2 pop-up wall lets in only rovers and ghosts and becomes a wall once left (not while someone still stands on it, and not behind a ghost); the CC2 open trap closes on the first release of its brown button or the first fall of its wire; a monster trying to enter a CC3D appearing wall makes it solid; the CC3D slime spares a player holding fire and water boots and is cleaned; the CC2 red teleporter and transmogrifier follow their wire, switched on and off.
 - Validator: it reads the eight format 15 elements without ever calling a winnable level unwinnable (a wired switched-off teleporter or transmogrifier counts as switched on, the CC3D slime spares a player holding fire and water boots, the CC3D ice block crosses the security gates) and warns about a switched-off twin that no wire reaches. Both locales.
@@ -14,6 +15,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Importing a CC2 folder no longer glues every [CLUE] block of a level into one huge hint: each hint tile shows its own block (the n-th block on the n-th hint tile, row by row), and tiles without one show the CLUE text. Levels imported before keep their glued hint until imported again.
 - Levels imported from CC2 may drop the boots that protect the player's cell (fire boots on fire), as CC2 allows, so CC2 level 199 can be left; native levels keep the refusal. The CC2 replay check plays the drop key.
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
 
