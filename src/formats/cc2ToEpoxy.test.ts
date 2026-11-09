@@ -562,7 +562,7 @@ describe('cloners and links', () => {
     const plain = convert([put(1, 0, { code: TRAP }), put(2, 0, { code: 0x60 })]);
     expect(plain.level.terrain[0][1]).toBe('trap');
     expect(plain.level.terrain[0][2]).toBe('flame_jet_cc2_on');
-    expect(plain.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    expect(plain.coverage).toEqual({ verdict: 'approx', lost: [], approx: ['flame_jet'] });
     const map = makeMap(4, 3, [
       player(0, 2),
       put(1, 0, modTile(PINK, 0x4)),

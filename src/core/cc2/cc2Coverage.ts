@@ -131,7 +131,7 @@ const EXACT_KEYS: readonly string[] = [
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate',
   'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
   'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE,
-  'flame_jet', 'button_orange', 'turtle', 'helmet', 'green_wall_fake', 'teleport_green'
+  'turtle', 'helmet', 'green_wall_fake'
 ];
 
 /**
@@ -153,12 +153,9 @@ const MIRROR_REASON =
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
-  flame_jet: 'Epoxy plays the CC2 flame jet as its own jet (flame_jet_cc2_on/off): a lit jet burns whoever stands in it and what walks in, fire boots protect, and monsters may enter. An unwired jet changes state only by an orange button, which the import links to the jet CC2 connects it to.',
-  button_orange: 'Epoxy plays the orange button as a pressure plate linked at import to the flame jet the diamond search of the Lexy Labyrinth engine finds around it: the jet toggles when the button is pressed and again when it is released, as CC2 does. A jet reached by several sources is reported under button_orange_shared.',
   turtle: 'Epoxy plays the turtle (turtle_cc2) as a lily pad on water that monsters may enter, as in CC2: it bars the fireball and the ghost, and turns to water behind whoever leaves it, a glider excepted. Only the dynamite-on-a-turtle quirk of CC2 is not modelled, and a level with dynamite is approximate on its own.',
   helmet: 'Epoxy plays the helmet as an item that shields its holder from the contact of monsters and blocks, as the invulnerable trait does in the Lexy Labyrinth engine; it does not protect from a bowling ball, as there. Turning the helmet into another item on a CC2 transmogrifier is reported under transmogrifier.',
   green_wall_fake: 'Epoxy plays the fake green wall (popdown floor) as the block barrier floor: the player and the monsters walk over it and every block is barred, as the popdown_floor tile does in the Lexy Labyrinth engine.',
-  teleport_green: 'Epoxy plays the CC2 green teleport as the random pad (teleport_random): the destination is drawn among the other green pads from a seeded generator, so a replay is deterministic. The draw is random in CC2 too; the generator is not the CC2 one, which only matters to a recorded CC2 solution.',
   button_green: GREEN_BUTTON_REASON,
   steel_wall: STEEL_WALL_REASON,
   extra_chip: EXTRA_CHIP_REASON,
@@ -200,7 +197,13 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   button_gray:
     'Epoxy plays the CC2 gray button as a button that works, within its 5 x 5 square and wire or no wire, the green toggle walls and the purple tiles (flipped), the force floors that point one way (turned round), the swivel doors (a quarter turn), the flame jets and the rail switches (flipped or moved on), and the launchers and clone machines (fired once), as gray_button in the Lexy Labyrinth engine does. Known differences: it also pulses a wired trap, which CC2 leaves alone; it does not work the turntables, which Epoxy does not have; and the order in which the devices of the square are worked is the Epoxy one (the signal network first, then row by row), where CC2 goes column by column [unverified for the cases where the order matters].',
   // Epoxy: flame_jet_wired_off, flame_jet_wired_on.
-  wired_flame_jet: 'Epoxy flips a wired flame jet on both edges of its signal; that CC2 flips it on both edges is [unverified].',
+  wired_flame_jet: 'A CC2 wired flame jet defines only a power-on reaction in the Lexy Labyrinth engine (on_power): it toggles once when its signal rises. Epoxy flips a wired jet on both edges of its signal, so it also flips when the signal falls.',
+  // Epoxy: flame_jet_cc2_on/off.
+  flame_jet: 'Epoxy plays the CC2 flame jet as flame_jet_cc2_on/off: a lit jet burns the actors standing in it (fire boots protect) and monsters may walk in. Known difference: the Lexy Labyrinth engine also burns blocks standing in a lit jet (on_stand); that Epoxy does so is not confirmed. A jet changes state only by an orange button (link made at import) or a wire.',
+  // Epoxy: signal_plate linked to the jet found by the diamond search.
+  button_orange: 'Epoxy plays the orange button as a pressure plate linked at import to the flame jet the diamond search of the Lexy Labyrinth engine finds around it: the jet toggles on press and again on release. Known difference: the Epoxy plate ignores sliding entities and flying monsters (glider, fireball) standing on it, where the Lexy button toggles for any actor that arrives or departs.',
+  // Epoxy: teleport_random.
+  teleport_green: 'Epoxy plays the CC2 green teleport as the random pad (teleport_random): the destination is drawn among the other green pads. Known differences: it draws from the Epoxy seeded stream, not the CC2 generator, and the Lexy Labyrinth emulation of the CC2 failure of a crowded pad (green_teleports_can_fail) is not modelled.',
   // Epoxy: force_cycle.
   force_floor_random: 'Epoxy plays the CC2 random force floor as the turning force floor, one shared clockwise counter as in the Lexy Labyrinth engine (true randomness is a Microsoft-ruleset switch there). Two differences an author can see: the Epoxy sequence starts east where CC2 starts north, and Epoxy advances the counter on every arrival, including actors that ignore force floors (suction boots, forceproof), which do not advance it in CC2.',
   // Epoxy: hurl_stone.

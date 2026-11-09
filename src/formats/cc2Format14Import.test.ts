@@ -39,7 +39,6 @@ const TELEPORT_GREEN = 0x13;
 const HELMET = 0x52;
 const NO_SIGN = 0x7f;
 const DIRECTIONAL_BLOCK = 0x81;
-const BLUE_WALL_FAKE_FLOOR = FLOOR_CODE;
 const ALL_ARROWS = 0xf;
 
 function convert(placements: ReturnType<typeof put>[], width = 6, height = 4) {
@@ -147,10 +146,11 @@ describe('orange button links', () => {
     expect(result.coverage.approx).toContain('button_orange_shared');
   });
 
-  it('keeps a lone button and jet exact', () => {
+  it('keeps a lone button and jet approximate, with the plate and jet differences stated', () => {
     const result = convert([put(1, 1, { code: ORANGE_BUTTON }), put(2, 1, { code: FLAME_JET_OFF })]);
-    expect(result.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
-    expect(result.report.exact).toEqual(expect.arrayContaining(['button_orange', 'flame_jet']));
+    expect(result.coverage).toEqual({ verdict: 'approx', lost: [], approx: ['button_orange', 'flame_jet'] });
+    expect(CC2_COVERAGE.button_orange.reason).toMatch(/sliding entities and flying monsters/);
+    expect(CC2_COVERAGE.flame_jet.reason).toMatch(/on_stand/);
   });
 
   it('keeps wire links in front of the button links', () => {
@@ -170,21 +170,23 @@ describe('orange button links', () => {
 });
 
 describe('format 14 coverage verdicts', () => {
-  it('plays the jet, the orange button, the turtle, the helmet, the popdown floor and the green pad as exact', () => {
-    for (const key of ['flame_jet', 'button_orange', 'turtle', 'helmet', 'green_wall_fake', 'teleport_green']) {
+  it('plays the turtle, the helmet and the popdown floor as exact', () => {
+    for (const key of ['turtle', 'helmet', 'green_wall_fake']) {
       expect(CC2_COVERAGE[key].level, key).toBe('exact');
     }
     const result = convert([
       put(1, 0, { code: TURTLE }),
       put(2, 0, { code: POPDOWN_FLOOR }),
-      put(3, 0, { code: TELEPORT_GREEN }),
-      put(4, 0, { code: TELEPORT_GREEN }),
-      put(1, 1, { code: HELMET }, { code: BLUE_WALL_FAKE_FLOOR })
+      put(1, 1, { code: HELMET }, { code: FLOOR_CODE })
     ]);
     expect(result.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
   it('states the known gaps of the other new ids', () => {
+    expect(CC2_COVERAGE.teleport_green.level).toBe('approx');
+    expect(CC2_COVERAGE.teleport_green.reason).toMatch(/green_teleports_can_fail/);
+    expect(CC2_COVERAGE.teleport_green.reason).toMatch(/Epoxy seeded stream/);
+    expect(CC2_COVERAGE.wired_flame_jet.reason).toMatch(/once when its signal rises/);
     expect(CC2_COVERAGE.slime.level).toBe('approx');
     expect(CC2_COVERAGE.slime.reason).toMatch(/boulder/);
     expect(CC2_COVERAGE.slime.reason).not.toMatch(/consumes the block/);

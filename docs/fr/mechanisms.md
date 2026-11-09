@@ -155,7 +155,7 @@ Des liaisons de signal pilotent ces dispositifs ; le validateur et la fiche "Com
 - **Bouton d'impulsion gris.** Chaque fois que quelque chose marche dessus, il envoie une impulsion à tous les dispositifs à signal situés à deux cases (une zone de 5 x 5) sans liaison depuis le bouton : les tuiles à bascule basculent, les lanceurs et les machines à cloner tirent une fois, les portes de maintien, les patins de relais et les pièges à signal s'ouvrent un instant.
 - **Piège mécanique à signal.** Retient ce qui y entre ; s'ouvre tant que son signal est actif ou qu'un bouton brun est maintenu.
 - **Jet de flammes à signal.** S'allume à chaque changement de son signal ; le bouton orange n'y touche pas.
-- **Placement et liaison.** Entrées de palette. Reliez chaque source à ses dispositifs avec `K` (ou le bouton Relier de la section Connexions). L'import CC2 y convertit ses murs et sols violets, ses interrupteurs, ses boutons noirs, ses boutons gris, ainsi que les pièges et jets de flammes qu'une liaison atteint ; le piège à signal, le jet de flammes à signal et le bouton gris sont rapportés comme approximatifs.
+- **Placement et liaison.** Entrées de palette. Reliez chaque source à ses dispositifs avec `K` (ou le bouton Relier de la section Connexions). L'import CC2 y convertit ses murs et sols violets, ses interrupteurs, ses boutons noirs, ses boutons gris, ainsi que les pièges qu'une liaison atteint, et ses jets de flammes (à signal ou non) vers les jets de flammes CC2 de la section 1.14 ; le piège à signal, le jet de flammes CC2 à signal et le bouton gris sont rapportés comme approximatifs.
 
 ### 3.2 Plusieurs joueurs
 

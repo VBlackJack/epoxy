@@ -238,7 +238,7 @@ const PROVISIONAL_NAMES: ReadonlyMap<number, { name: string; confidence: Cc2Name
   [CC2_CODE_THIN_WALL_SE, { name: 'Thin Wall SE', confidence: 'medium' }],
   [CC2_CODE_OPEN_TRAP, { name: 'Open Trap', confidence: 'low' }],
   [CC2_CODE_GREEN_WALL_SOLID, { name: 'Green Wall Solid', confidence: 'mediumHigh' }],
-  [CC2_CODE_GREEN_WALL_FAKE, { name: 'Green Wall Fake', confidence: 'medium' }]
+  [CC2_CODE_GREEN_WALL_FAKE, { name: 'Popdown Floor', confidence: 'medium' }]
 ]);
 
 /** Epoxy ids the converter maps codes to, with an optional note. */

@@ -155,7 +155,7 @@ Signal links drive these devices; the validator and the "How mechanisms work" ca
 - **Gray pulse button.** Each time something steps on it, it pulses every wired device within two cells (a 5 x 5 area) with no link from the button: flip tiles flip, launchers and clone machines fire once, hold doors, relay pads and wired traps open for one moment.
 - **Signal bear trap.** Holds whatever steps in; opens while its signal is on or while a brown button is held.
 - **Signal flame jet.** Lights each time its signal changes; the orange button does not touch it.
-- **Placing and linking.** Palette entries. Link each source to its devices with `K` (or the Link button of the Connections section). The CC2 import maps its purple walls and floors, toggle switches, black buttons, gray buttons, and traps and flame jets reached by a wire to these; the wired trap, wired flame jet and gray button are reported as approximate.
+- **Placing and linking.** Palette entries. Link each source to its devices with `K` (or the Link button of the Connections section). The CC2 import maps its purple walls and floors, toggle switches, black buttons, gray buttons and traps reached by a wire to these, and its flame jets (wired or not) to the CC2 flame jets of section 1.14; the wired trap, wired CC2 flame jet and gray button are reported as approximate.
 
 ### 3.2 Several players
 
