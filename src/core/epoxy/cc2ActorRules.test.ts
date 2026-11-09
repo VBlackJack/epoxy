@@ -230,6 +230,18 @@ describe('turtle_cc2: monsters', () => {
     expect(engine.getTerrain()[ROW][TILE_X]).toBe('water');
   });
 
+  it('sinks the classic turtle behind a CC3D monster that enters turtles, and leaves it afloat behind one that leaves them afloat', () => {
+    expect(ConfigRegistry.getEntityDef('bouncer')?.entersTurtles).toBe(true);
+    expect(ConfigRegistry.getEntityDef('bouncer')?.leavesTurtlesAfloat).toBeUndefined();
+    const sinking = load(lane({ terrain: [[TILE_X, ROW, TURTLE]], entities: [placed('bouncer', TILE_X - 1, ROW)] }));
+    tickUntilLeft(sinking, TILE_X);
+    expect(sinking.getTerrain()[ROW][TILE_X]).toBe('water');
+    expect(ConfigRegistry.getEntityDef('blinky')?.leavesTurtlesAfloat).toBe(true);
+    const afloat = load(lane({ terrain: [[TILE_X, ROW, TURTLE]], entities: [placed('blinky', TILE_X - 1, ROW)] }));
+    tickUntilLeft(afloat, TILE_X);
+    expect(afloat.getTerrain()[ROW][TILE_X]).toBe(TURTLE);
+  });
+
   it('keeps the classic turtle closed to a bug', () => {
     const engine = load(lane({ terrain: [[TILE_X, ROW, TURTLE]], entities: [placed('bug', TILE_X - 1, ROW)] }));
     for (let i = 0; i < MAX_TICKS; i++) engine.tick();
@@ -278,7 +290,14 @@ describe('transmogrifier_cc2', () => {
     const before = engine.getEntities()[0];
     const uid = before.uid;
     resolveMonsterArrival(contextOf(engine), before, false);
-    expect(engine.getEntities().find((e) => e.uid === uid)).toMatchObject({ x: TILE_X, y: ROW, dir: 'N', kind: 'monster' });
+    expect(engine.getEntities().find((e) => e.uid === uid)).toMatchObject({
+      x: TILE_X,
+      y: ROW,
+      dir: 'N',
+      kind: 'monster',
+      type: ConfigRegistry.getEntityDef('bug')?.transmogrifiesToCc2
+    });
+    expect(engine.getEntities().find((e) => e.uid === uid)?.type).not.toBe('bug');
   });
 
   it('turns a blob into a member of its pool, the same one for the same seed', () => {

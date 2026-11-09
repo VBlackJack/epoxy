@@ -41,7 +41,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
-import { absorbMonsterContact } from './epoxyWard';
+import { absorbMonsterContact, shieldedFromContact } from './epoxyWard';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -172,6 +172,8 @@ function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean
   const w = ctx.world;
   const touched = playerAtCell(w, entity.x, entity.y);
   if (touched !== undefined) {
+    // A helmet shields from the contact: nothing happens (the monster is not removed, the player lives).
+    if (shieldedFromContact(touched)) return true;
     if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
     killPlayerAt(ctx, touched, 'hud.messages.death_monster', 'death');
     return false;
@@ -202,6 +204,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   const touched = playerAtCell(w, nx, ny);
   if (touched !== undefined) {
+    // A helmet shields from the contact (a teleport or clone arrival can still land on the player): the player lives.
+    if (shieldedFromContact(touched)) return true;
     // A ward destroys the monster that touches the player; the player lives.
     if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
     killPlayerAt(ctx, touched, 'hud.messages.death_monster', 'death');
@@ -264,7 +268,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   }
   // A CC2 transmogrifier changes only the monster that arrives: the one kind its table names, or for a blob a kind drawn
   // from the level random stream (drawn only here, so a level without this tile draws nothing more).
-  if (destTile.transmogrifyTable === 'cc2') {
+  if (!floorFree && destTile.transmogrifyTable === 'cc2') {
     const pool = def?.transmogrifiesToCc2Pool;
     if (def?.transmogrifiesToCc2 !== undefined) entity.type = def.transmogrifiesToCc2;
     else if (pool !== undefined && pool.length > 0) entity.type = pool[w.rng.nextInt(0, pool.length - 1)];
@@ -534,6 +538,10 @@ export function canMonsterEnter(
   if (def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
+
+  // A player in a helmet is not hurt by a monster, so the monster is simply stopped at the player's cell.
+  const standing = playerAtCell(w, nx, ny);
+  if (standing !== undefined && shieldedFromContact(standing)) return false;
 
   if (ignoreOccupant) return true;
   const occupant = getEntityAt(w, nx, ny);

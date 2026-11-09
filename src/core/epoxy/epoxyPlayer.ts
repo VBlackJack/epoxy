@@ -26,7 +26,7 @@ import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
-import { absorbMonsterContact, wardBootsHeld } from './epoxyWard';
+import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
@@ -201,6 +201,11 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   let entityAtTarget = getEntityAt(w, targetX, targetY);
   let wardSpent = false;
+  // A helmet shields from monster contact and the monster keeps its cell: the player is simply blocked.
+  if (entityAtTarget?.kind === 'monster' && shieldedFromContact(w.player)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
   // A ward destroys the first monster the player runs into; the player walks on into the empty cell.
   if (entityAtTarget?.kind === 'monster' && absorbMonsterContact(w, entityAtTarget.uid)) {
     wardSpent = true;

@@ -27,6 +27,14 @@ export function wardBootsHeld(boots: Iterable<string>): string | undefined {
   return undefined;
 }
 
+/** True when the player holds boots that shield from monster and block contact (the CC2 helmet). */
+export function shieldedFromContact(p: { boots: Iterable<string> }): boolean {
+  for (const bootId of p.boots) {
+    if (ConfigRegistry.getTile(bootId).shieldsFromContact === true) return true;
+  }
+  return false;
+}
+
 /**
  * Settles a contact between the player and a monster. When the player wears a ward, the ward is used up, the
  * monster is removed and true is returned: the player lives. Without a ward nothing changes and false is returned.
