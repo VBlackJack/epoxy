@@ -14,6 +14,7 @@ versions follow Semantic Versioning.
 
 ### Fixed
 
+- Levels imported from CC2 may drop the boots that protect the player's cell (fire boots on fire), as CC2 allows, so CC2 level 199 can be left; native levels keep the refusal. The CC2 replay check plays the drop key.
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
 
 ## [2.27.0] - 2026-11-09
