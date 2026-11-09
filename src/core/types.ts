@@ -1174,7 +1174,7 @@ export interface TileDefinition {
   /**
    * Format 16, the unpowered CC2 red pad: stepping on the tile sends the mover straight back out of it in the direction it
    * was facing, as the exit of a teleport onto itself. Not a teleporter (no destination, no group), so it never breaks the
-   * live/off pairing of `poweredTwin`. Needs `poweredTwin` and no `isTeleporter`. The engine rule is not wired yet.
+   * live/off pairing of `poweredTwin`. Needs `poweredTwin` and no `isTeleporter`.
    */
   teleportsToSelf?: boolean;
   slideType?: 'ice' | 'force';
@@ -1357,8 +1357,7 @@ export interface TileDefinition {
   signalSource?: 'held' | 'pulse' | 'inverted' | 'toggle' | 'charged';
   /**
    * Format 16, the CC2 orange button: a held source that every actor on its cell presses (sliding or flying ones, a block
-   * and a monster alike), whatever `pressesPlates` says about the actor. Needs `signalSource` "held". The engine rule is
-   * not wired yet.
+   * and a monster alike), whatever `pressesPlates` says about the actor. Needs `signalSource` "held".
    */
   pressedByAnyActor?: boolean;
   /**

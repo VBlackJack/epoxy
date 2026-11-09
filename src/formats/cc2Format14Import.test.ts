@@ -17,6 +17,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { CC2_COVERAGE } from '../core/cc2/cc2Coverage';
+import { PACK_JSON_VERSION_V16 } from '../config/constants';
+import { serializePack } from '../packs/packJson';
+import { loadTestConfigs } from '../test/loadTestConfigs';
 import { convertCc2Map } from './cc2ToEpoxy';
 import type { Cc2ConvertOptions } from './cc2ToEpoxy';
 import { actorTile, FLOOR_CODE, makeMap, modTile, player, put } from './cc2TestMaps';
@@ -108,9 +111,15 @@ describe('orange button links', () => {
 
   it('places the pressure plate and links it to the nearest jet by the diamond search', () => {
     const result = convert([put(1, 1, { code: ORANGE_BUTTON }), put(4, 3, { code: FLAME_JET_OFF }), put(1, 3, { code: FLAME_JET_ON })], 6, 4);
-    expect(result.level.terrain[1][1]).toBe('signal_plate');
+    expect(result.level.terrain[1][1]).toBe('button_orange_cc2');
     // Distance 2 south (1,3) wins over distance 4 (4,3).
     expect(links(result)).toEqual([[1, 1, 1, 3]]);
+  });
+
+  it('writes pack format 16 for an import that holds the orange button', () => {
+    loadTestConfigs();
+    const result = convert([put(1, 1, { code: ORANGE_BUTTON }), put(2, 1, { code: FLAME_JET_OFF })]);
+    expect(JSON.parse(serializePack('P', [result.level])).version).toBe(PACK_JSON_VERSION_V16);
   });
 
   it('walks each ring east first, then counterclockwise', () => {

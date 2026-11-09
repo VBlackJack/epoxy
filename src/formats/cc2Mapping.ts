@@ -48,6 +48,8 @@ export const CLONE_MACHINE_ID = 'clone_machine';
 export const TRAP_ID = 'trap';
 export const HINT_ID = 'hint';
 export const SIGNAL_PLATE_ID = 'signal_plate';
+/** The held orange button of format 16: pressed by every actor standing on it. */
+export const BUTTON_ORANGE_CC2_ID = 'button_orange_cc2';
 export const TOGGLE_WALL_CLOSED_ID = 'toggle_wall_closed';
 export const TOGGLE_WALL_OPEN_ID = 'toggle_wall_open';
 export const BUTTON_RED_ID = 'button_red';
@@ -136,8 +138,9 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x5e, same(SIGNAL_PLATE_ID, 'wire')],
   [0x5f, same('flame_jet_cc2_off', 'flame_jet')],
   [0x60, same('flame_jet_cc2_on', 'flame_jet')],
-  // The orange button is a pressure plate; the converter links it to the jet CC2 would connect (see cc2ToEpoxy).
-  [0x61, same(SIGNAL_PLATE_ID, 'button_orange')],
+  // The orange button is held by any actor (sliding and flying ones too); the converter links it to the jet CC2 would connect
+  // (see cc2ToEpoxy).
+  [0x61, same(BUTTON_ORANGE_CC2_ID, 'button_orange')],
   [0x64, same('puppet_control', 'button_yellow')],
   [0x6b, same('floor', 'custom_floor')],
   [0x70, same('wall')],
