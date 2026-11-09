@@ -90,6 +90,10 @@ export interface Cc2Divergence {
   reasonKey?: string;
   /** First tick of the first blocked stretch (a direction held, the player not moving), when one was seen. */
   blockedSinceTick?: number;
+  /** For `death`: the terrain id under the player. */
+  tile?: string;
+  /** For `death`: the monsters on the player's cell or next to it (same cell first), as entity type ids. */
+  monsters?: string[];
 }
 
 export interface Cc2ReplayResult {
@@ -182,15 +186,27 @@ function newEngine(level: CompiledLevel, replay: Cc2Replay, kind: Cc2ReplayEngin
   return engine;
 }
 
+/** Entity types of the monsters on a cell or on one of its four neighbours, the cell itself first. */
+function monstersAround(engine: PlayEngine, x: number, y: number): string[] {
+  const distance = (e: { x: number; y: number }): number => Math.abs(e.x - x) + Math.abs(e.y - y);
+  return engine
+    .getEntities()
+    .filter((e) => e.kind === 'monster' && distance(e) <= 1)
+    .sort((a, b) => distance(a) - distance(b))
+    .map((e) => e.type);
+}
+
 function divergenceOf(kind: Cc2DivergenceKind, engine: PlayEngine, moves: number, blockedSinceTick?: number): Cc2Divergence {
   const p = engine.getPlayer();
+  const died = !p.alive && p.deathReasonKey;
   return {
     kind,
     tick: engine.getTick(),
     move: moves,
     x: p.x,
     y: p.y,
-    ...(!p.alive && p.deathReasonKey ? { reasonKey: p.deathReasonKey } : {}),
+    ...(died ? { reasonKey: p.deathReasonKey as string } : {}),
+    ...(kind === 'death' ? { tile: engine.getTerrain()[p.y]?.[p.x], monsters: monstersAround(engine, p.x, p.y) } : {}),
     ...(blockedSinceTick !== undefined ? { blockedSinceTick } : {})
   };
 }

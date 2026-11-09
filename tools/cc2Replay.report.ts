@@ -79,7 +79,7 @@ interface Row {
 }
 
 /** Every .c2m under a folder, sorted by relative path. */
-function listLevels(root: string): string[] {
+export function listLevels(root: string): string[] {
   const out: string[] = [];
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -92,7 +92,7 @@ function listLevels(root: string): string[] {
   return out.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
 }
 
-const pct = (part: number, whole: number): string => (whole === 0 ? UNLISTED : `${Math.round((part * PERCENT) / whole)}%`);
+export const pct = (part: number, whole: number): string => (whole === 0 ? UNLISTED : `${Math.round((part * PERCENT) / whole)}%`);
 
 function keyBitNames(bits: number): string {
   const names = KEY_BIT_NAMES.filter(([bit]) => (bits & bit) !== 0).map(([, name]) => name);
@@ -100,7 +100,7 @@ function keyBitNames(bits: number): string {
 }
 
 /** One clause per strategy: where its run ended. */
-function failureText(check: Cc2ReplayBestResult): string {
+export function failureText(check: Cc2ReplayBestResult): string {
   return check.results
     .map((r) => {
       const d = r.divergence;
@@ -129,7 +129,7 @@ function tally<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, 
   return counts;
 }
 
-function table(header: readonly string[], rows: ReadonlyArray<ReadonlyArray<string | number>>): string[] {
+export function table(header: readonly string[], rows: ReadonlyArray<ReadonlyArray<string | number>>): string[] {
   return [
     `| ${header.join(' | ')} |`,
     `| ${header.map(() => '---').join(' | ')} |`,
