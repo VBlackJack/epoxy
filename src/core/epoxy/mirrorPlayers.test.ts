@@ -340,6 +340,14 @@ describe('mirror players: items, hazards and contact', () => {
     expect(engine.getPlayer().alive).toBe(false);
   });
 
+  it('stops at a player in a helmet instead of sharing the cell', () => {
+    const engine = load(room({ player: { x: 1, y: 3 }, entities: [mirror(MIRROR_CHIP, 2, 3)] }));
+    engine.getPlayer().boots.add('helmet');
+    engine.attemptPlayerMove('W');
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(cellOf(engine, MIRROR_CHIP)).toBe(at(2, 3));
+  });
+
   it('copies a forced slide step the wall refuses', () => {
     // The player steps onto ice beside the east wall, and the slide then runs into the wall. The mirror copies that
     // refused step too: it walks into the water one cell on and dies, which the bounce back alone would never do.

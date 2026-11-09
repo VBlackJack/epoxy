@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
+
 ## [2.27.0] - 2026-11-09
 
 ### Added
