@@ -44,6 +44,7 @@ import {
   findChargeConfigErrors,
   findGateConfigErrors,
   findFishGateAndExitErrors,
+  findFormat14ConfigErrors,
   findRelayPadConfigErrors,
   findWiredDeviceConfigErrors,
   findPullBootsConfigErrors,
@@ -435,6 +436,13 @@ class ConfigRegistryService {
     const fishGateErrors = findFishGateAndExitErrors(bundle.tiles.tiles);
     if (fishGateErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, fishGateErrors.join('; '));
+    }
+    const format14Errors = findFormat14ConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
+    if (format14Errors.tiles.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, format14Errors.tiles.join('; '));
+    }
+    if (format14Errors.monsters.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, format14Errors.monsters.join('; '));
     }
     const relayErrors = findRelayPadConfigErrors(bundle.tiles.tiles);
     if (relayErrors.length > 0) {

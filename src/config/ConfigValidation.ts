@@ -2006,7 +2006,7 @@ export function findGateConfigErrors(tiles: Record<string, TileDefinition>): str
 }
 
 /** The exit orders a teleporter tile may name (the keys of the order table of epoxyTeleports.ts). */
-const TELEPORT_EXIT_ORDERS: readonly string[] = ['forward_only', 'forward_right_left_back'];
+const TELEPORT_EXIT_ORDERS: readonly string[] = ['forward_only', 'forward_right_left_back', 'random', 'cc2_red'];
 
 /**
  * Problems of the fish gate and teleporter exit fields. A fish gate is a chip socket (requiresAllChips) on the terrain
@@ -2033,6 +2033,88 @@ export function findFishGateAndExitErrors(tiles: Record<string, TileDefinition>)
     }
   }
   return errors;
+}
+
+/** Config problems of the format 14 fields, split by the config file they belong to. */
+export interface Format14ConfigErrors {
+  tiles: string[];
+  monsters: string[];
+}
+
+/**
+ * Problems of the fields format 14 added for the Chip's Challenge 2 mechanisms. On a tile: `clearedByBlocks` lists block
+ * ids on a tile that has a `blockTransformsTo`; `barsMonsters` lists monster ids on a tile monsters may enter;
+ * `burnsOccupants` is true on a tile whose hazard is fire; `transmogrifyTable` is "cc2" on a transmogrifier;
+ * `shieldsFromContact` is true on boots. On an entity: `transmogrifiesToCc2` names another existing monster (on a
+ * monster) or block (on a block) that no other entity of the table also becomes. Each entry names the tile or entity.
+ */
+export function findFormat14ConfigErrors(
+  tiles: Record<string, TileDefinition>,
+  entities: Record<string, EntityDefinition>
+): Format14ConfigErrors {
+  const tileErrors: string[] = [];
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.clearedByBlocks !== undefined) {
+      if (tile.blockTransformsTo === undefined) tileErrors.push(`${id}.clearedByBlocks: needs a blockTransformsTo terrain to clear into`);
+      if (!Array.isArray(tile.clearedByBlocks) || tile.clearedByBlocks.length === 0) {
+        tileErrors.push(`${id}.clearedByBlocks: expected a non-empty list of block ids`);
+      } else {
+        for (const blockId of tile.clearedByBlocks) {
+          if (typeof blockId !== 'string' || entities[blockId]?.kind !== 'block') {
+            tileErrors.push(`${id}.clearedByBlocks: "${String(blockId)}" is not the id of an existing block`);
+          }
+        }
+      }
+    }
+    if (tile.barsMonsters !== undefined) {
+      if (tile.passableByMonster !== true) tileErrors.push(`${id}.barsMonsters: only a tile monsters may enter bars some of them`);
+      if (!Array.isArray(tile.barsMonsters) || tile.barsMonsters.length === 0) {
+        tileErrors.push(`${id}.barsMonsters: expected a non-empty list of monster ids`);
+      } else {
+        for (const monsterId of tile.barsMonsters) {
+          if (typeof monsterId !== 'string' || entities[monsterId]?.kind !== 'monster') {
+            tileErrors.push(`${id}.barsMonsters: "${String(monsterId)}" is not the id of an existing monster`);
+          }
+        }
+      }
+    }
+    if (tile.burnsOccupants !== undefined) {
+      if (tile.burnsOccupants !== true) tileErrors.push(`${id}.burnsOccupants: expected true`);
+      if (tile.hazard !== 'fire') tileErrors.push(`${id}.burnsOccupants: only a tile with the hazard "fire" burns its occupants`);
+    }
+    if (tile.transmogrifyTable !== undefined) {
+      if (tile.transmogrifyTable !== 'cc2') tileErrors.push(`${id}.transmogrifyTable: expected "cc2"`);
+      if (tile.transmogrifies !== true) tileErrors.push(`${id}.transmogrifyTable: only a transmogrifier names a table`);
+    }
+    if (tile.shieldsFromContact !== undefined) {
+      if (tile.shieldsFromContact !== true) tileErrors.push(`${id}.shieldsFromContact: expected true`);
+      if (tile.collectible !== 'boot') tileErrors.push(`${id}.shieldsFromContact: only boots (collectible "boot") shield from contact`);
+    }
+  }
+  const sources = new Map<string, string>();
+  for (const entity of Object.values(entities)) {
+    const target = entity.transmogrifiesToCc2;
+    if (target === undefined) continue;
+    const { id } = entity;
+    if (entity.kind !== 'monster' && entity.kind !== 'block') errors.push(`${id}.transmogrifiesToCc2: only a monster or a block may transmogrify`);
+    if (typeof target !== 'string') {
+      errors.push(`${id}.transmogrifiesToCc2: expected an entity id`);
+      continue;
+    }
+    if (target === id) errors.push(`${id}.transmogrifiesToCc2: an entity cannot transmogrify into itself`);
+    const other = entities[target];
+    if (other === undefined) {
+      errors.push(`${id}.transmogrifiesToCc2: unknown entity ${target}`);
+      continue;
+    }
+    if (other.kind !== entity.kind) errors.push(`${id}.transmogrifiesToCc2: ${target} is not of the same kind`);
+    const rival = sources.get(target);
+    if (rival !== undefined) errors.push(`${id}.transmogrifiesToCc2: ${rival} already becomes ${target}`);
+    sources.set(target, id);
+  }
+  return { tiles: tileErrors, monsters: errors };
 }
 
 /**

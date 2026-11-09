@@ -121,7 +121,16 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   button_gray_area: 'gray',
   trap_wired: 'trapBorder',
   flame_jet_wired_off: 'flameJetRim',
-  flame_jet_wired_on: 'fireMid'
+  flame_jet_wired_on: 'fireMid',
+  slime_cc2: 'slimeBase',
+  turtle_cc2: 'turtleShell',
+  flame_jet_cc2_off: 'flameJetRim',
+  flame_jet_cc2_on: 'fireMid',
+  block_barrier_floor: 'floorBorder',
+  transmogrifier_cc2: 'teleportRing',
+  teleport_random: 'teleportRing',
+  teleport_red_cc2: 'teleportRing',
+  helmet: 'gray'
 };
 
 /** Families of tiles named `<prefix><suffix>`; the palette key is `key` or, when null, the suffix itself (a colour name). */

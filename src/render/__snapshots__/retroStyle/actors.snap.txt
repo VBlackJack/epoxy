@@ -18,6 +18,11 @@ monster theme=cyber_neon type=arrow_block_tee b264892d8cd179c1
 monster theme=arctic_lab type=arrow_block_tee 1da479b65877134c
 monster theme=magma_core type=arrow_block_tee 5106cfcb86ce8e11
 monster theme=lynx_lcd type=arrow_block_tee c9e0221463ceff93
+monster theme=default type=arrow_block_cross 917ea19d12b9b3ee
+monster theme=cyber_neon type=arrow_block_cross 7823164ddcacb741
+monster theme=arctic_lab type=arrow_block_cross f57199177eeb9824
+monster theme=magma_core type=arrow_block_cross 1669788882fae124
+monster theme=lynx_lcd type=arrow_block_cross abad8544e8a2a741
 monster theme=default type=mirror_slash 73b8090f9ec80c67
 monster theme=cyber_neon type=mirror_slash f680456467544a1e
 monster theme=arctic_lab type=mirror_slash 5907ad0b8cc8ba4c

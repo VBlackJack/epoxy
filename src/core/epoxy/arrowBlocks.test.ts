@@ -149,7 +149,9 @@ describe('arrow blocks: configuration', () => {
       arrow_block_corner: ['FORWARD', 'RIGHT'],
       arrow_block_tee: ['FORWARD', 'LEFT', 'RIGHT']
     };
-    const { id: dirtId, i18nKey: dirtKey, ...dirtRest } = defOf('dirt_block');
+    // The dirt block also names the block it becomes on a Chip's Challenge 2 transmogrifier (format 14), which the arrow blocks do not.
+    const { id: dirtId, i18nKey: dirtKey, transmogrifiesToCc2: dirtCc2Pair, ...dirtRest } = defOf('dirt_block');
+    expect(dirtCc2Pair).toBe('ice_block');
     expect(dirtId).toBe('dirt_block');
     expect(dirtKey).toBe('entities.dirt_block.name');
     for (const id of SHAPES) {

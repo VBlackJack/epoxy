@@ -348,6 +348,22 @@ editor tile teleport_turning closed=true c02063d2f0fb305d
 editor tile teleport_turning closed=false 21af9518d309f537
 editor tile sand closed=true e4f54d764a5661d5
 editor tile sand closed=false 01d055a2491218d5
+editor tile slime_cc2 closed=true 9ec6351af6f27401
+editor tile slime_cc2 closed=false 4933f91a3a07ea55
+editor tile turtle_cc2 closed=true 5290409830570166
+editor tile turtle_cc2 closed=false 999c03d26ab33b18
+editor tile flame_jet_cc2_off closed=true b72bed3b46a0e3cc
+editor tile flame_jet_cc2_off closed=false b383ab958ba59454
+editor tile flame_jet_cc2_on closed=true 643f7c933133f939
+editor tile flame_jet_cc2_on closed=false 95bd273478fe72e3
+editor tile block_barrier_floor closed=true 8932e102be90661a
+editor tile block_barrier_floor closed=false 46b8dc193304fae4
+editor tile transmogrifier_cc2 closed=true bc93e9ac1efe2828
+editor tile transmogrifier_cc2 closed=false aca2a87e8eb57fdc
+editor tile teleport_random closed=true 997139acd6daea53
+editor tile teleport_random closed=false 92f2c6e00a2d1665
+editor tile teleport_red_cc2 closed=true 6f417179de8f88ed
+editor tile teleport_red_cc2 closed=false e5f638c9b8669287
 editor tile key_red closed=true 4cb5e738243c12eb
 editor tile key_red closed=false 346ba933117db923
 editor tile key_blue closed=true 72eb368a33ef368b
@@ -466,6 +482,8 @@ editor tile no_sign_dynamite closed=true 49576b4caa4ea1b3
 editor tile no_sign_dynamite closed=false e288fd09ab5a8161
 editor tile no_sign_railroad_sign closed=true 8b4970b2c282649d
 editor tile no_sign_railroad_sign closed=false ef22440aadad16c5
+editor tile helmet closed=true 8d6b413357cf4e1f
+editor tile helmet closed=false 3c29bd3c1dc2779c
 editor item over floor key_red 7c47deef7b05807d
 editor item over floor key_blue da8a773e78faacf6
 editor item over floor key_yellow dcee05b655bce3c7
@@ -525,11 +543,13 @@ editor item over floor dynamite e7236ffc16e76284
 editor item over floor dynamite_lit afff75c43173c432
 editor item over floor no_sign_dynamite 0589a30ef32c404f
 editor item over floor no_sign_railroad_sign 0527b814db907280
+editor item over floor helmet e116aadd93a2bc9b
 editor entity over floor dirt_block 4358628869cfc8dc
 editor entity over floor arrow_block_one 95debada7b796c75
 editor entity over floor arrow_block_line 885c6e97190476d3
 editor entity over floor arrow_block_corner 601545b8cb0207ea
 editor entity over floor arrow_block_tee f85619434e0f55c2
+editor entity over floor arrow_block_cross a9cc6838c6c8501d
 editor entity over floor ice_block cdf28e9959ae0c5e
 editor entity over floor mirror_slash 07d5d5367ff198f3
 editor entity over floor mirror_backslash 44b8da388b266980

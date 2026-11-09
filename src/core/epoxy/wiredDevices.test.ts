@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { findSignalConfigErrors, findWiredDeviceConfigErrors, normalizeUnderlays } from '../../config/ConfigValidation';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V13_IDS } from '../../config/constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V13_IDS, PACK_JSON_VERSION_V14 } from '../../config/constants';
 import { connectionRows } from '../../editor/connectionRows';
 import { signalTileHoldsEnd, signalTileTakesOneInput } from '../../editor/editorSignalLinks';
 import { tileAvailability } from '../../editor/paletteAvailability';
@@ -225,7 +225,7 @@ describe('wired devices: configuration', () => {
   });
 
   it('adds pack format 13 for exactly these ids', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V13);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V14);
     const noSigns = NO_SIGN_ITEM_IDS.map((id) => `${NO_SIGN_ITEM_PREFIX}${id}`);
     expect([...PACK_JSON_VERSION_V13_IDS].sort()).toEqual(
       [...NEW_IDS, ...CC2_SWIVEL_IDS, ...CC2_ITEM_IDS, ...CC2_MONSTER_IDS, ...CC3D_MONSTER_IDS, ...CC2_SIGNAL_IDS, ...CC2_BLOCK_IDS, ...CC2_RAIL_IDS, ...CC3D_IDS, ...noSigns].sort()

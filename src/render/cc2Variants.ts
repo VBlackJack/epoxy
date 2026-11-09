@@ -42,7 +42,7 @@ import {
 } from './cc2Marks';
 
 /** The marks a look-alike can wear. */
-export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning';
+export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning' | 'cc2' | 'random' | 'barrier' | 'helmet';
 
 /** The tile a look-alike is drawn on, and the mark drawn over it. */
 export interface Cc2Variant {
@@ -55,6 +55,7 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   green_chip: { base: 'chip', mark: 'toggle' },
   green_bomb: { base: 'bomb', mark: 'toggle' },
   hiking_boots: { base: 'boots_force', mark: 'tread' },
+  helmet: { base: 'boots_pull', mark: 'helmet' },
   steel_foil: { base: 'boots_ice', mark: 'foil' },
   toggle_clock: { base: 'stopwatch_bonus', mark: 'pause' },
   bribe: { base: 'toll_token', mark: 'bribe' },
@@ -73,11 +74,27 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   // The CC3D look-alikes: the blue socket every mover opens, and the two teleporters of the CC3D exit orders.
   fish_gate: { base: 'socket', mark: 'fish' },
   teleport_forward: { base: 'teleport_blue', mark: 'forward' },
-  teleport_turning: { base: 'teleport_red', mark: 'turning' }
+  teleport_turning: { base: 'teleport_red', mark: 'turning' },
+  // The format 14 look-alikes: the Chip's Challenge 2 rules on the tile they resemble.
+  slime_cc2: { base: 'slime', mark: 'cc2' },
+  turtle_cc2: { base: 'turtle', mark: 'cc2' },
+  flame_jet_cc2_off: { base: 'flame_jet_off', mark: 'cc2' },
+  flame_jet_cc2_on: { base: 'flame_jet_on', mark: 'cc2' },
+  block_barrier_floor: { base: 'floor', mark: 'barrier' },
+  transmogrifier_cc2: { base: 'transmogrifier', mark: 'cc2' },
+  teleport_random: { base: 'teleport_green', mark: 'random' },
+  teleport_red_cc2: { base: 'teleport_red', mark: 'cc2' }
 };
 
 /** The letter set on the plate of each gender sign: the initial of the character who may step there. */
-const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda', string>> = { sign_chip: 'C', sign_melinda: 'M' };
+const SIGN_LETTERS: Readonly<Record<'sign_chip' | 'sign_melinda' | 'cc2' | 'random' | 'barrier' | 'helmet', string>> = {
+  sign_chip: 'C',
+  sign_melinda: 'M',
+  cc2: '2',
+  random: '?',
+  barrier: 'B',
+  helmet: 'H'
+};
 
 /** The palette entries a vector style hands in (the same keys as the palette of game.json). */
 export interface MarkPalette {
@@ -124,6 +141,13 @@ export function paletteMarkColours(pal: MarkPalette, mark: Cc2Mark): MarkColours
       return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
     case 'turning':
       return { fill: pal.red, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'cc2':
+    case 'barrier':
+      return { fill: pal.gray, edge: pal.wallShadow, ink: pal.hintGlyph };
+    case 'random':
+      return { fill: pal.green, edge: pal.glyphInk, ink: pal.hintGlyph };
+    case 'helmet':
+      return { fill: pal.blue, edge: pal.glyphInk, ink: pal.hintGlyph };
   }
 }
 
@@ -160,6 +184,13 @@ export function runewardMarkColours(art: Readonly<RunewardArtConfig>, mark: Cc2M
       return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
     case 'turning':
       return { fill: art.keys.red.main, edge, ink: art.keys.red.glyph };
+    case 'cc2':
+    case 'barrier':
+      return { fill: art.wall.topLight, edge: art.wall.edge, ink: art.wall.edge };
+    case 'random':
+      return { fill: art.keys.green.main, edge, ink: art.keys.green.glyph };
+    case 'helmet':
+      return { fill: art.keys.blue.main, edge, ink: art.keys.blue.glyph };
   }
 }
 
@@ -204,6 +235,10 @@ export function paintCc2Mark(ctx: CanvasRenderingContext2D, mark: Cc2Mark, x: nu
       return;
     case 'sign_chip':
     case 'sign_melinda':
+    case 'cc2':
+    case 'random':
+    case 'barrier':
+    case 'helmet':
       paintSignPlate(ctx, x, y, size, SIGN_LETTERS[mark], colours);
       return;
     case 'no_sign':

@@ -114,8 +114,9 @@ beforeEach(() => {
 describe('chain pushing: configuration', () => {
   it('lists what each block may push along', () => {
     expect(defOf('dirt_block').chainPushes).toBeUndefined();
-    expect(defOf('ice_block').chainPushes).toEqual(['ice_block', ...ARROW_IDS]);
-    for (const id of ARROW_IDS) expect(defOf(id).chainPushes, id).toEqual(['dirt_block', 'ice_block', ...ARROW_IDS]);
+    expect(defOf('ice_block').chainPushes).toEqual(['ice_block', ...ARROW_IDS, 'arrow_block_cross']);
+    for (const id of ARROW_IDS) expect(defOf(id).chainPushes, id).toEqual(['dirt_block', 'ice_block', ...ARROW_IDS, 'arrow_block_cross']);
+    expect(defOf('arrow_block_cross').chainPushes).toEqual(['dirt_block', 'ice_block', ...ARROW_IDS, 'arrow_block_cross']);
     expect(findChainPushConfigErrors(ConfigRegistry.getMonsters().entities)).toEqual([]);
   });
 

@@ -343,12 +343,15 @@ describe('tiles.json mechanics', () => {
       if (tile.isTeleporter) groups.add(tile.teleportGroup);
     }
     expect(groups.has(undefined)).toBe(true);
-    // The plain group, the four colours, the pocket pads, the lit relay pads and the two groups of the CC3D exit orders.
+    // The plain group, the four colours, the pocket pads, the lit relay pads, the two groups of the CC3D exit orders and the
+    // two groups of format 14 (the random pads and the Chip's Challenge 2 red pads).
     expect(groups.has('pocket')).toBe(true);
     expect(groups.has('relay')).toBe(true);
     expect(groups.has('forward')).toBe(true);
     expect(groups.has('turning')).toBe(true);
-    expect(groups.size).toBe(9);
+    expect(groups.has('random')).toBe(true);
+    expect(groups.has('red_cc2')).toBe(true);
+    expect(groups.size).toBe(11);
   });
 
   it('declares laserTransparent on every tile', () => {
