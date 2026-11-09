@@ -2322,6 +2322,8 @@ export interface UndoSnapshot {
   timerPaused?: boolean;
   /** Ticks the timer stood paused so far; written only on a level that has a toggle clock, absent otherwise. */
   pausedTicks?: number;
+  /** Entity passes run since the level started; written only on a classic-rules level (the teeth cycle reads it), absent otherwise. */
+  ccMonsterClock?: number;
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
   /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */

@@ -99,4 +99,28 @@ describe('classic monster cadence', () => {
     expect(cells.slice(0, 5)).toEqual([1, 1, 1, 1, 1]);
     expect(cells[5]).toBe(2);
   });
+
+  it('keeps the teeth phase across an undo', () => {
+    const level = levelWith(CORRIDOR, 'teeth', 'E', true);
+    const run = (withUndo: boolean): string[] => {
+      const engine = new GameEngine();
+      engine.loadLevel(level);
+      const w = (engine as unknown as { w: TestWorld }).w;
+      const teethX = (): string => String(w.entities.find((e) => e.kind === 'monster')?.x);
+      const out: string[] = [];
+      for (let i = 0; i < 3; i++) engine.tick();
+      if (withUndo) {
+        engine.attemptPlayerMove('W');
+        for (let i = 0; i < 4; i++) engine.tick();
+        expect(engine.undo()).toBe(true);
+      }
+      engine.attemptPlayerMove('W');
+      for (let i = 0; i < 16; i++) {
+        engine.tick();
+        out.push(teethX());
+      }
+      return out;
+    };
+    expect(run(true)).toEqual(run(false));
+  });
 });
