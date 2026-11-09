@@ -144,17 +144,20 @@ describe.each(CC3D_COLORS)('colour block %s', (color) => {
     });
   });
 
-  it('differs at fire: CC3D refuses the block, Epoxy lets it in', () => {
-    expectDisagree(scenario(`@${glyph}F.`, 'E'), 'player', (pair) => {
+  it('is refused by fire, as in CC3D', () => {
+    expectAgree(scenario(`@${glyph}F.`, 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(1);
       expect(pair.rig.entities.map((e) => e.x)).toEqual([2]);
     });
   });
 
-  it('differs at an item: CC3D refuses the block, Epoxy lets it onto the item', () => {
-    expectDisagree(scenario(`@${glyph}i.`, 'E'), 'player', (pair) => {
-      expect(pair.rig.player.x).toBe(1);
-    });
+  it('is refused by any item, as in CC3D', () => {
+    for (const item of ['i', 'e', 'r', 'u', 'f', 'w', 'a', 'o', 's']) {
+      expectAgree(scenario(`@${glyph}${item}.`, 'E'), (pair) => {
+        expect(pair.rig.player.x, item).toBe(1);
+        expect(pair.rig.entities.map((e) => e.x), item).toEqual([2]);
+      });
+    }
   });
 
   it('differs at dirt: CC3D lets the block in and clears the dirt, Epoxy refuses it', () => {
@@ -269,6 +272,20 @@ describe('ice block', () => {
     expectDisagree(scenario('@ZKK.', 'E'), 'player', (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.entities.map((e) => e.x).sort()).toEqual([3, 4, 5]);
+    });
+  });
+
+  it('pushes a chain of ice blocks along, as the Epoxy ice block does', () => {
+    for (const row of ['@ZZ..', '@ZZZ.']) {
+      expectAgree(scenario(row, 'E'), (pair) => {
+        expect(pair.rig.player.x).toBe(2);
+      });
+    }
+  });
+
+  it('differs for a chain that holds a colour block: CC3D pushes it along, Epoxy refuses it', () => {
+    expectDisagree(scenario('@ZC..', 'E'), 'player', (pair) => {
+      expect(pair.rig.player.x).toBe(2);
     });
   });
 

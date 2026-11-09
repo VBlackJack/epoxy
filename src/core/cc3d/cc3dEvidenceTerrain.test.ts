@@ -101,9 +101,9 @@ describe('water', () => {
     });
   });
 
-  it('differs for a second block: CC3D refuses it onto a floating colour block, Epoxy lets it be pushed on', () => {
+  it('refuses a second block onto a floating colour block, as CC3D does', () => {
     const rows = room('@CW.', '..K.', '....');
-    expectDisagree({ rows, moves: 'ESSEN' }, 'player', (pair) => {
+    expectAgree({ rows, moves: 'ESSEN' }, (pair) => {
       expect(pair.rig.player.y).toBe(3);
       expect(pair.rig.entities.map((e) => `${e.type}@${e.x},${e.y}`).sort()).toEqual(['cc3d_block_blue@3,1', 'dirt_block@3,2']);
     });
@@ -405,14 +405,14 @@ describe('gravel', () => {
 
 describe('coverage verdicts that rest on this evidence', () => {
   it('keeps the elements with a pinned difference approximate, and each reason cites this file', () => {
-    for (const key of ['water', 'turtle', 'dirt', 'slime', 'appearing_wall', 'gate_tools', 'gate_keys', 'gravel_with_reflector']) {
+    for (const key of ['water', 'dirt', 'slime', 'appearing_wall', 'gate_tools', 'gate_keys', 'gravel_with_reflector']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }
   });
 
-  it('plays the bomb and the plain gravel as CC3D does', () => {
-    for (const key of ['bomb', 'gravel']) {
+  it('plays the bomb, the turtle and the plain gravel as CC3D does', () => {
+    for (const key of ['bomb', 'turtle', 'gravel']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }

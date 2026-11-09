@@ -1198,7 +1198,10 @@ export interface TileDefinition {
   turnsWallsTo?: Record<string, string>;
   /** An item the player works by stepping on it (the toggle clock): the level timer pauses and resumes, and the item stays. */
   togglesTimer?: boolean;
-  /** An item that a block cannot be pushed onto, as monsters cannot enter a cell holding an item (the toggle clock). */
+  /**
+   * An item that a block cannot be pushed onto, as monsters cannot enter a cell holding an item (the toggle clock); or
+   * a floating colour block tile, which no second block is pushed onto.
+   */
   blocksBlocks?: boolean;
   /** A tile only this character may step on as the player; for the other character it is a wall. Monsters and blocks follow their own flags. */
   characterOnly?: PlayerCharacter;
@@ -1372,6 +1375,8 @@ export interface EntityDefinition {
   shotEffect?: ShotEffect;
   /** Terrain hazards a block refuses to enter, by push, slide, teleport or clone. */
   refusesHazards?: Array<NonNullable<TileDefinition['hazard']>>;
+  /** A block that refuses to enter a cell holding an item other than a bomb (a colour block of the CC3D rules). */
+  refusesItems?: boolean;
   /** Colour of a colour block: it presses the plates of this colour only (a plain entity presses every plate). */
   plateColor?: ChannelColor;
   /**
