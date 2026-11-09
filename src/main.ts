@@ -87,7 +87,7 @@ import { askPlaytestRating } from './ui/playtestRatingDialog';
 import { bindPlaytestOptions, refreshPlaytestOptions } from './ui/playtestOptions';
 import { PackFlows } from './ui/packFlows';
 import { PackManager } from './ui/packManager';
-import { hintTextAt } from './core/cellHints';
+import { hintBannerVisible, hintTextAt } from './core/cellHints';
 import { applyLevelTextInputLimits } from './ui/levelTextInputs';
 import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
@@ -4297,8 +4297,9 @@ class EpoxyApplication {
     if (this.engine.isPlayerOnHint()) {
       const lvl = this.engine.getLevel();
       const player = this.engine.getPlayer();
-      setText(hintText, hintTextAt(lvl, player.x, player.y, (key) => t(key)));
-      hintBanner.classList.remove('hidden');
+      const text = hintTextAt(lvl, player.x, player.y, (key) => t(key));
+      setText(hintText, text);
+      hintBanner.classList.toggle('hidden', !hintBannerVisible(text));
     } else {
       hintBanner.classList.add('hidden');
     }

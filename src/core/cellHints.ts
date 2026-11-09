@@ -16,6 +16,11 @@
 
 import type { CompiledLevel } from './types';
 
+/** True when the hint banner has something to show: a hint text that is not empty or whitespace only. */
+export function hintBannerVisible(text: string): boolean {
+  return text.trim() !== '';
+}
+
 /**
  * The text of the hint tile at (x, y) when the level gives that tile a text of its own, else the level hint
  * (its custom text, else the text its key names, translated by `translateKey`), else an empty string.

@@ -70,7 +70,9 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   if (railTracks) map.railTracks = railTracks;
   else delete map.railTracks;
   // Cell hints are held in canonical form too, and only on cells that still hold a hint tile.
-  const cellHints = level.cc3d ? undefined : canonicalCellHints(map.cellHints, map.terrain);
+  // Cell hints exist under the Epoxy ruleset only: a level of another ruleset loads without them.
+  const epoxyRuleset = level.ruleset === undefined || level.ruleset === DEFAULT_RULESET;
+  const cellHints = level.cc3d || !epoxyRuleset ? undefined : canonicalCellHints(map.cellHints, map.terrain);
   if (cellHints) map.cellHints = cellHints;
   else delete map.cellHints;
   // The other players are held in canonical form too: inside the grid, off the main start and off each other.
