@@ -141,6 +141,9 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
       attemptPushBlock(ctx, occupant, moveDir, false, true);
       if (!w.player.alive) return false;
       if (getEntityAt(w, nx, ny) !== undefined) return true;
+      // The push may have pressed a button that changed the cell (a toggle wall closing): judge the cell again, without
+      // pushing, and stay put when it no longer lets the rover in. The block stays where the push left it.
+      if (!canMonsterEnter(w, entity, moveDir)) return true;
     }
   }
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
@@ -551,7 +554,6 @@ function openPassedTile(w: EpoxyWorld, def: EntityDefinition | undefined, x: num
   const opened = tile.transformsToOnStep ?? (tile.requiresAllChips === true && w.chipsRemaining <= 0 ? (tile.transformsToOnUnlock ?? FLOOR_TILE_ID) : undefined);
   if (opened === undefined) return;
   w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? opened;
-  w.gridMutatedByMove = true;
   w.beamDirty = true;
   if (tile.requiresAllChips === true) AudioManager.playSfx('socket');
 }

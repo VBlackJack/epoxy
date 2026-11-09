@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- A CC2 rover that pushes a block no longer steps into a cell its push just closed (a toggle wall); the CC2 coverage notes for the rover were corrected (fake walls bar it, it leaves bonus items, the tool thief stays closed to it).
+
 ### Changed
 
 - CC2 rover, ghost and blob follow the Lexy Labyrinth rules, which changes them in levels saved with 2.26: the rover pushes blocks, walks onto exits, sockets (once no chip is missing), dirt, gravel and key thieves, and takes keys and tools; the ghost takes keys and tools; the blob is no longer killed by slime and spreads slime behind it.
