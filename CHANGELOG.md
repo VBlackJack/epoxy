@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Chuck's Challenge 3D colour blocks now refuse fire and any item (a bomb still goes off under them), and no block can be pushed onto a floating colour block, as in CC3D.
+- CC3D coverage: the turtle is now rated exact; the notes for water, slime and the blocks were corrected (the walker and both golems already treat water, slime and turtles as CC3D does, and every block enters an open blue gate and clears it).
+
 ## [2.26.0] - 2026-11-09
 
 ### Fixed
