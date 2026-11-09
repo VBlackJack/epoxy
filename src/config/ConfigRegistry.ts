@@ -1524,6 +1524,7 @@ class ConfigRegistryService {
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       ...(isBlockBudget(bp.blockBudget) ? { blockBudget: { waters: bp.blockBudget.waters, targets: bp.blockBudget.targets } } : {}),
       ...(isCc2LevelData(bp.cc2) ? { cc2: bp.cc2 } : {}),
+      ...(bp.rulesFlavor === 'cc' ? { rulesFlavor: bp.rulesFlavor } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
       // Chip is the default character and stays unwritten, so a level played by Chip is the same record as before.
       ...(isPlayerCharacter(bp.character) && bp.character !== DEFAULT_PLAYER_CHARACTER ? { character: bp.character } : {}),

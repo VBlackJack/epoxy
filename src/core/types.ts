@@ -1860,6 +1860,9 @@ export interface BlockBudget {
   targets: number;
 }
 
+/** The rules flavor of an Epoxy level: 'cc' plays with the classic Chip's Challenge timing rules. */
+export type RulesFlavor = 'cc';
+
 export interface LevelBlueprint {
   id: string;
   /** Pilot levels only: the campaign level this one deliberately reworks, exempt from the originality comparison with it. */
@@ -1878,6 +1881,12 @@ export interface LevelBlueprint {
   cc3d?: Cc3dLevel;
   /** Source record of a level imported from a CC2 file; absent on every other level, and ignorable by any reader. */
   cc2?: Cc2LevelData;
+  /**
+   * The Epoxy engine plays this level with the classic Chip's Challenge timing rules (monster cadence, slides, force
+   * floors), introduced batch by batch. Absent means the Epoxy rules; a build that does not know the value ignores it.
+   * A level that carries `cc2` plays with these rules too (see usesCcRules).
+   */
+  rulesFlavor?: RulesFlavor;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -2125,6 +2134,12 @@ export interface CompiledLevel {
   cc3d?: Cc3dLevel;
   /** Source record of a level imported from a CC2 file; absent on every other level, and ignorable by any reader. */
   cc2?: Cc2LevelData;
+  /**
+   * The Epoxy engine plays this level with the classic Chip's Challenge timing rules (monster cadence, slides, force
+   * floors), introduced batch by batch. Absent means the Epoxy rules; a build that does not know the value ignores it.
+   * A level that carries `cc2` plays with these rules too (see usesCcRules).
+   */
+  rulesFlavor?: RulesFlavor;
   /**
    * The CC3D level an Epoxy level was converted from at import, kept so it can be converted again when the converter improves.
    * Absent on every other level, and ignorable by any reader: no engine reads it (only the 'cc3d' ruleset reads `cc3d`, and a
