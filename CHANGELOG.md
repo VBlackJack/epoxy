@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 15, blocks: CC3D dirt is cleared by the blocks that enter it, except ice blocks, which pass over it; the CC2 pop-up wall bars dirt blocks, CC3D dirt and slime bar mirrors and turrets; the CC3D ice block pushes a whole line of blocks, mirrors and turrets and slides over the security gates; a block pushed or sliding into a CC3D appearing wall makes it solid.
+
 ### Fixed
 
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
