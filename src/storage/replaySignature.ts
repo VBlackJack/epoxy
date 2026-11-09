@@ -40,3 +40,21 @@ export function isReplayPlayable(level: SignatureLevel, storedSignature: string 
   if (storedSignature === undefined) return current.startsWith('epoxy:');
   return storedSignature === current;
 }
+
+/** Stored in place of a signature that is present but malformed: it matches no level, so its replay is never played. */
+export const UNKNOWN_REPLAY_SIGNATURE = 'unknown';
+
+/**
+ * Decides whether the replay of a win replaces the stored one. A first win, a better run, or a stored replay that
+ * cannot be played on the level now (other engine or rules version, no replay) replaces it; a worse run keeps a
+ * replay that still plays.
+ */
+export function shouldReplaceReplay(
+  level: SignatureLevel,
+  existing: { replayTimedMoves?: unknown[]; replaySignature?: string } | undefined,
+  isBetterRun: boolean
+): boolean {
+  if (!existing || isBetterRun) return true;
+  const hasReplay = (existing.replayTimedMoves?.length ?? 0) > 0;
+  return !hasReplay || !isReplayPlayable(level, existing.replaySignature);
+}

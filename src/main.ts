@@ -162,7 +162,7 @@ import {
   sanitizeHighScores,
   StoredHighScore
 } from './storage/persistedState';
-import { isReplayPlayable, replaySignature } from './storage/replaySignature';
+import { isReplayPlayable, replaySignature, shouldReplaceReplay } from './storage/replaySignature';
 import { lossyExportNotice } from './ui/exportNotice';
 import { packDatLinkCapNotice } from './editor/datLinkCap';
 import {
@@ -699,7 +699,7 @@ class EpoxyApplication {
           steps,
           score,
           this.engine.getTimedMoveHistory(),
-          replaySignature(this.engine.getLevel())
+          this.engine.getLevel()
         );
         this.playtest.won();
       }
@@ -3229,10 +3229,20 @@ class EpoxyApplication {
         );
         if (!this.storedReplayFor(lvl)) {
           // Recorded on another engine or rules version: the score stays, the replay is kept but not played.
-          replayBtn.disabled = true;
-          replayBtn.title = t('hud.scores_modal.replay_btn.unavailable.label');
+          const reasonId = `scores-replay-reason-${idx}`;
+          const reason = document.createElement('span');
+          reason.id = reasonId;
+          reason.className = 'scores-replay-reason';
+          reason.textContent = t('hud.scores_modal.replay_btn.unavailable.label');
+          replayBtn.setAttribute('aria-disabled', 'true');
+          replayBtn.setAttribute('aria-describedby', reasonId);
+          replayBtn.title = reason.textContent;
+          replayBtn.classList.add('disabled');
+          replayBtn.addEventListener('click', (e) => e.stopImmediatePropagation(), { capture: true });
+          tdAction.append(replayBtn, reason);
+        } else {
+          tdAction.appendChild(replayBtn);
         }
-        tdAction.appendChild(replayBtn);
       }
 
       const codeCell = cell(lvl.password, 'code-cell');
@@ -4495,16 +4505,15 @@ class EpoxyApplication {
     steps: number,
     score: number,
     timedMoves: TimedMove[],
-    signature: string
+    level: CompiledLevel
   ): void {
     const existing = this.highScores[levelId];
-    // A stored replay of another engine or rules version never blocks the new run: the new run replaces it.
-    const existingReplayUsable =
-      existing?.replayTimedMoves !== undefined &&
-      existing.replayTimedMoves.length > 0 &&
-      existing.replaySignature === signature;
-    const isBetterOrFirst =
-      !existing || !existingReplayUsable || steps <= existing.minSteps || score >= existing.bestScore;
+    const signature = replaySignature(level);
+    const isBetterOrFirst = shouldReplaceReplay(
+      level,
+      existing,
+      !existing || steps <= existing.minSteps || score >= existing.bestScore
+    );
     this.highScores[levelId] = {
       // Legacy fields of an older record stay as they were.
       ...existing,

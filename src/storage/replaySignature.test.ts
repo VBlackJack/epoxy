@@ -15,7 +15,13 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { isReplayPlayable, replaySignature, type SignatureLevel } from './replaySignature';
+import {
+  isReplayPlayable,
+  replaySignature,
+  shouldReplaceReplay,
+  UNKNOWN_REPLAY_SIGNATURE,
+  type SignatureLevel
+} from './replaySignature';
 import { sanitizeHighScores } from './persistedState';
 
 const NATIVE: SignatureLevel = {};
@@ -92,9 +98,40 @@ describe('stored signature and kept scores', () => {
     expect(table.a.replayTimedMoves?.length).toBe(1);
   });
 
-  it('drops a malformed signature as a legacy record', () => {
-    const table = sanitizeHighScores({ a: { ...GOOD, replaySignature: 5 }, b: { ...GOOD, replaySignature: '' } });
-    expect(table.a.replaySignature).toBeUndefined();
-    expect(table.b.replaySignature).toBeUndefined();
+  it('keeps a malformed signature refused, never legacy', () => {
+    const table = sanitizeHighScores({
+      a: { ...GOOD, replaySignature: 5 },
+      b: { ...GOOD, replaySignature: '' },
+      c: { ...GOOD }
+    });
+    expect(table.a.replaySignature).toBe(UNKNOWN_REPLAY_SIGNATURE);
+    expect(table.b.replaySignature).toBe(UNKNOWN_REPLAY_SIGNATURE);
+    expect(isReplayPlayable(NATIVE, table.a.replaySignature)).toBe(false);
+    expect(isReplayPlayable(NATIVE, table.b.replaySignature)).toBe(false);
+    expect(table.c.replaySignature).toBeUndefined();
+    expect(isReplayPlayable(NATIVE, table.c.replaySignature)).toBe(true);
+  });
+});
+
+describe('shouldReplaceReplay', () => {
+  const replay = [{ tick: 1, dir: 'N' }];
+
+  it('replaces on a first win and on a better run', () => {
+    expect(shouldReplaceReplay(NATIVE, undefined, false)).toBe(true);
+    expect(shouldReplaceReplay(NATIVE, { replayTimedMoves: replay, replaySignature: 'epoxy:1' }, true)).toBe(true);
+  });
+
+  it('keeps a playable replay on a worse run, legacy native one included', () => {
+    expect(shouldReplaceReplay(NATIVE, { replayTimedMoves: replay, replaySignature: 'epoxy:1' }, false)).toBe(false);
+    expect(shouldReplaceReplay(NATIVE, { replayTimedMoves: replay }, false)).toBe(false);
+  });
+
+  it('replaces an unplayable replay even on a worse run', () => {
+    expect(shouldReplaceReplay(NATIVE, { replayTimedMoves: replay, replaySignature: 'lynx:1' }, false)).toBe(true);
+    expect(shouldReplaceReplay(CC_FLAVOR, { replayTimedMoves: replay }, false)).toBe(true);
+    expect(
+      shouldReplaceReplay(NATIVE, { replayTimedMoves: replay, replaySignature: UNKNOWN_REPLAY_SIGNATURE }, false)
+    ).toBe(true);
+    expect(shouldReplaceReplay(NATIVE, { replayTimedMoves: [] }, false)).toBe(true);
   });
 });

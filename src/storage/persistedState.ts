@@ -18,6 +18,7 @@ import { isFiniteNumber, isRecord } from '../config/ConfigValidation';
 import { GraphicsStyle, LevelHighScore, TimedMove } from '../core/types';
 import { parseRenderStyleId } from '../render/styles/renderStyles';
 import { sanitizeTimedMoves } from '../ui/replaySchedule';
+import { UNKNOWN_REPLAY_SIGNATURE } from './replaySignature';
 
 /** High score as stored: legacy records may carry untimed replayMoves. */
 export type StoredHighScore = LevelHighScore & {
@@ -46,10 +47,13 @@ export function sanitizeHighScores(value: unknown): Record<string, StoredHighSco
     }
     const record = { ...rec } as unknown as StoredHighScore;
     record.replayTimedMoves = sanitizeTimedMoves(rec.replayTimedMoves);
-    if (typeof rec.replaySignature === 'string' && rec.replaySignature.length > 0) {
+    if (rec.replaySignature === undefined) {
+      delete record.replaySignature;
+    } else if (typeof rec.replaySignature === 'string' && rec.replaySignature.length > 0) {
       record.replaySignature = rec.replaySignature;
     } else {
-      delete record.replaySignature;
+      // Present but malformed: never matches a level, so the replay is kept and not played.
+      record.replaySignature = UNKNOWN_REPLAY_SIGNATURE;
     }
     result[levelId] = record;
   }

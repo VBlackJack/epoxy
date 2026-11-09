@@ -1492,7 +1492,7 @@
       "replay_btn": {
         "action": "Replay",
         "unavailable": {
-          "label": "Replay unavailable: recorded with an earlier version of the game rules"
+          "label": "Replay unavailable: the level's rules or engine changed since this run"
         }
       },
       "best_time_cell": {
