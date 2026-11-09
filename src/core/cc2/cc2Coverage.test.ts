@@ -149,10 +149,10 @@ describe('wired devices', () => {
 describe('coverage truth policy', () => {
   const EXACT_NOW = [
     'wire', 'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
-    'wired_trap', 'wired_track', 'green_wall', 'canopy', 'popup_wall'
+    'wired_trap', 'wired_track', 'green_wall', 'canopy', 'popup_wall', 'trap_open', 'arrow_block_cross'
   ];
   const APPROX_NOW = [
-    'popup_wall_blocks', 'trap_open', 'wired_teleport', 'wired_transmogrifier', 'wired_track_unlinked', 'wired_flame_jet',
+    'popup_wall_blocks', 'wired_teleport', 'wired_transmogrifier', 'wired_track_unlinked', 'wired_flame_jet',
     'hook', 'multiple_players', 'force_floor_random', 'yellow_tank', 'lightning_bolt', 'counter_gate'
   ];
 

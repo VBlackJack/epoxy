@@ -74,6 +74,8 @@ describe('water', () => {
     expectAgree({ rows: room('@KW.'), moves: 'E' }, (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
       expect(pair.rig.entities).toHaveLength(0);
+      // Remaining difference: the water Epoxy fills is the plain dirt tile, not dirt_3d (the comparison reads them as one).
+      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt');
     });
     expectAgree({ rows: room('@KW.'), moves: 'EE' }, (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
@@ -214,15 +216,15 @@ describe('dirt', () => {
     expect(t.cc3d.final).toContain('bouncer');
   });
 
-  it('differs for blocks: a CC3D block enters dirt and clears it, an Epoxy block is refused', () => {
-    expectDisagree({ rows: room('@KD.'), moves: 'E' }, 'player', (pair) => {
+  it('is entered and cleared by blocks, as the Epoxy dirt_3d is', () => {
+    expectAgree({ rows: room('@KD.'), moves: 'E' }, (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
   });
 
-  it('differs for the ice block: CC3D slides it over dirt without clearing it, Epoxy refuses it', () => {
-    expectDisagree({ rows: room('@ZD.'), moves: 'E' }, 'player', (pair) => {
+  it('is slid over by the ice block without being cleared, as the Epoxy dirt_3d is', () => {
+    expectAgree({ rows: room('@ZD.'), moves: 'E' }, (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
     });
@@ -249,8 +251,8 @@ describe('slime', () => {
     }
   });
 
-  it('differs for the player holding both the fire and the water orb: CC3D lets him through and cleans it, Epoxy kills him', () => {
-    expectDisagree({ rows: room('@fwL.'), moves: 'EEE' }, 'alive', (pair) => {
+  it('lets the player holding both the fire and the water orb through and is cleaned, as the Epoxy slime_3d is', () => {
+    expectAgree({ rows: room('@fwL.'), moves: 'EEE' }, (pair) => {
       expect(pair.rig.player.alive).toBe(true);
       expect(pair.rig.terrainAt(4, 1)).toBe(FLOOR);
     });
@@ -280,20 +282,23 @@ describe('appearing wall', () => {
     });
   });
 
-  it('differs for blocks: pushing a block into it makes a wall in CC3D, and leaves it in Epoxy', () => {
+  it('becomes a wall when a block is pushed into it, as the Epoxy appearing_wall_any does', () => {
     for (const block of ['K', 'Z']) {
-      expectDisagree({ rows: room(`@${block}Q.`), moves: 'E' }, 'cells', (pair) => {
+      expectAgree({ rows: room(`@${block}Q.`), moves: 'E' }, (pair) => {
         expect(pair.rig.terrainAt(3, 1)).toBe(WALL);
         expect(pair.rig.player.x).toBe(1);
       });
     }
   });
 
-  it('differs for monsters: a CC3D monster that tries to enter it makes a wall, an Epoxy one does not', () => {
+  it('becomes a wall when a monster tries to enter it, as the Epoxy appearing_wall_any does; the monster walk is then a step out of phase', () => {
     const t = playTimeline({ rows: bouncerInto('Q'), moves: '', glyphs: BOUNCER });
-    expect(t.sameFinal).toBe(false);
+    // Both engines reveal the wall, and the terrain goes through the same two states ...
     expect(t.cc3d.terrain).toHaveLength(2);
-    expect(t.epoxy.terrain).toHaveLength(1);
+    expect(t.epoxy.terrain).toEqual(t.cc3d.terrain);
+    // ... but the bouncer turns round a step apart from CC3D afterwards (a timing difference of the monster, not of the wall).
+    expect(t.sameSequence).toBe(false);
+    expect(t.sameFinal).toBe(false);
   });
 });
 
@@ -330,8 +335,8 @@ describe('tools gate', () => {
     expect(t.cc3d.final).toContain('thief');
   });
 
-  it('differs for the ice block: CC3D slides it over the gate, Epoxy refuses it', () => {
-    expectDisagree({ rows: room('@ZN..'), moves: 'E' }, 'player', (pair) => {
+  it('is slid over by the ice block, as the Epoxy ice_block_3d does', () => {
+    expectAgree({ rows: room('@ZN..'), moves: 'E' }, (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
     });
@@ -362,8 +367,8 @@ describe('keys gate', () => {
     });
   });
 
-  it('differs for the ice block: CC3D slides it over the gate, Epoxy refuses it', () => {
-    expectDisagree({ rows: room('@Zn..'), moves: 'E' }, 'player', (pair) => {
+  it('is slid over by the ice block, as the Epoxy ice_block_3d does', () => {
+    expectAgree({ rows: room('@Zn..'), moves: 'E' }, (pair) => {
       expect(pair.rig.player.x).toBe(2);
     });
   });
@@ -405,8 +410,15 @@ describe('gravel', () => {
 
 describe('coverage verdicts that rest on this evidence', () => {
   it('keeps the elements with a pinned difference approximate, and each reason cites this file', () => {
-    for (const key of ['water', 'dirt', 'slime', 'appearing_wall', 'gate_tools', 'gate_keys', 'gravel_with_reflector']) {
+    for (const key of ['water', 'appearing_wall', 'gravel_with_reflector']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+      expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
+    }
+  });
+
+  it('plays dirt, slime and the two security gates as CC3D does (the format 15 twins), each reason citing this file', () => {
+    for (const key of ['dirt', 'slime', 'gate_tools', 'gate_keys']) {
+      expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }
   });

@@ -40,11 +40,11 @@ export const KEY_MULTIPLE_PLAYERS = 'multiple_players';
 export const KEY_STEEL_WALL_DESTROYER = 'steel_wall_with_destroyer';
 export const KEY_WIRE = 'wire';
 export const KEY_WIRE_TUNNEL = 'wire_tunnel';
-/** A pop-up wall in a level whose blocks or rovers CC2 lets into the cell; the plain popup_wall key is exact. */
+/** Retired: stored by imports made before pack format 15, when the pop-up wall was a recessed wall that barred ice blocks, arrow blocks and rovers. The importer no longer emits it. */
 export const KEY_POPUP_WALL_BLOCKS = 'popup_wall_blocks';
-/** An open trap (code 0x41): CC2 starts it open, Epoxy places the closed trap. */
+/** An open trap (code 0x41), played as trap_open: it starts open and closes on the first release of its button or fall of its wire. */
 export const KEY_TRAP_OPEN = 'trap_open';
-/** Wired sinks Epoxy does not play as CC2 does. */
+/** Wires Epoxy does not switch as CC2 does: a wire on a blue, yellow or green pad, or on a red pad or transmogrifier that no wire network reaches. */
 export const KEY_WIRED_TELEPORT = 'wired_teleport';
 export const KEY_WIRED_TRANSMOGRIFIER = 'wired_transmogrifier';
 export const KEY_WIRED_TRACK = 'wired_track';
@@ -60,7 +60,7 @@ export const KEY_HELMET_NO_SIGN = 'helmet_no_sign';
 
 const EXACT_REASON = 'Epoxy plays this element as CC2 does.';
 const WIRE_REASON =
-  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. Wired sinks Epoxy does not play as CC2 are reported under their own keys (wired_teleport, wired_transmogrifier, wired_flame_jet).';
+  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. A wire reaching a red pad or a transmogrifier switches it on and off (the powered twin pair); wires Epoxy still does not follow are reported under their own keys (wired_teleport, wired_transmogrifier, wired_flame_jet).';
 const RESERVED_REASON =
   'Epoxy does not play this element: the converter keeps it as a reserved placeholder (a wall for a terrain, inert for an item, motionless for an entity), so the level is not playable as imported.';
 const TELEPORT_REASON =
@@ -130,7 +130,7 @@ const EXACT_KEYS: readonly string[] = [
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate',
   'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
-  'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE,
+  'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_TRAP_OPEN, 'arrow_block_cross', KEY_WIRE,
   'turtle', 'helmet', 'green_wall_fake'
 ];
 
@@ -139,8 +139,8 @@ const EXACT_KEYS: readonly string[] = [
  * pink_ball, teeth, walker, blob; timid_teeth, floor_mimic; dirt_block, ice_block, arrow_block_* (directional blocks).
  * Teeth flee Melinda and timid teeth flee Chip (chasing the other), as in CC2. The floor mimic is a chaser four times
  * slower than the ordinary monsters.
- * Chain pushing (an ice or directional block pushing a line of blocks) is an Epoxy rule; a block that slides on ice or a
- * force floor still stops at the first block it meets, where CC2 may push it along [unverified].
+ * Chain pushing (an ice or directional block pushing a line of blocks) is an Epoxy rule, and a block that slides on ice or
+ * a force floor shoves the resting block it reaches along the slide (see arrow_block_cross).
  */
 const MECHANIC_KEYS: readonly string[] = [
   'bug', 'fireball', 'glider', 'paramecium', 'tank', 'pink_ball', 'teeth', 'walker', 'blob',
@@ -175,7 +175,9 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   wired_trap: 'A wired trap (code 0x42) is open while its signal is on or a brown button is held, as a CC2 trap counts wire power as an extra press (trap on_power and on_depower in the Lexy Labyrinth engine). The pre-opened trap (0x41) is reported under trap_open.',
   green_wall: 'The solid green wall (0x7d, popdown_wall) bars everything but the ghost in the Lexy Labyrinth engine; Epoxy plays it as a plain wall, which the Epoxy ghost also crosses.',
   [KEY_CANOPY]: CANOPY_REASON,
-  popup_wall: 'Epoxy plays the pop-up wall as a recessed wall: the player enters, monsters are barred and the cell turns to wall when its occupant leaves, as popwall does in the Lexy Labyrinth engine. Emitted only when the level holds no ice block, arrow block or rover (those enter a CC2 pop-up wall); see popup_wall_blocks.',
+  popup_wall: 'Epoxy plays the pop-up wall as popup_wall_cc2, as popwall does in the Lexy Labyrinth engine: the player enters, dirt blocks and typical monsters are barred while ice blocks, arrow blocks, rovers and ghosts walk in, and the cell turns to wall once its last occupant has left (not while another actor still stands on it, and not behind a ghost).',
+  [KEY_TRAP_OPEN]: 'Epoxy plays the open trap (code 0x41) as trap_open, as the Lexy Labyrinth trap with its initially-open flag: open from the start, it closes on the first release of a brown button linked to it (or the first fall of its wire input) and then answers as a plain trap, wired or not.',
+  arrow_block_cross: 'Epoxy plays the four-arrow directional block as arrow_block_cross, which any push moves and which chains into dirt, ice and arrow blocks. A cross block, like an ice block, that slides on ice or a force floor shoves the resting block it reaches along the slide (never a block that is itself sliding), as a CC2 sliding block moves with the push rule in the Lexy Labyrinth engine.',
   [KEY_WIRE]: WIRE_REASON,
   [KEY_WIRED_TRACK]:
     'A wire reaches a track switch: it advances the switch on the rising edge of its input and a wired switch moves by wire only, as the railroad does in the Lexy Labyrinth engine (on_power).'
@@ -216,9 +218,9 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: floor.
   letter: 'The glyph is lost; the cell plays as floor.',
   // Epoxy: transmogrifier.
-  transmogrifier: 'Epoxy plays the transmogrifier as transmogrifier_cc2, which swaps actors by the CC2 pairs (the blob draws from the CC2 pool with a seeded generator). Known differences: a CC2 blue tank turns into a yellow tank, and Epoxy has a single tank; items (a helmet into an X-ray eye, boots into others) and glass or sokoban blocks are not swapped; a wired transmogrifier is not switched by its wire (see wired_transmogrifier) [unverified for the pair table beyond the Lexy Labyrinth engine].',
+  transmogrifier: 'Epoxy plays the transmogrifier as transmogrifier_cc2, which swaps actors by the CC2 pairs (the blob draws from the CC2 pool with a seeded generator). Known differences: a CC2 blue tank turns into a yellow tank, and Epoxy has a single tank; items (a helmet into an X-ray eye, boots into others) and glass or sokoban blocks are not swapped; a wire reaching it switches it on and off through the transmogrifier_cc2 / transmogrifier_cc2_off pair, as in the Lexy Labyrinth engine, where a wired one starts off [unverified for the pair table beyond the Lexy Labyrinth engine].',
   // Epoxy: teleport_red_cc2 (red), teleport_forward (yellow); the green pad is exact (teleport_random).
-  teleport_red: `Epoxy plays the CC2 red pad as teleport_red_cc2, with its own exit order (a placeholder order until the CC2 one is checked, [unverified]). Deferred: the wire that switches a red pad off (see wired_teleport) and the player override of the red pad, so a player entering a red pad leaves as the Epoxy rule says, not as CC2 does.`,
+  teleport_red: `Epoxy plays the CC2 red pad as teleport_red_cc2: it tries the other red pads in ring order and leaves forward, right, back, then left of the facing of the mover, and a wire switches it on and off through its off twin (a wired pad starts off, as in the Lexy Labyrinth engine). Not modelled: the player override of the red pad (Lexy teleport-soft: the player may steer off the destination pad), so a player leaving a red pad follows the Epoxy exit rule, and the order of the exit sides is [unverified] against CC2 itself.`,
   // Epoxy: teleport_forward (exit forward only, the pad is never its own destination).
   teleport_yellow: YELLOW_TELEPORT_REASON,
   // Epoxy: teleport_blue plus a relay pad for the wire.
@@ -232,18 +234,16 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: puppet (steered by the puppet control).
   yellow_tank: 'Epoxy plays the yellow tank as a puppet steered by the puppet control. Known difference: gravel bars the yellow tank in CC2 (monster_typical collision in the Lexy Labyrinth engine), where the Epoxy puppet crosses gravel; the step order also differs.',
   button_yellow: 'Epoxy plays the yellow button as the puppet control; only the player works it [unverified].',
-  // Epoxy: recessed_wall, in a level where CC2 lets an ice block, an arrow block or a rover into the cell.
   // Epoxy: signal_wire_floor, the floor a wire runs under on a level that holds a bolt.
   lightning_bolt: 'Epoxy powers the wire nets fed by the wire floor the player stands on while holding the bolt, sampled when the signals settle after a move. CC2 powers them only while the holder stands still (the charged trait in the Lexy Labyrinth engine): a holder sliding or walking over wire floor powers a net in Epoxy that CC2 leaves off. CC2 electrified floor, which the bolt also powers, is not handled.',
   // Epoxy: signal_counter_0 to signal_counter_9.
   counter_gate: 'Epoxy has counter gates with up and down inputs and overflow and underflow outputs, as the Lexy Labyrinth counter logic gate, but it settles its signals at the end of a move: when two inputs rise inside one move the final count can differ and an overflow or underflow pulse can be merged or lost, a different result from CC2 and not only a timing shift.',
-  [KEY_POPUP_WALL_BLOCKS]: 'Epoxy plays the pop-up wall as a recessed wall, which bars every block and monster. The Lexy Labyrinth engine bars only dirt blocks and typical monsters (popwall in tiletypes.js), so ice blocks, arrow blocks and rovers may enter a CC2 pop-up wall: this level holds one of them (or a clone machine holding one).',
-  // Epoxy: trap, placed closed.
-  [KEY_TRAP_OPEN]: 'CC2 starts a trap placed open (code 0x41) open until the first release of its button; Epoxy places the plain, closed trap.',
-  // Epoxy: wired teleports are played as plain pads.
-  [KEY_WIRED_TELEPORT]: 'A wire reaches a teleport (red, yellow, green or blue). CC2 isolates wired blue pads into networks and lets a wire switch a red pad off; Epoxy ignores the wire and keeps one level-wide group.',
-  // Epoxy: transmogrifier ignores its wire.
-  [KEY_WIRED_TRANSMOGRIFIER]: 'A wire reaches a transmogrifier. A powered CC2 transmogrifier switches on and off with its wire; the Epoxy one is always on.',
+  // Retired since pack format 15; kept so that a level stored by an earlier import keeps its verdict.
+  [KEY_POPUP_WALL_BLOCKS]: 'Stored by an import made before pack format 15, which played the pop-up wall as a recessed wall that barred every block and monster, ice blocks, arrow blocks and rovers included, where CC2 lets them in. Importing the level again plays it as popup_wall_cc2 (see popup_wall).',
+  // Epoxy: wired blue, yellow and green pads are played as plain pads; a red pad no wire reaches stays on.
+  [KEY_WIRED_TELEPORT]: 'A wire is drawn on a blue, yellow or green teleport, or on a red pad that no wire network reaches. CC2 isolates wired blue pads into networks; Epoxy ignores the wire and keeps one level-wide group. A wired red pad that a network reaches is played by its wire (see teleport_red).',
+  // Epoxy: a transmogrifier no wire network reaches stays on.
+  [KEY_WIRED_TRANSMOGRIFIER]: 'A wire is drawn on a transmogrifier but no wire network reaches it, so Epoxy keeps it always on, where a wired CC2 transmogrifier starts off. A wired one that a network reaches is played by its wire (see transmogrifier).',
   // Epoxy: rail_junction, a switch no link reaches.
   [KEY_WIRED_TRACK_UNLINKED]: 'A wire touches a track switch but no supported source drives it (dangling, or fed only by gates Epoxy does not play): the Epoxy switch still moves when an actor leaves along the active track, where CC2 makes a wired switch wire-only.',
   // Epoxy: ghost.
@@ -255,8 +255,6 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: rover.
   rover:
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes one block at a time (no chain) and, as in CC2, enters exits, sockets once no chip is missing, dirt (packing it down), gravel and the keys thief, walks over every item and takes the keys (the red one excepted) and the tools. Remaining differences: it keeps no inventory (a taken item is simply gone and does nothing for it); CC2 also lets it onto clone machines, which Epoxy still bars to it, and onto pop-up walls (reported under their own key); it enters the thief_keys tile only, and a CC2 thief_tools tile imports as the shared thief id, which it cannot enter; the rover also takes bonus items in CC2 (only the ghost refuses them), where Epoxy leaves them on the floor. Fake walls bar the rover in CC2 as they do here.',
-  // Epoxy: arrow_block_cross.
-  arrow_block_cross: 'Epoxy plays the four-arrow directional block as arrow_block_cross, which any push moves. Known difference: the sliding push (a four-arrow block or a block sliding on ice or a force floor pushing the blocks in its way along) is deferred [unverified].',
   // Epoxy: button_orange, a jet reached by several sources.
   [KEY_BUTTON_ORANGE_SHARED]: 'Two orange buttons, or an orange button and a wire, reach the same flame jet. CC2 toggles the jet once per event of each source; Epoxy ORs the sources into one signal and flips the jet on its edges, so overlapping presses merge (known approximation).',
   // Epoxy: ward, the item a helmet falls back to under a no-sign.

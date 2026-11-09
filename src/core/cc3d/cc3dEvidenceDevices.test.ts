@@ -236,10 +236,11 @@ describe('blue golem', () => {
     expect(t.epoxy.final).not.toContain('fish_gate');
   });
 
-  it('differs at an appearing wall: CC3D golems open it, Epoxy ones are refused', () => {
+  it('turns an appearing wall into a wall when it bumps it, as the Epoxy appearing_wall_any does', () => {
     const t = playTimeline({ rows: corridor('.B..Q.'), moves: '', glyphs: GLYPHS });
-    expect(t.sameFinal).toBe(false);
-    expect(t.cc3d.terrain.length).toBeGreaterThan(t.epoxy.terrain.length);
+    expect(t.sameFinal).toBe(true);
+    expect(t.cc3d.terrain.length).toBeGreaterThan(1);
+    expect(t.epoxy.terrain).toHaveLength(t.cc3d.terrain.length);
   });
 
   it('differs on contact: a CC3D golem stops next to the player, an Epoxy one steps onto his cell', () => {

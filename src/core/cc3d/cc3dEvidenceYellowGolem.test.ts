@@ -130,7 +130,7 @@ describe('yellow golem', () => {
     const run = play(lane(FOUR_CONTROLS, '.Q...'));
     expect(run.same).toBe(false);
     expect(run.cc3d.at(-1)).toContain('wall,floor');
-    expect(run.epoxy.at(-1)).toContain('appearing_wall');
+    expect(run.epoxy.at(-1)).toContain('appearing_wall_any');
   });
 
   it('differs in the timing of a step only: CC3D walks a cell in 4 ticks, from a tick after the player settles, Epoxy steps at once', () => {

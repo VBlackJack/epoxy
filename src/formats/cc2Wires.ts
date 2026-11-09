@@ -63,6 +63,7 @@ const CODE_TOGGLE_SWITCH_OFF = 0x88;
 const CODE_TOGGLE_SWITCH_ON = 0x89;
 const CODE_LOGIC_GATE = 0x5c;
 const CODE_TELEPORT_FIRST = 0x10;
+const CODE_TELEPORT_RED = 0x10;
 const CODE_TELEPORT_LAST = 0x13;
 const CODE_TRANSMOGRIFIER = 0x4e;
 /** The railroad tile; its modifier holds the track bits, and the switch flag marks a switch a wire can advance. */
@@ -227,10 +228,12 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
     return { role: 'sink', kind: 'purple', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
   if (code >= CODE_TELEPORT_FIRST && code <= CODE_TELEPORT_LAST) {
-    return wires === 0 ? null : { role: 'sink', kind: 'teleport', supported: false, mask: wires, tunnels: 0 };
+    // Only the red pad follows its wire (the powered twin pair); a wired blue, yellow or green pad is not played as a link end.
+    return wires === 0 ? null : { role: 'sink', kind: 'teleport', supported: code === CODE_TELEPORT_RED, mask: wires, tunnels: 0 };
   }
   if (code === CODE_TRANSMOGRIFIER) {
-    return wires === 0 ? null : { role: 'sink', kind: 'transmogrifier', supported: false, mask: wires, tunnels: 0 };
+    // The Epoxy transmogrifier pair follows its input: a wire switches it on and off.
+    return wires === 0 ? null : { role: 'sink', kind: 'transmogrifier', supported: true, mask: wires, tunnels: 0 };
   }
   if (code === CODE_TRACK) {
     // A track switch takes a wire from any side (the modifier holds track bits, not wires). The Epoxy track cell is a

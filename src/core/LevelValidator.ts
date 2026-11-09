@@ -1586,7 +1586,6 @@ export class LevelValidator {
     }
   }
 
-  /** Warns about links whose button or target cell is no longer the tile the link needs. */
   /** An unpowered twin (format 15) that no signal link ends on never switches on: it is dead floor, which is rarely meant. */
   private static checkUnwiredTwins(level: CompiledLevel, issues: ValidationIssue[]): void {
     const wired = wiredCells(level);
@@ -1600,6 +1599,7 @@ export class LevelValidator {
     }
   }
 
+  /** Warns about links whose button or target cell is no longer the tile the link needs. */
   private static checkLinkEndpoints(level: CompiledLevel, issues: ValidationIssue[]): void {
     const tileAt = (x: number, y: number): TileDefinition | undefined => {
       const id = level.terrain[y]?.[x];

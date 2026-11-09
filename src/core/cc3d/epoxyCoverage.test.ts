@@ -190,7 +190,8 @@ describe('classifyLevel', () => {
     expect(green.verdict).toBe('exact');
     const colorBlock = classifyLevel(levelOf(['####', '#@C#', '####']));
     expect(colorBlock.lost).toEqual([]);
-    expect(colorBlock.approx).toEqual(['block_color_blue']);
+    expect(colorBlock.approx).toEqual([]);
+    expect(colorBlock.verdict).toBe('exact');
   });
 
   it('detects a cell with two devices or blockers as stacked terrain, and loses it when a layer acts while covered', () => {
@@ -354,10 +355,10 @@ describe('colour channel coverage', () => {
     for (const color of CC3D_COLORS) expect(EPOXY_COVERAGE[`hold_door_${color}`].level).toBe('exact');
   });
 
-  it('plays every plate and colour block approximately, and loses none of them', () => {
+  it('plays every plate approximately and every colour block exactly, and loses none of them', () => {
     for (const color of CC3D_COLORS) {
       expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('approx');
-      expect(EPOXY_COVERAGE[`block_color_${color}`].level).toBe('approx');
+      expect(EPOXY_COVERAGE[`block_color_${color}`].level).toBe('exact');
     }
   });
 });

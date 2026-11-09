@@ -129,15 +129,15 @@ const TERRAIN_CASES: TerrainCase[] = [
   terrainCase('exit', 'exit'),
   terrainCase('socket', 'fish_gate'),
   terrainCase('socket_red', 'socket'),
-  terrainCase('slime', 'slime'),
+  terrainCase('slime', 'slime_3d'),
   terrainCase('turtle', 'turtle'),
-  terrainCase('dirt', 'dirt'),
+  terrainCase('dirt', 'dirt_3d'),
   terrainCase('gravel', 'gravel'),
   terrainCase('sand', 'sand'),
   terrainCase('teleport_red', 'teleport_turning'),
   terrainCase('teleport_blue', 'teleport_forward'),
   terrainCase('push_up_wall', 'recessed_wall'),
-  terrainCase('appearing_wall', 'appearing_wall'),
+  terrainCase('appearing_wall', 'appearing_wall_any'),
   terrainCase('false_wall', 'blue_wall_fake'),
   ...CC3D_COLORS.map((color) => terrainCase('door', `door_${color}`, { kind: 'door', color })),
   terrainCase('toggle_door_green', 'toggle_wall_open', { kind: 'toggle_door', color: 'green', open: true }),
@@ -199,7 +199,7 @@ const mobCase = (key: string, type: string | null, extra: Partial<MobCase['mob']
 
 const MOB_CASES: MobCase[] = [
   mobCase('block_dirt', 'dirt_block'),
-  mobCase('block_ice', 'ice_block'),
+  mobCase('block_ice', 'ice_block_3d'),
   ...CC3D_COLORS.map((color): MobCase => ({ key: `block_color_${color}`, type: `color_block_${color}`, mob: { kind: 'block_color', dir: 'N', color } })),
   mobCase('reflector', 'one_sided_mirror_sw', { mirror: 'LU' }),
   mobCase('reflector', 'one_sided_mirror_nw', { mirror: 'DL' }),
@@ -597,7 +597,7 @@ describe('arbitration rules', () => {
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
     expect(engine.getEntities().map((e) => [e.type, e.x, e.y])).toEqual([
       ['dirt_block', 2, 1],
-      ['ice_block', 3, 1]
+      ['ice_block_3d', 3, 1]
     ]);
     expect(engine.getTerrain()[1].slice(2, 4)).toEqual(['water', 'fire']);
   });

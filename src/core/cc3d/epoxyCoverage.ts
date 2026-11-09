@@ -76,39 +76,38 @@ const TOOL_CAP_GAP =
   'CC3D holds at most four tools and a fifth drops the oldest on the cell, where Epoxy keeps every pair of boots (cc3dEvidenceOrbs.test.ts).';
 const ORB_ICE_REASON = `Ice and force floors, fire and water behave as in CC3D with the orb in hand or not. ${TOOL_CAP_GAP}`;
 const ORB_FORCE_REASON = ORB_ICE_REASON;
-const SLIME_ORBS_GAP =
-  'A player holding the fire and the water orb together is not hurt by slime in CC3D, which also cleans it, where the Epoxy player dies.';
-const ORB_FIRE_REASON = `The orb protects from fire and not from water, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_GAP}`;
-const ORB_WATER_REASON = `The orb protects from water and not from fire, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_GAP}`;
+const SLIME_ORBS_NOTE =
+  'A player holding the fire and the water orb together is not hurt by slime and cleans it, as in CC3D (slime_3d, cc3dEvidenceTerrain.test.ts, cc3dEvidenceOrbs.test.ts).';
+const ORB_FIRE_REASON = `The orb protects from fire and not from water, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_NOTE}`;
+const ORB_WATER_REASON = `The orb protects from water and not from fire, as in CC3D. ${TOOL_CAP_GAP} ${SLIME_ORBS_NOTE}`;
 const PLATE_REASON =
   'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, the baby blinky, the baby screamer, both legs, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither.';
 const BLOCK_GAPS =
-  'Epoxy lets a dirt block into fire and onto an item, where CC3D refuses both; and it refuses dirt, where CC3D lets a block in and clears the dirt.';
-const BLOCK_DIRT_GAP = 'it refuses dirt, where CC3D lets the block in and clears the dirt';
-const COLOR_BLOCK_REASON = `Plates (its own colour only), fire and items (both refused), slime, bombs, gravel, sand, ice, force floors, water (it floats, and no second block is pushed onto it), the open blue gate (it clears it) and the exit behave as in CC3D (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts). Epoxy ${BLOCK_DIRT_GAP}.`;
+  'Epoxy lets a dirt block into fire and onto an item, where CC3D refuses both; the water a dirt block fills is the plain dirt tile, which refuses blocks, where CC3D dirt lets a block in and clears it.';
+const COLOR_BLOCK_REASON =
+  'Plates (its own colour only), fire and items (both refused), dirt (entered and cleared, dirt_3d), slime, bombs, gravel, sand, ice, force floors, water (it floats, and no second block is pushed onto it), the open blue gate (it clears it) and the exit behave as in CC3D (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts).';
 const BLOCK_DIRT_REASON =
-  'Plates, water (it makes dirt), slime, bombs, gravel, sand, ice, force floors, the open blue gate (it clears it), the exit and the security gates behave as in CC3D (cc3dEvidenceBlocks.test.ts). Epoxy lets the dirt block into fire and onto an item, where CC3D refuses both (the dirt block is shared with the Chip Challenge games, so its rule stays); and ' +
-  BLOCK_DIRT_GAP + '.';
+  'Plates, dirt (entered and cleared, dirt_3d), slime, bombs, gravel, sand, ice, force floors, the open blue gate (it clears it), the exit and the security gates behave as in CC3D (cc3dEvidenceBlocks.test.ts). Water: the block makes dirt and the player clears it, but the dirt Epoxy makes is the plain dirt tile, which refuses blocks, where the CC3D dirt lets a block in and clears it (the dirt block is shared with the Chip Challenge games, so its water rule stays; a CC3D-only dirt block would fix it). Epoxy lets the dirt block into fire and onto an item, where CC3D refuses both (same reason).';
 const BLOCK_ICE_REASON =
-  'Fire (it melts into water), water (it freezes), slime, bombs, gravel, sand, ice, force floors, plates, the exit and items behave as in CC3D (cc3dEvidenceBlocks.test.ts). Epoxy refuses dirt, where CC3D slides the block over it without clearing it; it pushes a chain of ice blocks as CC3D does, and refuses a chain that holds a dirt or colour block, where CC3D pushes the whole chain; and it refuses both security gates, where CC3D slides the block over them. The open blue gate is entered and cleared as in CC3D.';
+  'Epoxy plays the CC3D ice block as ice_block_3d. Fire (it melts into water), water (it freezes), slime, bombs, gravel, sand, ice, force floors, plates, the exit and items behave as in CC3D, and so do the rules that set it apart: it slides over dirt without clearing it, over both security gates, pushes a whole chain of blocks (dirt and colour blocks included), and the open blue gate is entered and cleared (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts).';
 const WATER_REASON =
-  'A dirt block makes dirt, an ice block ice and a colour block a bridge the player walks over, and the player drowns unless he holds the water orb, as in CC3D (cc3dEvidenceTerrain.test.ts). A second block is refused onto a floating colour block, as in CC3D. The Epoxy walker and the blue golem refuse water, as the CC3D ones do, and the yellow golem steered into it is lost, as in CC3D (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts, cc3dEvidenceYellowGolem.test.ts).';
+  'A dirt block makes dirt, an ice block ice and a colour block a bridge the player walks over, and the player drowns unless he holds the water orb, as in CC3D (cc3dEvidenceTerrain.test.ts). The dirt a dirt block makes is the plain dirt tile, which refuses a second block, where the CC3D dirt lets a block in and clears it (the water rule of the dirt block is shared with the Chip Challenge games). A second block is refused onto a floating colour block, as in CC3D. The Epoxy walker and the blue golem refuse water, as the CC3D ones do, and the yellow golem steered into it is lost, as in CC3D (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts, cc3dEvidenceYellowGolem.test.ts).';
 const TURTLE_REASON =
   'The turtle sinks into water behind the player or the block that leaves it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and both golems cross a turtle and sink it, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts, cc3dEvidenceYellowGolem.test.ts).';
 const DIRT_REASON =
-  'The player clears dirt by walking into it, and monsters are stopped by it, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy refuses a block, where CC3D lets a block in and clears the dirt, and refuses the ice block, which CC3D slides over the dirt without clearing it.';
+  'Epoxy plays CC3D dirt as dirt_3d: the player clears it by walking into it, monsters are stopped by it, a block that enters it clears it, and the ice block slides over it without clearing it, as in CC3D (cc3dEvidenceTerrain.test.ts, cc3dEvidenceBlocks.test.ts). Mirrors and turrets are refused, as in CC3D. The dirt a dirt block makes in water is the plain dirt tile and is reported under water.';
 const SLIME_REASON =
-  'Slime kills the player and is cleaned away with any block that enters it, as in CC3D (cc3dEvidenceTerrain.test.ts). A player holding the fire and the water orb together survives slime in CC3D and cleans it, where the Epoxy player dies. The Epoxy walker and the blue golem refuse slime, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts).';
+  'Epoxy plays CC3D slime as slime_3d: it kills the player and is cleaned away with any block that enters it, and a player holding the fire and the water orb together survives it and cleans it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and the blue golem refuse slime, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts). The trail an omni leaves is reported under the omni.';
 const APPEARING_WALL_REASON =
-  'The player bumping an appearing wall turns it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). A block pushed into it and a monster trying to enter it also make it a wall in CC3D, where Epoxy leaves it as it is.';
+  'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, a block pushed into it and a monster trying to enter it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). Two differences remain: the monster that reveals it turns round a step apart from the CC3D one afterwards, and the yellow golem, which Epoxy steers rather than lets walk, leaves the wall as it is where the CC3D golem makes it a wall (cc3dEvidenceYellowGolem.test.ts).';
 const GATE_TOOLS_REASON =
-  'The gate takes every tool of the player who enters it, nothing from an empty-handed one, and refuses ordinary blocks and monsters, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy refuses the ice block, which CC3D slides over the gate.';
+  'The gate takes every tool of the player who enters it, nothing from an empty-handed one, refuses ordinary blocks and monsters and is slid over by the ice block (ice_block_3d), as in CC3D (cc3dEvidenceTerrain.test.ts).';
 const GATE_KEYS_REASON =
-  'The gate takes every key of the player who enters it, the green one included, and refuses ordinary blocks, as in CC3D (cc3dEvidenceTerrain.test.ts). Epoxy refuses the ice block, which CC3D slides over the gate.';
+  'The gate takes every key of the player who enters it, the green one included, refuses ordinary blocks and is slid over by the ice block (ice_block_3d), as in CC3D (cc3dEvidenceTerrain.test.ts).';
 const GOLEM_BLUE_REASON =
   'Epoxy plays the blue golem as a monster of its own: straight on, never turning by itself, stopping at walls and at everything that blocks a monster, turning round at its control, a four-tick step, carried by ice and force floors, refusing water, fire and slime, entering turtles and sinking the one it leaves, pressing plates and switches.' +
   ' Measured in cc3dEvidenceDevices.test.ts against the CC3D engine, state by state, in corridors with each of these, with a second golem, a golem control, an open blue gate and a clone machine. What differs without changing the path: a golem reaching the player stands next to him in CC3D and on his cell in Epoxy, and entering ice or a force floor is a fast step in CC3D and a normal one in Epoxy, and the Epoxy golem makes its first step three ticks after the CC3D one.' +
-  " A CC3D golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).";
+  ' A golem trying to enter an appearing wall makes it a wall, as in CC3D (appearing_wall_any).';
 const SAND_REASON =
   'Epoxy plays CC3D sand as its own sand floor: the player, every block and the yellow golem may enter it, other monsters may not (cc3dEvidenceYellowGolem.test.ts, cc3dEvidenceMonsters.test.ts).';
 const SOCKET_RED_REASON = 'Epoxy plays the CC3D red socket as its socket: the player only, open at no chips left, floor once entered.';
@@ -120,7 +119,7 @@ const BOT_REASON =
 const GOLEM_YELLOW_REASON =
   'Epoxy plays the yellow golem as a monster of its own, steered by the puppet control: it stands still and, each time the player ends a move on a control, takes one step the way he moved, front first along that direction, pushing one block, stopped by walls, dirt, gravel, the exit, the gates, items, monsters and a second block, not carried by ice or force floors (a random force floor does not turn it), walking over sand and turtles (sinking the one it leaves), lost in water, fire, slime and bombs, pressing plates and switches.' +
   ' Measured in cc3dEvidenceYellowGolem.test.ts against the CC3D engine, state by state after each press, in corridors with each of these, with a line of golems, a golem on another row, a clone machine copy, a teleport and a plate, and with a player pressing every 4 to 8 ticks.' +
-  ' What differs without changing the path: a CC3D golem walks its cell in four ticks, from a tick after the player settles, where the Epoxy one steps in the tick of the press; a CC3D golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).' +
+  ' What differs without changing the path: a CC3D golem walks its cell in four ticks, from a tick after the player settles, where the Epoxy one steps in the tick of the press; a CC3D yellow golem trying to enter an appearing wall makes it a wall, where Epoxy leaves the wall as it is (see the appearing wall).' +
   ` The blocks it pushes carry the gaps of the Epoxy blocks: ${BLOCK_GAPS} The CC3D engine reads some of these rules from play only [unverified].`;
 const GOLEM_CONTROL_YELLOW_REASON =
   'Epoxy plays the yellow golem control as the puppet control: only the player works it, and a golem or block entering it does nothing, as in CC3D (cc3dEvidenceYellowGolem.test.ts). The control is the puppet control, so it also steers the Epoxy puppets.';
@@ -181,7 +180,7 @@ const SNAPPY_REASON =
 const WALKER_REASON =
   'Epoxy plays the walker as a monster of its own: straight on, and when blocked one draw among the four ways with a blocked draw a wait, a four-tick step, refusing water, fire and slime, pressing plates and switches, crossing turtles and sinking them. Measured in cc3dEvidenceMonsters.test.ts on corridors, where the path is fixed whatever is drawn: the same cells in the same order at water, fire, slime, dirt, gravel, sand, the exit, turtles, bombs and toggle controls. The draws of the two engines come from different random sequences, so a walker in an open room cannot be matched step by step [unverified].';
 const OMNI_REASON =
-  'Epoxy plays the omni as a monster of its own: it draws one direction at random, waits when the draw is blocked, steps in eight ticks, refuses water and fire, is not hurt by slime and leaves slime on the bare floor it steps out of once it has stood on slime (cc3dEvidenceMonsters.test.ts agrees on a corridor it cannot leave, the trail included). The draws of the two engines come from different random sequences, so a roaming omni cannot be matched step by step [unverified].';
+  'Epoxy plays the omni as a monster of its own: it draws one direction at random, waits when the draw is blocked, steps in eight ticks, refuses water and fire, is not hurt by slime and leaves slime on the bare floor it steps out of once it has stood on slime (cc3dEvidenceMonsters.test.ts agrees on a corridor it cannot leave, the trail included). The trail is the plain slime tile, not slime_3d, so a player holding the fire and the water orb together dies on it where CC3D lets him through. The draws of the two engines come from different random sequences, so a roaming omni cannot be matched step by step [unverified].';
 const TRAP_UNWORKED_REASON =
   'No trap control works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button (cc3dEvidenceDevices.test.ts). An Epoxy trap link has no empty form, so the converter cannot say "worked by nothing".';
 const CLONE_SWITCH_EMPTY_REASON =
@@ -217,7 +216,9 @@ const EXACT_KEYS: readonly string[] = [
   // A stack Epoxy holds exactly: see classifyStack.
   KEY_STACKED_TERRAIN,
   // The CC3D monsters that have an Epoxy monster of their own, measured by cc3dEvidenceMonsters.test.ts.
-  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble', 'golem_blue', 'golem_yellow'
+  'bouncer', 'blinky', 'baby_blinky', 'limpy', 'limpa', 'screamer', 'baby_screamer', 'snappy', 'nibble', 'golem_blue', 'golem_yellow',
+  // Format 15: the CC3D-rule twins (dirt_3d, slime_3d, ice_block_3d), the security gates the ice block crosses, and the colour blocks.
+  'dirt', 'slime', 'block_ice', 'gate_tools', 'gate_keys', 'block_color_red', 'block_color_green', 'block_color_blue', 'block_color_yellow'
 ];
 
 /** Exact keys that carry their own reason instead of the generic one. */
@@ -249,7 +250,16 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   nibble: NIBBLE_REASON,
   golem_blue: GOLEM_BLUE_REASON,
   golem_yellow: GOLEM_YELLOW_REASON,
-  golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON
+  golem_control_yellow: GOLEM_CONTROL_YELLOW_REASON,
+  dirt: DIRT_REASON,
+  slime: SLIME_REASON,
+  block_ice: BLOCK_ICE_REASON,
+  gate_tools: GATE_TOOLS_REASON,
+  gate_keys: GATE_KEYS_REASON,
+  block_color_red: COLOR_BLOCK_REASON,
+  block_color_green: COLOR_BLOCK_REASON,
+  block_color_blue: COLOR_BLOCK_REASON,
+  block_color_yellow: COLOR_BLOCK_REASON
 };
 
 const APPROX_ENTRIES: Record<string, string> = {
@@ -257,25 +267,16 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   water: WATER_REASON,
-  slime: SLIME_REASON,
-  dirt: DIRT_REASON,
   appearing_wall: APPEARING_WALL_REASON,
-  gate_tools: GATE_TOOLS_REASON,
-  gate_keys: GATE_KEYS_REASON,
   orb_ice: ORB_ICE_REASON,
   orb_force: ORB_FORCE_REASON,
   orb_fire: ORB_FIRE_REASON,
   orb_water: ORB_WATER_REASON,
   block_dirt: BLOCK_DIRT_REASON,
-  block_ice: BLOCK_ICE_REASON,
   plate_red: PLATE_REASON,
   plate_green: PLATE_REASON,
   plate_blue: PLATE_REASON,
   plate_yellow: PLATE_REASON,
-  block_color_red: COLOR_BLOCK_REASON,
-  block_color_green: COLOR_BLOCK_REASON,
-  block_color_blue: COLOR_BLOCK_REASON,
-  block_color_yellow: COLOR_BLOCK_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: WALKER_REASON,
