@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { drawsMark, paintCc2Mark } from './cc2Variants';
+import { drawsMark, isImportedLevel, paintCc2Mark } from './cc2Variants';
 import type { MarkColours } from './cc2Marks';
 import type { Cc2Mark } from './cc2Variants';
 
@@ -40,6 +40,20 @@ function fakeContext() {
     textBaseline: ''
   };
 }
+
+describe('isImportedLevel', () => {
+  it('is true for a CC2 record, CC3D data or a kept CC3D source, false for a native level', () => {
+    expect(isImportedLevel({ cc2: {} })).toBe(true);
+    expect(isImportedLevel({ cc3d: {} })).toBe(true);
+    expect(isImportedLevel({ cc3dSource: {} })).toBe(true);
+    expect(isImportedLevel({})).toBe(false);
+  });
+
+  it('leaves the look-alike marks out for a converted CC3D level', () => {
+    const importedLevel = isImportedLevel({ cc3dSource: {} });
+    for (const mark of LOOK_ALIKES) expect(drawsMark(mark, { isEditor: false, importedLevel }), mark).toBe(false);
+  });
+});
 
 describe('drawsMark', () => {
   it('leaves the look-alike marks out in play on an imported level', () => {

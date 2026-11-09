@@ -124,6 +124,11 @@ export interface MarkContext {
  * follows the rule of the imported game and the badge carries no information; the editor and native levels keep it,
  * and the real signs and the no-signs are drawn everywhere.
  */
+/** Whether the level came from an import (CC2 record, CC3D data, or the CC3D source kept on a converted level). */
+export function isImportedLevel(level: { cc2?: unknown; cc3d?: unknown; cc3dSource?: unknown }): boolean {
+  return level.cc2 !== undefined || level.cc3d !== undefined || level.cc3dSource !== undefined;
+}
+
 export function drawsMark(mark: Cc2Mark, context: MarkContext): boolean {
   return context.isEditor || !context.importedLevel || !LOOK_ALIKE_MARKS.has(mark);
 }

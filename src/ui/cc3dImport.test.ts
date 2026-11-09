@@ -300,6 +300,25 @@ describe('persistence of cc3d packs', () => {
     expect(reloaded[0].cc3d).toEqual(levels[0].cc3d);
   });
 
+  it('leaves the kept CC3D source out of an exported or shared pack, which still plays', async () => {
+    const { levels } = await importCc3dSelection([file('1.xml', VALID, 1)], MAX_BYTES, 'Pack');
+    const { pack } = await ConfigRegistry.registerImportedPack('Pack', levels);
+    // Share links are made from the same text, compact or not.
+    for (const compact of [false, true]) {
+      const text = ConfigRegistry.exportPackJson(pack.id, 'Pack', compact);
+      expect(text).not.toBeNull();
+      expect(text).not.toContain('cc3dSource');
+      const parsed = JSON.parse(text as string);
+      expect(parsed.levels[0].cc3dSource).toBeUndefined();
+      const reread = sanitizeStoredLevels(parsed.levels, ConfigRegistry.getLevelSizeBounds());
+      expect(reread).toHaveLength(1);
+      expect(reread[0].ruleset).toBe('epoxy');
+      expect(featuresFor(reread[0]).itemDrop).toBe(true);
+    }
+    // The stored pack keeps its source.
+    expect(ConfigRegistry.getAllPacks().find((p) => p.id === pack.id)?.levels[0].cc3dSource).toBeDefined();
+  });
+
   it('registers an imported pack under the session, with its levels and payloads intact', async () => {
     const { levels } = await importCc3dSelection([file('1.xml', VALID, 1), file('2.xml', VALID, 1)], MAX_BYTES, 'Pack');
     const { pack } = await ConfigRegistry.registerImportedPack('Pack', levels);
