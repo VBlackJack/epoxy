@@ -753,6 +753,7 @@ export class GameEngine {
       inWater: p.inWater,
       keys: { ...p.keys },
       boots: Array.from(p.boots),
+      ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -772,6 +773,7 @@ export class GameEngine {
       inWater: snap.inWater,
       keys: { ...snap.keys },
       boots: new Set(snap.boots),
+      ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -897,6 +899,8 @@ export class GameEngine {
     }
 
     if (isCarriedByForceFloor(this.w, currentTile)) {
+      // Classic rules: the floor carries the player until it has carried him once; only then may he choose a direction.
+      if (this.w.ccRules && this.w.player.forcePermission !== true) return false;
       const activeForceDir: Direction | null =
         currentTile.forceDirection && currentTile.forceDirection !== 'RANDOM'
           ? currentTile.forceDirection

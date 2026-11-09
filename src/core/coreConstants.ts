@@ -296,6 +296,13 @@ export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
  */
 export const CC_MONSTER_STEP_TICKS = 4;
 
+/**
+ * Slide delay of a force floor on a classic-rules level: the floor carries the player one cell every two ticks (the
+ * cooldown is the wait between two slide steps, so one tick of it makes two ticks per cell), with none of the extra
+ * delay a native force floor adds.
+ */
+export const CC_FORCE_SLIDE_COOLDOWN_TICKS = 1;
+
 /** Ticks a classic blob step lasts (a blob covers a cell at half the speed of the other monsters). */
 export const CC_BLOB_STEP_TICKS = 8;
 

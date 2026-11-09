@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -64,9 +64,26 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition, playe
   return tile.slideType === 'force' && (!tile.protectedByItem || !player.boots.has(tile.protectedByItem));
 }
 
+/**
+ * Classic rules: the player's permission to choose his direction on a force floor follows his step attempts. A carried
+ * attempt from a force floor grants it, his own attempt from a force floor or from a floor that is neither force nor
+ * ice (or ice he grips) takes it away, and an attempt from ice he slides on leaves it as it was. Boots that cancel the push
+ * leave it alone, since the floor does not carry him.
+ */
+function updateForcePermission(w: EpoxyWorld, fromSlide: boolean): void {
+  const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+  if (tile.slideType === 'force') {
+    if (!isCarriedByForceFloor(w, tile)) return;
+    w.player.forcePermission = fromSlide;
+  } else if (tile.slideType !== 'ice' || playerGripsTile(w, tile)) {
+    w.player.forcePermission = false;
+  }
+}
+
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
-  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   const w = ctx.world;
+  if (w.ccRules) updateForcePermission(w, fromSlide);
+  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
   if (dropExitedController(w)) return moved;
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
@@ -491,8 +508,9 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     w.player.isSliding = true;
     w.player.slideDir = forceDir;
     w.player.dir = forceDir;
-    w.player.slideCooldown =
-      ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
+    w.player.slideCooldown = w.ccRules
+      ? CC_FORCE_SLIDE_COOLDOWN_TICKS
+      : ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
     return;
   }
 
