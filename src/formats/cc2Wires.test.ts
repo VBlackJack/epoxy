@@ -246,11 +246,23 @@ describe('which sinks a wire reaches', () => {
 });
 
 describe('devices Epoxy does not play', () => {
-  it('reports a wired teleport sink', () => {
-    const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, E | W), put(2, 0, modTile(0x10, W)), cloner(3, 0)]);
-    const result = buildCc2Wires(map);
-    expect(result.links).toEqual([]);
-    expect(result.unsupported).toEqual([{ x: 2, y: 0, kind: 'teleport', end: 'sink' }]);
+  it('reports a wired blue, yellow or green teleport sink', () => {
+    for (const code of [0x11, 0x12, 0x13]) {
+      const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, E | W), put(2, 0, modTile(code, W)), cloner(3, 0)]);
+      const result = buildCc2Wires(map);
+      expect(result.links, `0x${code.toString(16)}`).toEqual([]);
+      expect(result.unsupported, `0x${code.toString(16)}`).toEqual([{ x: 2, y: 0, kind: 'teleport', end: 'sink' }]);
+    }
+  });
+
+  it('links a wired red teleport and a wired transmogrifier as sinks of the wire', () => {
+    for (const code of [0x10, 0x4e]) {
+      const map = makeMap(5, 1, [button(0, 0, E), wire(1, 0, E | W), put(2, 0, modTile(code, W)), cloner(3, 0)]);
+      const result = buildCc2Wires(map);
+      expect(result.links, `0x${code.toString(16)}`).toEqual([link(0, 0, 2, 0)]);
+      expect(result.unsupported, `0x${code.toString(16)}`).toEqual([]);
+      expect(result.wiredSinks, `0x${code.toString(16)}`).toEqual([{ x: 2, y: 0 }]);
+    }
   });
 
   it('gives a map with no wire no link', () => {

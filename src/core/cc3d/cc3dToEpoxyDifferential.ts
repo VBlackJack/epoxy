@@ -52,6 +52,10 @@ export function epoxyIdOf(displayId: string): string {
   if (displayId === 'cc3d_sand') return 'sand';
   if (displayId === 'cc3d_golem_control_yellow') return 'puppet_control';
   if (displayId === 'force_random') return 'force_cycle';
+  // Format 15: the converter plays these CC3D terrains as their CC3D-rule twins.
+  if (displayId === 'dirt') return 'dirt_3d';
+  if (displayId === 'slime') return 'slime_3d';
+  if (displayId === 'appearing_wall') return 'appearing_wall_any';
   // The converter moves a bomb layer to the item grid (see compare with `items`), so the terrain below is floor.
   if (displayId === 'bomb') return 'floor';
   const hold = /^cc3d_hold_door_(\w+)$/.exec(displayId);
@@ -63,6 +67,19 @@ export function epoxyIdOf(displayId: string): string {
   const plate = /^cc3d_plate_(\w+)$/.exec(displayId);
   if (plate) return `pressure_plate_${plate[1]}`;
   return displayId;
+}
+
+/**
+ * Tiles the Epoxy engine itself creates while it plays a converted level, which are still the plain tiles of the old
+ * rules: the water a dirt block fills becomes `dirt` and an omni's trail is `slime`, where the converter places `dirt_3d`
+ * and `slime_3d`. The comparison reads them as the CC3D tile they stand for, so a scenario about another mechanic still
+ * compares cell by cell; the remaining difference (the plain tile keeps the old block rule) is reported in the coverage
+ * of water, dirt and slime, and checked where a test fills water with a dirt block.
+ */
+export function epoxyEngineIdOf(id: string): string {
+  if (id === 'dirt') return 'dirt_3d';
+  if (id === 'slime') return 'slime_3d';
+  return id;
 }
 
 /** CC3D display ids of mobs that name another Epoxy entity type. */
@@ -93,7 +110,9 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   cc3d_block_red: 'color_block_red',
   cc3d_block_green: 'color_block_green',
   cc3d_block_blue: 'color_block_blue',
-  cc3d_block_yellow: 'color_block_yellow'
+  cc3d_block_yellow: 'color_block_yellow',
+  // Format 15: the converter plays the CC3D ice block as ice_block_3d.
+  ice_block: 'ice_block_3d'
 };
 /** CC3D display ids of items that name another Epoxy item id. */
 const ITEM_ID_MAP: Readonly<Record<string, string>> = { stopwatch_bonus: 'slow_time', cc3d_fish_extra: 'chip' };
@@ -246,7 +265,7 @@ export class DifferentialPair {
       for (let x = 0; x < terrainA[y].length; x++) {
         const floatingColor = floating.get(`${x},${y}`);
         const mapped = floatingColor === undefined ? epoxyIdOf(terrainA[y][x]) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
-        if (mapped !== terrainB[y][x]) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
+        if (mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
     }
     if (options.items) {

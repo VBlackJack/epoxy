@@ -160,8 +160,8 @@ describe.each(CC3D_COLORS)('colour block %s', (color) => {
     }
   });
 
-  it('differs at dirt: CC3D lets the block in and clears the dirt, Epoxy refuses it', () => {
-    expectDisagree(scenario(`@${glyph}D.`, 'E'), 'player', (pair) => {
+  it('enters dirt and clears it, as the Epoxy block does over dirt_3d', () => {
+    expectAgree(scenario(`@${glyph}D.`, 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
@@ -197,6 +197,8 @@ describe('dirt block', () => {
     expectAgree(scenario('@KW.', 'E'), (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
       expect(pair.rig.entities).toHaveLength(0);
+      // Remaining difference: the water Epoxy fills is the plain dirt tile, not dirt_3d (the comparison reads them as one).
+      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt');
     });
   });
 
@@ -212,8 +214,8 @@ describe('dirt block', () => {
     });
   });
 
-  it('differs at dirt: CC3D lets the block in and clears the dirt, Epoxy refuses it', () => {
-    expectDisagree(scenario('@KD.', 'E'), 'player', (pair) => {
+  it('enters dirt and clears it, as the Epoxy block does over dirt_3d', () => {
+    expectAgree(scenario('@KD.', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
     });
@@ -261,15 +263,15 @@ describe('ice block', () => {
     });
   });
 
-  it('differs at dirt: CC3D slides it over the dirt without clearing it, Epoxy refuses it', () => {
-    expectDisagree(scenario('@ZD.', 'E'), 'player', (pair) => {
+  it('slides over dirt without clearing it, as ice_block_3d does', () => {
+    expectAgree(scenario('@ZD.', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
     });
   });
 
-  it('differs for a chain of blocks: CC3D pushes it along, Epoxy refuses it', () => {
-    expectDisagree(scenario('@ZKK.', 'E'), 'player', (pair) => {
+  it('pushes a chain of blocks along, as ice_block_3d does', () => {
+    expectAgree(scenario('@ZKK.', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
       expect(pair.rig.entities.map((e) => e.x).sort()).toEqual([3, 4, 5]);
     });
@@ -283,15 +285,15 @@ describe('ice block', () => {
     }
   });
 
-  it('differs for a chain that holds a colour block: CC3D pushes it along, Epoxy refuses it', () => {
-    expectDisagree(scenario('@ZC..', 'E'), 'player', (pair) => {
+  it('pushes a chain that holds a colour block along, as ice_block_3d does', () => {
+    expectAgree(scenario('@ZC..', 'E'), (pair) => {
       expect(pair.rig.player.x).toBe(2);
     });
   });
 
-  it('differs at the security gates: CC3D slides it over them, Epoxy refuses it', () => {
+  it('slides over the security gates, as ice_block_3d does', () => {
     for (const gate of ['N', 'n']) {
-      expectDisagree(scenario(`@Z${gate}..`, 'E'), 'player', (pair) => {
+      expectAgree(scenario(`@Z${gate}..`, 'E'), (pair) => {
         expect(pair.rig.player.x).toBe(2);
       });
     }
@@ -299,9 +301,14 @@ describe('ice block', () => {
 });
 
 describe('coverage verdicts that rest on this evidence', () => {
-  it('keeps the blocks approximate, each reason citing this file', () => {
-    for (const key of ['block_dirt', 'block_ice', ...CC3D_COLORS.map((color) => `block_color_${color}`)]) {
-      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+  it('keeps the dirt block approximate (fire, items and the plain dirt of water), its reason citing this file', () => {
+    expect(EPOXY_COVERAGE.block_dirt.level).toBe('approx');
+    expect(EPOXY_COVERAGE.block_dirt.reason).toContain('cc3dEvidenceBlocks.test.ts');
+  });
+
+  it('plays the ice block and the colour blocks as CC3D does, each reason citing this file', () => {
+    for (const key of ['block_ice', ...CC3D_COLORS.map((color) => `block_color_${color}`)]) {
+      expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceBlocks.test.ts');
     }
   });

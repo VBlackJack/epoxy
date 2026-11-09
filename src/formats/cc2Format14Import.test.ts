@@ -192,11 +192,11 @@ describe('format 14 coverage verdicts', () => {
     expect(CC2_COVERAGE.slime.reason).not.toMatch(/consumes the block/);
     expect(CC2_COVERAGE.transmogrifier.level).toBe('approx');
     expect(CC2_COVERAGE.transmogrifier.reason).toMatch(/blue tank/);
-    expect(CC2_COVERAGE.transmogrifier.reason).toMatch(/wired transmogrifier/);
+    expect(CC2_COVERAGE.transmogrifier.reason).toMatch(/transmogrifier_cc2_off/);
     expect(CC2_COVERAGE.teleport_red.level).toBe('approx');
-    expect(CC2_COVERAGE.teleport_red.reason).toMatch(/Deferred/);
-    expect(CC2_COVERAGE.arrow_block_cross.level).toBe('approx');
-    expect(CC2_COVERAGE.arrow_block_cross.reason).toMatch(/sliding push/);
+    expect(CC2_COVERAGE.teleport_red.reason).toMatch(/player override/);
+    expect(CC2_COVERAGE.arrow_block_cross.level).toBe('exact');
+    expect(CC2_COVERAGE.arrow_block_cross.reason).toMatch(/shoves the resting block/);
     expect(CC2_COVERAGE.button_orange_shared.reason).toMatch(/ORs the sources/);
   });
 
@@ -208,7 +208,7 @@ describe('format 14 coverage verdicts', () => {
       put(4, 0, { code: DIRECTIONAL_BLOCK, dir: 2, arrows: ALL_ARROWS }, { code: FLOOR_CODE })
     ]);
     expect(result.coverage.lost).toEqual([]);
-    expect(result.coverage.approx).toEqual(['arrow_block_cross', 'slime', 'teleport_red', 'transmogrifier']);
+    expect(result.coverage.approx).toEqual(['slime', 'teleport_red', 'transmogrifier']);
   });
 
   it('keeps a level without these codes unchanged', () => {

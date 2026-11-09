@@ -7,7 +7,7 @@ This page lists the mechanisms added after the Sanctuary archetypes of the [Puzz
 ## 0. Before you start
 
 - **Epoxy rules only.** Every mechanism below is played by the Epoxy engine. A Lynx level cannot hold them (the editor's `Rules` field switches a level between Epoxy and Lynx), and a native CC3D level has its own palette. The CC3D conversion and the CC2 import produce Epoxy-rules levels that use these mechanisms.
-- **Pack formats 13 and 14.** Levels that use them are written with pack format 13 (`PACK_JSON_VERSION_V13`); the CC2 mechanisms of section 1.14 need pack format 14.
+- **Pack formats 13, 14 and 15.** Levels that use them are written with pack format 13 (`PACK_JSON_VERSION_V13`); the CC2 mechanisms of section 1.14 need pack format 14, and those of sections 1.15 and 2.3 need pack format 15.
 - **Placing.** Pick the entry in the editor palette (the search field lists every variant by name) and paint it. Entries that come in variants (no-signs, counters, swivel doors, CC2 swivel doors, toggle switch) take one palette entry each: `R` cycles the brush through the family, the entry shows the variant in hand, and the eyedropper picks the variant under the cursor.
 - **Turning.** `R` rotates the brush clockwise (or goes to the next variant). `Shift+R` turns the creature or turret under the cursor, a floating stamp, or, for a track cell, its tracks a quarter turn.
 - **Linking.** `K` starts or ends a link from the device under the cursor. The Connections section of the inspector lists what the device controls and what controls it, and the "How mechanisms work" card sums up how the parts of each mechanism find each other.
@@ -105,12 +105,20 @@ The CC2 import (`.c2m` files, `.c2g` game scripts or a whole folder) maps these 
 - **CC2 turtle.** A lily pad that monsters may enter. It bars fireballs and ghosts, and turns to water behind whoever leaves it (a glider leaves it afloat).
 - **CC2 flame jet and orange button.** The jet burns whoever stands in it while it is lit; fire boots protect, and monsters may walk in. An orange button toggles the jet it is connected to when it is pressed and again when it is released. The CC2 import places the button as a pressure plate and links it to the jet CC2 would connect (the first jet found by a search in growing diamonds around the button, east first, counterclockwise). Two buttons on one jet, or a button and a wire, are ORed: a known approximation.
 - **Block barrier floor.** The CC2 popdown floor: the player and the monsters walk over it, every block is barred.
-- **Cross arrow block.** The directional block with four arrows. Any push moves it. It does not yet push other blocks along when it slides.
-- **CC2 transmogrifier.** Swaps actors by the CC2 pairs. The blob turns into a random monster of the CC2 pool, drawn from a seeded generator. Known gaps: a blue tank becomes a yellow tank (Epoxy has one tank), items are not swapped, and a wire does not switch it.
+- **Cross arrow block.** The directional block with four arrows. Any push moves it, and a cross block that slides on ice or a force floor shoves the resting block it reaches along the slide.
+- **CC2 transmogrifier.** Swaps actors by the CC2 pairs. The blob turns into a random monster of the CC2 pool, drawn from a seeded generator. Known gaps: a blue tank becomes a yellow tank (Epoxy has one tank) and items are not swapped. A wire switches it on and off since pack format 15 (section 1.15).
 - **Random teleporter.** The green pad: the destination is drawn among the other green pads from a seeded generator, so replays stay deterministic.
-- **CC2 red teleporter.** The red pad with its own exit order. The wire that switches it off and the player override of the red pad are deferred.
+- **CC2 red teleporter.** The red pad with its own exit order: forward, right, back, then left of the way the mover faces. A wire switches it on and off since pack format 15 (section 1.15). The player override of the red pad (the player may steer off the destination pad) is not modelled, so the pad stays approximate.
 - **Helmet.** An item that shields its holder from the contact of monsters and blocks for as long as it is held. It does not stop a bowling ball.
 - **Placing.** Palette entries. Under a no-sign the helmet imports as the ward, because no sign exists for the helmet.
+
+### 1.15 CC2 elements added in pack format 15
+
+- **Pop-up wall.** The CC2 pop-up wall (`Pop-Up Wall (CC2)`, replacing the plain Epoxy recessed wall the import used before). The player may step on it. Among the monsters only rovers and ghosts may enter, and every block but the dirt block may enter. It turns into a wall behind whatever leaves it, unless another actor still stands on it, and a ghost that leaves it does not pop it. The CC2 import now places it for every pop-up wall and reports it as exact, whatever blocks the level holds.
+- **Open trap.** The CC2 trap that starts open (`Open Trap (CC2)`). It holds nothing, and it becomes an ordinary trap the first time a linked brown button is released or its wire input falls; an actor standing on it at that moment is held. A trap that a wire also reaches keeps answering that wire once it has closed. Link it from a brown button or a signal source with `K`. The CC2 import places it for the pre-opened trap and reports it as exact.
+- **Powered red teleporter and transmogrifier.** A red teleporter or a transmogrifier that a wire reaches is a pair of tiles, on and off (`Red Teleporter (CC2, Off)`, `Transmogrifier (CC2, Off)`). The off form is not a teleporter (nothing is sent to it, nothing leaves by it) and the off transmogrifier lets whatever arrives pass unchanged. The wire swaps the pair as its signal rises and falls. When the level loads, a pad that a link ends on takes the form its input asks for, whichever form was placed; a pad no link ends on keeps the form it was placed in, so an off pad no wire reaches never switches on (the validator warns about it). The CC2 import places the off form of a wired pad and links the wire to it, as CC2 starts a wired pad off.
+- **What stays approximate.** A wire on a blue, yellow or green teleporter, or on a red pad or a transmogrifier that no wire network reaches, is still reported as wired teleport or wired transmogrifier: the pad is played without its wire.
+- **Placing.** Palette entries. Link a signal source to the device with `K`.
 
 ## 2. From Chuck's Challenge 3D
 
@@ -142,6 +150,16 @@ Palette entries, one per monster; `Shift+R` turns the creature under the cursor.
 | Baby Screamer | Like Screamer, but ice and force floors carry it, and it works plates |
 
 The CC3D-origin monsters kill on contact.
+
+### 2.3 CC3D terrain and blocks added in pack format 15
+
+The conversion uses these instead of the Epoxy look-alikes. Levels converted before keep the old tiles until converted again.
+
+- **CC3D dirt** (`Dirt (CC3D)`). The player clears it by walking in and monsters cannot enter. A dirt block or a colour block that enters it turns it into floor and survives; an ice block passes over it and leaves it as it is. Mirrors and turrets are refused. Reported as exact. The dirt that a dirt block makes in water is still the plain Epoxy dirt, which refuses blocks: that difference stays on the water and the dirt block.
+- **CC3D appearing wall** (`Appearing Wall (CC3D)`). Looks like floor. It turns into a wall when the player bumps into it, when a pushed or sliding block hits it or when a monster tries to enter it (the push, slide or step is refused). A monster that walks through solid tiles is not stopped and reveals nothing. Still approximate: the monster that reveals it turns a step apart from the CC3D one afterwards, and the yellow golem does not reveal it.
+- **CC3D slime** (`Slime (CC3D)`). Kills the player and most monsters. A player holding both the fire boots and the water boots survives and turns the cell into floor. A block is destroyed as it cleans the slime. Reported as exact. The slime trail of the omni is still the plain Epoxy slime.
+- **CC3D ice block** (`Ice Block (CC3D)`). Slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over the security gates without opening them and over CC3D dirt without clearing it. Reported as exact, as are the colour blocks and the two security gates now; the dirt block stays approximate (fire, items and the water dirt).
+- **Placing.** Palette entries.
 
 ## 3. From Epoxy
 
@@ -186,6 +204,8 @@ Variant families take one entry each: no-signs, counters, swivel doors, CC2 swiv
 | NAND, data latch, counter | CC2 | Palette, Connections rows, Swap ports |
 | Floor mimic, timid teeth, ghost, rover, mirror players | CC2 | Palette, `Shift+R` |
 | CC2 slime, turtle, flame jet and orange button, block barrier floor, cross arrow block, CC2 transmogrifier, random and CC2 red teleporters, helmet | CC2 | Palette, `K` for the orange button |
+| CC2 pop-up wall, open trap, powered (on and off) red teleporter and transmogrifier | CC2 | Palette, `K` for the open trap and the powered pair |
+| CC3D dirt, appearing wall, slime and ice block | CC3D | Palette |
 | Fish gate, forward and turning teleporters | CC3D | Palette |
 | Bouncer, snappy, nibble, blinky family, limpy, limpa, omni, walker, legs, screamer family | CC3D | Palette, `Shift+R` |
 | Purple wall and floor, toggle switch, black button, gray pulse button, signal trap and flame jet | Epoxy | Palette, `K` |

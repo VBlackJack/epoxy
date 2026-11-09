@@ -7,7 +7,7 @@ Cette page recense les mécanismes ajoutés après les archétypes de sanctuaire
 ## 0. Avant de commencer
 
 - **Règles Epoxy uniquement.** Tous les mécanismes ci-dessous sont joués par le moteur Epoxy. Un niveau Lynx ne peut pas les contenir (le champ `Règles` de l'éditeur fait passer un niveau des règles Epoxy aux règles Lynx), et un niveau CC3D natif a sa propre palette. La conversion CC3D et l'import CC2 produisent des niveaux aux règles Epoxy qui utilisent ces mécanismes.
-- **Formats de pack 13 et 14.** Les niveaux qui les utilisent s'écrivent au format de pack 13 (`PACK_JSON_VERSION_V13`) ; les mécanismes CC2 de la section 1.14 demandent le format de pack 14.
+- **Formats de pack 13, 14 et 15.** Les niveaux qui les utilisent s'écrivent au format de pack 13 (`PACK_JSON_VERSION_V13`) ; les mécanismes CC2 de la section 1.14 demandent le format de pack 14, et ceux des sections 1.15 et 2.3 le format de pack 15.
 - **Placement.** Choisissez l'entrée dans la palette de l'éditeur (le champ de recherche liste chaque variante par son nom) et peignez-la. Les entrées qui existent en variantes (panneaux interdits, compteurs, portes pivotantes, portes pivotantes CC2, interrupteur) occupent une seule entrée de palette : `R` fait passer le pinceau d'une variante à l'autre de la famille, l'entrée montre la variante en main, et la pipette prend la variante sous le curseur.
 - **Rotation.** `R` fait tourner le pinceau dans le sens horaire (ou passe à la variante suivante). `Maj+R` tourne la créature ou la tourelle sous le curseur, un tampon flottant ou, pour une case de voies, ses voies d'un quart de tour.
 - **Liaisons.** `K` commence ou termine une liaison depuis le dispositif sous le curseur. La section Connexions de l'inspecteur liste ce que le dispositif commande et ce qui le commande, et la fiche "Comment fonctionnent les mécanismes" résume comment les parties de chaque mécanisme se trouvent.
@@ -105,12 +105,20 @@ L'import CC2 (fichiers `.c2m`, scripts de jeu `.c2g` ou dossier entier) converti
 - **Tortue CC2.** Un nénuphar que les monstres peuvent traverser. Elle arrête les boules de feu et les fantômes, et se change en eau derrière celui qui la quitte (un planeur la laisse à flot).
 - **Jet de flammes CC2 et bouton orange.** Le jet brûle celui qui s'y trouve tant qu'il est allumé ; les bottes de feu protègent, et les monstres peuvent y entrer. Un bouton orange bascule le jet auquel il est relié quand on l'enfonce, puis de nouveau quand on le relâche. L'import CC2 place le bouton comme une plaque de pression et le relie au jet que CC2 relierait (le premier jet trouvé par une recherche en losanges croissants autour du bouton, en partant de l'est, dans le sens antihoraire). Deux boutons sur un même jet, ou un bouton et un fil, sont combinés par OU : approximation connue.
 - **Sol barrière à blocs.** Le sol escamotable CC2 : le joueur et les monstres le traversent, tous les blocs sont refusés.
-- **Bloc fléché en croix.** Le bloc directionnel à quatre flèches. Toute poussée le déplace. Il ne pousse pas encore les autres blocs quand il glisse.
-- **Transmogrificateur CC2.** Échange les acteurs selon les paires CC2. La goutte devient un monstre tiré au hasard dans la réserve CC2, avec un générateur à graine. Écarts connus : un char bleu devient un char jaune (Epoxy n'a qu'un char), les objets ne sont pas échangés, et un fil ne le commande pas.
+- **Bloc fléché en croix.** Le bloc directionnel à quatre flèches. Toute poussée le déplace, et un bloc en croix qui glisse sur la glace ou un sol de force pousse le bloc au repos qu'il rencontre le long de sa glissade.
+- **Transmogrificateur CC2.** Échange les acteurs selon les paires CC2. La goutte devient un monstre tiré au hasard dans la réserve CC2, avec un générateur à graine. Écarts connus : un char bleu devient un char jaune (Epoxy n'a qu'un char) et les objets ne sont pas échangés. Depuis le format de pack 15, un fil l'allume et l'éteint (section 1.15).
 - **Téléporteur aléatoire.** Le socle vert : la destination est tirée parmi les autres socles verts avec un générateur à graine, ce qui garde les rejeux déterministes.
-- **Téléporteur rouge CC2.** Le socle rouge avec son propre ordre de sortie. Le fil qui l'éteint et la priorité du joueur sur le socle rouge sont repoussés à plus tard.
+- **Téléporteur rouge CC2.** Le socle rouge avec son propre ordre de sortie : devant, à droite, derrière, puis à gauche du sens où regarde ce qui le traverse. Depuis le format de pack 15, un fil l'allume et l'éteint (section 1.15). La priorité du joueur sur le socle rouge (le joueur peut s'écarter du socle d'arrivée) n'est pas modélisée : le socle reste approximatif.
 - **Casque.** Un objet qui protège son porteur du contact des monstres et des blocs tant qu'il le tient. Il n'arrête pas une boule de bowling.
 - **Placement.** Entrées de palette. Sous un panneau interdit, le casque s'importe comme la protection (ward), car il n'existe pas de panneau pour le casque.
+
+### 1.15 Éléments CC2 ajoutés au format de pack 15
+
+- **Mur escamotable.** Le mur escamotable CC2 (`Mur escamotable (CC2)`, qui remplace le mur escamotable simple d'Epoxy que l'import utilisait avant). Le joueur peut marcher dessus. Parmi les monstres, seuls les rôdeurs et les fantômes peuvent y entrer, et tous les blocs sauf le bloc de terre peuvent y entrer. Il devient un mur derrière ce qui le quitte, sauf si un autre acteur s'y trouve encore, et un fantôme qui le quitte ne le fait pas se refermer. L'import CC2 le place désormais pour chaque mur escamotable et le déclare exact, quels que soient les blocs du niveau.
+- **Piège ouvert.** Le piège CC2 qui commence ouvert (`Piège ouvert (CC2)`). Il ne retient rien, et il devient un piège ordinaire la première fois qu'un bouton marron relié est relâché ou que son fil perd son courant ; un acteur qui s'y trouve à ce moment est retenu. Un piège qu'un fil atteint aussi continue de répondre à ce fil une fois fermé. Reliez-le avec `K` depuis un bouton marron ou une source de signal. L'import CC2 le place pour le piège pré-ouvert et le déclare exact.
+- **Téléporteur rouge et transmogrificateur sous tension.** Un téléporteur rouge ou un transmogrificateur qu'un fil atteint est une paire de tuiles, allumée et éteinte (`Téléporteur rouge (CC2, éteint)`, `Transmogrificateur (CC2, éteint)`). La forme éteinte n'est pas un téléporteur (rien n'y est envoyé, rien n'en sort) et le transmogrificateur éteint laisse passer sans changement ce qui arrive dessus. Le fil échange la paire quand son signal monte et descend. Au chargement du niveau, un socle auquel aboutit un lien prend la forme que demande son entrée, quelle que soit la forme placée ; un socle sans lien garde la forme où il a été posé, donc un socle éteint qu'aucun fil n'atteint ne s'allume jamais (le validateur le signale). L'import CC2 place la forme éteinte d'un socle câblé et y relie le fil, car CC2 démarre un socle câblé éteint.
+- **Ce qui reste approximatif.** Un fil sur un téléporteur bleu, jaune ou vert, ou sur un socle rouge ou un transmogrificateur qu'aucun réseau de fils n'atteint, reste déclaré comme téléporteur câblé ou transmogrificateur câblé : le socle est joué sans son fil.
+- **Placement.** Entrées de palette. Reliez une source de signal à l'appareil avec `K`.
 
 ## 2. Venus de Chuck's Challenge 3D
 
@@ -142,6 +150,16 @@ Entrées de palette, une par monstre ; `Maj+R` tourne la créature sous le curse
 | Bébé hurleur | Comme le Hurleur, mais la glace et les sols de force l'entraînent, et il actionne les dalles |
 
 Les monstres d'origine CC3D tuent au contact.
+
+### 2.3 Terrain et blocs CC3D ajoutés au format de pack 15
+
+La conversion les utilise à la place des équivalents d'Epoxy. Les niveaux convertis avant gardent les anciennes tuiles jusqu'à une nouvelle conversion.
+
+- **Terre CC3D** (`Terre (CC3D)`). Le joueur la dégage en y marchant et les monstres ne peuvent pas y entrer. Un bloc de terre ou un bloc de couleur qui y entre la change en sol et survit ; un bloc de glace passe dessus et la laisse intacte. Les miroirs et les tourelles sont refusés. Déclarée exacte. La terre qu'un bloc de terre fabrique dans l'eau reste la terre simple d'Epoxy, qui refuse les blocs : cet écart reste porté par l'eau et le bloc de terre.
+- **Mur apparaissant CC3D** (`Mur apparaissant (CC3D)`). Ressemble à un sol. Il devient un mur quand le joueur le heurte, quand un bloc poussé ou glissant le heurte ou quand un monstre essaie d'y entrer (la poussée, la glissade ou le pas est refusé). Un monstre qui traverse les tuiles pleines n'est pas arrêté et ne révèle rien. Toujours approximatif : le monstre qui le révèle se retourne ensuite avec un pas d'écart par rapport à CC3D, et le golem jaune ne le révèle pas.
+- **Gelée CC3D** (`Gelée (CC3D)`). Tue le joueur et la plupart des monstres. Un joueur qui porte à la fois les bottes de feu et les bottes d'eau survit et change la case en sol. Un bloc est détruit en nettoyant la gelée. Déclarée exacte. La traînée de gelée de l'omni reste la gelée simple d'Epoxy.
+- **Bloc de glace CC3D** (`Bloc de glace (CC3D)`). Glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir et sur la terre CC3D sans la dégager. Déclaré exact, comme les blocs de couleur et les deux barrières de sécurité désormais ; le bloc de terre reste approximatif (feu, objets et terre de l'eau).
+- **Placement.** Entrées de palette.
 
 ## 3. Venus d'Epoxy
 
@@ -186,6 +204,8 @@ Les familles de variantes occupent une entrée chacune : panneaux interdits, com
 | NON-ET, verrou de données, compteur | CC2 | Palette, lignes de Connexions, Échange de ports |
 | Mimétique du sol, dents timides, fantôme, rôdeur, joueurs miroirs | CC2 | Palette, `Maj+R` |
 | Boue CC2, tortue, jet de flammes et bouton orange, sol barrière à blocs, bloc fléché en croix, transmogrificateur CC2, téléporteurs aléatoire et rouge CC2, casque | CC2 | Palette, `K` pour le bouton orange |
+| Mur escamotable CC2, piège ouvert, téléporteur rouge et transmogrificateur sous tension (allumés et éteints) | CC2 | Palette, `K` pour le piège ouvert et la paire sous tension |
+| Terre, mur apparaissant, gelée et bloc de glace CC3D | CC3D | Palette |
 | Porte des Poissons, téléporteurs avant et tournant | CC3D | Palette |
 | Rebondisseur, snappy, nibble, famille Blinky, limpy, limpa, omni, marcheur, jambes, famille Hurleur | CC3D | Palette, `Maj+R` |
 | Mur et sol violets, interrupteur, bouton noir, bouton d'impulsion gris, piège et jet de flammes à signal | Epoxy | Palette, `K` |

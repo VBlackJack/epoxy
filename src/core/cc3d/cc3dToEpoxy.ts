@@ -167,15 +167,15 @@ const TERRAIN_RULES: Record<Cc3dTerrainKind, TerrainRule> = {
   exit: { id: fixed('exit') },
   socket: { id: fixed(FISH_GATE_TILE_ID) },
   socket_red: { id: fixed(SOCKET_TILE_ID) },
-  slime: { id: fixed('slime') },
+  slime: { id: fixed('slime_3d') },
   turtle: { id: fixed('turtle') },
-  dirt: { id: fixed('dirt') },
+  dirt: { id: fixed('dirt_3d') },
   gravel: { id: fixed('gravel') },
   sand: { id: fixed('sand') },
   teleport_blue: { id: fixed(TELEPORT_FORWARD_TILE_ID) },
   teleport_red: { id: fixed(TELEPORT_TURNING_TILE_ID) },
   push_up_wall: { id: fixed('recessed_wall') },
-  appearing_wall: { id: fixed('appearing_wall') },
+  appearing_wall: { id: fixed('appearing_wall_any') },
   false_wall: { id: fixed('blue_wall_fake') },
   door: { id: (layer) => `door_${need(layer.color, 'color', layer.kind)}` },
   toggle_door: { id: toggleDoorId, colored: true },
@@ -238,7 +238,7 @@ interface MobRule {
 
 const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
   block_dirt: { type: fixed('dirt_block') },
-  block_ice: { type: fixed('ice_block') },
+  block_ice: { type: fixed('ice_block_3d') },
   block_color: { type: (mob) => `color_block_${need(mob.color, 'color', mob.kind)}`, colored: true },
   reflector: {
     type: (mob) => {

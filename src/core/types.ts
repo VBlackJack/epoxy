@@ -1117,26 +1117,26 @@ export interface TileDefinition {
   /**
    * Format 15, the CC3D dirt: the terrain a block that enters this tile turns it into, for every block the tile admits
    * (`passableByBlock`) except those listed in `keptBy`, which pass over it and leave it as it is. The block itself
-   * survives. Needs `keptBy` to be a list of block ids, possibly empty. Inert until the block engine reads it.
+   * survives. Needs `keptBy` to be a list of block ids, possibly empty.
    */
   blockClearsTo?: string;
   /** Format 15, with `blockClearsTo`: the block ids that pass over the tile without clearing it (the ice blocks). */
   keptBy?: string[];
   /**
    * Format 15, the CC2 pop-up wall: block ids that cannot enter this tile although it is passable by blocks (the dirt
-   * block). Absent: every block the passability flags admit may enter. Inert until the block engine reads it.
+   * block). Absent: every block the passability flags admit may enter.
    */
   barsBlocks?: string[];
   /**
    * Format 15, the CC2 pop-up wall: the only monster ids that may enter this tile (the rover and the ghost); every other
    * monster is refused although the tile is passable by monsters. Absent: every monster the passability flags admit
-   * may enter. Independent of `barsMonsters`. Inert until the monster engine reads it.
+   * may enter. Independent of `barsMonsters`.
    */
   admitsMonsters?: string[];
   /**
    * Format 15, the CC2 open trap: it closes on the first release of a linked brown button or the first fall of its wire
    * input, and becomes this trap id when only a brown button links it. Needs `isTrap`. Until then the tile is an open trap
-   * that holds nothing; an actor standing on it when it closes is held, as in a trap. Inert until the trap engine reads it.
+   * that holds nothing; an actor standing on it when it closes is held, as in a trap.
    */
   closesTo?: string;
   /**
@@ -1146,19 +1146,20 @@ export interface TileDefinition {
   closesToWired?: string;
   /**
    * Format 15, the CC2 pop-up wall: `transformsToOnLeave` waits while another actor still stands on the cell. Needs
-   * `transformsToOnLeave`. Inert until the engine reads it.
+   * `transformsToOnLeave`.
    */
   heldWhileOccupied?: boolean;
   /**
-   * Format 15, the CC3D appearing wall: besides the player touching it, a block pushed into it and a monster trying to
-   * enter it also turn it into its `revealsToOnTouch` terrain (and are refused). Needs `revealsToOnTouch`. Inert until
-   * the engine reads it.
+   * Format 15, the CC3D appearing wall: besides the player touching it, a block pushed or sliding into it and a monster
+   * whose step into it is refused also turn it into its `revealsToOnTouch` terrain (and the push, slide or step is
+   * refused). A monster that walks through solid tiles or names the tile in `passesTiles` is not stopped by it and does
+   * not reveal it, and a mere probe (asking whether a monster could enter) reveals nothing. Needs `revealsToOnTouch`.
    */
   revealedByAny?: boolean;
   /**
    * Format 15, the CC3D slime: boot ids that together spare the player. A player holding ALL the listed boots survives
    * the tile and the cell turns into its `blockTransformsTo` terrain; any other actor is hurt as the hazard says. Needs
-   * `hazard` "slime" and `blockTransformsTo`. Inert until the engine reads it.
+   * `hazard` "slime" and `blockTransformsTo`.
    */
   sparedByBoots?: string[];
   /**
@@ -1167,7 +1168,7 @@ export interface TileDefinition {
    * transmogrifier does not transmogrify. Generic on purpose: wires switch a device by swapping it for its twin.
    * Load rule: a twin that a signal link ends on takes, at load, the form matching its input after the load-time settle,
    * whatever form was placed; an unwired twin keeps the form it was placed in (an unwired off form never activates).
-   * A level with a link ending on either form is written as pack format 15. Inert until the wiring engine reads it.
+   * A level with a link ending on either form is written as pack format 15.
    */
   poweredTwin?: string;
   slideType?: 'ice' | 'force';
@@ -1509,12 +1510,12 @@ export interface EntityDefinition {
   passesTiles?: string[];
   /**
    * Format 15, the CC3D ice block: tile ids this block may enter, pushed or sliding, where blocks are otherwise refused
-   * (the security gates), without changing them. A block only. Inert until the block engine reads it.
+   * (the security gates), without changing them. A block only.
    */
   slidesOverTiles?: string[];
   /**
    * Format 15, the CC3D ice block: the `chainPushes` list of the head block (the one the player pushes) governs the whole
-   * line, whatever the blocks behind it would push themselves. Needs `chainPushes`. Inert until the block engine reads it.
+   * line, whatever the blocks behind it would push themselves. Needs `chainPushes`.
    */
   chainPushesTransitive?: boolean;
   /**

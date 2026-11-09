@@ -56,10 +56,16 @@ export const DIRT_BLOCK_ID = 'dirt_block';
 export const UNKNOWN_ID = 'cc2_unknown';
 export const BLUE_WALL_FAKE_ID = 'blue_wall_fake';
 
-/** Wired forms of the devices a wire reaches (a CC2 flame jet is the same tile wired or not; the trap has a wired form). */
+/**
+ * Wired forms of the devices a wire reaches (a CC2 flame jet is the same tile wired or not; the plain trap has a wired form,
+ * the open trap is wired as it stands). A wired red pad and a wired transmogrifier are placed switched off, as CC2 starts
+ * them; the load settle of the engine swaps them for their live form when their input is on.
+ */
 export const WIRED_TRAP: Cc2TileMapping = { id: 'trap_wired', key: 'wired_trap' };
 export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: 'flame_jet_cc2_off', key: 'wired_flame_jet' };
 export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: 'flame_jet_cc2_on', key: 'wired_flame_jet' };
+export const WIRED_TELEPORT_RED_OFF: Cc2TileMapping = { id: 'teleport_red_cc2_off', key: 'teleport_red' };
+export const WIRED_TRANSMOGRIFIER_OFF: Cc2TileMapping = { id: 'transmogrifier_cc2_off', key: 'transmogrifier' };
 
 /** Ward: the item a helmet falls back to under a no-sign, which has no sign tile for the helmet. */
 export const WARD_ID = 'ward';
@@ -85,7 +91,7 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x0d, same('force_w', 'force_floor')],
   [0x0e, same('toggle_wall_closed')],
   [0x0f, same('toggle_wall_open')],
-  // The CC2 red pad has its own exit order; its wire and player override are deferred (wired_teleport, teleport_red).
+  // The CC2 red pad has its own exit order; a wire that reaches it places its off form (see WIRED_TELEPORT_RED_OFF); the player override is not modelled (teleport_red).
   [0x10, same('teleport_red_cc2', 'teleport_red')],
   [0x11, same('teleport_blue')],
   // The yellow pad exits forward only, like the Epoxy forward pad (shared with CC3D); its pick-up as an item is not modelled.
@@ -102,7 +108,7 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x24, same('door_yellow')],
   [0x25, same('door_green')],
   [0x2c, same('socket')],
-  [0x2d, same('recessed_wall', 'popup_wall')],
+  [0x2d, same('popup_wall_cc2', 'popup_wall')],
   [0x2e, same('appearing_wall')],
   [0x2f, same('invisible_wall')],
   [0x30, same('blue_wall_real')],
@@ -111,8 +117,8 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x39, same('button_red')],
   [0x3a, same('button_brown')],
   [0x3f, same('thief', 'thief_tools')],
-  // CC2 starts this trap open; Epoxy places the plain closed trap.
-  [0x41, same('trap', KEY_TRAP_OPEN)],
+  // CC2 starts this trap open: it closes on the first release of its button or fall of its wire.
+  [0x41, same('trap_open', KEY_TRAP_OPEN)],
   [0x42, same('trap')],
   [0x43, same('clone_machine')],
   [0x44, same('clone_machine')],

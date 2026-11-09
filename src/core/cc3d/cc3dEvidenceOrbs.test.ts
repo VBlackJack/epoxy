@@ -115,8 +115,8 @@ describe('the four orbs together', () => {
     }
   });
 
-  it('differ at slime when the fire and the water orb are held together: CC3D cleans it, Epoxy kills the player', () => {
-    expectDisagree({ rows: room('@fwL.'), moves: 'EEE' }, 'alive', (pair) => {
+  it('clean slime when the fire and the water orb are held together, as the Epoxy slime_3d does', () => {
+    expectAgree({ rows: room('@fwL.'), moves: 'EEE' }, (pair) => {
       expect(pair.rig.player.alive).toBe(true);
       expect(pair.rig.terrainAt(4, 1)).toBe('floor');
     });
