@@ -111,7 +111,7 @@ const GENDER_SIGN_REASON =
 /**
  * Exact. Epoxy ids: floor, wall, ice and the four ice corners, water, fire, force_n/e/s/w, exit, dirt, gravel, socket,
  * hint, key_* and door_* (red, blue, yellow, green), chip, boots_water (flippers), boots_fire (fire boots), boots_ice
- * (cleats), boots_force (suction boots), invisible_wall, appearing_wall, blue_wall_real/fake, thin walls (cell edges),
+ * (cleats), boots_force (suction boots), invisible_wall, blue_wall_real/fake, thin walls (cell edges),
  * swivel doors, toggle_wall_open/closed, button_green/blue/brown/red, trap, clone_machine, teleport_blue (unwired),
  * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x, purple_wall and
  * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources) and nand_gate
@@ -122,7 +122,7 @@ const GENDER_SIGN_REASON =
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'ice', 'ice_corner', 'water', 'fire', 'force_floor', 'exit', 'dirt', 'gravel', 'socket', 'hint',
   'key_blue', 'key_red', 'key_yellow', 'key_green', 'door_blue', 'door_red', 'door_yellow', 'door_green',
-  'chip', 'flippers', 'fire_boots', 'cleats', 'suction_boots', 'invisible_wall', 'appearing_wall',
+  'chip', 'flippers', 'fire_boots', 'cleats', 'suction_boots', 'invisible_wall',
   'blue_wall_real', 'blue_wall_fake', 'thin_wall', 'swivel_door', 'toggle_wall_open', 'toggle_wall_closed',
   'button_green', 'button_blue', 'button_brown', 'button_red', 'trap', 'clone_machine', 'custom_floor',
   'teleport_blue', 'thief_tools', 'thief_keys', 'bomb', 'time_bonus', 'time_penalty', 'steel_wall',
@@ -202,8 +202,10 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   wired_flame_jet: 'A CC2 wired flame jet defines only a power-on reaction in the Lexy Labyrinth engine (on_power): it toggles once when its signal rises. Epoxy flips a wired jet on both edges of its signal, so it also flips when the signal falls.',
   // Epoxy: flame_jet_cc2_on/off.
   flame_jet: 'Epoxy plays the CC2 flame jet as flame_jet_cc2_on/off: a lit jet burns the actors standing in it (fire boots protect) and monsters may walk in. Known difference: the Lexy Labyrinth engine also burns blocks standing in a lit jet (on_stand); that Epoxy does so is not confirmed. A jet changes state only by an orange button (link made at import) or a wire.',
-  // Epoxy: signal_plate linked to the jet found by the diamond search.
-  button_orange: 'Epoxy plays the orange button as a pressure plate linked at import to the flame jet the diamond search of the Lexy Labyrinth engine finds around it: the jet toggles on press and again on release. Known difference: the Epoxy plate ignores sliding entities and flying monsters (glider, fireball) standing on it, where the Lexy button toggles for any actor that arrives or departs.',
+  // Epoxy: appearing_wall (the CC2 wall that turns solid when bumped).
+  appearing_wall: 'Epoxy plays the CC2 appearing wall as appearing_wall: the player and a pushed block that bump it make it solid. Known difference: in the Lexy Labyrinth engine the wall is also revealed by ice, frame and glass blocks, boulders, rovers and rolling balls (can_reveal_walls); Epoxy lets no monster reveal it (appearing_wall_any, used by the CC3D import, does not match that set either), so a wall bumped only by such an actor stays hidden.',
+  // Epoxy: button_orange_cc2 linked to the jet found by the diamond search.
+  button_orange: 'Epoxy plays the orange button as button_orange_cc2, a button held by any actor, linked at import to the flame jet the diamond search of the Lexy Labyrinth engine finds around it: the jet toggles on press and again on release. The button is pressed by sliding entities and flying monsters (glider, fireball) standing on it, as by any other actor. Known difference: when two actors arrive or leave together the Lexy button toggles the jet once per actor, where Epoxy keeps one held level (the double toggle is not modelled).',
   // Epoxy: teleport_random.
   teleport_green: 'Epoxy plays the CC2 green teleport as the random pad (teleport_random): the destination is drawn among the other green pads. Known differences: it draws from the Epoxy seeded stream, not the CC2 generator, and the Lexy Labyrinth emulation of the CC2 failure of a crowded pad (green_teleports_can_fail) is not modelled.',
   // Epoxy: force_cycle.
@@ -220,7 +222,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: transmogrifier.
   transmogrifier: 'Epoxy plays the transmogrifier as transmogrifier_cc2, which swaps actors by the CC2 pairs (the blob draws from the CC2 pool with a seeded generator). Known differences: a CC2 blue tank turns into a yellow tank, and Epoxy has a single tank; items (a helmet into an X-ray eye, boots into others) and glass or sokoban blocks are not swapped; a wire reaching it switches it on and off through the transmogrifier_cc2 / transmogrifier_cc2_off pair, as in the Lexy Labyrinth engine, where a wired one starts off [unverified for the pair table beyond the Lexy Labyrinth engine].',
   // Epoxy: teleport_red_cc2 (red), teleport_forward (yellow); the green pad is exact (teleport_random).
-  teleport_red: `Epoxy plays the CC2 red pad as teleport_red_cc2: it tries the other red pads in ring order and leaves forward, right, back, then left of the facing of the mover, and a wire switches it on and off through its off twin (a wired pad starts off, as in the Lexy Labyrinth engine). Not modelled: the player override of the red pad (Lexy teleport-soft: the player may steer off the destination pad), so a player leaving a red pad follows the Epoxy exit rule, and the order of the exit sides is [unverified] against CC2 itself.`,
+  teleport_red: `Epoxy plays the CC2 red pad as teleport_red_cc2: it tries the other red pads in ring order and leaves forward, right, back, then left of the facing of the mover, and a wire switches it on and off through its off twin (a wired pad starts off, as in the Lexy Labyrinth engine); an unpowered pad (teleport_red_cc2_off) sends the mover back out forward, as the Lexy red pad does for itself (teleportsToSelf). Known difference: the level validator and the pathfinder reachability still read the off pad as plain floor, a small over-approximation. Not modelled: the player override of the red pad (Lexy teleport-soft: the player may steer off the destination pad), so a player leaving a red pad follows the Epoxy exit rule, and the order of the exit sides is [unverified] against CC2 itself.`,
   // Epoxy: teleport_forward (exit forward only, the pad is never its own destination).
   teleport_yellow: YELLOW_TELEPORT_REASON,
   // Epoxy: teleport_blue plus a relay pad for the wire.

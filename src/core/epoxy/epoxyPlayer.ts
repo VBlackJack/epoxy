@@ -311,7 +311,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     return;
   }
 
-  if (tile.isTeleporter && allowTeleport) {
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir)) {
       ctx.emitVisual('teleport', w.player.x, w.player.y);
