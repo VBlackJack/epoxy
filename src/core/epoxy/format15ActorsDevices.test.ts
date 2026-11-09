@@ -213,15 +213,26 @@ describe('popup_wall_cc2: what it becomes when left', () => {
 
   it('holds while a block stands on the cell, whoever leaves it', () => {
     const engine = load(
-      room({ terrain: [[TILE_X, ROW, POPUP]], entities: [placed('ghost', TILE_X, ROW), placed('ice_block', TILE_X, ROW)] })
+      room({ terrain: [[TILE_X, ROW, POPUP]], entities: [placed('rover', TILE_X, ROW), placed('ice_block', TILE_X, ROW)] })
     );
     const world = contextOf(engine).world;
-    const ghost = world.entities[0];
-    leaveCell(world, TILE_X, ROW, { leaver: ghost });
+    const rover = world.entities[0];
+    leaveCell(world, TILE_X, ROW, { leaver: rover });
     expect(terrainAt(engine, TILE_X, ROW)).toBe(POPUP);
     world.entities.splice(1, 1);
-    leaveCell(world, TILE_X, ROW, { leaver: ghost });
+    leaveCell(world, TILE_X, ROW, { leaver: rover });
     expect(terrainAt(engine, TILE_X, ROW)).toBe('wall');
+  });
+
+  it('is not popped by a ghost that leaves it (Lexy), though a ghost standing on it still holds it', () => {
+    const engine = load(room({ terrain: [[TILE_X, ROW, POPUP]], entities: [placed('ghost', TILE_X, ROW)] }));
+    const world = contextOf(engine).world;
+    leaveCell(world, TILE_X, ROW, { leaver: world.entities[0] });
+    expect(terrainAt(engine, TILE_X, ROW)).toBe(POPUP);
+    world.entities.push({ ...world.entities[0], uid: 999, type: 'rover' });
+    world.entities[0].type = 'ghost';
+    leaveCell(world, TILE_X, ROW, { leavingPlayer: world.player });
+    expect(terrainAt(engine, TILE_X, ROW)).toBe(POPUP);
   });
 
   it('holds while the player stands on the cell and a monster or a block leaves it', () => {

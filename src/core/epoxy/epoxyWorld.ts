@@ -720,6 +720,8 @@ export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOp
   if (tile.buttonAction === 'hold_trap') closeOpenTrapsOfButton(w, x, y, options);
   if (!tile.transformsToOnLeave) return;
   if (tile.heldWhileOccupied === true) {
+    // Lexy's Labyrinth: a ghost, which the floor does not touch, never pops the wall it leaves.
+    if (options?.leaver !== undefined && ConfigRegistry.getEntityDef(options.leaver.type)?.ignoresFloorEffects === true) return;
     if (otherActorStands(w, x, y, options)) return;
   } else if (tile.barsMonsters !== undefined) {
     if (options?.afloat === true) return;
