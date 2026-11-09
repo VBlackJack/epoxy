@@ -198,14 +198,13 @@ function monstersAround(engine: PlayEngine, x: number, y: number): string[] {
 
 function divergenceOf(kind: Cc2DivergenceKind, engine: PlayEngine, moves: number, blockedSinceTick?: number): Cc2Divergence {
   const p = engine.getPlayer();
-  const died = !p.alive && p.deathReasonKey;
   return {
     kind,
     tick: engine.getTick(),
     move: moves,
     x: p.x,
     y: p.y,
-    ...(died ? { reasonKey: p.deathReasonKey as string } : {}),
+    ...(!p.alive && p.deathReasonKey ? { reasonKey: p.deathReasonKey } : {}),
     ...(kind === 'death' ? { tile: engine.getTerrain()[p.y]?.[p.x], monsters: monstersAround(engine, p.x, p.y) } : {}),
     ...(blockedSinceTick !== undefined ? { blockedSinceTick } : {})
   };

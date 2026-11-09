@@ -51,7 +51,7 @@ import { checkCc2ReplayBest, type Cc2Divergence, type Cc2ReplayBestResult, type 
 import { DatCodec } from '../src/formats/DatCodec';
 import { divergenceBucket, gatePasses, rankBuckets, type FidelityGap } from '../src/formats/cc1Fidelity';
 import { convertC2mBytes } from '../src/ui/cc2Import';
-import { listLevels, pct, table } from './cc2Replay.report';
+import { listLevels, pct, table } from './reportUtil';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = resolve(ROOT, 'local', 'cc1');
@@ -181,7 +181,7 @@ function reportReplays(runs: readonly LevelRun[], stem: string): { lines: string
   lines.push(...(gaps.length > 0 ? gaps.map(gapLine) : [NONE]), '');
 
   lines.push('## Divergence causes over those levels, biggest first', '');
-  const ranked = rankBuckets(gaps.map((g): FidelityGap => ({ path: g.path, divergence: lynxOnly.find((r) => r.path === g.path)?.checks.epoxy?.results[0]?.divergence ?? null })));
+  const ranked = rankBuckets(lynxOnly.map((r): FidelityGap => ({ path: r.path, divergence: firstDivergence(r.checks.epoxy) })));
   lines.push(...table(['cause', 'levels'], ranked.map((c) => [c.bucket, c.levels])), '');
   for (const bucket of ranked) lines.push(`- ${bucket.bucket}: ${bucket.paths.join(', ')}`);
   lines.push('');
