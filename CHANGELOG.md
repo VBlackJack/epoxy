@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- CC2 import coverage follows one rule: an element is exact only when no known mechanism differs from CC2 (per-tick timing is left to the replay check). Wire topology and tunnels, the canopy, the steel foil, no-signs over keys, boots and items, the secret eye, speed boots, the green wall, wired traps and the pop-up wall (unless the level holds an ice block, an arrow block or a rover) are now exact. New approximate keys name real differences: pop-up walls with such blocks, a pre-opened trap, and wires reaching a teleport, a transmogrifier or a track switch. The counter gate, the lightning bolt, the hook, several players, the random force floor and the yellow tank stay approximate, with the concrete difference in their reasons. Levels imported before keep their stored verdict until imported again.
+
 ## [2.26.0] - 2026-11-09
 
 ### Fixed
