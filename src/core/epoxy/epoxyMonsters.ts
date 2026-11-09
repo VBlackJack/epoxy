@@ -23,6 +23,8 @@ import {
   FLEE_PLAYER_PATTERN,
   FLOOR_TILE_ID,
   FORWARD_ELSE_DRAW_PATTERN,
+  MONSTER_IGNORED_KEY_COLOR,
+  MONSTER_PICKUP_COLLECTIBLES,
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
   RANDOM_DRAW_PATTERN,
@@ -32,7 +34,7 @@ import {
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
-import { stepSlidingBlock } from './epoxyBlocks';
+import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -59,6 +61,7 @@ import {
   playerCharacterOf,
   removeEntity,
   playerAtCell,
+  takeRevealedTerrain,
   withPlayer,
   killPlayerAt
 } from './epoxyWorld';
@@ -131,6 +134,15 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const vec = DIRECTION_VECTORS[moveDir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
+  // A monster that pushes (the CC2 rover) moves the block in its way first; the cell is taken only when the block left it.
+  if (def?.pushesBlocks === true) {
+    const occupant = getEntityAt(w, nx, ny);
+    if (occupant !== undefined && occupant.kind === 'block') {
+      attemptPushBlock(ctx, occupant, moveDir, false, true);
+      if (!w.player.alive) return false;
+      if (getEntityAt(w, nx, ny) !== undefined) return true;
+    }
+  }
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
   if (def?.trailTile !== undefined) leaveTrail(w, entity, def.trailTile);
   // A monster that may enter turtles sinks the one it leaves, unless it leaves turtles afloat.
@@ -199,7 +211,13 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return true;
   }
 
+  openPassedTile(w, def, nx, ny);
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
+  // A ghost or a rover takes the keys and tools it walks over (the item leaves the map); a bomb is judged below.
+  if (def?.picksUpItems === true) {
+    const lying = w.items[ny][nx];
+    if (lying && monsterPicksUp(lying)) w.items[ny][nx] = null;
+  }
   const destItem = w.items[ny][nx];
 
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
@@ -287,22 +305,22 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   const slidesFree = ownDef?.ignoresSlidingFloors === true;
   if (floorFree) {
     if (currentTile.slideType === 'ice') {
-      if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
+      if (canStep(w, monster, monster.dir)) return monster.dir;
       // Blocked on ice, a ghost turns round (it moves on the next step); it cannot choose another way.
       monster.dir = OPPOSITE_DIRECTION[monster.dir];
       return null;
     }
   } else if (currentTile.slideType === 'ice' && !slidesFree) {
     const slideDir = currentTile.deflectionMap?.[monster.dir] || monster.dir;
-    if (canMonsterEnter(w, monster, slideDir)) return slideDir;
+    if (canStep(w, monster, slideDir)) return slideDir;
     const bounce = OPPOSITE_DIRECTION[slideDir];
-    if (canMonsterEnter(w, monster, bounce)) return bounce;
+    if (canStep(w, monster, bounce)) return bounce;
     return null;
   }
 
   // A turning force floor sets the facing on arrival (see resolveMonsterArrival); the monster keeps pushing that way.
   if (!floorFree && !slidesFree && currentTile.forceCycle === true) {
-    return canMonsterEnter(w, monster, monster.dir) ? monster.dir : null;
+    return canStep(w, monster, monster.dir) ? monster.dir : null;
   }
 
   if (!floorFree && !slidesFree && currentTile.slideType === 'force' && currentTile.forceDirection) {
@@ -310,7 +328,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
       currentTile.forceDirection === 'RANDOM'
         ? ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)]
         : currentTile.forceDirection;
-    return canMonsterEnter(w, monster, forceDir) ? forceDir : null;
+    return canStep(w, monster, forceDir) ? forceDir : null;
   }
 
   if (def.movementPattern === CHASE_PLAYER_PATTERN || def.movementPattern === FLEE_PLAYER_PATTERN) {
@@ -331,20 +349,20 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
       for (let i = 0; i < candidates.length; i++) candidates[i] = OPPOSITE_DIRECTION[candidates[i]];
     }
     for (const c of candidates) {
-      if (canMonsterEnter(w, monster, c)) return c;
+      if (canStep(w, monster, c)) return c;
     }
     return null;
   }
 
   if (def.movementPattern === 'forward_else_random') {
-    if (canMonsterEnter(w, monster, monster.dir)) {
+    if (canStep(w, monster, monster.dir)) {
       return monster.dir;
     }
     const turns: RelativeTurn[] = ['LEFT', 'RIGHT', 'BACK'];
     w.rng.shuffle(turns);
     for (const turn of turns) {
       const d = applyRelativeTurn(monster.dir, turn);
-      if (canMonsterEnter(w, monster, d)) return d;
+      if (canStep(w, monster, d)) return d;
     }
     return null;
   }
@@ -352,21 +370,21 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   if (def.movementPattern === RANDOM_DRAW_PATTERN) {
     // One draw among the four ways: a blocked draw is a wait, not another try.
     const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
-    return canMonsterEnter(w, monster, drawn) ? drawn : null;
+    return canStep(w, monster, drawn) ? drawn : null;
   }
 
   if (def.movementPattern === FORWARD_ELSE_DRAW_PATTERN) {
-    if (canMonsterEnter(w, monster, monster.dir)) return monster.dir;
+    if (canStep(w, monster, monster.dir)) return monster.dir;
     // Blocked ahead: one draw among the four ways, and a blocked draw is a wait.
     const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
-    return canMonsterEnter(w, monster, drawn) ? drawn : null;
+    return canStep(w, monster, drawn) ? drawn : null;
   }
 
   if (def.movementPattern === 'pure_random') {
     const dirs: Direction[] = [...ORDERED_DIRECTIONS];
     w.rng.shuffle(dirs);
     for (const d of dirs) {
-      if (canMonsterEnter(w, monster, d)) return d;
+      if (canStep(w, monster, d)) return d;
     }
     return null;
   }
@@ -376,7 +394,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     const candidateDir = applyRelativeTurn(monster.dir, rel);
     // A monster that melts ice spends its step melting the ice block it would otherwise enter.
     if (def.meltsIceBlocks === true && meltIceBlockAhead(w, monster, candidateDir)) return null;
-    if (canMonsterEnter(w, monster, candidateDir)) {
+    if (canStep(w, monster, candidateDir)) {
       return candidateDir;
     }
   }
@@ -440,12 +458,24 @@ function canopyStopsStep(w: EpoxyWorld, def: EntityDefinition | undefined, fromX
   return def.blockedBetweenCanopies === true && cellHasCanopy(w.edgeMask, width, fromX, fromY);
 }
 
+/** A step the monster takes on its own: a block in the way counts as free when the monster pushes and the push would succeed. */
+function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): boolean {
+  return canMonsterEnter(w, monster, wanted, false, true);
+}
+
 /**
  * Whether the monster may step one cell in `dir`: inside the map, past the cell edges, onto a tile it can
  * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
- * entity check to the caller, which pushes the block in the way (a steered puppet).
+ * entity check to the caller, which pushes the block in the way (a steered puppet). `mayPush` lets a monster
+ * that pushes blocks (the CC2 rover) count a block it could push away as no obstacle.
  */
-export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction, ignoreOccupant = false): boolean {
+export function canMonsterEnter(
+  w: EpoxyWorld,
+  monster: RuntimeEntity,
+  wanted: Direction,
+  ignoreOccupant = false,
+  mayPush = false
+): boolean {
   // On a track cell the step is judged where it would really go: turned onto the track, as the move itself will be.
   const dir =
     ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true
@@ -470,7 +500,11 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
   if (def?.passesSolidTiles === true && !passesSolid) return false;
 
   // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
-  const passesTile = def?.passesTiles?.includes(destTileId) === true || (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
+  // A socket is passed only once no chip is missing (it is a wall until then, for the rover as for anyone).
+  const passesTile =
+    def?.passesTiles?.includes(destTileId) === true ||
+    (def?.entersBarredTiles?.includes(destTileId) === true && !(destTile.requiresAllChips === true && w.chipsRemaining > 0)) ||
+    (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
   if (
     !destTile.passableByMonster &&
     !passesTile &&
@@ -489,7 +523,35 @@ export function canMonsterEnter(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
     return false;
   }
 
-  if (!ignoreOccupant && getEntityAt(w, nx, ny)) return false;
+  if (ignoreOccupant) return true;
+  const occupant = getEntityAt(w, nx, ny);
+  if (occupant === undefined) return true;
+  // A monster that pushes (the CC2 rover) enters the cell of a block it could push out of the way, never onto a live player.
+  return mayPush && def?.pushesBlocks === true && occupant.kind === 'block' && canPushBlock(w, occupant, dir, false, true);
+}
 
-  return true;
+/** Whether a monster that picks things up (a ghost, a rover) takes this item: the keys but the red one, and the tools. */
+function monsterPicksUp(itemId: string): boolean {
+  const item = ConfigRegistry.getTile(itemId);
+  return (
+    item.collectible !== undefined &&
+    MONSTER_PICKUP_COLLECTIBLES.includes(item.collectible) &&
+    item.colorKey !== MONSTER_IGNORED_KEY_COLOR
+  );
+}
+
+/**
+ * A monster that enters a tile that bars the others (the CC2 rover on dirt or a socket) opens it as it arrives: dirt is
+ * packed down, a socket opens once no chip is missing. A tile no entersBarredTiles entry names is left alone.
+ */
+function openPassedTile(w: EpoxyWorld, def: EntityDefinition | undefined, x: number, y: number): void {
+  const tileId = w.terrain[y][x];
+  if (def?.entersBarredTiles?.includes(tileId) !== true) return;
+  const tile = ConfigRegistry.getTile(tileId);
+  const opened = tile.transformsToOnStep ?? (tile.requiresAllChips === true && w.chipsRemaining <= 0 ? (tile.transformsToOnUnlock ?? FLOOR_TILE_ID) : undefined);
+  if (opened === undefined) return;
+  w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? opened;
+  w.gridMutatedByMove = true;
+  w.beamDirty = true;
+  if (tile.requiresAllChips === true) AudioManager.playSfx('socket');
 }

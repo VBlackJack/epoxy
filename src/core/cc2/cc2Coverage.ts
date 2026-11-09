@@ -186,7 +186,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: the bonus or time item is dropped.
   no_sign_bonus: NO_SIGN_BONUS_REASON,
   // Epoxy: button_gray_area.
-  button_gray: 'Epoxy plays the CC2 gray button as a button that pulses every wire-capable device in its 5 x 5 square, linked or not; the exact reach and the pulse order are [unverified].',
+  button_gray:
+    'Epoxy plays the CC2 gray button as a button that works, within its 5 x 5 square and wire or no wire, the green toggle walls and the purple tiles (flipped), the force floors that point one way (turned round), the swivel doors (a quarter turn), the flame jets and the rail switches (flipped or moved on), and the launchers and clone machines (fired once), as gray_button in the Lexy Labyrinth engine does. Known differences: it also pulses a wired trap, which CC2 leaves alone; it does not work the turntables, which Epoxy does not have; and the order in which the devices of the square are worked is the Epoxy one (the signal network first, then row by row), where CC2 goes column by column [unverified for the cases where the order matters].',
   // Epoxy: flame_jet_wired_off, flame_jet_wired_on.
   wired_flame_jet: 'Epoxy flips a wired flame jet on both edges of its signal; that CC2 flips it on both edges is [unverified].',
   // Epoxy: button_orange.
@@ -216,7 +217,8 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: teleport_blue plus a relay pad for the wire.
   teleport_blue_wired: `${TELEPORT_REASON} A wired teleport also follows its wire, which the Epoxy relay pad only approximates.`,
   // Epoxy: slime.
-  slime: 'Slime is close to the Epoxy equivalent, not identical [unverified].',
+  slime:
+    'Slime kills every monster but the ghost and the blob, as in the Lexy Labyrinth engine; the Epoxy blob is not hurt by it and, once it has stood on slime, turns each plain, itemless floor cell it leaves into slime. Known differences: CC2 slimes the floor a blob steps onto only while the cell it came from is slime, so the chain stops as soon as the blob steps on anything else, where the Epoxy blob keeps spreading; the boulder (which also spreads slime in CC2) is not modelled; and a dirt or ice block pushed onto slime clears it and survives in CC2, where Epoxy consumes the block (the CC3D rule, shared on purpose).',
   // Epoxy: turtle.
   turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical [unverified].',
   // Epoxy: rail_* pieces and rail_switch_a/b.
@@ -243,13 +245,13 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.
   ghost:
-    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It walks over items without picking them up, where the CC2 ghost collects some, and it presses the buttons it crosses; Known difference: a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
+    'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It picks up the keys (the red one excepted) and the tools it walks over, as the CC2 ghost does, and leaves chips, bonuses and the red key where they lie; it presses the buttons it crosses. Known differences: it keeps no inventory, so the boots it took do nothing for it (flippers do not let it cross water, which CC2 allows) and a taken item is simply gone; a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
   // Epoxy: mirror_chip and mirror_melinda.
   mirror_chip: `${MIRROR_REASON} Mirror Chip opens green doors and slides on ice.`,
   mirror_melinda: `${MIRROR_REASON} Mirror Melinda opens yellow doors, does not slide on ice and is stopped by dirt and gravel.`,
   // Epoxy: rover.
   rover:
-    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes nothing, and it enters exits and sockets in CC2 where Epoxy stops it.',
+    'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes one block at a time (no chain) and, as in CC2, enters exits, sockets once no chip is missing, dirt (packing it down), gravel and thief tiles, walks over every item and takes the keys (the red one excepted) and the tools. Remaining differences: it keeps no inventory (a taken item is simply gone and does nothing for it); CC2 also lets it onto clone machines, fake walls and pop-up walls, which Epoxy still bars to it (the pop-up wall is reported under its own key).',
   // Epoxy: dirt_block.
   arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.'
 };

@@ -357,7 +357,9 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
-      "blockedBetweenCanopies": true
+      "blockedBetweenCanopies": true,
+      "immuneToSlime": true,
+      "trailTile": "slime"
     },
     "color_block_red": {
       "id": "color_block_red",
@@ -532,6 +534,7 @@
       "ignoresCellEdges": true,
       "ignoresFloorEffects": true,
       "passesItems": true,
+      "picksUpItems": true,
       "epoxyOnly": true
     },
     "rover": {
@@ -548,7 +551,11 @@
       "emulates": ["teeth", "glider", "bug", "pink_ball", "timid_teeth", "fireball", "paramecium", "walker"],
       "emulationSwitchAttempts": 32,
       "epoxyOnly": true,
-      "blockedByCanopy": true
+      "blockedByCanopy": true,
+      "pushesBlocks": true,
+      "entersBarredTiles": ["exit", "socket", "dirt", "gravel", "thief_keys"],
+      "passesItems": true,
+      "picksUpItems": true
     },
     "arrow_block_none": {
       "id": "arrow_block_none",

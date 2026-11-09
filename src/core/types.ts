@@ -1209,6 +1209,8 @@ export interface TileDefinition {
   bootsForCharacter?: Partial<Record<PlayerCharacter, string>>;
   /** Terrain the cell swaps to when a toggle_flames button is pressed. */
   flameTogglesTo?: string;
+  /** Terrain this one flips to under a CC2 gray area button (a force floor turns round); absent: the button leaves it alone. */
+  grayFlipsTo?: string;
   isTeleporter?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
@@ -1411,6 +1413,11 @@ export interface EntityDefinition {
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
   /**
+   * Tile ids that bar the ordinary monsters but that this one walks onto (the CC2 rover: exit, socket, dirt, gravel...).
+   * Dirt is packed down as it arrives and a socket opens once no chip is missing; a socket stays a wall until then.
+   */
+  entersBarredTiles?: string[];
+  /**
    * Characters whose player this monster runs from: a chasing monster flees them and a fleeing one chases them
    * (the CC2 teeth flee Melinda, the CC2 timid teeth flee Chip). Absent: the pattern applies to every character.
    */
@@ -1433,8 +1440,13 @@ export interface EntityDefinition {
    * Buttons and teleporters still work on it.
    */
   ignoresFloorEffects?: boolean;
-  /** A monster that walks over items without being stopped by them or picking them up. */
+  /** A monster that walks over items without being stopped by them (it picks them up only with `picksUpItems`). */
   passesItems?: boolean;
+  /**
+   * A monster that picks up the keys (the red one excepted) and the tools it walks over, as the CC2 ghost and rover do:
+   * the item leaves the map and is lost. Chips, bonuses, the red key and bombs stay where they are.
+   */
+  picksUpItems?: boolean;
   /**
    * A monster that ice and force floors (plain, random or turning) neither carry nor turn: on them it keeps to its own
    * movement pattern, as on plain floor (the CC3D blinky and screamer).

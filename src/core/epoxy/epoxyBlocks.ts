@@ -92,6 +92,21 @@ function planPushLine(
   }
 }
 
+/**
+ * Whether a push of `block` toward `requestedDir` would be accepted now: the same judgement as attemptPushBlock, with the
+ * world left untouched. A monster that pushes (the CC2 rover) asks it before it chooses a step.
+ */
+export function canPushBlock(
+  w: EpoxyWorld,
+  block: RuntimeEntity,
+  requestedDir: Direction,
+  allowChain = true,
+  guardPlayerCell = false
+): boolean {
+  const dir = railRedirect(w, block.x, block.y, requestedDir, 'block');
+  return canBeShoved(w, block, dir) && planPushLine(w, block, dir, allowChain, guardPlayerCell) !== undefined;
+}
+
 export function attemptPushBlock(
   ctx: EpoxyContext,
   block: RuntimeEntity,

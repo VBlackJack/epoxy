@@ -97,6 +97,14 @@ export function transmogrifiedCharacter(character: PlayerCharacter): PlayerChara
 /** Half-width (Chebyshev radius) of the square region where a gray button swaps chips and bombs. */
 export const GRAY_BUTTON_RADIUS = 2;
 
+/**
+ * The kinds of item a monster that picks things up (the CC2 ghost and rover) takes: the keys and the tools. The chips and
+ * the bonuses stay on the map, and so does the red key, which only a player takes (Lexy's Labyrinth item priorities).
+ */
+export const MONSTER_PICKUP_COLLECTIBLES: readonly string[] = ['key', 'boot', 'charge', 'gate', 'stone', 'token'];
+/** The colour of the key that no monster picks up. */
+export const MONSTER_IGNORED_KEY_COLOR = 'red';
+
 /** Item id of the blast charge a player carries and drops. */
 export const CHARGE_ITEM_ID = 'charge';
 
