@@ -207,7 +207,7 @@ const GOLEM_CONTROL_BLUE_REASON =
 const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of its colour, occupant may leave, nobody may enter.';
 
 const EXACT_KEYS: readonly string[] = [
-  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'sand', 'fish_extra', 'socket', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
+  'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'turtle', 'sand', 'fish_extra', 'socket', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
   'fish', 'key', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
@@ -222,6 +222,7 @@ const EXACT_KEYS: readonly string[] = [
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
+  turtle: TURTLE_REASON,
   force_random:
     'Epoxy plays the CC3D random force floor as the Turning Force Floor: one counter per level, advanced by every arrival of the player, a block or a monster (boots included), pushing east, south, west, north in turn from the start. Epoxy turns every monster on arrival, where the CC3D monsters immune to force are not turned: the blinky, the screamer and the yellow golem are not turned in Epoxy either (cc3dEvidenceMonsters.test.ts, cc3dEvidenceYellowGolem.test.ts).',
   sand: SAND_REASON,
@@ -256,7 +257,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   water: WATER_REASON,
-  turtle: TURTLE_REASON,
   slime: SLIME_REASON,
   dirt: DIRT_REASON,
   appearing_wall: APPEARING_WALL_REASON,

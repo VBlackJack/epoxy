@@ -405,14 +405,14 @@ describe('gravel', () => {
 
 describe('coverage verdicts that rest on this evidence', () => {
   it('keeps the elements with a pinned difference approximate, and each reason cites this file', () => {
-    for (const key of ['water', 'turtle', 'dirt', 'slime', 'appearing_wall', 'gate_tools', 'gate_keys', 'gravel_with_reflector']) {
+    for (const key of ['water', 'dirt', 'slime', 'appearing_wall', 'gate_tools', 'gate_keys', 'gravel_with_reflector']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }
   });
 
-  it('plays the bomb and the plain gravel as CC3D does', () => {
-    for (const key of ['bomb', 'gravel']) {
+  it('plays the bomb, the turtle and the plain gravel as CC3D does', () => {
+    for (const key of ['bomb', 'turtle', 'gravel']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }
