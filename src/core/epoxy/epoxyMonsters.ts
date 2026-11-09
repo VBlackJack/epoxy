@@ -313,7 +313,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return false;
   }
 
-  if (destTile.isTeleporter && allowTeleport) {
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport) {
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
   return true;
