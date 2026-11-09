@@ -20,6 +20,7 @@
  * the editor history.
  */
 
+import { DEFAULT_RULESET } from '../core/coreConstants';
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { t } from '../i18n/I18nManager';
 import { CELL_FOCUS_ATTRIBUTE, CELL_FOCUS_FALLBACK_ATTRIBUTE, type CellPanel, type CellPanelHost } from './cellPanel';
@@ -41,9 +42,14 @@ const TEXT_CLASS = 'editor-cell-hint-text';
 /** Rows of the text box. */
 const TEXT_ROWS = 4;
 
+/** Cell hints exist under the Epoxy ruleset only. */
+function isEpoxyRuleset(ruleset: string | undefined): boolean {
+  return ruleset === undefined || ruleset === DEFAULT_RULESET;
+}
+
 /** The map with the hint text of the tile at (x, y) set, or null when the cell is no hint tile or nothing changed. */
-export function withCellHint(map: EditorMap, x: number, y: number, text: string): EditorMap | null {
-  if (map.cc3d) return null;
+export function withCellHint(map: EditorMap & Partial<Pick<EditorDocument, 'ruleset'>>, x: number, y: number, text: string): EditorMap | null {
+  if (map.cc3d || !isEpoxyRuleset(map.ruleset)) return null;
   const result = cloneMap(map);
   return setCellHint(result, x, y, text) ? result : null;
 }
@@ -53,7 +59,7 @@ export class CellHintPanel implements CellPanel {
 
   public render(doc: EditorDocument, x: number, y: number): HTMLElement | null {
     const topId = doc.terrain[y]?.[x];
-    if (doc.cc3d || topId === undefined || !ConfigRegistry.isTerrainTile(topId) || ConfigRegistry.getTile(topId).showsHint !== true) return null;
+    if (doc.cc3d || !isEpoxyRuleset(doc.ruleset) || topId === undefined || !ConfigRegistry.isTerrainTile(topId) || ConfigRegistry.getTile(topId).showsHint !== true) return null;
     const text = cellHintAt(doc, x, y) ?? '';
     const root = document.createElement('div');
     root.className = PANEL_CLASS;
