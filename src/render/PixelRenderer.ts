@@ -3078,7 +3078,7 @@ export class PixelRenderer {
     const scaled = size * variant.scale;
     const offset = (size - scaled) / 2;
     this.drawEntity(ctx, variant.base, dir, x + offset, y + offset, scaled);
-    if (variant.badge) paintCc3dBadge(ctx, variant.badge, x, y, size, tools);
+    if (variant.badge) paintCc3dBadge(ctx, variant.badge, x, y, size, tools, variant.badgeShape);
   }
 
   /**

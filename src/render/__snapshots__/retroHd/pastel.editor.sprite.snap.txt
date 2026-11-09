@@ -580,4 +580,4 @@ editor entity over floor screamer b78b04eff27cf0f6
 editor entity over floor baby_screamer 570d8a78cd5b9ea8
 editor entity over floor walker_3d d5062b9fbbab5143
 editor entity over floor golem_blue ce445bd09b8ff235
-editor entity over floor golem_yellow ae31f9d6468d3cff
+editor entity over floor golem_yellow a49d29eff05a4a39
