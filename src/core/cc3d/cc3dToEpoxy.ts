@@ -237,7 +237,7 @@ interface MobRule {
 }
 
 const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
-  block_dirt: { type: fixed('dirt_block') },
+  block_dirt: { type: fixed('dirt_block_3d') },
   block_ice: { type: fixed('ice_block_3d') },
   block_color: { type: (mob) => `color_block_${need(mob.color, 'color', mob.kind)}`, colored: true },
   reflector: {

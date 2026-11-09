@@ -70,15 +70,11 @@ export function epoxyIdOf(displayId: string): string {
 }
 
 /**
- * Tiles the Epoxy engine itself creates while it plays a converted level, which are still the plain tiles of the old
- * rules: the water a dirt block fills becomes `dirt` and an omni's trail is `slime`, where the converter places `dirt_3d`
- * and `slime_3d`. The comparison reads them as the CC3D tile they stand for, so a scenario about another mechanic still
- * compares cell by cell; the remaining difference (the plain tile keeps the old block rule) is reported in the coverage
- * of water, dirt and slime, and checked where a test fills water with a dirt block.
+ * Tiles the Epoxy engine itself creates while it plays a converted level. Since format 16 the water a dirt block fills
+ * is `dirt_3d` and an omni's trail is `slime_3d`, the tiles the converter places, so nothing needs reading as another
+ * tile and the id is kept as it is.
  */
 export function epoxyEngineIdOf(id: string): string {
-  if (id === 'dirt') return 'dirt_3d';
-  if (id === 'slime') return 'slime_3d';
   return id;
 }
 
@@ -112,7 +108,9 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   cc3d_block_blue: 'color_block_blue',
   cc3d_block_yellow: 'color_block_yellow',
   // Format 15: the converter plays the CC3D ice block as ice_block_3d.
-  ice_block: 'ice_block_3d'
+  ice_block: 'ice_block_3d',
+  // Format 16: the converter plays the CC3D dirt block as dirt_block_3d.
+  dirt_block: 'dirt_block_3d'
 };
 /** CC3D display ids of items that name another Epoxy item id. */
 const ITEM_ID_MAP: Readonly<Record<string, string>> = { stopwatch_bonus: 'slow_time', cc3d_fish_extra: 'chip' };

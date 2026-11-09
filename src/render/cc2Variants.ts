@@ -128,6 +128,11 @@ export function drawsMark(mark: Cc2Mark, context: MarkContext): boolean {
   return context.isEditor || !context.importedLevel || !LOOK_ALIKE_MARKS.has(mark);
 }
 
+/** Whether the level came from an import (CC2 record, CC3D data, or the CC3D source kept on a converted level). */
+export function isImportedLevel(level: { cc2?: unknown; cc3d?: unknown; cc3dSource?: unknown }): boolean {
+  return level.cc2 !== undefined || level.cc3d !== undefined || level.cc3dSource !== undefined;
+}
+
 /** The palette entries a vector style hands in (the same keys as the palette of game.json). */
 export interface MarkPalette {
   readonly green: string;

@@ -19,10 +19,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
+import { expectAgree } from './cc3dEvidenceAsserts';
 import { EPOXY_COVERAGE } from './epoxyCoverage';
-import { holdDoor, plate, room } from './cc3dEvidenceRig';
+import { device, holdDoor, plate, room, withMob } from './cc3dEvidenceRig';
 import type { EvidenceScenario } from './cc3dEvidenceRig';
+import { terrain } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { CC3D_COLORS } from './model';
 import type { Cc3dColor } from './model';
@@ -46,6 +47,10 @@ const GLYPHS: Record<string, GlyphMeaning> = {
   R: { mob: { kind: 'block_color', color: 'red' } },
   Y: { mob: { kind: 'block_color', color: 'yellow' } },
   U: { mob: { kind: 'block_color', color: 'green' } },
+  B: withMob(terrain('water'), { kind: 'block_dirt' }),
+  p: device('trap'),
+  q: device('trap_control'),
+  c: terrain('ice_corner', { corner: ['S', 'E'] }),
   ...Object.fromEntries(CC3D_COLORS.flatMap((color) => [[PLATE_GLYPH[color], plate(color)], [DOOR_GLYPH[color], holdDoor(color)]]))
 };
 const FLOOR = 'floor';
@@ -193,25 +198,65 @@ describe('dirt block', () => {
     }
   });
 
-  it('fills water with dirt, which the player clears', () => {
+  it('fills water with dirt_3d, which the player clears', () => {
     expectAgree(scenario('@KW.', 'E'), (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
       expect(pair.rig.entities).toHaveLength(0);
-      // Remaining difference: the water Epoxy fills is the plain dirt tile, not dirt_3d (the comparison reads them as one).
-      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt');
+      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt_3d');
     });
   });
 
-  it('differs at fire: CC3D refuses the block, Epoxy lets it in', () => {
-    expectDisagree(scenario('@KF.', 'E'), 'player', (pair) => {
-      expect(pair.rig.player.x).toBe(1);
+  it('clears the dirt it made when a second block is pushed into the filled cell, as dirt_3d does', () => {
+    const rows = room('@KW..', '..K..', '.....');
+    expectAgree({ rows, moves: 'ESSEN', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
+      expect(pair.epoxy.getTerrain()[1][3]).toBe('floor');
+      expect(pair.rig.entities.map((e) => `${e.x},${e.y}`)).toEqual(['3,1']);
+      expect(pair.epoxy.getEntities().map((e) => `${e.x},${e.y}`)).toEqual(['3,1']);
     });
   });
 
-  it('differs at an item: CC3D refuses the block, Epoxy lets it onto the item', () => {
-    expectDisagree(scenario('@Ki.', 'E'), 'player', (pair) => {
-      expect(pair.rig.player.x).toBe(1);
+  it('starts on water in the map: CC3D and Epoxy agree on what the converter makes of it', () => {
+    expectAgree(scenario('@B..', 'E'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.type)).toEqual(pair.rig.entities.map(() => 'dirt_block'));
+      expect(pair.epoxy.getEntities().map((e) => e.type)).toEqual(pair.rig.entities.map(() => 'dirt_block_3d'));
     });
+  });
+
+  it('is held by a closed trap and rests on a trap control, as in CC3D', () => {
+    expectAgree(scenario('@Kp..', 'EE'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+    expectAgree(scenario('@Kq...', 'E'), (pair) => {
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+  });
+
+  it('is carried by a teleport as in CC3D', () => {
+    expectAgree(scenario('@Kt..t', 'EE'), () => undefined);
+    expectAgree(scenario('@Kk..k', 'EE'), () => undefined);
+  });
+
+  it('is refused by fire after sliding round an ice corner, as in CC3D', () => {
+    expectAgree({ rows: room('@Kc.', '..F.'), moves: 'E', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.entities).toHaveLength(1);
+    });
+  });
+
+  it('is refused by fire, as in CC3D', () => {
+    expectAgree(scenario('@KF.', 'E'), (pair) => {
+      expect(pair.rig.player.x).toBe(1);
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([2]);
+    });
+  });
+
+  it('is refused by an item cell, as in CC3D', () => {
+    for (const item of ['i', 'e', 'r', 'u', 'f', 'w', 'a', 'o', 's']) {
+      expectAgree(scenario(`@K${item}.`, 'E'), (pair) => {
+        expect(pair.rig.player.x, item).toBe(1);
+        expect(pair.rig.entities.map((e) => e.x), item).toEqual([2]);
+      });
+    }
   });
 
   it('enters dirt and clears it, as the Epoxy block does over dirt_3d', () => {
@@ -301,8 +346,8 @@ describe('ice block', () => {
 });
 
 describe('coverage verdicts that rest on this evidence', () => {
-  it('keeps the dirt block approximate (fire, items and the plain dirt of water), its reason citing this file', () => {
-    expect(EPOXY_COVERAGE.block_dirt.level).toBe('approx');
+  it('plays the dirt block as CC3D does now that it is dirt_block_3d, its reason citing this file', () => {
+    expect(EPOXY_COVERAGE.block_dirt.level).toBe('exact');
     expect(EPOXY_COVERAGE.block_dirt.reason).toContain('cc3dEvidenceBlocks.test.ts');
   });
 

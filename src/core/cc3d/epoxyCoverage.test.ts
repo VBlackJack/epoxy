@@ -120,17 +120,22 @@ describe('classifyLevel', () => {
     expect(result.verdict).toBe('exact');
   });
 
-  it('calls a level with a water cell approx', () => {
+  it('calls a level with a water cell exact now that the dirt block makes dirt_3d', () => {
     const result = classifyLevel(levelOf(['#####', '#@WX#', '#####']));
-    expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['water'] });
+    expect(result).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('calls a level with an appearing wall approx', () => {
+    const result = classifyLevel(levelOf(['#####', '#@VX#', '#####'], { V: terrain('appearing_wall') }));
+    expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['appearing_wall'] });
   });
 
   it('calls a level with a laser controller approx now that Epoxy has the shot trigger, and lists the other approx elements', () => {
-    const glyphs = { Z: terrain('laser_controller') };
-    const result = classifyLevel(levelOf(['######', '#@ZWX#', '######'], glyphs));
+    const glyphs = { Z: terrain('laser_controller'), V: terrain('appearing_wall') };
+    const result = classifyLevel(levelOf(['######', '#@ZVX#', '######'], glyphs));
     expect(result.verdict).toBe('approx');
     expect(result.lost).toEqual([]);
-    expect(result.approx).toEqual(['laser_controller', 'water']);
+    expect(result.approx).toEqual(['appearing_wall', 'laser_controller']);
     expect(EPOXY_COVERAGE.laser_shooter.level).toBe('approx');
     expect(EPOXY_COVERAGE.laser_controller.level).toBe('approx');
   });
@@ -257,7 +262,7 @@ describe('classifyLevel', () => {
     const onWater = levelOf(['####', '#@W#', '####'], { W: { stack: [{ kind: 'water' }], panels: ['N'] } });
     expect(elementKeys(onWater).has('panels_on_nonfloor')).toBe(true);
     expect(classifyLevel(onWater).lost).toEqual([]);
-    expect(classifyLevel(onWater).approx).toEqual(['water']);
+    expect(classifyLevel(onWater).approx).toEqual([]);
     const onFloor = levelOf(['####', '#@.#', '####'], { '.': { stack: [{ kind: 'floor' }], panels: ['N'] } });
     expect(classifyLevel(onFloor).verdict).toBe('exact');
   });

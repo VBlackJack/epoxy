@@ -22,7 +22,7 @@ vi.mock('../audio/AudioManager', () => ({
 
 import { CompiledLevel, LevelTextConfig } from '../core/types';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
-import { importCc3dSelection } from '../ui/cc3dImport';
+import { decodeCc3dFiles } from '../formats/Cc3dXmlCodec';
 import { FakeIndexedDb } from '../test/FakeIndexedDb';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { makeLevel } from '../test/packFixtures';
@@ -38,7 +38,8 @@ async function makeCc3dLevel(): Promise<CompiledLevel> {
     `<tile image_index="${type}" x="${x * CELL}" y="${y * CELL}" direction="0" type="${type}"><attributes flags="0" editor_category="0" name="Stored" /></tile>`;
   const xml = `<?xml version="1.0" encoding="utf-8"?><map name="Valid" author="A" width="5" height="5" background="0"><tiles>${tile(PLAYER_TYPE, 0, 0)}${tile(FISH_TYPE, 2, 2)}</tiles></map>`;
   const file = { name: '1.xml', size: 1, arrayBuffer: async () => new TextEncoder().encode(xml).buffer as ArrayBuffer };
-  const { levels } = await importCc3dSelection([file], 1024, 'Pack');
+  // A stored cc3d-ruleset level (packs made before imports became Epoxy levels), so the codec's output is used as is.
+  const { levels } = decodeCc3dFiles([{ name: file.name, bytes: await file.arrayBuffer() }], 'Pack');
   return levels[0];
 }
 

@@ -24,8 +24,9 @@ export const CONVERTED_ID_SUFFIX = '~epoxy';
  * completes the level); the fish gate only closes a way. A converted level keeps that rule, so its sockets are optional
  * gates and an exit reachable without one is a design of the source, not a mistake.
  */
-export function isConvertedCc3dLevel(level: { id: string }): boolean {
-  return level.id.endsWith(CONVERTED_ID_SUFFIX);
+export function isConvertedCc3dLevel(level: { id: string; cc3dSource?: unknown }): boolean {
+  // A level kept next to its CC3D source is one; so is an id the pack code made unique after the suffix (`..~epoxy_2`).
+  return level.cc3dSource !== undefined || /~epoxy(_[0-9]+)?$/.test(level.id);
 }
 
 /** Step durations in engine ticks (the game runs at 20 ticks per second). */
