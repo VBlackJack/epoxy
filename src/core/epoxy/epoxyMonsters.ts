@@ -18,6 +18,13 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
+  CC_BLOB_STEP_TICKS,
+  CC_BLOB_TYPE,
+  CC_CADENCE_TYPES,
+  CC_MONSTER_STEP_TICKS,
+  CC_TEETH_ACTIVE_TICKS,
+  CC_TEETH_CYCLE_TICKS,
+  CC_TEETH_TYPE,
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
   FLEE_PLAYER_PATTERN,
@@ -69,6 +76,8 @@ import {
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   w.removedUids.clear();
+  const clock = w.ccMonsterClock;
+  if (w.ccRules) w.ccMonsterClock++;
   const snapshotEntities = [...w.entities];
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
@@ -84,8 +93,23 @@ export function updateEntities(ctx: EpoxyContext): void {
       continue;
     }
 
-    if (!stepMonster(ctx, entity)) return;
+    if (!(w.ccRules && CC_CADENCE_TYPES.includes(entity.type) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
   }
+}
+
+/**
+ * Classic Chip's Challenge cadence for one monster of a classic-rules level: a decision every few ticks (see
+ * stepMonster), teeth deciding only in the first half of their cycle, and a monster that did not move retrying on
+ * the next tick instead of waiting out a step. `clock` is the number of entity passes that ran before this one.
+ */
+function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
+  if (entity.cooldownTicks === 0 && entity.type === CC_TEETH_TYPE && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) return true;
+  const ready = entity.cooldownTicks === 0;
+  const x = entity.x;
+  const y = entity.y;
+  const alive = stepMonster(ctx, entity);
+  if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0 && !entity.isSliding) entity.cooldownTicks = 0;
+  return alive;
 }
 
 /** Advances one monster of the entity loop by a tick. Returns false when the player was killed, so the loop stops. */
@@ -105,7 +129,8 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const def = ConfigRegistry.getEntityDef(entity.type);
   // A step lasts interval + 1 ticks (the countdown, then the move); slow-time boots stretch the whole step.
   const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
-  entity.cooldownTicks = (interval + 1) * monsterSlowdown(w) - 1;
+  const stepTicks = w.ccRules && CC_CADENCE_TYPES.includes(entity.type) ? (entity.type === CC_BLOB_TYPE ? CC_BLOB_STEP_TICKS : CC_MONSTER_STEP_TICKS) : interval + 1;
+  entity.cooldownTicks = stepTicks * monsterSlowdown(w) - 1;
 
   // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
   const phases = def?.movementPattern === PHASE_LINE_PATTERN;

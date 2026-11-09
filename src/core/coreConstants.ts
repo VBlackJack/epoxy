@@ -291,6 +291,24 @@ export const DEFAULT_FACING: Direction = 'S';
 export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
 
 /**
+ * Classic Chip's Challenge monster cadence, used only by a level that plays with the classic rules (ccRules). A step
+ * lasts this many ticks for the classic monsters, and a monster decides again the tick its step ends.
+ */
+export const CC_MONSTER_STEP_TICKS = 4;
+
+/** Ticks a classic blob step lasts (a blob covers a cell at half the speed of the other monsters). */
+export const CC_BLOB_STEP_TICKS = 8;
+
+/** The classic monsters that follow the cadence above; any other monster keeps its own move interval. */
+export const CC_BLOB_TYPE = 'blob';
+export const CC_TEETH_TYPE = 'teeth';
+export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
+
+/** Teeth decide only during the first CC_TEETH_ACTIVE_TICKS ticks of each CC_TEETH_CYCLE_TICKS cycle (they move at half rate). */
+export const CC_TEETH_CYCLE_TICKS = 8;
+export const CC_TEETH_ACTIVE_TICKS = 4;
+
+/**
  * Visits a laser trace may make per cell of the map: one per direction a beam
  * can cross the cell in, which bounds every trace even on a ring of mirrors.
  */
