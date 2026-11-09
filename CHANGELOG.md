@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 15, actors and devices: the CC2 pop-up wall lets in only rovers and ghosts and becomes a wall once left (not while someone still stands on it, and not behind a ghost); the CC2 open trap closes on the first release of its brown button or the first fall of its wire; a monster trying to enter a CC3D appearing wall makes it solid; the CC3D slime spares a player holding fire and water boots and is cleaned; the CC2 red teleporter and transmogrifier follow their wire, switched on and off.
+
 ### Fixed
 
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
