@@ -146,6 +146,8 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
       if (!canMonsterEnter(w, entity, moveDir)) return true;
     }
   }
+  // A step into a tile that monsters reveal reveals it and is refused: the monster stays (CC3D, at the attempt only).
+  if (!phases && revealOnAttempt(w, def, nx, ny)) return true;
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
   if (def?.trailTile !== undefined) leaveTrail(w, entity, def.trailTile);
   // A monster that may enter turtles sinks the one it leaves, unless it leaves turtles afloat.
@@ -155,6 +157,22 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   entity.dir = moveDir;
 
   return phases ? resolvePhasedArrival(ctx, entity) : resolveMonsterArrival(ctx, entity, true);
+}
+
+/**
+ * A monster that tries to enter a tile every actor reveals (the CC3D appearing wall) turns it into the terrain it hides.
+ * Returns true when it did, and the step is then refused. A monster that walks through solid tiles or names the tile
+ * among those it passes is not stopped by it.
+ */
+function revealOnAttempt(w: EpoxyWorld, def: EntityDefinition | undefined, x: number, y: number): boolean {
+  const tileId = w.terrain[y][x];
+  const tile = ConfigRegistry.getTile(tileId);
+  if (tile.revealedByAny !== true || tile.revealsToOnTouch === undefined) return false;
+  const passesSolid = def?.passesSolidTiles === true && def.blockedByTiles?.includes(tileId) !== true;
+  if (passesSolid || def?.passesTiles?.includes(tileId) === true) return false;
+  w.terrain[y][x] = tile.revealsToOnTouch;
+  w.beamDirty = true;
+  return true;
 }
 
 /** A monster with a trail that has stood on slime turns the plain, itemless floor cell it leaves into the trail tile (the CC3D omni leaves slime). */
@@ -475,21 +493,23 @@ function canopyStopsStep(w: EpoxyWorld, def: EntityDefinition | undefined, fromX
 
 /** A step the monster takes on its own: a block in the way counts as free when the monster pushes and the push would succeed. */
 function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): boolean {
-  return canMonsterEnter(w, monster, wanted, false, true);
+  return canMonsterEnter(w, monster, wanted, false, true, true);
 }
 
 /**
  * Whether the monster may step one cell in `dir`: inside the map, past the cell edges, onto a tile it can
  * enter (or one its definition passes) with no item but a bomb and no entity. `ignoreOccupant` leaves the
  * entity check to the caller, which pushes the block in the way (a steered puppet). `mayPush` lets a monster
- * that pushes blocks (the CC2 rover) count a block it could push away as no obstacle.
+ * that pushes blocks (the CC2 rover) count a block it could push away as no obstacle. `choosing` is the probe a monster
+ * makes when it picks its way: it takes a tile that monsters reveal (an appearing wall) for open floor, as CC3D does.
  */
 export function canMonsterEnter(
   w: EpoxyWorld,
   monster: RuntimeEntity,
   wanted: Direction,
   ignoreOccupant = false,
-  mayPush = false
+  mayPush = false,
+  choosing = false
 ): boolean {
   // On a track cell the step is judged where it would really go: turned onto the track, as the move itself will be.
   const dir =
@@ -522,6 +542,11 @@ export function canMonsterEnter(
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
   // A tile that bars some monsters (the CC2 turtle bars fireballs) refuses the ones it lists, and a ghost its own list.
   if (destTile.barsMonsters?.includes(monster.type) === true) return false;
+  // A tile that admits only some monsters (the CC2 pop-up wall) refuses the others, whatever else lets them in.
+  if (destTile.admitsMonsters !== undefined && !destTile.admitsMonsters.includes(monster.type)) return false;
+  // An appearing wall that monsters reveal looks like floor to a monster choosing its way: the step is attempted and
+  // refused there (see revealOnAttempt), so a probe made for a choice says yes where a plain probe says no.
+  if (destTile.revealedByAny === true && !passesSolid && !passesTile) return choosing;
   if (
     !destTile.passableByMonster &&
     !passesTile &&

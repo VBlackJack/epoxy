@@ -7,6 +7,7 @@ versions follow Semantic Versioning.
 
 ### Added
 
+- Pack format 15, actors and devices: the CC2 pop-up wall lets in only rovers and ghosts and becomes a wall once left (not while someone still stands on it, and not behind a ghost); the CC2 open trap closes on the first release of its brown button or the first fall of its wire; a monster trying to enter a CC3D appearing wall makes it solid; the CC3D slime spares a player holding fire and water boots and is cleaned; the CC2 red teleporter and transmogrifier follow their wire, switched on and off.
 - Validator: it reads the eight format 15 elements without ever calling a winnable level unwinnable (a wired switched-off teleporter or transmogrifier counts as switched on, the CC3D slime spares a player holding fire and water boots, the CC3D ice block crosses the security gates) and warns about a switched-off twin that no wire reaches. Both locales.
 - Pack format 15, blocks: CC3D dirt is cleared by the blocks that enter it, except ice blocks, which pass over it; the CC2 pop-up wall bars dirt blocks, CC3D dirt and slime bar mirrors and turrets; the CC3D ice block pushes a whole line of blocks, mirrors and turrets and slides over the security gates; a block pushed or sliding into a CC3D appearing wall makes it solid.
 

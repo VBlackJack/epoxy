@@ -229,7 +229,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       }
     } else if (entityAtTarget.kind === 'monster') {
       leaveSwivel(w, w.player.x, w.player.y, dir);
-      leaveCell(w, w.player.x, w.player.y);
+      leaveCell(w, w.player.x, w.player.y, { leavingPlayer: w.player });
       w.player.x = targetX;
       w.player.y = targetY;
       killPlayer(ctx, 'hud.messages.death_monster', 'death');
@@ -241,7 +241,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   const prevY = w.player.y;
   const hadPullBoots = bootsPullBlocks(w.player.boots);
   leaveSwivel(w, w.player.x, w.player.y, dir);
-  leaveCell(w, w.player.x, w.player.y);
+  leaveCell(w, w.player.x, w.player.y, { leavingPlayer: w.player });
   w.player.x = targetX;
   w.player.y = targetY;
   w.statusBannerKey = wardSpent ? 'hud.messages.ward_spent' : null;
@@ -411,9 +411,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   if (tile.hazard === 'slime' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
-    ctx.emitVisual('splash', x, y, 'green');
-    killPlayer(ctx, 'hud.messages.death_slime', 'death');
-    return;
+    // The CC3D slime spares a player who holds every boot it lists, and is cleaned by the player's passing.
+    if (tile.sparedByBoots !== undefined && tile.blockTransformsTo !== undefined && tile.sparedByBoots.every((id) => w.player.boots.has(id))) {
+      w.terrain[y][x] = tile.blockTransformsTo;
+      w.gridMutatedByMove = true;
+    } else {
+      ctx.emitVisual('splash', x, y, 'green');
+      killPlayer(ctx, 'hud.messages.death_slime', 'death');
+      return;
+    }
   }
 
   if (tile.isLevelExit) {

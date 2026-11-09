@@ -698,10 +698,12 @@ export function playerGripsTile(w: EpoxyWorld, tile: TileDefinition): boolean {
   return tile.slideType === 'ice' && playerCharacterOf(w) === MELINDA_CHARACTER;
 }
 
-/** Who leaves a cell, for the tiles that judge the leaver (the CC2 turtle). */
+/** Who leaves a cell, for the tiles that judge the leaver (the CC2 turtle and pop-up wall, the open trap's button). */
 export interface LeaveOptions {
   /** The monster or block that leaves; absent for the player. */
   leaver?: RuntimeEntity;
+  /** The player that leaves; absent for a monster or a block. Its own cell must not hold the cell up. */
+  leavingPlayer?: PlayerState;
   /** The leaver sinks nothing (a glider leaves a CC2 turtle afloat). */
   afloat?: boolean;
 }
@@ -709,12 +711,19 @@ export interface LeaveOptions {
 /**
  * Applies the terrain change, if any, of a cell the player, a monster or a block has just left. A CC2 turtle (a tile
  * that bars some monsters and sinks on leave) keeps afloat while another actor still stands on the cell, and behind a
- * leaver that leaves turtles afloat (Lexy's Labyrinth tiletypes.js, turtle.on_depart).
+ * leaver that leaves turtles afloat (Lexy's Labyrinth tiletypes.js, turtle.on_depart). A CC2 pop-up wall (a tile that
+ * is held while occupied) waits while any other actor, a block, a monster or a player, still stands on the cell,
+ * whoever leaves it. A brown button that nobody presses any more closes the open traps linked to it.
  */
 export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOptions): void {
   const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (tile.buttonAction === 'hold_trap') closeOpenTrapsOfButton(w, x, y, options);
   if (!tile.transformsToOnLeave) return;
-  if (tile.barsMonsters !== undefined) {
+  if (tile.heldWhileOccupied === true) {
+    // Lexy's Labyrinth: a ghost, which the floor does not touch, never pops the wall it leaves.
+    if (options?.leaver !== undefined && ConfigRegistry.getEntityDef(options.leaver.type)?.ignoresFloorEffects === true) return;
+    if (otherActorStands(w, x, y, options)) return;
+  } else if (tile.barsMonsters !== undefined) {
     if (options?.afloat === true) return;
     if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y)) return;
     // A player who stays on the cell holds it up too (when a monster or a block is the one that leaves).
@@ -723,14 +732,50 @@ export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOp
   w.terrain[y][x] = tile.transformsToOnLeave;
 }
 
+/** Whether an actor other than the leaver stands on the cell: an entity, or a player that is not the one leaving. */
+function otherActorStands(w: EpoxyWorld, x: number, y: number, options?: LeaveOptions): boolean {
+  if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y)) return true;
+  return playersOf(w).some((p) => p.alive && p !== options?.leavingPlayer && p.x === x && p.y === y);
+}
+
+/**
+ * A brown button has just lost the leaver: when nothing else presses it, every open trap linked to it closes into the
+ * trap it names (the wired trap when a wire ends on it). The swap is terrain only, so an undo puts the open trap back.
+ */
+function closeOpenTrapsOfButton(w: EpoxyWorld, x: number, y: number, options?: LeaveOptions): void {
+  if (!w.trapLinks.some((l) => l.buttonX === x && l.buttonY === y)) return;
+  // A phasing monster (pressesPlates false in its definition) never worked the button, so its leaving frees nothing.
+  const pressesButton = (e: RuntimeEntity): boolean =>
+    !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false);
+  if (options?.leaver !== undefined && !pressesButton(options.leaver)) return;
+  if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y && pressesButton(e))) return;
+  if (playersOf(w).some((p) => p.alive && p !== options?.leavingPlayer && p.x === x && p.y === y)) return;
+  for (const link of w.trapLinks) {
+    if (link.buttonX === x && link.buttonY === y) closeOpenTrapAt(w, link.trapX, link.trapY);
+  }
+}
+
+/**
+ * Closes the open trap in a cell: it becomes the trap it closes to, or the wired trap when a wire ends on the cell. Does
+ * nothing on any other terrain. An actor that stands on the cell is held from now on, as in any closed trap.
+ */
+export function closeOpenTrapAt(w: EpoxyWorld, x: number, y: number): void {
+  const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+  if (tile.closesTo === undefined) return;
+  const wired = tile.closesToWired !== undefined && w.signals?.network.indexOfCell.has(y * mapWidth(w) + x) === true;
+  w.terrain[y][x] = wired ? (tile.closesToWired as string) : tile.closesTo;
+}
+
 /**
  * A monster leaves its cell. A monster that may enter turtles sinks the classic turtle it leaves unless it leaves them
- * afloat; on a CC2 turtle every monster takes part, and the turtle judges who leaves it.
+ * afloat; on a CC2 turtle every monster takes part, and the turtle judges who leaves it. A pop-up wall, and the brown
+ * button an open trap hangs on, are judged for every monster too.
  */
 export function monsterLeavesCell(w: EpoxyWorld, entity: RuntimeEntity): void {
   const def = ConfigRegistry.getEntityDef(entity.type);
   const afloat = def?.leavesTurtlesAfloat === true;
-  if (ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).barsMonsters !== undefined) {
+  const tile = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]);
+  if (tile.barsMonsters !== undefined || tile.heldWhileOccupied === true || tile.buttonAction === 'hold_trap') {
     leaveCell(w, entity.x, entity.y, { leaver: entity, afloat });
   } else if (def?.entersTurtles === true && !afloat) {
     leaveCell(w, entity.x, entity.y);
@@ -761,6 +806,8 @@ function isWiredTrapPowered(w: EpoxyWorld, tx: number, ty: number): boolean {
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
   const tile = ConfigRegistry.getTile(w.terrain[ty]?.[tx]);
   if (!tile.isTrap) return false;
+  // An open trap holds nothing until it closes into a trap.
+  if (tile.closesTo !== undefined) return false;
   // A wired trap is also open while its signal is on, besides while a brown button is held.
   if (tile.wiredTrap === true && isWiredTrapPowered(w, tx, ty)) return false;
 

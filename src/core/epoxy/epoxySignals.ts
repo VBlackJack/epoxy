@@ -21,7 +21,7 @@ import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '..
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
-import { EpoxyContext, EpoxyWorld, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
+import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
 import {
   SignalEdge,
   SignalNetwork,
@@ -272,9 +272,11 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[])
     if (!w.player.alive || w.levelCompleted) return;
     const index = runtime.network.indexOfCell.get(edge.cell);
     const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
-    if (fires === undefined) continue;
     const x = edge.cell % width;
     const y = Math.floor(edge.cell / width);
+    // The first fall of the input of an open trap closes it (for ever: it is a trap from now on).
+    if (!edge.rising) closeOpenTrapAt(w, x, y);
+    if (fires === undefined) continue;
     // A wired flip tile follows every change of its input; every other sink fires on the rising edge only.
     // UNVERIFIED (low confidence): that a wired flame jet also flips on the falling edge is not confirmed against CC2.
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
