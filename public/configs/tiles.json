@@ -2609,6 +2609,115 @@
       "passableByPlayer": true,
       "passableByMonster": false,
       "passableByBlock": true
+    },
+    "slime_cc2": {
+      "id": "slime_cc2",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.slime_cc2.name",
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "hazard": "slime",
+      "blockTransformsTo": "floor",
+      "clearedByBlocks": ["dirt_block", "ice_block"],
+      "laserTransparent": true
+    },
+    "turtle_cc2": {
+      "id": "turtle_cc2",
+      "category": "hazards",
+      "layer": "terrain",
+      "i18nKey": "tiles.turtle_cc2.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "barsMonsters": ["fireball"],
+      "transformsToOnLeave": "water"
+    },
+    "flame_jet_cc2_off": {
+      "id": "flame_jet_cc2_off",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.flame_jet_cc2_off.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "wireTogglesTo": "flame_jet_cc2_on"
+    },
+    "flame_jet_cc2_on": {
+      "id": "flame_jet_cc2_on",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.flame_jet_cc2_on.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "hazard": "fire",
+      "protectedByItem": "boots_fire",
+      "burnsOccupants": true,
+      "wireTogglesTo": "flame_jet_cc2_off"
+    },
+    "block_barrier_floor": {
+      "id": "block_barrier_floor",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.block_barrier_floor.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": false
+    },
+    "transmogrifier_cc2": {
+      "id": "transmogrifier_cc2",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.transmogrifier_cc2.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "transmogrifies": true,
+      "transmogrifyTable": "cc2"
+    },
+    "teleport_random": {
+      "id": "teleport_random",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_random.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "random",
+      "teleportExitOrder": "random",
+      "colorKey": "green"
+    },
+    "teleport_red_cc2": {
+      "id": "teleport_red_cc2",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.teleport_red_cc2.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTeleporter": true,
+      "teleportGroup": "red_cc2",
+      "teleportExitOrder": "cc2_red",
+      "colorKey": "red"
+    },
+    "helmet": {
+      "id": "helmet",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.helmet.name",
+      "laserTransparent": true,
+      "collectible": "boot",
+      "shieldsFromContact": true
     }
   }
 }

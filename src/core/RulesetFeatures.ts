@@ -273,6 +273,11 @@ export function isWardTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).absorbsMonsterContact === true;
 }
 
+/** True when the tile is boots that shield the player from monster and block contact while held (the CC2 helmet). */
+export function isContactShieldTileId(id: string | null | undefined): boolean {
+  return !!id && ConfigRegistry.getTile(id).shieldsFromContact === true;
+}
+
 /** True when the tile is a blast charge, carried and dropped by the player, or the lit form it turns into. */
 export function isChargeTileId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -390,7 +395,7 @@ export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {
   return (
     isSlowTimeTileId(id) || isSpeedBootsTileId(id) || isEyeBootsTileId(id) || isPullBootsTileId(id) || isWardTileId(id) ||
     isChargeTileId(id) || isStoneTileId(id) || isTokenTileId(id) || isPocketGateTileId(id) || isRelayPadTileId(id) || isWiredDeviceTileId(id) || isRailTileId(id) ||
-    isCharacterContentTileId(id) || isUnimplementedTileId(id)
+    isCharacterContentTileId(id) || isUnimplementedTileId(id) || isContactShieldTileId(id)
   );
 }
 

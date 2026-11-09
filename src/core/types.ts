@@ -1099,6 +1099,21 @@ export interface TileDefinition {
   hazard?: 'water' | 'fire' | 'bomb' | 'slime';
   protectedByItem?: string;
   blockTransformsTo?: string;
+  /**
+   * Block ids that survive entering this tile and clear it (format 14, the CC2 slime: dirt and ice blocks). The tile
+   * turns into its `blockTransformsTo` terrain as the block arrives; any other block is destroyed as usual.
+   */
+  clearedByBlocks?: string[];
+  /**
+   * Monster ids that cannot enter this tile although it is passable by monsters (format 14, the CC2 turtle bars the
+   * fireball). Absent: every monster the passability flags admit may enter.
+   */
+  barsMonsters?: string[];
+  /**
+   * Format 14, the lit CC2 flame jet: an actor standing in the tile is burnt unless it is fireproof (a player with
+   * fire boots, a monster immune to fire), although monsters may walk in. Needs `hazard` "fire".
+   */
+  burnsOccupants?: boolean;
   slideType?: 'ice' | 'force';
   blockedEntryDirections?: Direction[];
   blockedEdges?: Direction[];
@@ -1158,8 +1173,19 @@ export interface TileDefinition {
   /** Boots only: while held, the renderer marks invisible walls and appearing walls (purely visual). */
   revealsHiddenWalls?: boolean;
   pullsBlocks?: boolean;
+  /**
+   * Boots only (format 14, the CC2 helmet): while held, the player is not hurt by contact with a monster or a block
+   * (the player may still not walk into a block that cannot be pushed). Absent: contact is fatal as usual.
+   */
+  shieldsFromContact?: boolean;
   /** A monster that arrives on the tile swaps its kind for its `transmogrifiesTo` pair; anything else passes unchanged. */
   transmogrifies?: boolean;
+  /**
+   * A transmogrifier that swaps by the CC2 table instead of the classic pairs: `cc2` reads the `transmogrifiesToCc2`
+   * field of the actor (monster or block) that arrives, and leaves an actor without that field unchanged. Needs
+   * `transmogrifies`. Absent: the classic pairs (`transmogrifiesTo`).
+   */
+  transmogrifyTable?: 'cc2';
   /**
    * A turn plate: quarter turns clockwise applied to the facing of an arrow block that arrives on the tile
    * (1 clockwise, -1 counter-clockwise). Anything else passes unchanged.
@@ -1217,7 +1243,10 @@ export interface TileDefinition {
   /**
    * The sides a mover may leave this teleporter by, in order, counted from the way it was facing when it entered: only
    * ahead, or ahead, right, left, back. Absent on a native teleporter, which keeps the player's own order (ahead, then
-   * north, east, south, west) and sends blocks and monsters ahead only.
+   * north, east, south, west) and sends blocks and monsters ahead only. Format 14 adds `random` (the exit is drawn
+   * among the other pads of the group, from the deterministic random source of the level) and `cc2_red` (the CC2 red
+   * teleporter order). Deferred for teleport_red_cc2: the CC2 red wiring and the player-chosen exit
+   * (teleport_allow_override) are not modelled and have no field.
    */
   teleportExitOrder?: TeleportExitOrder;
   /** A teleporter the player set down: it links with the other such pads found on the terrain at the moment of the jump. */
@@ -1410,6 +1439,16 @@ export interface EntityDefinition {
   pushesBlocks?: boolean;
   /** A monster kind that swaps for this one on a transmogrifier tile (the pairing is symmetric). */
   transmogrifiesTo?: string;
+  /**
+   * The actor (monster or block, of the same kind) this one becomes on a transmogrifier whose `transmogrifyTable` is
+   * `cc2`. Unlike `transmogrifiesTo` the table need not be symmetric (bug, glider, paramecium and fireball form a cycle).
+   */
+  transmogrifiesToCc2?: string;
+  /**
+   * Instead of `transmogrifiesToCc2`: the monsters this one may become on a CC2 transmogrifier, one drawn from the level
+   * random source (the CC2 blob). Exclusive with `transmogrifiesToCc2`.
+   */
+  transmogrifiesToCc2Pool?: string[];
   /** Tile ids a monster may enter although the tile is not passable by monsters (hazards still apply on arrival). */
   passesTiles?: string[];
   /**
@@ -1461,7 +1500,7 @@ export interface EntityDefinition {
   immuneToSlime?: boolean;
   /** A monster that steps onto turtles, which sink into water behind it when it leaves them (the CC3D monsters). */
   entersTurtles?: boolean;
-  /** A monster that `entersTurtles` and leaves them afloat instead of sinking them (the CC3D blinkies). */
+  /** A monster that leaves any turtle it stands on afloat instead of sinking it, turtle_cc2 included (the CC3D blinkies; the glider has it without `entersTurtles`). */
   leavesTurtlesAfloat?: boolean;
   /** Tile the monster leaves on the plain, itemless floor cell it steps out of (the CC3D omni leaves slime). */
   trailTile?: string;
@@ -1708,7 +1747,7 @@ export interface EntityPlacement {
 export type WinRule = 'exit' | 'targets' | 'receivers';
 
 /** The exit orders a teleporter tile may name (see TileDefinition.teleportExitOrder). */
-export type TeleportExitOrder = 'forward_only' | 'forward_right_left_back';
+export type TeleportExitOrder = 'forward_only' | 'forward_right_left_back' | 'random' | 'cc2_red';
 
 /** The character a level is played with (Epoxy ruleset only); absent on a level means Chip. */
 export type PlayerCharacter = 'chip' | 'melinda';

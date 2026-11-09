@@ -325,6 +325,30 @@ export const PACK_JSON_VERSION_V13_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 14 (see
+ * PACK_JSON_VERSION_V14_IDS): the Chip's Challenge 2 mechanisms that differ from their Epoxy look-alikes (the slime that
+ * dirt and ice blocks clear, the turtle monsters may cross, the wired flame jets, the block barrier floor, the frame
+ * block with four arrows, the Chip's Challenge 2 transmogrifier, the random and Chip's Challenge 2 red teleporters, and
+ * the helmet). An older build would read the tiles as floor or play them with the rules of their look-alikes, so it must
+ * refuse the file.
+ */
+export const PACK_JSON_VERSION_V14 = 14;
+
+/** Ids that only exist from pack format 14; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V14_IDS: ReadonlySet<string> = new Set([
+  'slime_cc2',
+  'turtle_cc2',
+  'flame_jet_cc2_off',
+  'flame_jet_cc2_on',
+  'block_barrier_floor',
+  'arrow_block_cross',
+  'transmogrifier_cc2',
+  'teleport_random',
+  'teleport_red_cc2',
+  'helmet'
+]);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -335,14 +359,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V10, ids: PACK_JSON_VERSION_V10_IDS },
   { version: PACK_JSON_VERSION_V11, ids: PACK_JSON_VERSION_V11_IDS },
   { version: PACK_JSON_VERSION_V12, ids: PACK_JSON_VERSION_V12_IDS },
-  { version: PACK_JSON_VERSION_V13, ids: PACK_JSON_VERSION_V13_IDS }
+  { version: PACK_JSON_VERSION_V13, ids: PACK_JSON_VERSION_V13_IDS },
+  { version: PACK_JSON_VERSION_V14, ids: PACK_JSON_VERSION_V14_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 13.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 14.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V13;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V14;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

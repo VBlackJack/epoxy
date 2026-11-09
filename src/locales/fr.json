@@ -5002,6 +5002,60 @@
         "label": "S'enchaîne uniquement avec les autres téléporteurs tournants, et fait sortir le joueur, un bloc ou un monstre du précédent dans l'ordre de lecture : tout droit, sinon à droite, sinon à gauche, sinon en arrière. Nécessite : un autre téléporteur tournant."
       }
     },
+    "slime_cc2": {
+      "name": "Slime (les blocs le nettoient)",
+      "desc": {
+        "label": "Tue le joueur et la plupart des monstres. Un bloc de terre ou un bloc de glace le nettoie et survit ; tout autre bloc est détruit en nettoyant le slime."
+      }
+    },
+    "turtle_cc2": {
+      "name": "Tortue (les monstres la traversent)",
+      "desc": {
+        "label": "Le joueur, les blocs et les monstres peuvent s'y poser, sauf les boules de feu et les fantômes. Elle coule dans l'eau derrière ce qui la quitte ; un planeur la laisse à flot."
+      }
+    },
+    "flame_jet_cc2_off": {
+      "name": "Jet de flammes à signal, CC2 (éteint)",
+      "desc": {
+        "label": "S'allume à chaque changement du signal câblé dessus. Le bouton orange n'y touche pas. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "flame_jet_cc2_on": {
+      "name": "Jet de flammes à signal, CC2 (allumé)",
+      "desc": {
+        "label": "Brûle le joueur sans bottes de feu, et tout monstre non ignifugé tant qu'il s'y trouve ; les monstres peuvent quand même y entrer. Il s'éteint à chaque changement du signal câblé dessus. Le bouton orange n'y touche pas. Nécessite : un lien de signal vers lui."
+      }
+    },
+    "block_barrier_floor": {
+      "name": "Sol barrière à blocs",
+      "desc": {
+        "label": "Le joueur et les monstres le traversent, mais aucun bloc ne peut y entrer. Il ne change jamais."
+      }
+    },
+    "transmogrifier_cc2": {
+      "name": "Transmogrificateur (CC2)",
+      "desc": {
+        "label": "Échange un monstre ou un bloc qui arrive dessus selon la table de Chip's Challenge 2 : scarabée en planeur, planeur en paramécie, paramécie en boule de feu, boule de feu en scarabée ; balle rose et marcheur ; traqueur et dents timides ; bloc de terre et bloc de glace. Un blob devient un monstre tiré au hasard parmi planeur, paramécie, boule de feu, scarabée, marcheur, balle rose, traqueur, tank et dents timides (le même tirage à chaque rejeu). Tout le reste, objets compris, passe sans changement."
+      }
+    },
+    "teleport_random": {
+      "name": "Téléporteur aléatoire",
+      "desc": {
+        "label": "Ne se relie qu'aux autres téléporteurs aléatoires, et envoie le joueur, un bloc ou un monstre hors de l'un des autres, tiré au hasard (le même tirage à chaque rejeu). Nécessite : un autre téléporteur aléatoire."
+      }
+    },
+    "teleport_red_cc2": {
+      "name": "Téléporteur rouge (CC2)",
+      "desc": {
+        "label": "Ne se relie qu'aux autres téléporteurs rouges CC2, et envoie le joueur, un bloc ou un monstre hors de l'un d'eux selon l'ordre de sortie de Chip's Challenge 2. Nécessite : un autre téléporteur rouge CC2."
+      }
+    },
+    "helmet": {
+      "name": "Casque",
+      "desc": {
+        "label": "Tant que le joueur le porte, le contact d'un monstre ou d'un bloc ne fait aucun mal au joueur."
+      }
+    },
     "teleport_yellow": {
       "name": "Téléporteur Jaune",
       "desc": {
@@ -5620,6 +5674,12 @@
       "name": "Bloc fléché (trois sens)",
       "desc": {
         "label": "Un bloc poussable qui ne bouge que vers les trois côtés marqués d'une flèche. Poussé par le quatrième côté, il reste immobile. Une poussée entraîne aussi les blocs de terre, de glace et fléchés alignés devant lui : un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
+      }
+    },
+    "arrow_block_cross": {
+      "name": "Bloc à Flèches (Quatre Sens)",
+      "desc": {
+        "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
     "arrow_block_none": {

@@ -293,6 +293,11 @@ item theme=cyber_neon id=no_sign_railroad_sign 03b06ab631233185
 item theme=arctic_lab id=no_sign_railroad_sign 50ebf9b17c895b7f
 item theme=magma_core id=no_sign_railroad_sign 6328a6550bab4b77
 item theme=lynx_lcd id=no_sign_railroad_sign bbd2df05342e223f
+item theme=default id=helmet 59ba04b73dbc5994
+item theme=cyber_neon id=helmet ff85340865bbf5ec
+item theme=arctic_lab id=helmet 4a8e0a7dd2ba35a8
+item theme=magma_core id=helmet ad91e4b2d1d99fef
+item theme=lynx_lcd id=helmet 062633f1b0eeadfb
 label theme=default text=10 15b0080dbd9a4fa8
 label theme=cyber_neon text=10 68afb3b3076d2abc
 label theme=arctic_lab text=10 1dc98bf0e0d05135

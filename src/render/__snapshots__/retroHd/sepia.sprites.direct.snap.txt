@@ -57,6 +57,7 @@ item dynamite tick=3 f4b6a3d8d2e34348
 item dynamite_lit tick=3 55d281ff24f0087f
 item no_sign_dynamite tick=3 36842570d6615776
 item no_sign_railroad_sign tick=3 8024b2c76ab3e148
+item helmet tick=3 e1a7eaad22acf3a2
 entity dirt_block dir=N tick=3 9b4c4f6422d6e3b3
 entity dirt_block dir=E tick=3 01d96662f132d228
 entity dirt_block dir=S tick=3 831a93d652e9d48d
@@ -77,6 +78,10 @@ entity arrow_block_tee dir=N tick=3 97f8b4ca435690bb
 entity arrow_block_tee dir=E tick=3 98b903199739725c
 entity arrow_block_tee dir=S tick=3 b83d0a67dab86fe8
 entity arrow_block_tee dir=W tick=3 a34121d1f2716659
+entity arrow_block_cross dir=N tick=3 0de8b720ff1ff312
+entity arrow_block_cross dir=E tick=3 5aaf9154e65930e5
+entity arrow_block_cross dir=S tick=3 38d509c5c3e76fa6
+entity arrow_block_cross dir=W tick=3 6d100058ed715a61
 entity ice_block dir=N tick=3 c668a5bb298d6e50
 entity ice_block dir=E tick=3 6dd44579d5181155
 entity ice_block dir=S tick=3 93cca405b2bf485f
@@ -340,6 +345,7 @@ item dynamite tick=13 709d5d6061ed4b06
 item dynamite_lit tick=13 48b26fe56241e018
 item no_sign_dynamite tick=13 e2f626d75baa8441
 item no_sign_railroad_sign tick=13 7d802b61a0bedbc3
+item helmet tick=13 98d20cd6988cfc55
 entity dirt_block dir=N tick=13 79e803c262e8805d
 entity dirt_block dir=E tick=13 e3c5548ae87a4e96
 entity dirt_block dir=S tick=13 d0e68e64c343cda1
@@ -360,6 +366,10 @@ entity arrow_block_tee dir=N tick=13 691776eb50b75958
 entity arrow_block_tee dir=E tick=13 b725ab2c745a7bb9
 entity arrow_block_tee dir=S tick=13 2a1e20f2b6d2ac3d
 entity arrow_block_tee dir=W tick=13 b2b09fb7941766fb
+entity arrow_block_cross dir=N tick=13 24080dd9b0466c6f
+entity arrow_block_cross dir=E tick=13 4550678ae7a4e410
+entity arrow_block_cross dir=S tick=13 930c0c6dd662c586
+entity arrow_block_cross dir=W tick=13 f1be1f217bb5c48f
 entity ice_block dir=N tick=13 bccf5e346eb517e8
 entity ice_block dir=E tick=13 07b0cb2f2f546747
 entity ice_block dir=S tick=13 ed011f0973881df5

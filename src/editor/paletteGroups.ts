@@ -77,6 +77,8 @@ export function tileMechanismGroup(tile: TileDefinition): MechanismGroupId | nul
   if (tile.togglesTo || tile.flameTogglesTo || tile.wireTogglesTo || tile.swivelTurns || tile.transmogrifies || tile.facingTurn !== undefined) return 'toggles';
   if (tile.signalSource || tile.signalGate) return 'toggles';
   if (tile.id === BLOCK_TARGET_TILE_ID) return 'blocks';
+  // A floor that players and monsters cross but no block may enter (the block barrier floor) sits with the blocks.
+  if (tile.passableByPlayer === true && tile.passableByMonster === true && tile.passableByBlock === false) return 'blocks';
   return null;
 }
 

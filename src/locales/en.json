@@ -5002,6 +5002,60 @@
         "label": "Chains only with other turning teleporters, and sends the player, a block or a monster out of the previous one in reading order: straight ahead, else to the right, else to the left, else back. Needs: another turning teleporter."
       }
     },
+    "slime_cc2": {
+      "name": "Slime (Blocks Clear It)",
+      "desc": {
+        "label": "Kills the player and most monsters. A dirt block or an ice block clears it and survives; any other block is destroyed as it cleans the slime."
+      }
+    },
+    "turtle_cc2": {
+      "name": "Turtle (Monsters May Cross)",
+      "desc": {
+        "label": "The player, blocks and monsters may step on it, except fireballs and ghosts. It sinks into water behind whatever leaves it; a glider leaves it afloat."
+      }
+    },
+    "flame_jet_cc2_off": {
+      "name": "Signal Flame Jet, CC2 (Off)",
+      "desc": {
+        "label": "Lights each time the signal wired into it changes. The orange button does not touch it. Needs: a signal link into it."
+      }
+    },
+    "flame_jet_cc2_on": {
+      "name": "Signal Flame Jet, CC2 (On)",
+      "desc": {
+        "label": "Burns the player unless they wear fire boots, and any monster that is not fire-proof while it stands in it; monsters may still walk in. It goes out each time the signal wired into it changes. The orange button does not touch it. Needs: a signal link into it."
+      }
+    },
+    "block_barrier_floor": {
+      "name": "Block Barrier Floor",
+      "desc": {
+        "label": "The player and monsters walk over it, but no block may enter it. It never changes."
+      }
+    },
+    "transmogrifier_cc2": {
+      "name": "Transmogrifier (CC2)",
+      "desc": {
+        "label": "Swaps a monster or a block that arrives on it by the Chip's Challenge 2 table: bug into glider, glider into paramecium, paramecium into fireball, fireball into bug; pink ball and walker; teeth and timid teeth; dirt block and ice block. A blob becomes a monster drawn by chance from glider, paramecium, fireball, bug, walker, pink ball, teeth, tank and timid teeth (the same draw at every replay). Anything else, items included, passes unchanged."
+      }
+    },
+    "teleport_random": {
+      "name": "Random Teleporter",
+      "desc": {
+        "label": "Chains only with other random teleporters, and sends the player, a block or a monster out of one of the others, picked by chance (the same pick at every replay). Needs: another random teleporter."
+      }
+    },
+    "teleport_red_cc2": {
+      "name": "Red Teleporter (CC2)",
+      "desc": {
+        "label": "Chains only with other CC2 red teleporters, and sends the player, a block or a monster out of one of them by the Chip's Challenge 2 exit order. Needs: another CC2 red teleporter."
+      }
+    },
+    "helmet": {
+      "name": "Helmet",
+      "desc": {
+        "label": "While the player holds it, touching a monster or a block does the player no harm."
+      }
+    },
     "teleport_yellow": {
       "name": "Yellow Teleporter",
       "desc": {
@@ -5620,6 +5674,12 @@
       "name": "Arrow Block (three ways)",
       "desc": {
         "label": "A pushable block that moves only toward the three sides that show an arrow. Pushed from the fourth side, it stays still. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
+      }
+    },
+    "arrow_block_cross": {
+      "name": "Arrow Block (Four Ways)",
+      "desc": {
+        "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
     "arrow_block_none": {

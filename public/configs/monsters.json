@@ -10,7 +10,8 @@
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
-      "destroyedByBomb": true
+      "destroyedByBomb": true,
+      "transmogrifiesToCc2": "ice_block"
     },
     "arrow_block_one": {
       "id": "arrow_block_one",
@@ -18,7 +19,7 @@
       "kind": "block",
       "i18nKey": "entities.arrow_block_one.name",
       "pushable": true,
-      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
@@ -32,7 +33,7 @@
       "kind": "block",
       "i18nKey": "entities.arrow_block_line.name",
       "pushable": true,
-      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
@@ -46,7 +47,7 @@
       "kind": "block",
       "i18nKey": "entities.arrow_block_corner.name",
       "pushable": true,
-      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
@@ -60,7 +61,7 @@
       "kind": "block",
       "i18nKey": "entities.arrow_block_tee.name",
       "pushable": true,
-      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
@@ -68,20 +69,35 @@
       "destroyedByBomb": true,
       "pushArrows": ["FORWARD", "LEFT", "RIGHT"]
     },
+    "arrow_block_cross": {
+      "id": "arrow_block_cross",
+      "category": "mechanisms",
+      "kind": "block",
+      "i18nKey": "entities.arrow_block_cross.name",
+      "pushable": true,
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
+      "slidesOnIce": true,
+      "slidesOnForce": true,
+      "waterTransformsTo": "dirt",
+      "destroyedByFire": false,
+      "destroyedByBomb": true,
+      "pushArrows": ["FORWARD", "LEFT", "RIGHT", "BACK"]
+    },
     "ice_block": {
       "id": "ice_block",
       "category": "mechanisms",
       "kind": "block",
       "i18nKey": "entities.ice_block.name",
       "pushable": true,
-      "chainPushes": ["ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "ice",
       "meltsInFireTo": "water",
       "shotEffect": "melt",
       "destroyedByFire": true,
-      "destroyedByBomb": true
+      "destroyedByBomb": true,
+      "transmogrifiesToCc2": "dirt_block"
     },
     "mirror_slash": {
       "id": "mirror_slash",
@@ -250,7 +266,8 @@
       "immuneToFire": false,
       "avoidsFire": true,
       "transmogrifiesTo": "paramecium",
-      "blockedByCanopy": true
+      "blockedByCanopy": true,
+      "transmogrifiesToCc2": "glider"
     },
     "paramecium": {
       "id": "paramecium",
@@ -263,7 +280,8 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
-      "transmogrifiesTo": "bug"
+      "transmogrifiesTo": "bug",
+      "transmogrifiesToCc2": "fireball"
     },
     "pink_ball": {
       "id": "pink_ball",
@@ -276,7 +294,8 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
-      "transmogrifiesTo": "walker"
+      "transmogrifiesTo": "walker",
+      "transmogrifiesToCc2": "walker"
     },
     "walker": {
       "id": "walker",
@@ -289,7 +308,8 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
-      "transmogrifiesTo": "pink_ball"
+      "transmogrifiesTo": "pink_ball",
+      "transmogrifiesToCc2": "pink_ball"
     },
     "teeth": {
       "id": "teeth",
@@ -303,7 +323,8 @@
       "immuneToFire": false,
       "avoidsFire": false,
       "fleesCharacters": ["melinda"],
-      "transmogrifiesTo": "skitter"
+      "transmogrifiesTo": "skitter",
+      "transmogrifiesToCc2": "timid_teeth"
     },
     "glider": {
       "id": "glider",
@@ -317,7 +338,9 @@
       "immuneToFire": false,
       "avoidsFire": false,
       "flying": true,
-      "transmogrifiesTo": "fireball"
+      "transmogrifiesTo": "fireball",
+      "transmogrifiesToCc2": "paramecium",
+      "leavesTurtlesAfloat": true
     },
     "fireball": {
       "id": "fireball",
@@ -331,7 +354,8 @@
       "immuneToFire": true,
       "avoidsFire": false,
       "flying": true,
-      "transmogrifiesTo": "glider"
+      "transmogrifiesTo": "glider",
+      "transmogrifiesToCc2": "bug"
     },
     "tank": {
       "id": "tank",
@@ -359,7 +383,8 @@
       "avoidsFire": false,
       "blockedBetweenCanopies": true,
       "immuneToSlime": true,
-      "trailTile": "slime"
+      "trailTile": "slime",
+      "transmogrifiesToCc2Pool": ["glider", "paramecium", "fireball", "bug", "walker", "pink_ball", "teeth", "tank", "timid_teeth"]
     },
     "color_block_red": {
       "id": "color_block_red",
@@ -515,7 +540,8 @@
       "immuneToFire": false,
       "avoidsFire": false,
       "fleesCharacters": ["chip"],
-      "epoxyOnly": true
+      "epoxyOnly": true,
+      "transmogrifiesToCc2": "teeth"
     },
     "ghost": {
       "id": "ghost",
@@ -529,7 +555,7 @@
       "immuneToFire": true,
       "avoidsFire": false,
       "passesSolidTiles": true,
-      "blockedByTiles": ["steel_wall", "clone_machine", "turtle"],
+      "blockedByTiles": ["steel_wall", "clone_machine", "turtle", "turtle_cc2"],
       "blockedByHazards": ["water"],
       "ignoresCellEdges": true,
       "ignoresFloorEffects": true,
@@ -563,7 +589,7 @@
       "kind": "block",
       "i18nKey": "entities.arrow_block_none.name",
       "pushable": true,
-      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee"],
+      "chainPushes": ["dirt_block", "ice_block", "arrow_block_one", "arrow_block_line", "arrow_block_corner", "arrow_block_tee", "arrow_block_cross"],
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",

@@ -53,7 +53,11 @@ function livePadsOf(w: EpoxyWorld, group: string, isPad: (tile: TileDefinition) 
 /** Quarter turns clockwise from the way a mover was facing, in the order each named exit order tries them. */
 const EXIT_TURNS: Readonly<Record<TeleportExitOrder, readonly number[]>> = {
   forward_only: [0],
-  forward_right_left_back: [0, 1, 3, 2]
+  forward_right_left_back: [0, 1, 3, 2],
+  // Format 14 scaffold: the pad choice of these two orders is engine work of a later batch; until then they only read the
+  // exit sides like forward_right_left_back.
+  random: [0, 1, 3, 2],
+  cc2_red: [0, 1, 3, 2]
 };
 
 /**
