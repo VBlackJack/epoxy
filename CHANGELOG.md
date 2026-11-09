@@ -16,6 +16,7 @@ versions follow Semantic Versioning.
 ### Fixed
 
 - Importing a CC2 folder no longer glues every [CLUE] block of a level into one huge hint: each hint tile shows its own block (the n-th block on the n-th hint tile, row by row), and tiles without one show the CLUE text. Levels imported before keep their glued hint until imported again.
+- Levels imported from CC2 may drop the boots that protect the player's cell (fire boots on fire), as CC2 allows, so CC2 level 199 can be left; native levels keep the refusal. The CC2 replay check plays the drop key.
 - The player no longer ends inside a toggle wall closed by the block it just pushed (the push still happens, the step is refused); mirror players stop at a player who holds the helmet.
 
 ## [2.27.0] - 2026-11-09

@@ -542,8 +542,9 @@ export class GameEngine {
       AudioManager.playSfx('blocked');
       return false;
     }
-    // The boots that keep the player safe on this very cell stay on their feet.
-    if (ConfigRegistry.getTile(this.w.terrain[y][x]).protectedByItem === itemId) {
+    // The boots that keep the player safe on this very cell stay on their feet. A level imported from CC2 plays
+    // by the CC2 rule, which allows the drop: the hazard only acts on arrival, so the player stays alive.
+    if (this.w.level.cc2 === undefined && ConfigRegistry.getTile(this.w.terrain[y][x]).protectedByItem === itemId) {
       this.w.statusBannerKey = 'hud.messages.drop_protected';
       AudioManager.playSfx('blocked');
       return false;

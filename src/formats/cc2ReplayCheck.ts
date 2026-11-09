@@ -52,7 +52,11 @@ import {
  * best 4. A buffered tap (a press made during the move cooldown kept until it can move) and a start offset of 1 to 4
  * ticks did not win more.
  *
- * Not played: drop, switch player and cycle inventory (reported in `ignoredKeyBits`), a second player.
+ * Drop is played on the Epoxy engine with the `held` strategy, on each press of the key: it puts down the oldest pair of boots held (CC2 drops
+ * the first tool of the toolbelt; Epoxy keeps its boots in the order they were picked up, and a toolbelt of CC2 holds
+ * nothing else, so the keys are never dropped). The Lynx based engines have no drop.
+ *
+ * Not played: switch player and cycle inventory (reported in `ignoredKeyBits`, drop included: the `steps` strategy and the Lynx based engines do not play it), a second player.
  */
 
 /** The engine that plays the replay. */
@@ -210,6 +214,12 @@ class BlockTracker {
   }
 }
 
+/** Puts down the oldest pair of boots held, the tool CC2 drops first; a Set keeps the order the boots were picked up in. */
+function dropOldestBoots(engine: PlayEngine): void {
+  const oldest = engine.getPlayer().boots.values().next();
+  if (!oldest.done) engine.dropItem(oldest.value);
+}
+
 /** Strategy `held`: offer the held keys to the engine at every tick. */
 function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
   const lynx = engineKind === 'lynx' || engineKind === 'cc2' ? (engine as LynxEngine) : null;
@@ -221,8 +231,13 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
   const down = new Map<Cc2Direction, number>();
   const tracker = new BlockTracker();
   let moves = 0;
+  let dropWasDown = false;
   for (let tick = 0; tick < total; tick++) {
-    const held = heldDirections(tick < keys.length ? keys[tick] : 0);
+    const tickKeys = tick < keys.length ? keys[tick] : 0;
+    const held = heldDirections(tickKeys);
+    const dropIsDown = (tickKeys & CC2_REPLAY_ACTION_BITS.drop) !== 0;
+    if (!lynx && dropIsDown && !dropWasDown) dropOldestBoots(engine);
+    dropWasDown = dropIsDown;
     for (const dir of DIRECTIONS) if (!held.includes(dir)) down.delete(dir);
     for (const dir of held) if (!down.has(dir)) down.set(dir, tick);
     // Most recent press first; the older key is the fallback when the newer one is blocked.
