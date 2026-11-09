@@ -245,7 +245,7 @@ const PROVISIONAL_NAMES: ReadonlyMap<number, { name: string; confidence: Cc2Name
 const EPOXY_MAPPINGS: ReadonlyMap<number, { epoxyId: string; note?: string }> = new Map([
   [CC2_CODE_CLONER_CC1, { epoxyId: 'clone_machine', note: 'the actor on top of the cell is the template' }],
   [CC2_CODE_GREEN_WALL_SOLID, { epoxyId: 'wall' }],
-  [CC2_CODE_GREEN_WALL_FAKE, { epoxyId: 'blue_wall_fake' }]
+  [CC2_CODE_GREEN_WALL_FAKE, { epoxyId: 'block_barrier_floor' }]
 ]);
 
 /** Codes decoded with a known size and an unknown meaning. */

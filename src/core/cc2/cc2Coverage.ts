@@ -53,6 +53,10 @@ export const KEY_WIRED_TRACK_UNLINKED = 'wired_track_unlinked';
 export const KEY_CANOPY = 'canopy';
 /** A code the importer's table does not know; it stands for the cc2_unknown placeholder. */
 export const KEY_UNKNOWN = 'unknown';
+/** Two orange buttons (or an orange button and a wire) reach one flame jet: Epoxy ORs the sources. */
+export const KEY_BUTTON_ORANGE_SHARED = 'button_orange_shared';
+/** A helmet under a no-sign: the sign has no helmet form, so the import falls back to the ward. */
+export const KEY_HELMET_NO_SIGN = 'helmet_no_sign';
 
 const EXACT_REASON = 'Epoxy plays this element as CC2 does.';
 const WIRE_REASON =
@@ -126,7 +130,8 @@ const EXACT_KEYS: readonly string[] = [
   'green_chip', 'green_bomb', 'hiking_boots', 'gender_sign_male', 'gender_sign_female', 'melinda_player', 'bribe', 'railroad_sign',
   'purple_wall', 'purple_floor', 'toggle_switch', 'black_button', 'nand_gate',
   'wire_tunnel', 'secret_eye', 'speed_boots', 'steel_foil', 'no_sign_key', 'no_sign_boots', 'no_sign_item',
-  'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE
+  'wired_trap', KEY_WIRED_TRACK, 'green_wall', KEY_CANOPY, 'popup_wall', KEY_WIRE,
+  'flame_jet', 'button_orange', 'turtle', 'helmet', 'green_wall_fake', 'teleport_green'
 ];
 
 /**
@@ -148,6 +153,12 @@ const MIRROR_REASON =
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
+  flame_jet: 'Epoxy plays the CC2 flame jet as its own jet (flame_jet_cc2_on/off): a lit jet burns whoever stands in it and what walks in, fire boots protect, and monsters may enter. An unwired jet changes state only by an orange button, which the import links to the jet CC2 connects it to.',
+  button_orange: 'Epoxy plays the orange button as a pressure plate linked at import to the flame jet the diamond search of the Lexy Labyrinth engine finds around it: the jet toggles when the button is pressed and again when it is released, as CC2 does. A jet reached by several sources is reported under button_orange_shared.',
+  turtle: 'Epoxy plays the turtle (turtle_cc2) as a lily pad on water that monsters may enter, as in CC2: it bars the fireball and the ghost, and turns to water behind whoever leaves it, a glider excepted. Only the dynamite-on-a-turtle quirk of CC2 is not modelled, and a level with dynamite is approximate on its own.',
+  helmet: 'Epoxy plays the helmet as an item that shields its holder from the contact of monsters and blocks, as the invulnerable trait does in the Lexy Labyrinth engine; it does not protect from a bowling ball, as there. Turning the helmet into another item on a CC2 transmogrifier is reported under transmogrifier.',
+  green_wall_fake: 'Epoxy plays the fake green wall (popdown floor) as the block barrier floor: the player and the monsters walk over it and every block is barred, as the popdown_floor tile does in the Lexy Labyrinth engine.',
+  teleport_green: 'Epoxy plays the CC2 green teleport as the random pad (teleport_random): the destination is drawn among the other green pads from a seeded generator, so a replay is deterministic. The draw is random in CC2 too; the generator is not the CC2 one, which only matters to a recorded CC2 solution.',
   button_green: GREEN_BUTTON_REASON,
   steel_wall: STEEL_WALL_REASON,
   extra_chip: EXTRA_CHIP_REASON,
@@ -190,16 +201,10 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
     'Epoxy plays the CC2 gray button as a button that works, within its 5 x 5 square and wire or no wire, the green toggle walls and the purple tiles (flipped), the force floors that point one way (turned round), the swivel doors (a quarter turn), the flame jets and the rail switches (flipped or moved on), and the launchers and clone machines (fired once), as gray_button in the Lexy Labyrinth engine does. Known differences: it also pulses a wired trap, which CC2 leaves alone; it does not work the turntables, which Epoxy does not have; and the order in which the devices of the square are worked is the Epoxy one (the signal network first, then row by row), where CC2 goes column by column [unverified for the cases where the order matters].',
   // Epoxy: flame_jet_wired_off, flame_jet_wired_on.
   wired_flame_jet: 'Epoxy flips a wired flame jet on both edges of its signal; that CC2 flips it on both edges is [unverified].',
-  // Epoxy: button_orange.
-  button_orange: 'Epoxy plays the orange button as its flame button; the CC2 button acts on the flame jets around it, where Epoxy toggles them all [unverified].',
-  // Epoxy: flame_jet_on, flame_jet_off.
-  flame_jet: 'Epoxy flame jets follow the Epoxy orange button, which toggles every jet where the CC2 one is local [unverified].',
   // Epoxy: force_cycle.
   force_floor_random: 'Epoxy plays the CC2 random force floor as the turning force floor, one shared clockwise counter as in the Lexy Labyrinth engine (true randomness is a Microsoft-ruleset switch there). Two differences an author can see: the Epoxy sequence starts east where CC2 starts north, and Epoxy advances the counter on every arrival, including actors that ignore force floors (suction boots, forceproof), which do not advance it in CC2.',
   // Epoxy: hurl_stone.
   bowling_ball: 'Epoxy plays the bowling ball as a hurl stone: it flies the same way but its range and what it breaks differ [unverified].',
-  // Epoxy: ward.
-  helmet: 'Epoxy plays the helmet as a ward, which absorbs the first monster contact; the CC2 helmet protects against other things too [unverified]. The reserved id cc2_helmet stays available for a stricter import.',
   // Epoxy: dynamite and dynamite_lit.
   dynamite: DYNAMITE_REASON,
   // Epoxy: boots_pull.
@@ -208,19 +213,16 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: floor.
   letter: 'The glyph is lost; the cell plays as floor.',
   // Epoxy: transmogrifier.
-  transmogrifier: 'Epoxy swaps monsters of its own pairs, and a powered CC2 transmogrifier follows its wire where the Epoxy one is always on [unverified].',
-  // Epoxy: teleport_red, teleport_yellow, teleport_green.
-  teleport_red: TELEPORT_REASON,
+  transmogrifier: 'Epoxy plays the transmogrifier as transmogrifier_cc2, which swaps actors by the CC2 pairs (the blob draws from the CC2 pool with a seeded generator). Known differences: a CC2 blue tank turns into a yellow tank, and Epoxy has a single tank; items (a helmet into an X-ray eye, boots into others) and glass or sokoban blocks are not swapped; a wired transmogrifier is not switched by its wire (see wired_transmogrifier) [unverified for the pair table beyond the Lexy Labyrinth engine].',
+  // Epoxy: teleport_red_cc2 (red), teleport_forward (yellow); the green pad is exact (teleport_random).
+  teleport_red: `Epoxy plays the CC2 red pad as teleport_red_cc2, with its own exit order (a placeholder order until the CC2 one is checked, [unverified]). Deferred: the wire that switches a red pad off (see wired_teleport) and the player override of the red pad, so a player entering a red pad leaves as the Epoxy rule says, not as CC2 does.`,
   // Epoxy: teleport_forward (exit forward only, the pad is never its own destination).
   teleport_yellow: YELLOW_TELEPORT_REASON,
-  teleport_green: 'The CC2 green teleport picks a random destination, where the Epoxy one is deterministic [unverified].',
   // Epoxy: teleport_blue plus a relay pad for the wire.
   teleport_blue_wired: `${TELEPORT_REASON} A wired teleport also follows its wire, which the Epoxy relay pad only approximates.`,
   // Epoxy: slime.
   slime:
-    'Slime kills every monster but the ghost and the blob, as in the Lexy Labyrinth engine; the Epoxy blob is not hurt by it and, once it has stood on slime, turns each plain, itemless floor cell it leaves into slime. Known differences: CC2 slimes the floor a blob steps onto only while the cell it came from is slime, so the chain stops as soon as the blob steps on anything else, where the Epoxy blob keeps spreading; the boulder (which also spreads slime in CC2) is not modelled; and a dirt or ice block pushed onto slime clears it and survives in CC2, where Epoxy consumes the block (the CC3D rule, shared on purpose).',
-  // Epoxy: turtle.
-  turtle: 'Turtle behaviour is close to the Epoxy equivalent, not identical [unverified].',
+    'Epoxy plays CC2 slime as slime_cc2: it kills every monster but the ghost and the blob, a dirt or ice block pushed onto it clears it and survives, as in the Lexy Labyrinth engine. The Epoxy blob is not hurt by it and, once it has stood on slime, turns each plain, itemless floor cell it leaves into slime. Known differences: CC2 slimes the floor a blob steps onto only while the cell it came from is slime, so the chain stops as soon as the blob steps on anything else, where the Epoxy blob keeps spreading; the boulder (which also spreads slime in CC2) is not modelled.',
   // Epoxy: rail_* pieces and rail_switch_a/b.
   track: TRACK_REASON,
   track_junction: TRACK_REASON,
@@ -241,8 +243,6 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   [KEY_WIRED_TRANSMOGRIFIER]: 'A wire reaches a transmogrifier. A powered CC2 transmogrifier switches on and off with its wire; the Epoxy one is always on.',
   // Epoxy: rail_junction, a switch no link reaches.
   [KEY_WIRED_TRACK_UNLINKED]: 'A wire touches a track switch but no supported source drives it (dangling, or fed only by gates Epoxy does not play): the Epoxy switch still moves when an actor leaves along the active track, where CC2 makes a wired switch wire-only.',
-  // Epoxy: blue_wall_fake.
-  green_wall_fake: 'Epoxy plays the fake green wall as a fake blue wall [unverified].',
   // Epoxy: ghost.
   ghost:
     'Epoxy plays the ghost as a monster that walks through walls, doors, sockets and thin walls but not steel walls, clone machines or water, turning forward, left, right, back, and that ice, force floors, rails, traps, bombs, fire and pop-up walls do not affect. It picks up the keys (the red one excepted) and the tools it walks over, as the CC2 ghost does, and leaves chips, bonuses and the red key where they lie; it presses the buttons it crosses. Known differences: it keeps no inventory, so the boots it took do nothing for it (flippers do not let it cross water, which CC2 allows) and a taken item is simply gone; a clone machine stops the Epoxy ghost (deliberate, to keep clone templates well defined), where it passes in CC2. It does not transmogrify: the Epoxy teeth pair with the skitter, so timid teeth have no partner.',
@@ -252,8 +252,12 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: rover.
   rover:
     'Epoxy plays the rover as a monster that follows teeth, glider, bug, ball, timid teeth, fireball, paramecium and walker in turn, moving on after 32 step decisions. Known differences: Epoxy counts one decision per step and one per tick while the rover is blocked, where CC2 decides every tic it is not moving; the rover pushes one block at a time (no chain) and, as in CC2, enters exits, sockets once no chip is missing, dirt (packing it down), gravel and the keys thief, walks over every item and takes the keys (the red one excepted) and the tools. Remaining differences: it keeps no inventory (a taken item is simply gone and does nothing for it); CC2 also lets it onto clone machines, which Epoxy still bars to it, and onto pop-up walls (reported under their own key); it enters the thief_keys tile only, and a CC2 thief_tools tile imports as the shared thief id, which it cannot enter; the rover also takes bonus items in CC2 (only the ghost refuses them), where Epoxy leaves them on the floor. Fake walls bar the rover in CC2 as they do here.',
-  // Epoxy: dirt_block.
-  arrow_block_cross: 'A directional block with four arrows is played as a dirt block, which any push moves but which cannot push other blocks along as the CC2 directional block does.'
+  // Epoxy: arrow_block_cross.
+  arrow_block_cross: 'Epoxy plays the four-arrow directional block as arrow_block_cross, which any push moves. Known difference: the sliding push (a four-arrow block or a block sliding on ice or a force floor pushing the blocks in its way along) is deferred [unverified].',
+  // Epoxy: button_orange, a jet reached by several sources.
+  [KEY_BUTTON_ORANGE_SHARED]: 'Two orange buttons, or an orange button and a wire, reach the same flame jet. CC2 toggles the jet once per event of each source; Epoxy ORs the sources into one signal and flips the jet on its edges, so overlapping presses merge (known approximation).',
+  // Epoxy: ward, the item a helmet falls back to under a no-sign.
+  [KEY_HELMET_NO_SIGN]: 'A no-sign over a helmet has no Epoxy sign for the helmet: the import places the ward under its sign, which absorbs the first monster contact where the helmet protects for good [unverified].',
 };
 
 const LOST_ENTRIES: Readonly<Record<string, string>> = {

@@ -143,7 +143,7 @@ describe('terrain, items and entities', () => {
   it('maps approximate elements to Epoxy ids and says so', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x46 }), put(2, 0, { code: 0x10 }), put(3, 0, { code: 0x68 }, { code: FLOOR_CODE })]);
     expect(level.terrain[0][1]).toBe('force_cycle');
-    expect(level.terrain[0][2]).toBe('teleport_red');
+    expect(level.terrain[0][2]).toBe('teleport_red_cc2');
     expect(level.items[0][3]).toBe('hurl_stone');
     expect(coverage.verdict).toBe('approx');
     expect(coverage.approx).toEqual(['bowling_ball', 'force_floor_random', 'teleport_red']);
@@ -480,11 +480,11 @@ describe('directional blocks', () => {
     expect(block(N | E | S)).toEqual({ x: 1, y: 0, type: 'arrow_block_tee', dir: 'E' });
   });
 
-  it('plays four arrows as a dirt block, with a warning and an approximate key', () => {
-    expect(block(N | E | S | W).type).toBe('dirt_block');
+  it('plays four arrows as the cross block, with an approximate key', () => {
+    expect(block(N | E | S | W).type).toBe('arrow_block_cross');
     const { coverage, report } = convert([put(1, 0, { code: DIRECTIONAL_BLOCK, dir: DIR_S, arrows: N | E | S | W }, { code: FLOOR_CODE })]);
     expect(coverage).toEqual({ verdict: 'approx', lost: [], approx: ['arrow_block_cross'] });
-    expect(report.warnings.some((w) => w.includes('four arrows'))).toBe(true);
+    expect(report.warnings).toEqual([]);
   });
 
   it('plays a block with no arrow as the locked arrow block, exactly', () => {
@@ -494,10 +494,10 @@ describe('directional blocks', () => {
     expect(report.warnings).toEqual([]);
   });
 
-  it('plays the solid green wall exactly and the fake one approximately', () => {
+  it('plays the solid green wall and the popdown floor exactly', () => {
     const { level, coverage } = convert([put(1, 0, { code: 0x7d }), put(2, 0, { code: 0x7e })]);
-    expect(level.terrain[0].slice(1, 3)).toEqual(['wall', 'blue_wall_fake']);
-    expect(coverage.approx).toEqual(['green_wall_fake']);
+    expect(level.terrain[0].slice(1, 3)).toEqual(['wall', 'block_barrier_floor']);
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
   it('keeps arrow blocks exact in coverage', () => {
@@ -548,7 +548,7 @@ describe('cloners and links', () => {
     ]);
     const { level, coverage, report } = convertCc2Map(map, OPTIONS);
     expect(level.terrain[1][0]).toBe('trap_wired');
-    expect(level.terrain[1][2]).toBe('flame_jet_wired_off');
+    expect(level.terrain[1][2]).toBe('flame_jet_cc2_off');
     expect(level.signalLinks).toEqual([
       { fromX: 1, fromY: 0, toX: 0, toY: 1 },
       { fromX: 1, fromY: 0, toX: 2, toY: 1 }
@@ -558,18 +558,18 @@ describe('cloners and links', () => {
     expect(report.exact).toEqual(expect.arrayContaining(['wire', 'wired_trap']));
   });
 
-  it('keeps an unwired trap and flame jet plain, and a lit wired jet as the wired on form', () => {
+  it('keeps an unwired trap plain and plays flame jets as the CC2 jets, wired or not', () => {
     const plain = convert([put(1, 0, { code: TRAP }), put(2, 0, { code: 0x60 })]);
     expect(plain.level.terrain[0][1]).toBe('trap');
-    expect(plain.level.terrain[0][2]).toBe('flame_jet_on');
-    expect(plain.coverage.approx).toEqual(['flame_jet']);
+    expect(plain.level.terrain[0][2]).toBe('flame_jet_cc2_on');
+    expect(plain.coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
     const map = makeMap(4, 3, [
       player(0, 2),
       put(1, 0, modTile(PINK, 0x4)),
       put(1, 1, modTile(FLOOR_CODE, 0x1 | 0x2)),
       put(2, 1, { code: 0x60 })
     ]);
-    expect(convertCc2Map(map, OPTIONS).level.terrain[1][2]).toBe('flame_jet_wired_on');
+    expect(convertCc2Map(map, OPTIONS).level.terrain[1][2]).toBe('flame_jet_cc2_on');
   });
 
   it('maps the purple tiles, the switches and the gray button to their Epoxy ids', () => {
