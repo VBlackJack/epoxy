@@ -370,6 +370,16 @@ export const PACK_JSON_VERSION_V15_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 16 (see
+ * PACK_JSON_VERSION_V16_IDS): the CC2 orange button that any actor holds down, and the CC3D dirt block. An older build
+ * would play them as the signal plate and the plain dirt block, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V16 = 16;
+
+/** Ids that only exist from pack format 16; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V16_IDS: ReadonlySet<string> = new Set(['button_orange_cc2', 'dirt_block_3d']);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -382,14 +392,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V12, ids: PACK_JSON_VERSION_V12_IDS },
   { version: PACK_JSON_VERSION_V13, ids: PACK_JSON_VERSION_V13_IDS },
   { version: PACK_JSON_VERSION_V14, ids: PACK_JSON_VERSION_V14_IDS },
-  { version: PACK_JSON_VERSION_V15, ids: PACK_JSON_VERSION_V15_IDS }
+  { version: PACK_JSON_VERSION_V15, ids: PACK_JSON_VERSION_V15_IDS },
+  { version: PACK_JSON_VERSION_V16, ids: PACK_JSON_VERSION_V16_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 15.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 16.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V15;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V16;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

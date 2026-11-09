@@ -57,7 +57,7 @@ item dynamite tick=3 f885260f4ac1f9b5
 item dynamite_lit tick=3 4294ac722e558613
 item no_sign_dynamite tick=3 76dccff023e6e65a
 item no_sign_railroad_sign tick=3 18433569051bb890
-item helmet tick=3 03d563f4ff68ae9d
+item helmet tick=3 e3d1f5c383365b13
 entity dirt_block dir=N tick=3 a6aba5a7e1369d4a
 entity dirt_block dir=E tick=3 5af23939fd9c4f2a
 entity dirt_block dir=S tick=3 9011901af080d9e4
@@ -290,6 +290,10 @@ entity ice_block_3d dir=N tick=3 415e05f5dfe065f0
 entity ice_block_3d dir=E tick=3 f31e19fd4f79f21c
 entity ice_block_3d dir=S tick=3 10ea1389ee2362d2
 entity ice_block_3d dir=W tick=3 764fe3583f625f28
+entity dirt_block_3d dir=N tick=3 7c9b35868f7a64f6
+entity dirt_block_3d dir=E tick=3 a5d56ecc0d7a9e2b
+entity dirt_block_3d dir=S tick=3 1a7b90b94a547916
+entity dirt_block_3d dir=W tick=3 cc43ab2038662314
 item key_red tick=13 46b7f1fa3f3e8adb
 item key_blue tick=13 56f472ffae95d0f8
 item key_yellow tick=13 7688e128bff98c6f
@@ -349,7 +353,7 @@ item dynamite tick=13 ab1ac3b9fe3bb2d4
 item dynamite_lit tick=13 de50639177481808
 item no_sign_dynamite tick=13 069a92c1610bc39d
 item no_sign_railroad_sign tick=13 43a9da9bd792dafc
-item helmet tick=13 d1faa60b18b9c583
+item helmet tick=13 c1f1809e43260fa1
 entity dirt_block dir=N tick=13 10c539ebb6753881
 entity dirt_block dir=E tick=13 d9cc1df2bd2840a7
 entity dirt_block dir=S tick=13 74ab0df5a60a0ac9
@@ -582,6 +586,10 @@ entity ice_block_3d dir=N tick=13 3b9675f94a8eceb0
 entity ice_block_3d dir=E tick=13 8c1d47ae3a7b1859
 entity ice_block_3d dir=S tick=13 65bd1909b8e70dfc
 entity ice_block_3d dir=W tick=13 53def4d0ee7ac0da
+entity dirt_block_3d dir=N tick=13 20220b4a2a6098af
+entity dirt_block_3d dir=E tick=13 e69c40621edcb4fc
+entity dirt_block_3d dir=S tick=13 b3e7bc7d46c326e1
+entity dirt_block_3d dir=W tick=13 799e52d77dee2edf
 player dir=N inWater=false alive=true frame=0 hop=0 15e42441a6916ea4
 player dir=N inWater=false alive=true frame=0 hop=0.3 828043425ac0de71
 player dir=N inWater=false alive=true frame=1 hop=0 df9e7eab2f7b0b94

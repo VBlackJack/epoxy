@@ -35,6 +35,8 @@ export interface RunewardPaintEnv {
   readonly reducedMotion: boolean;
   /** Per-renderer cache a painter may fill lazily (sprites, gradients); created on first use. */
   readonly cache: Map<string, unknown>;
+  /** True in play on a level imported from Chip's Challenge 2 or 3D: the look-alike badges are left out. */
+  readonly hideLookAlikeMarks?: boolean;
   /** Colours and timings of the painters (game.json runewardArt). */
   readonly art: Readonly<RunewardArtConfig>;
 }

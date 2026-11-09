@@ -1635,6 +1635,18 @@
       "passableByBlock": true,
       "signalSource": "held"
     },
+    "button_orange_cc2": {
+      "id": "button_orange_cc2",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.button_orange_cc2.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "signalSource": "held",
+      "pressedByAnyActor": true
+    },
     "signal_button": {
       "id": "signal_button",
       "category": "mechanisms",
@@ -2800,6 +2812,7 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "poweredTwin": "teleport_red_cc2",
+      "teleportsToSelf": true,
       "colorKey": "red"
     },
     "transmogrifier_cc2_off": {

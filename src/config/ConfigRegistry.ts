@@ -46,6 +46,7 @@ import {
   findFishGateAndExitErrors,
   findFormat14ConfigErrors,
   findFormat15ConfigErrors,
+  findFormat16ConfigErrors,
   findRelayPadConfigErrors,
   findWiredDeviceConfigErrors,
   findPullBootsConfigErrors,
@@ -452,6 +453,10 @@ class ConfigRegistryService {
     }
     if (format15Errors.monsters.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, format15Errors.monsters.join('; '));
+    }
+    const format16Errors = findFormat16ConfigErrors(bundle.tiles.tiles);
+    if (format16Errors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, format16Errors.join('; '));
     }
     const relayErrors = findRelayPadConfigErrors(bundle.tiles.tiles);
     if (relayErrors.length > 0) {

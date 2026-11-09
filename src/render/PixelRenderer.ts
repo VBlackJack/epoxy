@@ -68,6 +68,7 @@ import {
   CC2_ITEM_VARIANTS,
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
+  drawsMark,
   paintCc2Mark,
   paletteMarkColours,
   type MarkPalette
@@ -589,6 +590,7 @@ const FLOATING_BLOCK_COLORS: Readonly<Record<string, string>> = Object.fromEntri
 
 const BLOCK_TYPES:ReadonlySet<string> = new Set([
   'dirt_block',
+  'dirt_block_3d',
   'ice_block',
   'ice_block_3d',
   ...CHANNEL_PAINTER_COLORS.map((c) => `color_block_${c}`)
@@ -902,6 +904,8 @@ export class PixelRenderer {
   private skinActive = false;
   /** Hidden walls are marked in the scene being drawn (the player holds boots that reveal them); false outside renderViewport. */
   private frameRevealsHiddenWalls = false;
+  /** The scene being drawn is a level imported from Chip's Challenge 2 or 3D; false outside renderViewport. */
+  private frameImportedLevel = false;
   /** Look of the player character; the default is the stock player. */
   private playerSkin: PlayerSkinId = DEFAULT_PLAYER_SKIN;
   /** The character of the level being drawn; the icon and the editor draw Chip. */
@@ -1015,7 +1019,7 @@ export class PixelRenderer {
   /** What a Runeward painter may use besides its arguments; the cache is created on first use. */
   private runewardEnv(art: RunewardArtConfig, signalPowered: boolean = false, signalCount?: number): RunewardPaintEnv {
     this.runewardCache ??= new Map<string, unknown>();
-    return { timeTick: this.timeTick, signalPowered, ...(signalCount === undefined ? {} : { signalCount }), reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
+    return { timeTick: this.timeTick, signalPowered, ...(signalCount === undefined ? {} : { signalCount }), ...(this.inFrame && this.frameImportedLevel ? { hideLookAlikeMarks: true } : {}), reducedMotion: this.reducedMotion, cache: this.runewardCache, art };
   }
 
   /** Colours of the Runeward painters, or null when the config lacks them or holds an unusable one. */
@@ -1346,11 +1350,13 @@ export class PixelRenderer {
     this.skinActive =
       this.skinEnabled && engine.getLevel().winRule === 'targets' && (this.skinLoader?.ready ?? false);
     this.frameRevealsHiddenWalls = bootsRevealHiddenWalls(engine.getPlayer().boots);
+    this.frameImportedLevel = engine.getLevel().cc2 !== undefined || engine.getLevel().cc3d !== undefined;
     try {
       this.renderScene(ctx, engine);
     } finally {
       this.skinActive = false;
       this.frameRevealsHiddenWalls = false;
+      this.frameImportedLevel = false;
       this.inFrame = false;
       this.frameSprite = undefined;
       this.frameTilePx = Number.POSITIVE_INFINITY;
@@ -2106,7 +2112,7 @@ export class PixelRenderer {
     const signalKey =
       (this.poweredSignalCells === undefined ? '' : [...this.poweredSignalCells].sort((a, b) => a - b).join(',')) + (counterKey === '' ? '' : `|${counterKey}`);
     const skinKey = this.skinActive ? `skin${this.skinLoader?.version ?? 0}` : '';
-    const revealKey = this.frameRevealsHiddenWalls ? REVEAL_KEY : '';
+    const revealKey = (this.frameRevealsHiddenWalls ? REVEAL_KEY : '') + (this.frameImportedLevel ? 'imp' : '');
     const cacheKey = `${this.style}|${this.getSpriteStyle()?.spec.id ?? ''}|${this.themeId}|${tilePixelSize}|${skinKey}|${revealKey}`;
     const region = this.cacheRegion;
     const covered =
@@ -2519,7 +2525,7 @@ export class PixelRenderer {
     const terrainVariant = cc2VariantOf(CC2_TERRAIN_VARIANTS, tileId);
     if (terrainVariant) {
       this.drawTile(ctx, terrainVariant.base, x, y, size, isEditor, isClosedTrap, pass, neighbours);
-      if (pass !== 'animated') {
+      if (pass !== 'animated' && drawsMark(terrainVariant.mark, { isEditor: isEditor || !this.inFrame, importedLevel: this.frameImportedLevel })) {
         paintCc2Mark(ctx, terrainVariant.mark, x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, terrainVariant.mark));
       }
       return;
@@ -5702,7 +5708,9 @@ export class PixelRenderer {
     const itemVariant = cc2VariantOf(CC2_ITEM_VARIANTS, itemId);
     if (itemVariant) {
       this.drawItem(ctx, itemVariant.base, x, y, size);
-      paintCc2Mark(ctx, itemVariant.mark, x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, itemVariant.mark));
+      if (drawsMark(itemVariant.mark, { isEditor: !this.inFrame, importedLevel: this.frameImportedLevel })) {
+        paintCc2Mark(ctx, itemVariant.mark, x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, itemVariant.mark));
+      }
       return;
     }
     if (isCc3dId(itemId)) {

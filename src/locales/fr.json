@@ -5111,7 +5111,7 @@
     "teleport_red_cc2_off": {
       "name": "Téléporteur rouge (CC2, éteint)",
       "desc": {
-        "label": "La forme hors tension du téléporteur rouge CC2 : ce n'est pas un téléporteur, rien n'y est envoyé et rien n'en sort. Nécessite : un lien de signal vers lui."
+        "label": "La forme hors tension du téléporteur rouge CC2 : ce n'est pas une destination, et ce qui marche dessus est renvoyé tout droit dans la direction où il regardait, comme s'il s'était téléporté sur lui-même. Nécessite : un lien de signal vers lui."
       }
     },
     "transmogrifier_cc2_off": {
@@ -5232,6 +5232,12 @@
       "name": "Plaque de signal",
       "desc": {
         "label": "Envoie un signal tant que quelque chose se tient dessus. Nécessite : un lien de signal vers une porte logique ou une porte à plaque."
+      }
+    },
+    "button_orange_cc2": {
+      "name": "Bouton orange (CC2)",
+      "desc": {
+        "label": "Un bouton qui reste enfoncé tant que quelque chose se trouve dessus : un joueur, un monstre, un bloc, y compris en glissant ou en volant. Nécessite : un lien de signal vers une porte logique ou une porte à maintien."
       }
     },
     "signal_button": {
@@ -5744,6 +5750,12 @@
       "name": "Bloc à Flèches (Quatre Sens)",
       "desc": {
         "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
+      }
+    },
+    "dirt_block_3d": {
+      "name": "Bloc de terre (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force. Poussé dans l'eau, il la change en terre CC3D, qu'un second bloc ne peut plus combler. Il n'entre pas dans le feu et ne se pousse pas sur un objet. Une bombe le détruit."
       }
     },
     "ice_block_3d": {

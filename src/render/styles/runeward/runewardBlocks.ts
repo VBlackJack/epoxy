@@ -173,6 +173,21 @@ export function paintDirtBlock(ctx: CanvasRenderingContext2D, size: number, art:
   ctx.restore();
 }
 
+/** Radius, in tiles, of the dot that tells a CC3D block from the plain one. */
+const BLOCK_3D_DOT_RADIUS = 0.07;
+
+/** The CC3D dirt block: the dirt block with a dark dot at the centre of its top face. */
+export function paintDirtBlock3d(ctx: CanvasRenderingContext2D, size: number, art: Art): void {
+  paintDirtBlock(ctx, size, art);
+  const centre = blockFaceCentre(size);
+  ctx.save();
+  ctx.fillStyle = art.block.dirt.dark;
+  ctx.beginPath();
+  ctx.arc(centre.x, centre.y, size * BLOCK_3D_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // ---- Ice: a frost edge ------------------------------------------------------------------------
 
 const FROST = {
@@ -211,9 +226,6 @@ export function paintIceBlock(ctx: CanvasRenderingContext2D, size: number, art: 
   ctx.restore();
 }
 
-/** Radius, in tiles, of the dot that tells the CC3D ice block from the plain one. */
-const ICE_3D_DOT_RADIUS = 0.07;
-
 /** The CC3D ice block: the ice block with a dark dot at the centre of its top face. */
 export function paintIceBlock3d(ctx: CanvasRenderingContext2D, size: number, art: Art): void {
   paintIceBlock(ctx, size, art);
@@ -221,7 +233,7 @@ export function paintIceBlock3d(ctx: CanvasRenderingContext2D, size: number, art
   ctx.save();
   ctx.fillStyle = art.block.ice.edge;
   ctx.beginPath();
-  ctx.arc(centre.x, centre.y, size * ICE_3D_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.arc(centre.x, centre.y, size * BLOCK_3D_DOT_RADIUS, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -515,6 +527,7 @@ const drawOneSidedMirror: BlockDrawing = (ctx, size, art, _dir, id) => {
 /** Painters by entity type; an id moves here from PENDING when its painter lands. */
 export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = Object.fromEntries([
   ['dirt_block', entityPainter((ctx, size, art) => paintDirtBlock(ctx, size, art), 'dirt_block')],
+  ['dirt_block_3d', entityPainter((ctx, size, art) => paintDirtBlock3d(ctx, size, art), 'dirt_block_3d')],
   ['ice_block', entityPainter((ctx, size, art) => paintIceBlock(ctx, size, art), 'ice_block')],
   ['ice_block_3d', entityPainter((ctx, size, art) => paintIceBlock3d(ctx, size, art), 'ice_block_3d')],
   ...COLOUR_BLOCK_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawColourBlock, id)]),
