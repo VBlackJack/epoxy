@@ -122,6 +122,12 @@ describe('ConfigRegistry.compileBlueprint', () => {
     }
   });
 
+  it('copies the cc rules flavor and ignores any other value', () => {
+    expect(ConfigRegistry.compileBlueprint(blueprint({ rulesFlavor: 'cc' })).rulesFlavor).toBe('cc');
+    expect('rulesFlavor' in ConfigRegistry.compileBlueprint(blueprint({ rulesFlavor: 'epoxy' as never }))).toBe(false);
+    expect('rulesFlavor' in ConfigRegistry.compileBlueprint(blueprint())).toBe(false);
+  });
+
   it('gives procedural and custom packs a translation key', () => {
     ConfigRegistry.setProceduralLevels([ConfigRegistry.compileBlueprint(blueprint())]);
     const procedural = ConfigRegistry.getAllPacks().find((p) => p.levels.length === 1);

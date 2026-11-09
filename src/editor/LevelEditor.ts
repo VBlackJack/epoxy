@@ -3409,6 +3409,8 @@ export class LevelEditor {
     return metadataForDocument(doc, next);
   }
 
+  // rulesFlavor is deliberately not compared: no metadata form field edits it, so the form's next metadata always
+  // carries the document's own value (see metadataForDocument).
   private sameMetadata(a: EditorMetadata, b: EditorMetadata): boolean {
     return (
       a.title === b.title &&

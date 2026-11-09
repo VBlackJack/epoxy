@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { sanitizeStoredLevels } from '../../config/ConfigValidation';
 import { documentFromLevel, levelFromDocument } from '../../editor/editorLevelIo';
-import { cloneDocument, snapshotDocument } from '../../editor/editorDocument';
+import { cloneDocument, sameDocument, snapshotDocument } from '../../editor/editorDocument';
 import { convertCc2Map } from '../../formats/cc2ToEpoxy';
 import { makeMap, player } from '../../formats/cc2TestMaps';
 import { parsePackJson, serializePack } from '../../packs/packJson';
@@ -38,8 +38,8 @@ const CC2_RECORD: Cc2LevelData = {
   file: 'one.c2m',
   order: 1,
   gridHash: 'x',
-  coverage: { verdict: 'exact', keys: [] }
-} as unknown as Cc2LevelData;
+  coverage: { verdict: 'exact', lost: [], approx: [] }
+} as Cc2LevelData;
 
 function bounds() {
   return ConfigRegistry.getLevelSizeBounds();
@@ -97,6 +97,13 @@ describe('persistence', () => {
       expect(result.levels).toHaveLength(1);
       expect(result.levels[0].rulesFlavor).toBeUndefined();
     }
+  });
+
+  it('tells two documents apart by rulesFlavor', () => {
+    const plain = documentFromLevel(makeLevel('same'), { title: 'T', hint: '' });
+    const flavored = documentFromLevel({ ...makeLevel('same'), rulesFlavor: 'cc' } as CompiledLevel, { title: 'T', hint: '' });
+    expect(sameDocument(plain, flavored)).toBe(false);
+    expect(sameDocument(flavored, cloneDocument(flavored))).toBe(true);
   });
 
   it('is kept by the editor document through load, clone, snapshot and save', () => {
