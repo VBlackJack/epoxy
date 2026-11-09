@@ -2733,6 +2733,7 @@
       "transformsToOnStep": "floor",
       "bootsForCharacter": { "melinda": "hiking_boots" },
       "blockClearsTo": "floor",
+      "barsBlocks": ["mirror_slash", "mirror_backslash", "one_sided_mirror_ne", "one_sided_mirror_nw", "one_sided_mirror_se", "one_sided_mirror_sw", "turret_fixed", "turret_cw", "turret_ccw", "turret_multi"],
       "keptBy": ["ice_block", "ice_block_3d"]
     },
     "popup_wall_cc2": {
@@ -2746,7 +2747,8 @@
       "passableByBlock": true,
       "barsBlocks": ["dirt_block"],
       "admitsMonsters": ["rover", "ghost"],
-      "transformsToOnLeave": "wall"
+      "transformsToOnLeave": "wall",
+      "heldWhileOccupied": true
     },
     "trap_open": {
       "id": "trap_open",
@@ -2758,7 +2760,9 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "isTrap": true,
-      "closesTo": "trap"
+      "wiredTrap": true,
+      "closesTo": "trap",
+      "closesToWired": "trap_wired"
     },
     "appearing_wall_any": {
       "id": "appearing_wall_any",
@@ -2783,6 +2787,7 @@
       "hazard": "slime",
       "blockTransformsTo": "floor",
       "sparedByBoots": ["boots_fire", "boots_water"],
+      "barsBlocks": ["mirror_slash", "mirror_backslash", "one_sided_mirror_ne", "one_sided_mirror_nw", "one_sided_mirror_se", "one_sided_mirror_sw", "turret_fixed", "turret_cw", "turret_ccw", "turret_multi"],
       "laserTransparent": true
     },
     "teleport_red_cc2_off": {

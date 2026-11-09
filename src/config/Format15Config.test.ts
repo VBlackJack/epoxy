@@ -23,7 +23,13 @@ import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
 import { makeLevel } from '../test/packFixtures';
 import { EPOXY_ONLY_REASON_KEY, tileAvailability } from '../editor/paletteAvailability';
+import { usesPoweredTwinSinkFormat } from '../core/signalLinks';
 import { isEpoxyOnlyEntityType, isEpoxyOnlyTileId } from '../core/RulesetFeatures';
+
+const MIRROR_AND_TURRET_BLOCKS = [
+  'mirror_slash', 'mirror_backslash', 'one_sided_mirror_ne', 'one_sided_mirror_nw', 'one_sided_mirror_se', 'one_sided_mirror_sw',
+  'turret_fixed', 'turret_cw', 'turret_ccw', 'turret_multi'
+];
 
 const NEW_IDS = [
   'dirt_3d',
@@ -86,11 +92,34 @@ describe('format 15 ids', () => {
   });
 
   it('marks the powered twins and the CC3D ice block Epoxy-only', () => {
-    for (const id of ['teleport_red_cc2', 'teleport_red_cc2_off', 'transmogrifier_cc2', 'transmogrifier_cc2_off']) {
+    for (const id of ['teleport_red_cc2_off', 'transmogrifier_cc2_off', 'transmogrifier_cc2']) {
       expect(isEpoxyOnlyTileId(id), id).toBe(true);
       expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
     }
     expect(isEpoxyOnlyEntityType('ice_block_3d')).toBe(true);
+  });
+
+  it('leaves the existing CC2 red teleporter as it was: allowed under Lynx', () => {
+    expect(isEpoxyOnlyTileId('teleport_red_cc2')).toBe(false);
+    expect(tileAvailability('lynx', 'teleport_red_cc2')).toEqual({ available: true });
+  });
+
+  it('writes a level with a signal link ending on a powered device in format 15, and only then', () => {
+    const level = makeLevel('wire');
+    level.terrain[1][1] = 'teleport_red_cc2';
+    level.terrain[1][2] = 'signal_plate';
+    level.signalLinks = [{ fromX: 2, fromY: 1, toX: 1, toY: 1 }];
+    expect(usesPoweredTwinSinkFormat(level)).toBe(true);
+    expect(JSON.parse(serializePack('P', [level])).version).toBe(PACK_JSON_VERSION_V15);
+    for (const id of ['teleport_red_cc2_off', 'transmogrifier_cc2', 'transmogrifier_cc2_off']) {
+      level.terrain[1][1] = id;
+      expect(usesPoweredTwinSinkFormat(level), id).toBe(true);
+    }
+    level.terrain[1][1] = 'wall';
+    expect(usesPoweredTwinSinkFormat(level)).toBe(false);
+    level.terrain[1][1] = 'teleport_red_cc2';
+    level.signalLinks = undefined;
+    expect(usesPoweredTwinSinkFormat(level)).toBe(false);
   });
 });
 
@@ -107,6 +136,8 @@ describe('shipped format 15 fields', () => {
       blockClearsTo: 'floor',
       keptBy: ['ice_block', 'ice_block_3d']
     });
+    expect(tiles.dirt_3d.barsBlocks).toEqual(MIRROR_AND_TURRET_BLOCKS);
+    expect(tiles.dirt_3d.barsBlocks).not.toContain('arrow_block_one');
   });
 
   it('describes the pop-up wall: no dirt block, only rovers and ghosts, a wall behind the leaver', () => {
@@ -117,16 +148,19 @@ describe('shipped format 15 fields', () => {
       passableByBlock: true,
       barsBlocks: ['dirt_block'],
       admitsMonsters: ['rover', 'ghost'],
-      transformsToOnLeave: 'wall'
+      transformsToOnLeave: 'wall',
+      heldWhileOccupied: true
     });
   });
 
   it('describes the open trap, the any-actor appearing wall and the CC3D slime', () => {
     const { tiles } = clones();
-    expect(tiles.trap_open).toMatchObject({ isTrap: true, closesTo: 'trap' });
+    expect(tiles.trap_open).toMatchObject({ isTrap: true, wiredTrap: true, closesTo: 'trap', closesToWired: 'trap_wired' });
+    expect(tiles.turtle_cc2.heldWhileOccupied).toBeUndefined();
     expect(tiles.appearing_wall_any).toMatchObject({ revealsToOnTouch: 'wall', revealedByAny: true });
     expect(tiles.appearing_wall_any.passableByBlock).toBe(false);
     expect(tiles.slime_3d).toMatchObject({ hazard: 'slime', blockTransformsTo: 'floor', sparedByBoots: ['boots_fire', 'boots_water'] });
+    expect(tiles.slime_3d.barsBlocks).toEqual(MIRROR_AND_TURRET_BLOCKS);
   });
 
   it('links each powered device to its off form, which is neither a teleporter nor a transmogrifier', () => {
@@ -145,9 +179,11 @@ describe('shipped format 15 fields', () => {
     const expected = [
       'dirt_block', 'ice_block', 'ice_block_3d',
       'color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow',
-      'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross'
+      'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross',
+      ...MIRROR_AND_TURRET_BLOCKS
     ];
     expect(entities.ice_block_3d.chainPushes).toEqual(expected);
+    expect(entities.ice_block_3d.chainPushesTransitive).toBe(true);
     expect(entities.ice_block_3d.slidesOverTiles).toEqual(['thief', 'thief_keys']);
     expect(entities.ice_block_3d.epoxyOnly).toBe(true);
   });
@@ -162,7 +198,7 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ blockClearsTo: 'nowhere' })).toEqual(['dirt_3d.blockClearsTo: "nowhere" is not the id of an existing terrain']);
     expect(errors({ keptBy: undefined })).toEqual(['dirt_3d.blockClearsTo: needs a keptBy list']);
     expect(errors({ keptBy: ['bug'] })).toEqual(['dirt_3d.keptBy: "bug" is not the id of an existing block']);
-    expect(errors({ passableByBlock: false })).toEqual(['dirt_3d.blockClearsTo: only a tile blocks may enter clears for them']);
+    expect(errors({ passableByBlock: false })).toEqual(['dirt_3d.blockClearsTo: only a tile blocks may enter clears for them', 'dirt_3d.barsBlocks: only a tile blocks may enter bars some of them']);
     expect(findFormat15ConfigErrors({ ...tiles, floor: { ...tiles.floor, keptBy: ['ice_block'] } }, entities).tiles).toEqual([
       'floor.keptBy: needs a blockClearsTo terrain'
     ]);
@@ -228,5 +264,33 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ slidesOverTiles: ['nowhere'] })).toEqual(['ice_block_3d.slidesOverTiles: "nowhere" is not the id of an existing tile']);
     expect(errors({ slidesOverTiles: [] })).toEqual(['ice_block_3d.slidesOverTiles: expected a non-empty list of tile ids']);
     expect(errors({ kind: 'monster' })).toEqual(['ice_block_3d.slidesOverTiles: only a block slides over tiles']);
+  });
+});
+
+describe('findFormat15ConfigErrors: settled semantics', () => {
+  beforeEach(() => loadTestConfigs());
+
+  it('refuses heldWhileOccupied without transformsToOnLeave, or not true', () => {
+    const { tiles, entities } = clones();
+    expect(findFormat15ConfigErrors({ ...tiles, floor: { ...tiles.floor, heldWhileOccupied: true } }, entities).tiles).toEqual([
+      'floor.heldWhileOccupied: needs a transformsToOnLeave terrain'
+    ]);
+    const falsy = { ...tiles.popup_wall_cc2, heldWhileOccupied: false } as unknown as typeof tiles.popup_wall_cc2;
+    expect(findFormat15ConfigErrors({ ...tiles, popup_wall_cc2: falsy }, entities).tiles).toEqual(['popup_wall_cc2.heldWhileOccupied: expected true']);
+  });
+
+  it('refuses closesToWired without closesTo, without wiredTrap or naming a tile that is no wired trap', () => {
+    const { tiles, entities } = clones();
+    const errors = (patch: Record<string, unknown>) => findFormat15ConfigErrors({ ...tiles, trap_open: { ...tiles.trap_open, ...patch } }, entities).tiles;
+    expect(errors({ closesToWired: 'trap' })).toEqual(['trap_open.closesToWired: "trap" is not the id of an existing wired trap that stays closed']);
+    expect(errors({ wiredTrap: undefined })).toEqual(['trap_open.closesToWired: only a trap a wire may end on closes into a wired trap']);
+    expect(errors({ closesTo: undefined })).toEqual(['trap_open.closesToWired: needs a closesTo trap']);
+  });
+
+  it('refuses chainPushesTransitive without a chainPushes list, or not true', () => {
+    const { tiles, entities } = clones();
+    const errors = (patch: Record<string, unknown>) => findFormat15ConfigErrors(tiles, { ...entities, ice_block_3d: { ...entities.ice_block_3d, ...patch } }).monsters;
+    expect(errors({ chainPushes: undefined })).toEqual(['ice_block_3d.chainPushesTransitive: needs a chainPushes list']);
+    expect(errors({ chainPushesTransitive: false })).toEqual(['ice_block_3d.chainPushesTransitive: expected true']);
   });
 });

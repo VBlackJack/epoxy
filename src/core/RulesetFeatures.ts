@@ -278,9 +278,14 @@ export function isContactShieldTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).shieldsFromContact === true;
 }
 
-/** True when the tile is one form of a CC2 powered device (the on and off forms name each other, format 15). */
+/**
+ * True when the tile is the unpowered ("off") form of a CC2 powered device (format 15): it names a twin and is neither a
+ * teleporter nor a transmogrifier. The powered forms (teleport_red_cc2, transmogrifier_cc2) keep their own rules.
+ */
 export function isPoweredTwinTileId(id: string | null | undefined): boolean {
-  return !!id && ConfigRegistry.getTile(id).poweredTwin !== undefined;
+  if (!id) return false;
+  const tile = ConfigRegistry.getTile(id);
+  return tile.poweredTwin !== undefined && tile.isTeleporter !== true && tile.transmogrifies !== true;
 }
 
 /** True when the tile is a blast charge, carried and dropped by the player, or the lit form it turns into. */
@@ -393,7 +398,7 @@ export function isUnimplementedEntityType(type: string): boolean {
 
 /**
  * True when the item only exists under the Epoxy rules: the slow-time boots, the speed boots, the eye boots, the pull
- * boots, the ward, a blast charge, a hurl stone, a toll token, a pocket gate with its pad, a relay pad, a wired device, a reserved id of an unimplemented mechanic, or a rail piece (the pads and the
+ * boots, the ward, a blast charge, a hurl stone, a toll token, a pocket gate with its pad, a relay pad, a wired device, the unpowered form of a powered twin pair (format 15), a reserved id of an unimplemented mechanic, or a rail piece (the pads and the
  * rails are terrain, but a DAT export would write them as a plain teleporter and as floor, so they are refused with the items).
  */
 export function isEpoxyOnlyItemId(id: string | null | undefined): boolean {

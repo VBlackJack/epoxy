@@ -2191,6 +2191,18 @@ export function findFormat15ConfigErrors(
       if (twin === undefined || twin.isTrap !== true) tileErrors.push(`${id}.closesTo: "${String(tile.closesTo)}" is not the id of an existing trap`);
       else if (twin.closesTo !== undefined) tileErrors.push(`${id}.closesTo: "${tile.closesTo}" must be a trap that stays closed`);
     }
+    if (tile.closesToWired !== undefined) {
+      if (tile.closesTo === undefined) tileErrors.push(`${id}.closesToWired: needs a closesTo trap`);
+      if (tile.wiredTrap !== true) tileErrors.push(`${id}.closesToWired: only a trap a wire may end on closes into a wired trap`);
+      const wired = tiles[tile.closesToWired];
+      if (wired === undefined || wired.isTrap !== true || wired.wiredTrap !== true || wired.closesTo !== undefined) {
+        tileErrors.push(`${id}.closesToWired: "${String(tile.closesToWired)}" is not the id of an existing wired trap that stays closed`);
+      }
+    }
+    if (tile.heldWhileOccupied !== undefined) {
+      if (tile.heldWhileOccupied !== true) tileErrors.push(`${id}.heldWhileOccupied: expected true`);
+      if (tile.transformsToOnLeave === undefined) tileErrors.push(`${id}.heldWhileOccupied: needs a transformsToOnLeave terrain`);
+    }
     if (tile.revealedByAny !== undefined) {
       if (tile.revealedByAny !== true) tileErrors.push(`${id}.revealedByAny: expected true`);
       if (tile.revealsToOnTouch === undefined) tileErrors.push(`${id}.revealedByAny: needs a revealsToOnTouch terrain`);
@@ -2210,6 +2222,10 @@ export function findFormat15ConfigErrors(
     }
   }
   for (const entity of Object.values(entities)) {
+    if (entity.chainPushesTransitive !== undefined) {
+      if (entity.chainPushesTransitive !== true) errors.push(`${entity.id}.chainPushesTransitive: expected true`);
+      if (entity.chainPushes === undefined) errors.push(`${entity.id}.chainPushesTransitive: needs a chainPushes list`);
+    }
     if (entity.slidesOverTiles === undefined) continue;
     const { id } = entity;
     if (entity.kind !== 'block') errors.push(`${id}.slidesOverTiles: only a block slides over tiles`);
