@@ -74,8 +74,7 @@ describe('water', () => {
     expectAgree({ rows: room('@KW.'), moves: 'E' }, (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe('dirt');
       expect(pair.rig.entities).toHaveLength(0);
-      // Remaining difference: the water Epoxy fills is the plain dirt tile, not dirt_3d (the comparison reads them as one).
-      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt');
+      expect(pair.epoxy.getTerrain()[1][3]).toBe('dirt_3d');
     });
     expectAgree({ rows: room('@KW.'), moves: 'EE' }, (pair) => {
       expect(pair.rig.terrainAt(3, 1)).toBe(FLOOR);
@@ -410,10 +409,15 @@ describe('gravel', () => {
 
 describe('coverage verdicts that rest on this evidence', () => {
   it('keeps the elements with a pinned difference approximate, and each reason cites this file', () => {
-    for (const key of ['water', 'appearing_wall', 'gravel_with_reflector']) {
+    for (const key of ['appearing_wall', 'gravel_with_reflector']) {
       expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
     }
+  });
+
+  it('plays water as CC3D does now that a dirt block fills it with dirt_3d, its reason citing this file', () => {
+    expect(EPOXY_COVERAGE.water.level).toBe('exact');
+    expect(EPOXY_COVERAGE.water.reason).toContain('cc3dEvidenceTerrain.test.ts');
   });
 
   it('plays dirt, slime and the two security gates as CC3D does (the format 15 twins), each reason citing this file', () => {

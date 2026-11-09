@@ -256,6 +256,8 @@ describe('the omni', () => {
     expect(slimed.sameSequence).toBe(true);
     expect(slimed.cc3d.terrain.length).toBeGreaterThan(1);
     expect(slimed.cc3d.terrain.at(-1)).toContain('slime');
+    // The trail Epoxy leaves is slime_3d, the tile that lets a player with both orbs through.
+    expect(slimed.epoxy.terrain.at(-1)).toContain('slime_3d');
     expect(slimed.cc3d.bodies.length).toBeGreaterThan(4);
   });
 
