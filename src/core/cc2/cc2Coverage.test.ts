@@ -70,10 +70,10 @@ describe('classifyCc2Level', () => {
   });
 
   it('is approximate when the worst element is approximate', () => {
-    expect(classifyCc2Level(['floor', 'teleport_red', 'teleport_green', 'bug', 'bug'])).toEqual({
+    expect(classifyCc2Level(['floor', 'teleport_red', 'slime', 'bug', 'bug'])).toEqual({
       verdict: 'approx',
       lost: [],
-      approx: ['teleport_green', 'teleport_red']
+      approx: ['slime', 'teleport_red']
     });
   });
 

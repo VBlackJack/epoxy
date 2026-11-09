@@ -7,7 +7,7 @@ This page lists the mechanisms added after the Sanctuary archetypes of the [Puzz
 ## 0. Before you start
 
 - **Epoxy rules only.** Every mechanism below is played by the Epoxy engine. A Lynx level cannot hold them (the editor's `Rules` field switches a level between Epoxy and Lynx), and a native CC3D level has its own palette. The CC3D conversion and the CC2 import produce Epoxy-rules levels that use these mechanisms.
-- **Pack format 13.** Levels that use them are written with pack format 13 (`PACK_JSON_VERSION_V13`).
+- **Pack formats 13 and 14.** Levels that use them are written with pack format 13 (`PACK_JSON_VERSION_V13`); the CC2 mechanisms of section 1.14 need pack format 14.
 - **Placing.** Pick the entry in the editor palette (the search field lists every variant by name) and paint it. Entries that come in variants (no-signs, counters, swivel doors, CC2 swivel doors, toggle switch) take one palette entry each: `R` cycles the brush through the family, the entry shows the variant in hand, and the eyedropper picks the variant under the cursor.
 - **Turning.** `R` rotates the brush clockwise (or goes to the next variant). `Shift+R` turns the creature or turret under the cursor, a floating stamp, or, for a track cell, its tracks a quarter turn.
 - **Linking.** `K` starts or ends a link from the device under the cursor. The Connections section of the inspector lists what the device controls and what controls it, and the "How mechanisms work" card sums up how the parts of each mechanism find each other.
@@ -99,6 +99,19 @@ The CC2 import (`.c2m` files, `.c2g` game scripts or a whole folder) maps these 
 - **Playing.** `V` (rebindable in the game config) or the touch button swaps to the next player. The HUD shows the controlled character with its portrait, how many players remain and how many are out, and a ring marks the controlled player. Swaps are announced and replayed; a stored solution can contain a swap (letter `P`).
 - **Import and validator.** Packs store these levels (format 13) in an `extraPlayers` list. The CC2 import places every player (CC2 multi-player levels are approximate instead of lost). The validator floods from every start, reports a player who cannot reach an exit, and warns about two starts on one cell.
 
+### 1.14 CC2 elements added in pack format 14
+
+- **CC2 slime.** Kills every monster but the ghost and the blob. A dirt block or an ice block pushed onto it clears the slime and survives. A blob that stood on slime spreads it. The boulder is not modelled.
+- **CC2 turtle.** A lily pad that monsters may enter. It bars fireballs and ghosts, and turns to water behind whoever leaves it (a glider leaves it afloat).
+- **CC2 flame jet and orange button.** The jet burns whoever stands in it while it is lit; fire boots protect, and monsters may walk in. An orange button toggles the jet it is connected to when it is pressed and again when it is released. The CC2 import places the button as a pressure plate and links it to the jet CC2 would connect (the first jet found by a search in growing diamonds around the button, east first, counterclockwise). Two buttons on one jet, or a button and a wire, are ORed: a known approximation.
+- **Block barrier floor.** The CC2 popdown floor: the player and the monsters walk over it, every block is barred.
+- **Cross arrow block.** The directional block with four arrows. Any push moves it. It does not yet push other blocks along when it slides.
+- **CC2 transmogrifier.** Swaps actors by the CC2 pairs. The blob turns into a random monster of the CC2 pool, drawn from a seeded generator. Known gaps: a blue tank becomes a yellow tank (Epoxy has one tank), items are not swapped, and a wire does not switch it.
+- **Random teleporter.** The green pad: the destination is drawn among the other green pads from a seeded generator, so replays stay deterministic.
+- **CC2 red teleporter.** The red pad with its own exit order. The wire that switches it off and the player override of the red pad are deferred.
+- **Helmet.** An item that shields its holder from the contact of monsters and blocks for as long as it is held. It does not stop a bowling ball.
+- **Placing.** Palette entries. Under a no-sign the helmet imports as the ward, because no sign exists for the helmet.
+
 ## 2. From Chuck's Challenge 3D
 
 The CC3D conversion (the "Convert to Epoxy" button, and `npm run import:cc3d` for whole folders offline) uses these mechanisms instead of look-alikes, and reports the coverage per pack.
@@ -142,7 +155,7 @@ Signal links drive these devices; the validator and the "How mechanisms work" ca
 - **Gray pulse button.** Each time something steps on it, it pulses every wired device within two cells (a 5 x 5 area) with no link from the button: flip tiles flip, launchers and clone machines fire once, hold doors, relay pads and wired traps open for one moment.
 - **Signal bear trap.** Holds whatever steps in; opens while its signal is on or while a brown button is held.
 - **Signal flame jet.** Lights each time its signal changes; the orange button does not touch it.
-- **Placing and linking.** Palette entries. Link each source to its devices with `K` (or the Link button of the Connections section). The CC2 import maps its purple walls and floors, toggle switches, black buttons, gray buttons, and traps and flame jets reached by a wire to these; the wired trap, wired flame jet and gray button are reported as approximate.
+- **Placing and linking.** Palette entries. Link each source to its devices with `K` (or the Link button of the Connections section). The CC2 import maps its purple walls and floors, toggle switches, black buttons, gray buttons and traps reached by a wire to these, and its flame jets (wired or not) to the CC2 flame jets of section 1.14; the wired trap, wired CC2 flame jet and gray button are reported as approximate.
 
 ### 3.2 Several players
 
@@ -172,6 +185,7 @@ Variant families take one entry each: no-signs, counters, swivel doors, CC2 swiv
 | Toggle clock, bribe, lightning bolt | CC2 | Palette |
 | NAND, data latch, counter | CC2 | Palette, Connections rows, Swap ports |
 | Floor mimic, timid teeth, ghost, rover, mirror players | CC2 | Palette, `Shift+R` |
+| CC2 slime, turtle, flame jet and orange button, block barrier floor, cross arrow block, CC2 transmogrifier, random and CC2 red teleporters, helmet | CC2 | Palette, `K` for the orange button |
 | Fish gate, forward and turning teleporters | CC3D | Palette |
 | Bouncer, snappy, nibble, blinky family, limpy, limpa, omni, walker, legs, screamer family | CC3D | Palette, `Shift+R` |
 | Purple wall and floor, toggle switch, black button, gray pulse button, signal trap and flame jet | Epoxy | Palette, `K` |

@@ -17,7 +17,9 @@
 import { DEFAULT_LEVEL_PASSWORD } from '../config/constants';
 import {
   CC2_COVERAGE,
+  KEY_BUTTON_ORANGE_SHARED,
   KEY_CANOPY,
+  KEY_HELMET_NO_SIGN,
   KEY_MULTIPLE_PLAYERS,
   KEY_POPUP_WALL_BLOCKS,
   KEY_TRAP_OPEN,
@@ -40,6 +42,7 @@ import type {
   EntityPlacement,
   ExtraPlayerStart,
   RailTrackCell,
+  SignalLink,
   TrapLink
 } from '../core/types';
 import {
@@ -59,6 +62,7 @@ import { Cc2Layer, cc2Map, cc2Options, cc2Text } from './cc2Model';
 import {
   CC2_CODE_MELINDA,
   DIRT_BLOCK_ID,
+  WARD_ID,
   ENTITY_MAP,
   FLOOR_ID,
   GENDER_SIGN_MAP,
@@ -106,6 +110,7 @@ const DEFAULT_ID_PREFIX = 'cc2';
 const EPOXY_RULESET = 'epoxy';
 const KEY_ARROW_BLOCK = 'arrow_block';
 const KEY_ARROW_BLOCK_CROSS = 'arrow_block_cross';
+const ARROW_BLOCK_CROSS_ID = 'arrow_block_cross';
 const POPUP_WALL_KEY = 'popup_wall';
 /** Coverage keys of the actors a CC2 pop-up wall lets in (ice blocks, arrow blocks, rovers). */
 const POPUP_WALL_ENTERING_KEYS: readonly string[] = ['ice_block', KEY_ARROW_BLOCK, KEY_ARROW_BLOCK_CROSS, 'rover'];
@@ -126,6 +131,10 @@ const CODE_CLONER_CC1 = 0x43;
 const CODE_CLONER = 0x44;
 const CODE_BUTTON_BROWN = 0x3a;
 const CODE_BUTTON_RED = 0x39;
+const CODE_BUTTON_ORANGE = 0x61;
+/** Steps of one side of the diamond search ring: north-west, south-west, south-east, north-east. */
+const DIAMOND_STEPS: readonly (readonly [number, number])[] = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
+const HELMET_ID = 'helmet';
 const CODE_LOGIC_GATE = 0x5c;
 /** The lightning bolt item: while held, the player powers the wire nets of the floor they stand on. */
 const CODE_LIGHTNING_BOLT = 0x62;
@@ -333,15 +342,14 @@ function trackMapping(mod: number | undefined): Cc2TileMapping {
   return { id: RAIL_JUNCTION_TILE_ID, key: isCc2Junction(mod) ? TRACK_JUNCTION_KEY : TRACK_KEY };
 }
 
-/** Arrow-block entity of a directional block. A four-arrow block moves like a dirt block (all pushes allowed). */
-function directionalBlock(tile: Cc2Tile, warnings: string[], where: string): { type: string; dir: Direction; key?: string } {
+/** Arrow-block entity of a directional block. A four-arrow block is the cross block. */
+function directionalBlock(tile: Cc2Tile): { type: string; dir: Direction; key?: string } {
   const arrows = (tile.arrows ?? 0) & WIRE_NIBBLE_MASK;
   const sides = sidesOf(arrows);
   const own = cc2Direction(tile.dir);
   if (sides.length === 0) return { type: LOCKED_ARROW_BLOCK_ID, dir: own };
   if (sides.length === DIRECTION_COUNT) {
-    warnings.push(`directional block with four arrows at ${where} played as a dirt block`);
-    return { type: DIRT_BLOCK_ID, dir: own, key: KEY_ARROW_BLOCK_CROSS };
+    return { type: ARROW_BLOCK_CROSS_ID, dir: own, key: KEY_ARROW_BLOCK_CROSS };
   }
   if (sides.length === 1) return { type: 'arrow_block_one', dir: sides[0] };
   if (sides.length === 3) {
@@ -373,6 +381,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const cloners = new Map<number, { type: string; dir: Direction } | null>();
   const brownButtons: number[] = [];
   const redButtons: number[] = [];
+  const orangeButtons: number[] = [];
+  const flameJets = new Set<number>();
   let chips = 0;
   let hasSocket = false;
   let playerIndex = -1;
@@ -431,6 +441,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         if (code === CODE_CLONER || code === CODE_CLONER_CC1) cloners.set(index, null);
         if (code === CODE_BUTTON_BROWN) brownButtons.push(index);
         if (code === CODE_BUTTON_RED) redButtons.push(index);
+        if (code === CODE_BUTTON_ORANGE) orangeButtons.push(index);
+        if (code === CODE_FLAME_JET_OFF || code === CODE_FLAME_JET_ON) flameJets.add(index);
         if (code >= TELEPORT_FIRST && code <= TELEPORT_LAST && ((tile.mod ?? 0) & WIRE_NIBBLE_MASK) !== 0) {
           wiredDevices = true;
           keys.add(KEY_WIRED_TELEPORT);
@@ -471,6 +483,11 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
 
       // Hidden sign marker.
       if (part.noSign !== undefined && part.noSign.code === CC2_CODE_NO_SIGN) {
+        // No sign tile exists for the helmet: it falls back to the ward, whose sign does.
+        if (itemId === HELMET_ID && !NO_SIGN_ITEM_IDS.includes(HELMET_ID)) {
+          itemId = WARD_ID;
+          keys.add(KEY_HELMET_NO_SIGN);
+        }
         const forbid = itemId !== null && terrainId === FLOOR_ID ? NO_SIGN_FORBID_MAP.get(itemId) : undefined;
         if (forbid !== undefined) {
           // The item is replaced by the forbid tile: it cannot be picked up, and carrying it bars the cell.
@@ -621,6 +638,28 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     });
   }
 
+  // Orange buttons: each one toggles the flame jet CC2 connects it to (a diamond search from the button), on press and on
+  // release. Epoxy links the pressure plate to that jet; a jet reached by another button or a wire has its sources ORed.
+  const signalLinks: SignalLink[] = [...wires.links];
+  const orangeLinkCount = new Map<number, number>();
+  for (const button of orangeButtons) {
+    const jet = findFlameJetByDiamond(button, width, height, flameJets);
+    const bx = button % width;
+    const by = Math.floor(button / width);
+    if (jet === undefined) {
+      warnings.push(`orange button at ${bx},${by} has no flame jet to work`);
+      continue;
+    }
+    signalLinks.push({ fromX: bx, fromY: by, toX: jet % width, toY: Math.floor(jet / width) });
+    orangeLinkCount.set(jet, (orangeLinkCount.get(jet) ?? 0) + 1);
+  }
+  for (const [jet, count] of orangeLinkCount) {
+    if (count > 1 || linkedCells.has(jet)) {
+      keys.add(KEY_BUTTON_ORANGE_SHARED);
+      break;
+    }
+  }
+
   // Wires.
   warnings.push(...wires.warnings);
   for (const node of wires.unsupported) {
@@ -657,7 +696,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   if (edges.length > 0) level.cellEdges = edges;
   if (extraPlayers.length > 0) level.extraPlayers = extraPlayers;
   if (railTracks.length > 0) level.railTracks = railTracks;
-  if (wires.links.length > 0) level.signalLinks = wires.links;
+  if (signalLinks.length > 0) level.signalLinks = signalLinks;
   level.cc2 = {
     v: 1,
     sha256: options.sha256,
@@ -681,6 +720,29 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
       warnings
     }
   };
+}
+
+/**
+ * The flame jet an orange button connects to: the first jet found by the diamond search of Lexy's Labyrinth
+ * (find_terrain_diamond), rings of growing distance around the button, each ring starting east and turning
+ * counterclockwise. Returns the cell index, or undefined when no jet lies within the search radius.
+ */
+function findFlameJetByDiamond(button: number, width: number, height: number, jets: ReadonlySet<number>): number | undefined {
+  const startX = button % width;
+  const startY = Math.floor(button / width);
+  const radius = Math.max(width, height) + 1;
+  for (let dist = 1; dist <= radius; dist++) {
+    let sx = startX + dist;
+    let sy = startY;
+    for (const [dx, dy] of DIAMOND_STEPS) {
+      for (let i = 0; i < dist; i++) {
+        if (sx >= 0 && sx < width && sy >= 0 && sy < height && jets.has(sy * width + sx)) return sy * width + sx;
+        sx += dx;
+        sy += dy;
+      }
+    }
+  }
+  return undefined;
 }
 
 /** The mapping of a terrain tile, with the cases that read the modifier. */
@@ -718,7 +780,7 @@ function actorEntity(
   const code = actor.code;
   const dir = cc2Direction(actor.dir);
   if (code === CC2_CODE_DIRECTIONAL_BLOCK) {
-    const block = directionalBlock(actor, warnings, where);
+    const block = directionalBlock(actor);
     return { ...block, key: block.key ?? KEY_ARROW_BLOCK };
   }
   const mapping = ENTITY_MAP.get(code);

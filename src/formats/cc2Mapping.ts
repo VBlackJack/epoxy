@@ -56,10 +56,13 @@ export const DIRT_BLOCK_ID = 'dirt_block';
 export const UNKNOWN_ID = 'cc2_unknown';
 export const BLUE_WALL_FAKE_ID = 'blue_wall_fake';
 
-/** Wired forms of the devices a wire reaches (the unwired ones keep their plain ids above). */
+/** Wired forms of the devices a wire reaches (a CC2 flame jet is the same tile wired or not; the trap has a wired form). */
 export const WIRED_TRAP: Cc2TileMapping = { id: 'trap_wired', key: 'wired_trap' };
-export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: 'flame_jet_wired_off', key: 'wired_flame_jet' };
-export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: 'flame_jet_wired_on', key: 'wired_flame_jet' };
+export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: 'flame_jet_cc2_off', key: 'wired_flame_jet' };
+export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: 'flame_jet_cc2_on', key: 'wired_flame_jet' };
+
+/** Ward: the item a helmet falls back to under a no-sign, which has no sign tile for the helmet. */
+export const WARD_ID = 'ward';
 
 /** Coverage keys the converter adds itself. */
 export const KEY_TELEPORT_BLUE = 'teleport_blue';
@@ -82,13 +85,15 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x0d, same('force_w', 'force_floor')],
   [0x0e, same('toggle_wall_closed')],
   [0x0f, same('toggle_wall_open')],
-  [0x10, same('teleport_red')],
+  // The CC2 red pad has its own exit order; its wire and player override are deferred (wired_teleport, teleport_red).
+  [0x10, same('teleport_red_cc2', 'teleport_red')],
   [0x11, same('teleport_blue')],
   // The yellow pad exits forward only, like the Epoxy forward pad (shared with CC3D); its pick-up as an item is not modelled.
   [0x12, same('teleport_forward', 'teleport_yellow')],
-  [0x13, same('teleport_green')],
+  // The green pad picks its destination at random, from a seeded generator.
+  [0x13, same('teleport_random', 'teleport_green')],
   [0x14, same('exit')],
-  [0x15, same('slime')],
+  [0x15, same('slime_cc2', 'slime')],
   [0x1e, same('gravel')],
   [0x1f, same('button_green')],
   [0x20, same('button_blue')],
@@ -119,13 +124,14 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x49, same('swivel_door_cc2_nw', 'swivel_door')],
   [0x4a, same('swivel_door_cc2_ne', 'swivel_door')],
   [0x4b, same('swivel_door_cc2_se', 'swivel_door')],
-  [0x4e, same('transmogrifier')],
+  [0x4e, same('transmogrifier_cc2', 'transmogrifier')],
   [0x50, same('steel_wall')],
   // The CC2 pink button is held: powered while an actor stands on it, which is the Epoxy pressure plate.
   [0x5e, same(SIGNAL_PLATE_ID, 'wire')],
-  [0x5f, same('flame_jet_off', 'flame_jet')],
-  [0x60, same('flame_jet_on', 'flame_jet')],
-  [0x61, same('button_orange')],
+  [0x5f, same('flame_jet_cc2_off', 'flame_jet')],
+  [0x60, same('flame_jet_cc2_on', 'flame_jet')],
+  // The orange button is a pressure plate; the converter links it to the jet CC2 would connect (see cc2ToEpoxy).
+  [0x61, same(SIGNAL_PLATE_ID, 'button_orange')],
   [0x64, same('puppet_control', 'button_yellow')],
   [0x6b, same('floor', 'custom_floor')],
   [0x70, same('wall')],
@@ -134,12 +140,13 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x72, same('purple_floor')],
   [0x73, same('purple_wall')],
   [0x7d, same('wall', 'green_wall')],
-  [0x7e, same('blue_wall_fake', 'green_wall_fake')],
+  // The popdown floor: player and monsters pass, every block is barred.
+  [0x7e, same('block_barrier_floor', 'green_wall_fake')],
   [0x87, same('black_button')],
   [0x88, same('toggle_switch_off', 'toggle_switch')],
   [0x89, same('toggle_switch_on', 'toggle_switch')],
   [0x8a, same('thief_keys')],
-  [0x8d, same('turtle')]
+  [0x8d, same('turtle_cc2', 'turtle')]
 ]);
 
 /** Item codes: the cell item. Codes absent here and listed in ITEM_LOST_KEYS have no Epoxy or reserved id. */
@@ -159,7 +166,7 @@ export const ITEM_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, Cc2
   [0x4c, same('stopwatch_bonus', 'time_bonus')],
   [0x4d, same('toggle_clock')],
   [0x51, same('dynamite')],
-  [0x52, same('ward', 'helmet')],
+  [0x52, same('helmet')],
   [0x59, same('hiking_boots')],
   [0x62, same('lightning_bolt')],
   [0x68, same('hurl_stone', 'bowling_ball')],

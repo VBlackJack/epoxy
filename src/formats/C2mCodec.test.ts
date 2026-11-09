@@ -478,7 +478,7 @@ describe('extra tile codes', () => {
 
   it('names the green walls with their confidence', () => {
     expect(cc2TileInfo(CC2_CODE_GREEN_WALL_SOLID)).toMatchObject({ confidence: 'mediumHigh', epoxyId: 'wall' });
-    expect(cc2TileInfo(CC2_CODE_GREEN_WALL_FAKE)).toMatchObject({ confidence: 'medium', epoxyId: 'blue_wall_fake' });
+    expect(cc2TileInfo(CC2_CODE_GREEN_WALL_FAKE)).toMatchObject({ confidence: 'medium', epoxyId: 'block_barrier_floor' });
       });
 
   it('warns about sized codes whose meaning is unknown', () => {

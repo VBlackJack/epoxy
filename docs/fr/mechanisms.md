@@ -7,7 +7,7 @@ Cette page recense les mécanismes ajoutés après les archétypes de sanctuaire
 ## 0. Avant de commencer
 
 - **Règles Epoxy uniquement.** Tous les mécanismes ci-dessous sont joués par le moteur Epoxy. Un niveau Lynx ne peut pas les contenir (le champ `Règles` de l'éditeur fait passer un niveau des règles Epoxy aux règles Lynx), et un niveau CC3D natif a sa propre palette. La conversion CC3D et l'import CC2 produisent des niveaux aux règles Epoxy qui utilisent ces mécanismes.
-- **Format de pack 13.** Les niveaux qui les utilisent s'écrivent au format de pack 13 (`PACK_JSON_VERSION_V13`).
+- **Formats de pack 13 et 14.** Les niveaux qui les utilisent s'écrivent au format de pack 13 (`PACK_JSON_VERSION_V13`) ; les mécanismes CC2 de la section 1.14 demandent le format de pack 14.
 - **Placement.** Choisissez l'entrée dans la palette de l'éditeur (le champ de recherche liste chaque variante par son nom) et peignez-la. Les entrées qui existent en variantes (panneaux interdits, compteurs, portes pivotantes, portes pivotantes CC2, interrupteur) occupent une seule entrée de palette : `R` fait passer le pinceau d'une variante à l'autre de la famille, l'entrée montre la variante en main, et la pipette prend la variante sous le curseur.
 - **Rotation.** `R` fait tourner le pinceau dans le sens horaire (ou passe à la variante suivante). `Maj+R` tourne la créature ou la tourelle sous le curseur, un tampon flottant ou, pour une case de voies, ses voies d'un quart de tour.
 - **Liaisons.** `K` commence ou termine une liaison depuis le dispositif sous le curseur. La section Connexions de l'inspecteur liste ce que le dispositif commande et ce qui le commande, et la fiche "Comment fonctionnent les mécanismes" résume comment les parties de chaque mécanisme se trouvent.
@@ -99,6 +99,19 @@ L'import CC2 (fichiers `.c2m`, scripts de jeu `.c2g` ou dossier entier) converti
 - **Jeu.** `V` (reconfigurable dans la configuration du jeu) ou le bouton tactile passe au joueur suivant. Le HUD montre le personnage commandé avec son portrait, combien de joueurs restent et combien sont sortis, et un anneau marque le joueur commandé. Les échanges sont annoncés et rejoués ; une solution enregistrée peut contenir un échange (lettre `P`).
 - **Import et validateur.** Les packs stockent ces niveaux (format 13) dans une liste `extraPlayers`. L'import CC2 place tous les joueurs (les niveaux CC2 à plusieurs joueurs sont approximatifs au lieu d'être perdus). Le validateur propage depuis chaque départ, signale un joueur qui ne peut pas atteindre une sortie et avertit de deux départs sur une même case.
 
+### 1.14 Éléments CC2 ajoutés au format de pack 14
+
+- **Boue CC2.** Tue tous les monstres sauf le fantôme et la goutte. Un bloc de terre ou un bloc de glace poussé dessus l'efface et survit. Une goutte qui a marché sur la boue la propage. Le rocher n'est pas modélisé.
+- **Tortue CC2.** Un nénuphar que les monstres peuvent traverser. Elle arrête les boules de feu et les fantômes, et se change en eau derrière celui qui la quitte (un planeur la laisse à flot).
+- **Jet de flammes CC2 et bouton orange.** Le jet brûle celui qui s'y trouve tant qu'il est allumé ; les bottes de feu protègent, et les monstres peuvent y entrer. Un bouton orange bascule le jet auquel il est relié quand on l'enfonce, puis de nouveau quand on le relâche. L'import CC2 place le bouton comme une plaque de pression et le relie au jet que CC2 relierait (le premier jet trouvé par une recherche en losanges croissants autour du bouton, en partant de l'est, dans le sens antihoraire). Deux boutons sur un même jet, ou un bouton et un fil, sont combinés par OU : approximation connue.
+- **Sol barrière à blocs.** Le sol escamotable CC2 : le joueur et les monstres le traversent, tous les blocs sont refusés.
+- **Bloc fléché en croix.** Le bloc directionnel à quatre flèches. Toute poussée le déplace. Il ne pousse pas encore les autres blocs quand il glisse.
+- **Transmogrificateur CC2.** Échange les acteurs selon les paires CC2. La goutte devient un monstre tiré au hasard dans la réserve CC2, avec un générateur à graine. Écarts connus : un char bleu devient un char jaune (Epoxy n'a qu'un char), les objets ne sont pas échangés, et un fil ne le commande pas.
+- **Téléporteur aléatoire.** Le socle vert : la destination est tirée parmi les autres socles verts avec un générateur à graine, ce qui garde les rejeux déterministes.
+- **Téléporteur rouge CC2.** Le socle rouge avec son propre ordre de sortie. Le fil qui l'éteint et la priorité du joueur sur le socle rouge sont repoussés à plus tard.
+- **Casque.** Un objet qui protège son porteur du contact des monstres et des blocs tant qu'il le tient. Il n'arrête pas une boule de bowling.
+- **Placement.** Entrées de palette. Sous un panneau interdit, le casque s'importe comme la protection (ward), car il n'existe pas de panneau pour le casque.
+
 ## 2. Venus de Chuck's Challenge 3D
 
 La conversion CC3D (le bouton "Convertir en Epoxy", et `npm run import:cc3d` pour des dossiers entiers hors ligne) utilise ces mécanismes à la place d'équivalents approchants, et rapporte la couverture par pack.
@@ -142,7 +155,7 @@ Des liaisons de signal pilotent ces dispositifs ; le validateur et la fiche "Com
 - **Bouton d'impulsion gris.** Chaque fois que quelque chose marche dessus, il envoie une impulsion à tous les dispositifs à signal situés à deux cases (une zone de 5 x 5) sans liaison depuis le bouton : les tuiles à bascule basculent, les lanceurs et les machines à cloner tirent une fois, les portes de maintien, les patins de relais et les pièges à signal s'ouvrent un instant.
 - **Piège mécanique à signal.** Retient ce qui y entre ; s'ouvre tant que son signal est actif ou qu'un bouton brun est maintenu.
 - **Jet de flammes à signal.** S'allume à chaque changement de son signal ; le bouton orange n'y touche pas.
-- **Placement et liaison.** Entrées de palette. Reliez chaque source à ses dispositifs avec `K` (ou le bouton Relier de la section Connexions). L'import CC2 y convertit ses murs et sols violets, ses interrupteurs, ses boutons noirs, ses boutons gris, ainsi que les pièges et jets de flammes qu'une liaison atteint ; le piège à signal, le jet de flammes à signal et le bouton gris sont rapportés comme approximatifs.
+- **Placement et liaison.** Entrées de palette. Reliez chaque source à ses dispositifs avec `K` (ou le bouton Relier de la section Connexions). L'import CC2 y convertit ses murs et sols violets, ses interrupteurs, ses boutons noirs, ses boutons gris, ainsi que les pièges qu'une liaison atteint, et ses jets de flammes (à signal ou non) vers les jets de flammes CC2 de la section 1.14 ; le piège à signal, le jet de flammes CC2 à signal et le bouton gris sont rapportés comme approximatifs.
 
 ### 3.2 Plusieurs joueurs
 
@@ -172,6 +185,7 @@ Les familles de variantes occupent une entrée chacune : panneaux interdits, com
 | Horloge à bascule, pot-de-vin, éclair | CC2 | Palette |
 | NON-ET, verrou de données, compteur | CC2 | Palette, lignes de Connexions, Échange de ports |
 | Mimétique du sol, dents timides, fantôme, rôdeur, joueurs miroirs | CC2 | Palette, `Maj+R` |
+| Boue CC2, tortue, jet de flammes et bouton orange, sol barrière à blocs, bloc fléché en croix, transmogrificateur CC2, téléporteurs aléatoire et rouge CC2, casque | CC2 | Palette, `K` pour le bouton orange |
 | Porte des Poissons, téléporteurs avant et tournant | CC3D | Palette |
 | Rebondisseur, snappy, nibble, famille Blinky, limpy, limpa, omni, marcheur, jambes, famille Hurleur | CC3D | Palette, `Maj+R` |
 | Mur et sol violets, interrupteur, bouton noir, bouton d'impulsion gris, piège et jet de flammes à signal | Epoxy | Palette, `K` |
