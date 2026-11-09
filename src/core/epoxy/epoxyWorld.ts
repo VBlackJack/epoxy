@@ -747,6 +747,7 @@ function closeOpenTrapsOfButton(w: EpoxyWorld, x: number, y: number, options?: L
   // A phasing monster (pressesPlates false in its definition) never worked the button, so its leaving frees nothing.
   const pressesButton = (e: RuntimeEntity): boolean =>
     !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false);
+  if (options?.leaver !== undefined && !pressesButton(options.leaver)) return;
   if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y && pressesButton(e))) return;
   if (playersOf(w).some((p) => p.alive && p !== options?.leavingPlayer && p.x === x && p.y === y)) return;
   for (const link of w.trapLinks) {

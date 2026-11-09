@@ -318,6 +318,45 @@ describe('trap_open: closes on the first release of a linked brown button', () =
     expect(terrainAt(engine, TRAP_CELL.x, TRAP_CELL.y)).toBe(TRAP);
   });
 
+  it('is not closed by a monster that never worked the button, and is by one that did', () => {
+    for (const [type, closes] of [
+      ['wisp', false],
+      ['pink_ball', true]
+    ] as const) {
+      const engine = load(linked({ entities: [placed(type, BUTTON_CELL.x, BUTTON_CELL.y)] }));
+      const world = contextOf(engine).world;
+      leaveCell(world, BUTTON_CELL.x, BUTTON_CELL.y, { leaver: world.entities[0] });
+      expect(terrainAt(engine, TRAP_CELL.x, TRAP_CELL.y), type).toBe(closes ? TRAP : TRAP_OPEN);
+    }
+  });
+
+  it('closes into a trap that stays open while the other linked button is held', () => {
+    const other: Cell = { x: 3, y: 7 };
+    const engine = load(
+      linked({
+        terrain: [
+          [BUTTON_CELL.x, BUTTON_CELL.y, BUTTON],
+          [other.x, other.y, BUTTON],
+          [TRAP_CELL.x, TRAP_CELL.y, TRAP_OPEN]
+        ],
+        trapLinks: [
+          { buttonX: BUTTON_CELL.x, buttonY: BUTTON_CELL.y, trapX: TRAP_CELL.x, trapY: TRAP_CELL.y },
+          { buttonX: other.x, buttonY: other.y, trapX: TRAP_CELL.x, trapY: TRAP_CELL.y }
+        ],
+        entities: [placed('dirt_block', other.x, other.y)],
+        player: BUTTON_CELL
+      })
+    );
+    const world = contextOf(engine).world;
+    leaveCell(world, BUTTON_CELL.x, BUTTON_CELL.y, { leavingPlayer: world.player });
+    expect(terrainAt(engine, TRAP_CELL.x, TRAP_CELL.y)).toBe(TRAP);
+    expect(engine.isCellClosedTrap(TRAP_CELL.x, TRAP_CELL.y)).toBe(false);
+    world.entities.length = 0;
+    world.player.x = FAR_CORNER.x;
+    world.player.y = FAR_CORNER.y;
+    expect(engine.isCellClosedTrap(TRAP_CELL.x, TRAP_CELL.y)).toBe(true);
+  });
+
   it('closes when a block slides off the button', () => {
     const engine = load(
       linked({ entities: [placed('ice_block', BUTTON_CELL.x, BUTTON_CELL.y)], player: { x: BUTTON_CELL.x - 1, y: ROW } })
