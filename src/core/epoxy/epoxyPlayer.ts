@@ -220,6 +220,13 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
         if (!fromSlide) AudioManager.playSfx('blocked');
         return false;
       }
+      // The push may have pressed a button that changed the cell (a toggle wall closing): judge the cell again, and stay
+      // put when it no longer lets the player in. The block stays where the push left it, so the bump keeps its undo step.
+      if (!canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.items[targetY][targetX])) {
+        w.rejectedPushMovedBlocks = true;
+        if (!fromSlide) AudioManager.playSfx('blocked');
+        return false;
+      }
     } else if (entityAtTarget.kind === 'monster') {
       leaveSwivel(w, w.player.x, w.player.y, dir);
       leaveCell(w, w.player.x, w.player.y);

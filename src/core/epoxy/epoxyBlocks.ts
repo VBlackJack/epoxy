@@ -25,7 +25,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
-import { shieldedFromContact } from './epoxyWard';
+import { shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -186,8 +186,7 @@ export function isCanBlockEnter(
   const existingEntity = getEntityAt(w, destX, destY);
   if (existingEntity) return false;
   // A block never rides into a player in a helmet: it is stopped, as it would be by a monster.
-  const standing = playerAtCell(w, destX, destY);
-  if (standing !== undefined && shieldedFromContact(standing)) return false;
+  if (shieldedPlayerAt(w, destX, destY)) return false;
   // A flying shot is no occupant, but a block never rides into it.
   if (w.shots.length > 0 && shotAt(w, destX, destY)) return false;
 

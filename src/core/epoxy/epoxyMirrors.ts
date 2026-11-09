@@ -33,6 +33,7 @@ import { FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION } from '../coreCon
 import { Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { resolveMonsterArrival } from './epoxyMonsters';
+import { shieldedPlayerAt } from './epoxyWard';
 import { leaveSwivel } from './epoxySwivels';
 import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
 
@@ -99,6 +100,8 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   if (!isInBounds(w, nx, ny)) return false;
   if (isEdgeBlocked(w, entity.x, entity.y, nx, ny, dir)) return false;
   if (w.shots.length > 0 && shotAt(w, nx, ny)?.payload !== undefined) return false;
+  // A player in a helmet is not hurt by contact, so the mirror stops at the player's cell as any monster does.
+  if (shieldedPlayerAt(w, nx, ny)) return false;
 
   let tile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   // A top that goes away under the step (a blue fake wall, dirt) shows what it hides before the step is judged.

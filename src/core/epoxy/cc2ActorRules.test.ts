@@ -285,6 +285,22 @@ describe('transmogrifier_cc2', () => {
     expect(arriveOn('tank', TRANSMOG_CC2).type).toBe('tank');
   });
 
+  it('does not change a monster that ignores floor effects, even one that names a CC2 target', () => {
+    const ghost = ConfigRegistry.getEntityDef('ghost');
+    expect(ghost?.ignoresFloorEffects).toBe(true);
+    const named = ghost!.transmogrifiesToCc2;
+    ghost!.transmogrifiesToCc2 = 'bug';
+    try {
+      expect(arriveOn('ghost', TRANSMOG_CC2).type).toBe('ghost');
+      // Control: the same definition without the flag does turn into the named kind.
+      ghost!.ignoresFloorEffects = false;
+      expect(arriveOn('ghost', TRANSMOG_CC2).type).toBe('bug');
+    } finally {
+      ghost!.ignoresFloorEffects = true;
+      ghost!.transmogrifiesToCc2 = named;
+    }
+  });
+
   it('keeps the uid, the cell and the facing of the changed monster', () => {
     const engine = load(room({ terrain: [[TILE_X, ROW, TRANSMOG_CC2]], entities: [placed('bug', TILE_X, ROW, 'N')] }));
     const before = engine.getEntities()[0];
