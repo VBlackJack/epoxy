@@ -203,6 +203,39 @@ describe('CC2 rover rules', () => {
   });
 });
 
+describe('CC2 rover rules: pushes and thieves', () => {
+  it('stays out of a cell that its own push has just closed', () => {
+    // The pushed block lands on a green button, which closes the toggle wall the block stood on.
+    const engine = roverStep(
+      {
+        terrain: [
+          [CENTER + 1, CENTER, 'toggle_wall_open'],
+          [CENTER + 2, CENTER, 'button_green']
+        ]
+      },
+      [placement('dirt_block', CENTER + 1, CENTER)]
+    );
+    expect(engine.getTerrain()[CENTER][CENTER + 1]).toBe('toggle_wall_closed');
+    const block = engine.getEntities().find((e) => e.type === 'dirt_block');
+    expect(`${block?.x},${block?.y}`).toBe(`${CENTER + 2},${CENTER}`);
+    expect(cellOf(engine, ROVER)).toBe(`${CENTER},${CENTER}`);
+  });
+
+  it('leaves the keys of the player alone when it enters a key thief', () => {
+    const engine = load(
+      room({ terrain: [[CENTER + 1, CENTER, 'thief_keys']], entities: [placement(ROVER, CENTER, CENTER)] })
+    );
+    engine.getPlayer().keys.key_red = 2;
+    const rover = find(engine, ROVER);
+    if (rover === undefined) throw new Error('the rover is missing');
+    rover.emulatee = ROVER_BALL_EMULATEE;
+    rover.emulationMoves = 0;
+    run(engine, stepTicks(ROVER));
+    expect(cellOf(engine, ROVER)).toBe(`${CENTER + 1},${CENTER}`);
+    expect(engine.getPlayer().keys.key_red).toBe(2);
+  });
+});
+
 describe('CC2 ghost rules', () => {
   it('picks up keys and tools it walks over', () => {
     for (const item of ['key_yellow', 'key_green', 'key_blue', 'boots_water', 'boots_fire']) {
@@ -258,7 +291,7 @@ describe('CC2 gray area button', () => {
   const START = { x: 2, y: 5 };
   const IN_REACH = (dx: number, dy: number): Cell => [BUTTON[0] + dx, BUTTON[1] + dy];
 
-  function pulse(tiles: Array<[Cell, string]>): GameEngine {
+  function pulse(tiles: Array<[Cell, string]>, entities: EntityPlacement[] = []): GameEngine {
     const terrain: string[][] = Array.from({ length: SIZE }, (_, y) =>
       Array.from({ length: SIZE }, (_, x) => (x === 0 || y === 0 || x === SIZE - 1 || y === SIZE - 1 ? 'wall' : 'floor'))
     );
@@ -274,7 +307,7 @@ describe('CC2 gray area button', () => {
       playerStart: { ...START, dir: 'E' },
       terrain,
       items,
-      entities: [],
+      entities,
       trapLinks: [],
       cloneLinks: []
     });
@@ -300,6 +333,17 @@ describe('CC2 gray area button', () => {
     expect(at(IN_REACH(0, 2))).toBe('swivel_door_se');
     expect(at(IN_REACH(0, -2))).toBe('flame_jet_on');
     expect(at(IN_REACH(2, 2))).toBe('flame_jet_off');
+  });
+
+  it('turns a swivel door round the block standing in it without moving the block', () => {
+    // Engine behaviour, pinned: the door turns under its occupant, which keeps its cell (nothing is pushed out or
+    // overlapped); the occupant leaves later as it would from any swivel door.
+    const door = IN_REACH(0, 2);
+    const engine = pulse([[door, 'swivel_door_ne']], [placement('dirt_block', door[0], door[1])]);
+    expect(engine.getTerrain()[door[1]][door[0]]).toBe('swivel_door_se');
+    const block = engine.getEntities().find((e) => e.type === 'dirt_block');
+    expect(`${block?.x},${block?.y}`).toBe(`${door[0]},${door[1]}`);
+    expect(engine.getEntities().filter((e) => e.x === door[0] && e.y === door[1])).toHaveLength(1);
   });
 
   it('leaves the same devices alone outside the square', () => {
