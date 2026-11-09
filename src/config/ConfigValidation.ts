@@ -46,6 +46,7 @@ import {
   Cc2LevelData,
   CellEdge,
   ExtraPlayerStart,
+  CellHint,
   RailTrackCell,
   CellUnderlay,
   CompiledLevel,
@@ -510,6 +511,8 @@ export function isCompiledLevelShape(value: unknown, bounds: LevelSizeBounds, st
     (!strict || !Array.isArray(value.extraPlayers) || value.extraPlayers.length <= EXTRA_PLAYERS_MAX) &&
     // Cell edges hold one entry per cell at most; a longer list is not a level, whatever the entries hold.
     (!strict || !Array.isArray(value.cellEdges) || value.cellEdges.length <= size.width * size.height) &&
+    // Cell hints hold one entry per cell at most, by the same rule.
+    (!strict || !Array.isArray(value.cellHints) || value.cellHints.length <= size.width * size.height) &&
     // Track cells hold one entry per cell at most, by the same rule.
     (!strict || !Array.isArray(value.railTracks) || value.railTracks.length <= size.width * size.height) &&
     // Underlays hold one entry per cell at most, by the same rule.
@@ -547,6 +550,24 @@ export function normalizeExtraPlayers(
     kept.push({ x: entry.x as number, y: entry.y as number, dir: entry.dir, character: entry.character });
   }
   return kept.length > 0 ? kept : null;
+}
+
+/**
+ * The cell hints of a level in canonical form: each one inside the grid with a non-empty text, one per cell (the last
+ * one wins), sorted by row then column. An entry that breaks a rule is dropped. Null when nothing remains, so a level
+ * without cell hints carries no field at all. Whether the cell holds a hint tile is not checked here: the validator
+ * warns about it, so a hint tile can be placed after its text.
+ */
+export function normalizeCellHints(value: unknown, width: number, height: number): CellHint[] | null {
+  if (!Array.isArray(value)) return null;
+  const kept = new Map<string, CellHint>();
+  for (const entry of value) {
+    if (!isRecord(entry) || !isInBounds(entry.x, entry.y, width, height)) continue;
+    if (typeof entry.text !== 'string' || entry.text.trim() === '') continue;
+    kept.set(`${entry.y},${entry.x}`, { x: entry.x as number, y: entry.y as number, text: entry.text });
+  }
+  if (kept.size === 0) return null;
+  return [...kept.values()].sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
 /** Optional text fields of a level; each one is kept only when it is a string. */
@@ -890,6 +911,11 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     others = normalizeExtraPlayers(record.extraPlayers, level.playerStart, level.terrain[0]?.length ?? 0, level.terrain.length);
     if (others === null || JSON.stringify(others) !== JSON.stringify(record.extraPlayers)) bad.push('extraPlayers');
   }
+  let hints: CellHint[] | null = null;
+  if ('cellHints' in record) {
+    hints = normalizeCellHints(record.cellHints, level.terrain[0]?.length ?? 0, level.terrain.length);
+    if (hints === null || JSON.stringify(hints) !== JSON.stringify(record.cellHints)) bad.push('cellHints');
+  }
   let rails: RailTrackCell[] | null = null;
   if ('railTracks' in record) {
     rails = normalizeRailTracks(record.railTracks, level.terrain, record.ruleset);
@@ -925,6 +951,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   for (const key of bad) delete copy[key];
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   if (others !== null && bad.includes('extraPlayers')) copy.extraPlayers = others;
+  if (hints !== null && bad.includes('cellHints')) copy.cellHints = hints;
   if (rails !== null && bad.includes('railTracks')) copy.railTracks = rails;
   if (hidden !== null && bad.includes('underlays')) copy.underlays = hidden;
   if (links !== null && bad.includes('launcherLinks')) copy.launcherLinks = links;
@@ -971,6 +998,10 @@ export function clampLevelText(level: CompiledLevel, limits: LevelTextConfig): C
   }
   if (typeof copy.solution === 'string' && copy.solution.length > limits.solutionMaxLength) {
     delete copy.solution;
+    changed = true;
+  }
+  if (level.cellHints?.some((hint) => hint.text.length > limits.hintMaxLength)) {
+    copy.cellHints = level.cellHints.map((hint) => ({ ...hint, text: hint.text.slice(0, limits.hintMaxLength) }));
     changed = true;
   }
   const terrain = cutIds(level.terrain, limits.idMaxLength);

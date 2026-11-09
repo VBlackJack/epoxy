@@ -18,6 +18,7 @@ import type { Cc3dLevel } from '../core/cc3d/model';
 import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, DEFAULT_WIN_RULE } from '../core/coreConstants';
 import type { CompiledLevel } from '../core/types';
 import { canonicalEdges } from './editorCellEdges';
+import { canonicalCellHints } from './editorCellHints';
 import { canonicalExtraPlayers } from './editorExtraPlayers';
 import { canonicalRailTracks } from './editorRailTracks';
 import { canonicalUnderlays } from './editorUnderlays';
@@ -68,6 +69,10 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
   const railTracks = level.cc3d ? undefined : canonicalRailTracks(map.railTracks, map.terrain);
   if (railTracks) map.railTracks = railTracks;
   else delete map.railTracks;
+  // Cell hints are held in canonical form too, and only on cells that still hold a hint tile.
+  const cellHints = level.cc3d ? undefined : canonicalCellHints(map.cellHints, map.terrain);
+  if (cellHints) map.cellHints = cellHints;
+  else delete map.cellHints;
   // The other players are held in canonical form too: inside the grid, off the main start and off each other.
   const extraPlayers = level.cc3d ? undefined : canonicalExtraPlayers(map.extraPlayers, map.playerStart, map.terrain);
   if (extraPlayers) map.extraPlayers = extraPlayers;
@@ -136,6 +141,9 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
   const exportedRailTracks = doc.cc3d ? undefined : canonicalRailTracks(level.railTracks, level.terrain);
   if (exportedRailTracks) level.railTracks = exportedRailTracks;
   else delete level.railTracks;
+  const exportedCellHints = doc.cc3d ? undefined : canonicalCellHints(level.cellHints, level.terrain);
+  if (exportedCellHints) level.cellHints = exportedCellHints;
+  else delete level.cellHints;
   const exportedExtraPlayers = doc.cc3d ? undefined : canonicalExtraPlayers(level.extraPlayers, level.playerStart, level.terrain);
   if (exportedExtraPlayers) level.extraPlayers = exportedExtraPlayers;
   else delete level.extraPlayers;
@@ -146,6 +154,7 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     delete level.extraPlayers;
     delete level.cellEdges;
     delete level.railTracks;
+    delete level.cellHints;
     delete level.underlays;
     delete level.launcherLinks;
     delete level.signalLinks;

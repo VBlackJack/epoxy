@@ -27,6 +27,7 @@ import {
   EDITOR_TRAP_BUTTON_TILE,
   EDITOR_TRAP_TILE
 } from '../ui/uiConstants';
+import { removeCellHintsWhere, replaceCellHints, translateCellHints } from './editorCellHints';
 import { extraPlayerAt, removeExtraPlayersWhere, replaceExtraPlayers, translateExtraPlayers } from './editorExtraPlayers';
 import { removeRailTracksWhere, replaceRailTracks, translateRailTracks } from './editorRailTracks';
 import { defaultRailTrackCell } from './railTrackEdits';
@@ -187,6 +188,8 @@ export function paintTerrain(source: EditorMap, x: number, y: number, tileId: st
   // A cell that stops being a track cell loses its tracks; one that becomes a track cell starts with the default tracks.
   if (map.railTracks) replaceRailTracks(map, map.railTracks);
   addDefaultRailTracks(map, tileId, [{ x, y }]);
+  // A cell that stops being a hint tile loses its hint text.
+  if (map.cellHints) replaceCellHints(map, map.cellHints);
   // A device still hidden under the new top keeps its links; one that is gone loses them.
   if (hidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
@@ -295,6 +298,7 @@ export function eraseCell(source: EditorMap, x: number, y: number): MapEditResul
   removeEdgesWhere(map, (ex, ey) => ex === x && ey === y);
   const removedUnderlays = removeUnderlaysWhere(map, (ux, uy) => ux === x && uy === y);
   removeRailTracksWhere(map, (rx, ry) => rx === x && ry === y);
+  removeCellHintsWhere(map, (hx, hy) => hx === x && hy === y);
   removeExtraPlayersWhere(map, (px, py) => px === x && py === y);
   const removedLinks = dropLinksAt(map, x, y);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept };
@@ -336,6 +340,7 @@ export function floodFillTerrain(source: EditorMap, x: number, y: number, tileId
   }
   const removedUnderlays = pruneUnderlays(map);
   if (map.railTracks) replaceRailTracks(map, map.railTracks);
+  if (map.cellHints) replaceCellHints(map, map.cellHints);
   addDefaultRailTracks(map, tileId, filled);
   if (anyHidden) removedLinks += pruneLauncherLinks(map) + pruneSignalLinks(map);
   return { map, changed: true, removedLinks, removedUnderlays, playerStartKept: false };
@@ -858,6 +863,8 @@ export function resizeMap(
   report.droppedUnderlays = (source.underlays?.length ?? 0) - (resized.underlays?.length ?? 0);
   // The track cells move with their cells; the editor does not edit them.
   replaceRailTracks(resized, translateRailTracks(source.railTracks ?? [], dx, dy, newWidth, newHeight).filter((t) => alive(t.x, t.y)));
+  // The cell hints move with their hint tiles.
+  replaceCellHints(resized, translateCellHints(source.cellHints ?? [], dx, dy, newWidth, newHeight).filter((h) => alive(h.x, h.y)));
   // The other players move with their cells; the main start, kept inside the new map, may take the cell of one of them.
   replaceExtraPlayers(resized, extraPlayers);
   const droppedExtraPlayers = (source.extraPlayers?.length ?? 0) - (resized.extraPlayers?.length ?? 0);

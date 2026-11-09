@@ -73,6 +73,7 @@ import {
   isBlockBudget,
   normalizeCellEdges,
   normalizeExtraPlayers,
+  normalizeCellHints,
   normalizeRailTracks,
   normalizeLauncherLinks,
   normalizeUnderlays,
@@ -1505,6 +1506,7 @@ class ConfigRegistryService {
 
     const extraPlayers = normalizeExtraPlayers(bp.extraPlayers, start, mapWidth, mapHeight);
     const cellEdges = normalizeCellEdges(bp.cellEdges, terrain, bp.ruleset);
+    const cellHints = normalizeCellHints(bp.cellHints, mapWidth, mapHeight);
     const railTracks = normalizeRailTracks(bp.railTracks, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
     const launcherLinks = normalizeLauncherLinks(bp.launcherLinks, terrain, bp.ruleset, underlays);
@@ -1541,6 +1543,7 @@ class ConfigRegistryService {
       items,
       ...(extraPlayers ? { extraPlayers } : {}),
       ...(cellEdges ? { cellEdges } : {}),
+      ...(cellHints ? { cellHints } : {}),
       ...(railTracks ? { railTracks } : {}),
       ...(underlays ? { underlays } : {}),
       ...(launcherLinks ? { launcherLinks } : {}),

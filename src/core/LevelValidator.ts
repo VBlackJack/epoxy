@@ -536,6 +536,7 @@ export class LevelValidator {
     this.checkPhasingClones(level, issues);
     this.checkShotLaunchers(level, issues);
     this.checkRailTrackCells(level, issues);
+    this.checkCellHints(level, issues);
     this.checkButtonsWithoutEffect(level, issues);
     this.checkMechanisms(level, issues);
     checkSignalWiring(level, issues);
@@ -2015,6 +2016,18 @@ export class LevelValidator {
       i18nKey: 'validator.issues.wisp_cloned.label',
       params: this.locationParams(cells)
     });
+  }
+
+  /**
+   * Warning about a cell hint whose cell is not a hint tile: the text is never shown. One warning per cell. It reads
+   * the cells only.
+   */
+  private static checkCellHints(level: CompiledLevel, issues: ValidationIssue[]): void {
+    for (const hint of level.cellHints ?? []) {
+      const id = level.terrain[hint.y]?.[hint.x];
+      if (id !== undefined && ConfigRegistry.getTile(id).showsHint === true) continue;
+      issues.push({ severity: 'warning', i18nKey: 'validator.issues.cell_hint_off_tile.label', params: { x: hint.x, y: hint.y } });
+    }
   }
 
   /**

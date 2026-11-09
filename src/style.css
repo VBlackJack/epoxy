@@ -1571,13 +1571,15 @@ button.editor-issue-row:focus-visible {
   color: var(--text-main);
 }
 
-.editor-rail-panel {
+.editor-rail-panel,
+.editor-cell-hint-panel {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.editor-rail-heading {
+.editor-rail-heading,
+.editor-cell-hint-heading {
   margin: 0.4rem 0 0.25rem;
   font-size: 0.78rem;
   font-weight: 700;

@@ -164,6 +164,7 @@ import { nextBrushTile } from './brushCycle';
 import { familyKey, paletteTilesOf, variantFamilyOf } from './paletteVariants';
 import { CellSection } from './cellPanel';
 import { RailTrackPanel } from './railTrackPanel';
+import { CellHintPanel } from './cellHintPanel';
 import { ExtraPlayerPanel } from './extraPlayerPanel';
 import { extraPlayerAt } from './editorExtraPlayers';
 import { defaultExtraCharacter, rotateExtraPlayerAt } from './extraPlayerEdits';
@@ -2117,7 +2118,7 @@ export class LevelEditor {
     const body = byId(CELL_BODY_ID);
     if (!section || !body) return;
     const host = { commit: (map: EditorMap, messages?: ToolMessage[]): boolean => this.commitCellEdit(map, messages) };
-    const panels = [new RailTrackPanel(host, () => this.doc), new ExtraPlayerPanel(host, () => this.doc)];
+    const panels = [new RailTrackPanel(host, () => this.doc), new CellHintPanel(host, () => this.doc), new ExtraPlayerPanel(host, () => this.doc)];
     this.cellSection = new CellSection(section, body, panels, () => {
       if (!this.disposed) this.render();
     });

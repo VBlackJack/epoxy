@@ -1862,6 +1862,9 @@
       "rail_track_empty": {
         "label": "Avertissement : la cellule de rails en ({x}, {y}) n'a aucun segment de rails, personne ne peut donc y entrer."
       },
+      "cell_hint_off_tile": {
+        "label": "Avertissement : le texte d'indice en ({x}, {y}) ne s'affiche jamais : la case n'est pas une case indice."
+      },
       "exit_on_receivers_level": {
         "label": "Avertissement : une case de sortie sur un niveau à récepteurs le termine au contact, sans passer par les récepteurs."
       },
@@ -1979,6 +1982,22 @@
     }
   },
   "editor": {
+    "cell_hint": {
+      "heading": "Case indice en ({x}, {y})",
+      "text": {
+        "label": "Texte affiché sur cette case"
+      },
+      "empty": {
+        "note": "Laissée vide, cette case affiche l'indice du niveau."
+      },
+      "clear": {
+        "action": "Utiliser l'indice du niveau"
+      },
+      "status": {
+        "set": {"label": "Texte d'indice défini sur la case en ({x}, {y})."},
+        "cleared": {"label": "La case en ({x}, {y}) affiche de nouveau l'indice du niveau."}
+      }
+    },
     "rail_tracks": {
       "heading": "Cellule de rails en ({x}, {y})",
       "segments": {
