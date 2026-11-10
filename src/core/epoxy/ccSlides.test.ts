@@ -137,12 +137,17 @@ describe('classic slide speed', () => {
     expect(gaps.every((g) => g === 4)).toBe(true);
   });
 
-  it('leaves the ice pace of the player as it is', () => {
+  it('carries the player over ice one cell every two ticks, and at the native pace without the classic rules', () => {
     const classic = start(ICE_LANE, true);
     const native = start(ICE_LANE, false);
     classic.engine.attemptPlayerMove('E');
     native.engine.attemptPlayerMove('E');
-    expect(cellGaps(classic.engine, classic.w, 30)).toEqual(cellGaps(native.engine, native.w, 30));
+    const fast = cellGaps(classic.engine, classic.w, 24).slice(1, 5);
+    expect(fast.length).toBeGreaterThanOrEqual(3);
+    expect(fast.every((g) => g === 2)).toBe(true);
+    const slow = cellGaps(native.engine, native.w, 40).slice(1, 5);
+    expect(slow.length).toBeGreaterThanOrEqual(3);
+    expect(slow.every((g) => g > 2)).toBe(true);
   });
 
   it('slides a block over ice one cell every two ticks, and at the native pace without the classic rules', () => {
@@ -244,5 +249,46 @@ describe('classic force floor softlock', () => {
       }
       expect(chose, floor).toBe(true);
     }
+  });
+});
+
+describe('classic walk wait after a slide', () => {
+  /** Runs the ice lane until the player stands on the floor east of it, and returns the engine right then. */
+  function leaveIce(flavor: boolean, haste = false): { engine: GameEngine; w: TestWorld } {
+    const ctx = start(ICE_LANE, flavor);
+    if (haste) ctx.engine.getPlayer().boots.add('boots_speed');
+    ctx.engine.attemptPlayerMove('E');
+    for (let i = 0; i < 60 && ctx.w.player.x < 11; i++) ctx.engine.tick();
+    expect(ctx.w.player.x).toBe(11);
+    return ctx;
+  }
+
+  /** Ticks a held east key needs, from the tick the slide ended, to move the player again. */
+  function waitTicks(engine: GameEngine, w: TestWorld): number {
+    const x = w.player.x;
+    for (let t = 0; t < 20; t++) {
+      if (engine.attemptPlayerMove('E') && w.player.x !== x) return t;
+      engine.tick();
+    }
+    return -1;
+  }
+
+  it('makes a held key wait the walking cooldown once the slide ends on floor', () => {
+    const { engine, w } = leaveIce(true);
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThanOrEqual(3);
+    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(waitTicks(engine, w)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('shortens that wait with speed boots', () => {
+    const plain = leaveIce(true);
+    const hasted = leaveIce(true, true);
+    expect(hasted.engine.getPlayer().moveCooldown).toBeLessThan(plain.engine.getPlayer().moveCooldown);
+    expect(waitTicks(hasted.engine, hasted.w)).toBeLessThan(waitTicks(plain.engine, plain.w));
+  });
+
+  it('adds no wait on a level without the classic rules', () => {
+    const { engine } = leaveIce(false);
+    expect(engine.getPlayer().moveCooldown).toBe(0);
   });
 });

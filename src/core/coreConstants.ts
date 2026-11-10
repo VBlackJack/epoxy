@@ -303,6 +303,9 @@ export const CC_MONSTER_STEP_TICKS = 4;
  */
 export const CC_FORCE_SLIDE_COOLDOWN_TICKS = 1;
 
+/** Slide delay of ice on a classic-rules level: like a force floor, one cell every two ticks. */
+export const CC_ICE_SLIDE_COOLDOWN_TICKS = 1;
+
 /** Slide delay of a block on ice or a force floor on a classic-rules level: one cell every two ticks, like the player. */
 export const CC_BLOCK_SLIDE_COOLDOWN_TICKS = 1;
 
