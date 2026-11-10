@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { isForeignAuthoringEnabled } from '../config/featureFlags';
 import { CONFIG_ENDPOINTS, DEFAULT_FACING, ORDERED_DIRECTIONS } from '../config/constants';
 import { Direction, EntityPlacement, Ruleset, WinRule } from '../core/types';
 import { EditorMap } from './editorDocument';
@@ -188,4 +189,9 @@ export async function loadLevelTemplates(): Promise<LevelTemplate[] | null> {
   } catch {
     return null;
   }
+}
+
+/** The templates the picker lists: those of another engine's rules are held back unless foreign authoring is on. */
+export function offeredTemplates(templates: readonly LevelTemplate[]): LevelTemplate[] {
+  return isForeignAuthoringEnabled() ? [...templates] : templates.filter((template) => template.ruleset === 'epoxy');
 }

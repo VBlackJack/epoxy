@@ -15,6 +15,7 @@
  */
 
 import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
+import { isForeignAuthoringEnabled } from './config/featureFlags';
 import { isRemovablePack, removablePackIds } from './ui/importedPacks';
 import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET, PLAYTEST_ONLY_PACK_IDS } from './config/constants';
 import { InvalidLevelError } from './config/ConfigValidation';
@@ -3166,6 +3167,7 @@ class EpoxyApplication {
     byId('scores-col-time')?.classList.toggle('hidden', !showTimes);
     const exportBtn = byId<HTMLButtonElement>('btn-export-pack-ccl');
     if (exportBtn) {
+      exportBtn.classList.toggle('hidden', !isForeignAuthoringEnabled());
       const exportable = levels.some((lvl) => datRefusalReason(lvl) === null);
       exportBtn.disabled = !exportable;
       if (exportable) exportBtn.removeAttribute('title');
