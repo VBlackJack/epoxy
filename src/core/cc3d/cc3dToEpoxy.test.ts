@@ -297,10 +297,13 @@ const STRUCTURAL_CASES: StructuralCase[] = [
     }
   },
   {
-    key: 'appearing_wall_with_slide',
-    build: () => convertRows(['#######', '#@KIQX#', '#######'], { Q: terrain('appearing_wall'), I: terrain('ice') }),
+    key: 'color_block_on_ice',
+    build: () => convertRows(['#######', '#@RIQX#', '#######'], { R: { mob: { kind: 'block_color', color: 'red' } }, Q: terrain('appearing_wall'), I: terrain('ice') }),
     check: (result) => {
-      expect(result.report.approx.map((e) => e.key)).toContain('appearing_wall_with_slide');
+      expect(result.report.approx.map((e) => e.key)).toContain('color_block_on_ice');
+      // A dirt block on the same ice raises nothing: it stops at the wall in both engines.
+      const dirt = convertRows(['#######', '#@KIQX#', '#######'], { Q: terrain('appearing_wall'), I: terrain('ice') });
+      expect(dirt.result.report.approx.map((e) => e.key)).not.toContain('color_block_on_ice');
     }
   },
   {

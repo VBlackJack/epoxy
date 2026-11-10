@@ -1531,6 +1531,12 @@ export interface EntityDefinition {
    */
   slidesOverTiles?: string[];
   /**
+   * A block that, sliding on ice, stops where it is when the next cell refuses it (a wall, an appearing wall that its bump
+   * has just shown, a block it cannot push), as the CC3D blocks do; without it the block bounces back the way it came, as
+   * the CC2 blocks do. A force floor never bounces a block either way. Needs `slidesOnIce`.
+   */
+  stopsAtWall?: boolean;
+  /**
    * Format 15, the CC3D ice block: the `chainPushes` list of the head block (the one the player pushes) governs the whole
    * line, whatever the blocks behind it would push themselves. Needs `chainPushes`.
    */

@@ -3970,15 +3970,15 @@
       },
       "appearing_wall": {
         "name": "Appearing wall",
-        "label": "The player bumping an appearing wall, or a block pushed into it, makes a wall, as in CC3D."
+        "label": "The player bumping an appearing wall, a block pushed into it, or a dirt or ice block sliding into it, makes a wall, as in CC3D."
       },
       "appearing_wall_with_monster": {
         "name": "Appearing wall in a level with a walking monster",
         "label": "A monster that reveals an appearing wall turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
       },
-      "appearing_wall_with_slide": {
-        "name": "Appearing wall and a block that can slide",
-        "label": "A block that slides into an appearing wall over ice or a force floor makes a wall in CC3D, where Epoxy leaves it as it is."
+      "color_block_on_ice": {
+        "name": "Colour block and ice",
+        "label": "A colour block that slides on ice into a wall stops against it in CC3D, where the Epoxy colour block bounces back the way it came and can crush the player. The dirt and ice blocks stop in both engines."
       },
       "orbs_over_cap": {
         "name": "More than four orbs",

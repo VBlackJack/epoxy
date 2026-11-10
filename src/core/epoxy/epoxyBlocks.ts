@@ -399,7 +399,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   const refusal: PushRefusal = {};
   noteBump(w, entity, nx, ny, slideDir, refusal);
   revealBump(w, refusal);
-  if (tile.slideType === 'ice') {
+  // A CC3D block stops at what refuses it; the others bounce back the way they came.
+  if (tile.slideType === 'ice' && ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall !== true) {
     const bounceDir = OPPOSITE_DIRECTION[slideDir];
     const deflected = tile.deflectionMap?.[bounceDir] || bounceDir;
     const bVec = DIRECTION_VECTORS[deflected];

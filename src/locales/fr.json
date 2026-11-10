@@ -3970,15 +3970,15 @@
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
-        "label": "Le joueur qui se cogne à un mur apparaissant, ou un bloc poussé dedans, en fait un mur, comme dans CC3D."
+        "label": "Le joueur qui se cogne à un mur apparaissant, un bloc poussé dedans, ou un bloc de terre ou de glace qui glisse contre lui, en fait un mur, comme dans CC3D."
       },
       "appearing_wall_with_monster": {
         "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
         "label": "Un monstre qui révèle un mur apparaissant fait demi-tour avec un pas de décalage par rapport à celui de CC3D ensuite, et un golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
       },
-      "appearing_wall_with_slide": {
-        "name": "Mur apparaissant et bloc qui peut glisser",
-        "label": "Un bloc qui glisse contre un mur apparaissant sur de la glace ou un sol de force en fait un mur dans CC3D, là où Epoxy le laisse tel quel."
+      "color_block_on_ice": {
+        "name": "Bloc de couleur et glace",
+        "label": "Un bloc de couleur qui glisse sur la glace contre un mur s'arrête contre lui dans CC3D, là où le bloc de couleur d'Epoxy rebondit en arrière et peut écraser le joueur. Les blocs de terre et de glace s'arrêtent dans les deux moteurs."
       },
       "orbs_over_cap": {
         "name": "Plus de quatre orbes",

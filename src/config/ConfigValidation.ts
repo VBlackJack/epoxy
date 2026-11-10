@@ -2267,6 +2267,10 @@ export function findFormat15ConfigErrors(
       if (entity.chainPushesTransitive !== true) errors.push(`${entity.id}.chainPushesTransitive: expected true`);
       if (entity.chainPushes === undefined) errors.push(`${entity.id}.chainPushesTransitive: needs a chainPushes list`);
     }
+    if (entity.stopsAtWall !== undefined) {
+      if (entity.stopsAtWall !== true) errors.push(`${entity.id}.stopsAtWall: expected true`);
+      if (entity.slidesOnIce !== true) errors.push(`${entity.id}.stopsAtWall: only a block that slides on ice stops at a wall`);
+    }
     if (entity.slidesOverTiles === undefined) continue;
     const { id } = entity;
     if (entity.kind !== 'block') errors.push(`${id}.slidesOverTiles: only a block slides over tiles`);

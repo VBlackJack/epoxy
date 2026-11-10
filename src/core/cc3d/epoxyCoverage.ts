@@ -56,8 +56,8 @@ export const KEY_ORBS_OVER_CAP = 'orbs_over_cap';
 export const KEY_APPEARING_WALL_WITH_MONSTER = 'appearing_wall_with_monster';
 /** Two or more walking monsters on a map, one of a kind whose head-on meeting differs between the engines. */
 export const KEY_MONSTERS_MEET = 'monsters_meet';
-/** An appearing wall on a map where a block can slide (ice or force floor): a sliding block does not reveal it in Epoxy. */
-export const KEY_APPEARING_WALL_WITH_SLIDE = 'appearing_wall_with_slide';
+/** A colour block on a map with ice: a colour block that slides on ice into a wall bounces back in Epoxy, where the CC3D one stops. */
+export const KEY_COLOR_BLOCK_ON_ICE = 'color_block_on_ice';
 /** A clone switch whose nearest machine holds no template Epoxy can clone. */
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
@@ -117,9 +117,9 @@ const DIRT_REASON =
 const SLIME_REASON =
   'Epoxy plays CC3D slime as slime_3d: it kills the player and is cleaned away with any block that enters it, and a player holding the fire and the water orb together survives it and cleans it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and the blue golem refuse slime, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts). The trail an omni leaves is slime_3d too.';
 const APPEARING_WALL_REASON =
-  'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, the player sliding into it and a block pushed into it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). Two cases differ and are keys of their own: a walking monster on the map (appearing_wall_with_monster) and a block that can slide into it over ice or a force floor (appearing_wall_with_slide).';
-const APPEARING_WALL_WITH_SLIDE_REASON =
-  'The map has an appearing wall, a block and ice or force floor: a block that slides into the wall turns it into a wall in CC3D, where Epoxy leaves it as it is (cc3dEvidenceTerrain.test.ts).';
+  'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, the player sliding into it and a block pushed into it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). A block sliding into it over ice or a force floor turns it into a wall too (dirt and ice blocks: cc3dEvidenceTerrain.test.ts; colour blocks on ice are the key color_block_on_ice). One case differs and is a key of its own: a walking monster on the map (appearing_wall_with_monster).';
+const COLOR_BLOCK_ON_ICE_REASON =
+  'The map has a colour block and ice: a colour block that slides on ice into a wall (an appearing wall included) stops against it in CC3D, where the Epoxy colour block bounces back the way it came and can crush the player. The dirt and ice blocks stop in both engines, and a force floor never bounces a block (cc3dEvidenceTerrain.test.ts).';
 const APPEARING_WALL_WITH_MONSTER_REASON =
   'Epoxy plays CC3D appearing wall as appearing_wall_any (cc3dEvidenceTerrain.test.ts), but the map has a walking monster: the monster that reveals it turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers rather than lets walk, leaves the wall as it is where the CC3D golem makes it a wall (cc3dEvidenceYellowGolem.test.ts).';
 const GATE_TOOLS_REASON =
@@ -302,7 +302,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
   [KEY_APPEARING_WALL_WITH_MONSTER]: APPEARING_WALL_WITH_MONSTER_REASON,
-  [KEY_APPEARING_WALL_WITH_SLIDE]: APPEARING_WALL_WITH_SLIDE_REASON,
+  [KEY_COLOR_BLOCK_ON_ICE]: COLOR_BLOCK_ON_ICE_REASON,
   [KEY_MONSTERS_MEET]: MONSTERS_MEET_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
@@ -335,8 +335,7 @@ const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3
 const MEETING_DIFFERS_KINDS: readonly Cc3dMobKind[] = [
   'walker', 'omni', 'limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'
 ];
-const SLIDE_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['ice', 'ice_corner', 'force', 'force_random'];
-const BLOCK_MOB_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_ice', 'block_color'];
+const ICE_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['ice', 'ice_corner'];
 
 function buildTable(): Record<string, CoverageEntry> {
   const table: Record<string, CoverageEntry> = {};
@@ -516,11 +515,10 @@ function relationKeys(level: Cc3dLevel): string[] {
     keys.push(KEY_APPEARING_WALL_WITH_MONSTER);
   }
   if (
-    level.cells.some((cell) => cell.terrain.some((layer) => layer.kind === APPEARING_WALL_KIND)) &&
-    level.cells.some((cell) => cell.terrain.some((layer) => SLIDE_TERRAIN_KINDS.includes(layer.kind))) &&
-    level.mobs.some((mob) => BLOCK_MOB_KINDS.includes(mob.kind))
+    level.cells.some((cell) => cell.terrain.some((layer) => ICE_TERRAIN_KINDS.includes(layer.kind))) &&
+    level.mobs.some((mob) => mob.kind === 'block_color')
   ) {
-    keys.push(KEY_APPEARING_WALL_WITH_SLIDE);
+    keys.push(KEY_COLOR_BLOCK_ON_ICE);
   }
   if (meetingMonstersDiffer(level, links.cloneMachines)) keys.push(KEY_MONSTERS_MEET);
   return keys;

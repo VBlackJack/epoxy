@@ -187,6 +187,13 @@ describe('shipped format 15 fields', () => {
     expect(entities.ice_block_3d.slidesOverTiles).toEqual(['thief', 'thief_keys']);
     expect(entities.ice_block_3d.epoxyOnly).toBe(true);
   });
+
+  it('stops the CC3D dirt and ice blocks at what refuses them on ice, where the other blocks bounce back', () => {
+    const { entities } = clones();
+    expect(entities.dirt_block_3d.stopsAtWall).toBe(true);
+    expect(entities.ice_block_3d.stopsAtWall).toBe(true);
+    for (const id of ['dirt_block', 'ice_block', 'color_block_red']) expect(entities[id].stopsAtWall, id).toBeUndefined();
+  });
 });
 
 describe('findFormat15ConfigErrors', () => {
@@ -264,6 +271,13 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ slidesOverTiles: ['nowhere'] })).toEqual(['ice_block_3d.slidesOverTiles: "nowhere" is not the id of an existing tile']);
     expect(errors({ slidesOverTiles: [] })).toEqual(['ice_block_3d.slidesOverTiles: expected a non-empty list of tile ids']);
     expect(errors({ kind: 'monster' })).toEqual(['ice_block_3d.slidesOverTiles: only a block slides over tiles']);
+  });
+
+  it('refuses stopsAtWall on a block that does not slide on ice, or that is not true', () => {
+    const { tiles, entities } = clones();
+    const errors = (patch: Record<string, unknown>) => findFormat15ConfigErrors(tiles, { ...entities, ice_block_3d: { ...entities.ice_block_3d, ...patch } }).monsters;
+    expect(errors({ stopsAtWall: false })).toEqual(['ice_block_3d.stopsAtWall: expected true']);
+    expect(errors({ slidesOnIce: false })).toEqual(['ice_block_3d.stopsAtWall: only a block that slides on ice stops at a wall']);
   });
 });
 
