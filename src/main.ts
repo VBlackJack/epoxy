@@ -795,7 +795,15 @@ class EpoxyApplication {
       if (!this.engine.holdPlayerDirection) this.engine.attemptPlayerMove(this.heldDirection);
     } else if (this.autoMoveQueue.length > 0) {
       const nextDir = this.autoMoveQueue[0];
-      const moved = this.engine.attemptPlayerMove(nextDir);
+      // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
+      const epoxy = this.epoxyEngine();
+      const stepSafe = epoxy && !epoxy.getPlayer().isSliding && epoxy.getPlayer().moveCooldown === 0
+        ? Pathfinder.isNextStepSafe(epoxy, nextDir, this.autoMoveQueue.length === 1)
+        : true;
+      if (!stepSafe) {
+        this.clearAutoMove();
+      }
+      const moved = stepSafe && this.engine.attemptPlayerMove(nextDir);
       if (moved) {
         this.autoMoveQueue.shift();
         this.autoMovePoints.shift();

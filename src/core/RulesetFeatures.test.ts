@@ -316,20 +316,20 @@ describe('colour channel aids', () => {
     expect(featuresFor(level).tapToPath).toBe(true);
   });
 
-  it('turns the block hint, the dead end watch and tap to path off on a colour level', () => {
+  it('turns the block hint and the dead end watch off on a colour level and keeps tap to path (the Pathfinder judges plates and hold doors)', () => {
     const features = featuresFor(levelWith('pressure_plate_red'));
     expect(features.blockHint).toBe(false);
     expect(features.deadEndWatch).toBe(false);
-    expect(features.tapToPath).toBe(false);
+    expect(features.tapToPath).toBe(true);
     expect(features.objectiveMarker).toBe(true);
-    expect(featuresFor(levelWith('floor', 'color_block_red')).tapToPath).toBe(false);
+    expect(featuresFor(levelWith('floor', 'color_block_red')).tapToPath).toBe(true);
     expect(featuresFor(levelWith('floor')).tapToPath).toBe(true);
   });
 
-  it('turns tap to path off on a receivers level that also has colour content', () => {
+  it('keeps tap to path on a receivers level that also has colour content, like a receivers level without it', () => {
     const colour = { ...levelWith('pressure_plate_red'), winRule: 'receivers' as const };
     const features = featuresFor(colour);
-    expect(features.tapToPath).toBe(false);
+    expect(features.tapToPath).toBe(true);
     expect(features.objectiveMarker).toBe(false);
     expect(features.blockHint).toBe(false);
     expect(featuresFor({ ...levelWith('floor'), winRule: 'receivers' as const }).tapToPath).toBe(true);
@@ -343,7 +343,8 @@ describe('colour channel aids', () => {
   it('keeps the laser aids off when a level has lasers and colours', () => {
     const features = featuresFor(levelWith('laser_emitter_e', 'color_block_red'));
     expect(features.blockHint).toBe(false);
-    expect(features.tapToPath).toBe(false);
+    // A laser level keeps its tapped path (the Pathfinder avoids beams); colour content no longer removes it.
+    expect(features.tapToPath).toBe(true);
   });
 
   it('detects colour and epoxy-only content', () => {
@@ -352,5 +353,44 @@ describe('colour channel aids', () => {
     expect(hasEpoxyOnlyContent(levelWith('laser_emitter_e'))).toBe(true);
     expect(hasEpoxyOnlyContent(levelWith('floor', 'color_block_blue'))).toBe(true);
     expect(hasEpoxyOnlyContent(levelWith('floor', 'dirt_block'))).toBe(false);
+  });
+});
+
+describe('aids by level kind', () => {
+  beforeAll(() => {
+    loadTestConfigs();
+  });
+
+  const grid = (cell: string): string[][] => [['wall', 'wall', 'wall'], ['wall', cell, 'wall'], ['wall', 'wall', 'wall']];
+  const base = (cell: string, entityType?: string): FeatureLevelForTest => ({
+    id: 'aids_probe',
+    ruleset: 'epoxy',
+    terrain: grid(cell),
+    items: grid('x').map((row) => row.map(() => null)),
+    entities: entityType ? [{ type: entityType, x: 1, y: 1, dir: 'S' }] : []
+  });
+  type FeatureLevelForTest = Parameters<typeof featuresFor>[0] & object;
+
+  it('keeps the tapped path on a colour level and the hint and watch off', () => {
+    const features = featuresFor(base('pressure_plate_red'));
+    expect(features.tapToPath).toBe(true);
+    expect(features.blockHint).toBe(false);
+    expect(features.deadEndWatch).toBe(false);
+  });
+
+  it('keeps the tapped path off on a turret level and a signal-wired level with colour content', () => {
+    expect(featuresFor(base('pressure_plate_red', 'turret_fixed')).tapToPath).toBe(false);
+    expect(featuresFor({ ...base('pressure_plate_red'), signalLinks: [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }] }).tapToPath).toBe(false);
+  });
+
+  it('turns the hint and the watch off on a converted CC3D level, by id suffix or by source marker', () => {
+    expect(featuresFor(base('floor')).blockHint).toBe(true);
+    expect(featuresFor(base('floor')).deadEndWatch).toBe(true);
+    for (const converted of [{ ...base('floor'), id: 'pack_1~epoxy' }, { ...base('floor'), id: 'pack_1~epoxy_2' }, { ...base('floor'), cc3dSource: {} as never }]) {
+      const features = featuresFor(converted);
+      expect(features.blockHint).toBe(false);
+      expect(features.deadEndWatch).toBe(false);
+      expect(features.tapToPath).toBe(true);
+    }
   });
 });

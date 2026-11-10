@@ -29,8 +29,9 @@ import {
 } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
 import { GameEngine } from './GameEngine';
-import { hiddenUnder, isRemovableTop } from './Underlays';
-import { Direction, GridPoint, TileDefinition } from './types';
+import { entityPressesPlate } from './epoxy/epoxyWorld';
+import { hiddenUnder, isRemovableTop, underlayMap } from './Underlays';
+import { ChannelColor, Direction, GridPoint, TileDefinition } from './types';
 
 /** Step cost of a plain cell. */
 const BASE_STEP_COST = 1;
@@ -100,6 +101,65 @@ class NodeHeap {
 }
 
 export class Pathfinder {
+  /** True when a colour button or toggle control sits on the terrain or in the item layer of the cell. */
+  private static pressesChannelButton(tile: TileDefinition, itemId: string | null): boolean {
+    return (
+      channelOfButtonAction(tile.buttonAction) !== undefined ||
+      (itemId !== null && channelOfButtonAction(ConfigRegistry.getTile(itemId).buttonAction) !== undefined)
+    );
+  }
+
+  /**
+   * Whether resting blocks (not the player, not a monster) press every plate of the colour, so that its hold doors
+   * stay open without the walker. False for a colour with no visible plate, a plate hidden under a removable top,
+   * or a level with signal wiring.
+   */
+  private static colorHeldByBlocks(engine: GameEngine, color: ChannelColor): boolean {
+    const level = engine.getLevel();
+    const terrain = engine.getTerrain();
+    if ((level.signalLinks?.length ?? 0) > 0) return false;
+    const hidden = underlayMap(level);
+    if (hidden !== null) {
+      for (const id of hidden.values()) if (ConfigRegistry.getTile(id).plateColor === color) return false;
+    }
+    const restingBlocks = engine.getEntities().filter((e) => e.kind === 'block' && !e.isSliding);
+    let plates = 0;
+    for (let y = 0; y < terrain.length; y++) {
+      for (let x = 0; x < terrain[y].length; x++) {
+        if (ConfigRegistry.getTile(terrain[y][x]).plateColor !== color) continue;
+        plates++;
+        if (!restingBlocks.some((e) => e.x === x && e.y === y && entityPressesPlate(e.type, 'block', color))) return false;
+      }
+    }
+    return plates > 0;
+  }
+
+  /**
+   * Whether the player may step onto the cell right now, judged on the live engine: no lit beam, no closed trap and
+   * no channel button unless the cell ends the walk, and a hold door only while resting blocks hold it open. The
+   * auto-move re-checks each step with it, since a plate crossed on the way can open a door that shielded a beam.
+   */
+  public static isStepSafe(engine: GameEngine, x: number, y: number, isFinal: boolean): boolean {
+    const terrain = engine.getTerrain();
+    if (y < 0 || y >= terrain.length || x < 0 || x >= (terrain[y]?.length ?? 0)) return false;
+    if (engine.getBeamCells().some((cell) => cell.x === x && cell.y === y)) return false;
+    if (isFinal) return true;
+    if (engine.isCellClosedTrap(x, y)) return false;
+    const tile = ConfigRegistry.getTile(terrain[y][x]);
+    if (Pathfinder.pressesChannelButton(tile, engine.getItems()[y][x])) return false;
+    if (tile.holdDoorColor !== undefined) {
+      return tile.holdDoorOpen === true && Pathfinder.colorHeldByBlocks(engine, tile.holdDoorColor);
+    }
+    return true;
+  }
+
+  /** Whether the next auto-move step, one cell towards `dir`, is still safe; `isFinal` marks the last step of the walk. */
+  public static isNextStepSafe(engine: GameEngine, dir: Direction, isFinal: boolean): boolean {
+    const player = engine.getPlayer();
+    const vec = DIRECTION_VECTORS[dir];
+    return Pathfinder.isStepSafe(engine, player.x + vec.dx, player.y + vec.dy, isFinal);
+  }
+
   /**
    * Finds a click-to-move path. Cells that move the player on their own (ice,
    * force floors without boots, teleporters) can only be the last step of a
@@ -187,6 +247,20 @@ export class Pathfinder {
       const entering = railOpen.get(ny * width + nx);
       return entering !== undefined && !entering.some((sides) => sides.includes(OPPOSITE_DIRECTION[dir]));
     };
+    // Plate colours whose hold doors resting blocks keep open, asked once per colour.
+    const plateColorCache = new Map<ChannelColor, boolean>();
+    const colorHeldByBlocks = (color: ChannelColor): boolean => {
+      let held = plateColorCache.get(color);
+      if (held === undefined) {
+        held = Pathfinder.colorHeldByBlocks(engine, color);
+        plateColorCache.set(color, held);
+      }
+      return held;
+    };
+    /** A hold door is passable for a plan only when it is open and its plates are all held by resting blocks. */
+    const holdDoorHeldByBlocks = (tile: TileDefinition): boolean =>
+      tile.holdDoorOpen === true && tile.holdDoorColor !== undefined && colorHeldByBlocks(tile.holdDoorColor);
+    const pressesChannelButton = Pathfinder.pressesChannelButton;
     const stateKey = (node: AStarNode): string =>
       `${node.x},${node.y},${node.bootsStolen ? 1 : 0},${node.tokensLeft},${JSON.stringify(node.keysUsed)}` +
       (railOpen.has(node.y * width + node.x) ? `,${entrySide(node)}` : '');
@@ -254,6 +328,11 @@ export class Pathfinder {
         if (!isTarget && engine.isCellClosedTrap(nx, ny)) {
           continue;
         }
+
+        // Colour safety: a channel button is only ever the final cell, and a hold door is a way through only
+        // while resting blocks (not the walker) hold every plate of its colour.
+        if (!isTarget && pressesChannelButton(topTile, items[ny][nx])) continue;
+        if (topTile.holdDoorColor !== undefined && !holdDoorHeldByBlocks(topTile)) continue;
 
         let keysUsed = curr.keysUsed;
         if (topTile.requiredKey) {
