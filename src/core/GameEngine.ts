@@ -863,7 +863,8 @@ export class GameEngine {
     }
 
     // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
-    if (this.w.ccRules) resumeForceCarry(this.w);
+    // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
+    if (this.w.ccRules || this.w.cc3dPace) resumeForceCarry(this.w);
     if (this.w.player.isSliding) {
       if (this.w.player.slideCooldown > 0) {
         this.w.player.slideCooldown--;

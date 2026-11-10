@@ -94,6 +94,14 @@ export function resumeForceCarry(w: EpoxyWorld): void {
   if (w.player.isSliding || !w.player.alive) return;
   const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
   if (!isCarriedByForceFloor(w, tile)) return;
+  if (w.cc3dPace && (tile.forceDirection === 'RANDOM' || tile.forceCycle === true)) {
+    // A converted CC3D level: the drift is drawn on arrival and kept, and the forced step is tried again every tick.
+    if (w.player.slideDir === null) return;
+    w.player.isSliding = true;
+    w.player.dir = w.player.slideDir;
+    w.player.slideCooldown = 0;
+    return;
+  }
   if (tile.forceDirection === 'RANDOM' || tile.forceCycle === true) {
     evaluatePlayerSliding(w, tile, w.player.dir);
     w.player.slideCooldown = 0;

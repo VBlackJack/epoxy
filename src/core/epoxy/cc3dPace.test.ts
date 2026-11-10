@@ -238,3 +238,85 @@ describe('a refused forced step on a force floor', () => {
     expect(native).toBeGreaterThan(0);
   });
 });
+
+describe('the carry of a force floor is tried again every tick', () => {
+  const CORRIDOR = ['###############', '#######.#######', '#.@>..........#', '#######.#######', '###############'];
+  const WALLED_CORRIDOR = ['###############', '###############', '#.@>..........#', '###############', '###############'];
+  const BLOCKER_X = 4;
+
+  function blocked(flavor: Flavor, rows = WALLED_CORRIDOR): { engine: GameEngine; w: TestWorld } {
+    const run = start(rows, flavor);
+    run.w.terrain[2][BLOCKER_X] = 'wall';
+    expect(run.engine.attemptPlayerMove('E')).toBe(true);
+    for (let t = 0; t < 12; t++) run.engine.tick();
+    return run;
+  }
+
+  it('carries the player on once the blocker is gone, even in a corridor that bars his input', () => {
+    const { engine, w } = blocked('converted');
+    expect(w.player.x).toBe(BLOCKER_X - 1);
+    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(engine.attemptPlayerMove('W')).toBe(false);
+    w.terrain[2][BLOCKER_X] = 'floor';
+    for (let t = 0; t < 6; t++) engine.tick();
+    expect(w.player.x).toBeGreaterThanOrEqual(BLOCKER_X);
+  });
+
+  it('carries the player on from a random drift kept after a refused step', () => {
+    const { engine, w } = start(WALLED_CORRIDOR, 'converted');
+    w.terrain[2][3] = 'force_random';
+    w.terrain[2][BLOCKER_X] = 'wall';
+    w.player.x = 3;
+    w.player.slideDir = 'E';
+    for (let t = 0; t < 6; t++) engine.tick();
+    expect(w.player.x).toBe(3);
+    w.terrain[2][BLOCKER_X] = 'floor';
+    for (let t = 0; t < 6; t++) engine.tick();
+    expect(w.player.x).toBeGreaterThan(3);
+  });
+
+  it('stays put on a native level, where the floor does not try again', () => {
+    const { engine, w } = blocked('native', CORRIDOR);
+    w.terrain[2][BLOCKER_X] = 'floor';
+    for (let t = 0; t < 6; t++) engine.tick();
+    expect(w.player.x).toBe(BLOCKER_X - 1);
+  });
+
+  it('carries a player who starts the level on a force floor on the first tick', () => {
+    for (const flavor of ['converted', 'native'] as const) {
+      const built = level(WALLED_CORRIDOR, flavor);
+      const engine = new GameEngine();
+      engine.loadLevel({ ...built, playerStart: { x: 3, y: 2, dir: 'S' } });
+      const w = (engine as unknown as { w: TestWorld }).w;
+      engine.tick();
+      if (flavor === 'converted') expect(w.player.x).toBeGreaterThan(3);
+      else expect(w.player.x).toBe(3);
+    }
+  });
+});
+
+describe('the pace through an ice corner and a teleporter', () => {
+  it('leaves the player busy one more tick after a slide turned by an ice corner', () => {
+    const { engine, w } = start(ICE_LANE, 'converted');
+    w.terrain[2][8] = 'ice_corner_3d_ne';
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    let guard = 0;
+    while (w.player.isSliding || w.player.x < 8) {
+      engine.tick();
+      if (++guard > SLIDE_TICKS * 2) throw new Error('the slide never ended');
+    }
+    expect(w.player.y).toBe(3);
+    expect(w.player.moveCooldown).toBeGreaterThanOrEqual(CC3D_SLIDE_END_WAIT_TICKS);
+  });
+
+  it('keeps the pace of the slide after a teleporter and waits one tick when it ends', () => {
+    const rows = ['###############', '#.............#', '#.@IIOII.......#', '#.....OIIII....#', '###############'].map((r) => r.slice(0, 15));
+    const { engine, w } = start(rows, 'converted');
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    const changes = cellChangeTicks(engine, w, SLIDE_TICKS);
+    expect(w.player.isSliding).toBe(false);
+    expect(w.player.y).toBe(3);
+    expect(w.player.x).toBeGreaterThan(6);
+    expect(new Set(gaps(changes.slice(-4)))).toEqual(new Set([CONVERTED_ICE_GAP]));
+  });
+});
