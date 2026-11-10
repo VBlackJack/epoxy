@@ -63,7 +63,7 @@ import {
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
-import { teleportEntity } from './epoxy/epoxyTeleports';
+import { takeClassicTeleportDelay, teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
@@ -945,12 +945,15 @@ export class GameEngine {
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
+      // Classic rules: a teleport jump costs the pad time on top of the step (taken always, so it never lingers).
+      const teleportDelay = takeClassicTeleportDelay(this.w);
       if (mover.exited !== true) {
         const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
         // Boots cancel the push, so a booted player keeps the walking cadence.
         this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
           : playerWalkCooldown(this.w);
+        this.w.player.moveCooldown += teleportDelay;
       }
       resolveLasers(this.ctx);
       this.checkTargetsWin();

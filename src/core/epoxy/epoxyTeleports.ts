@@ -34,6 +34,21 @@ import {
 } from './epoxyWorld';
 
 /**
+ * Classic rules: ticks a player waits after a teleport jump, on top of the usual cadence. In the original game the
+ * player lands on the destination pad and leaves it by a forced exit step a moment later; the jump to the exit cell
+ * is kept and the pad time is paid as this wait (measured on the official replays: 4 ticks).
+ */
+export const CC_TELEPORT_DELAY_TICKS = 4;
+
+/** Worlds whose player just jumped and whose delay is not yet charged (charged by the caller that sets the cooldown). */
+const pendingTeleportDelay = new WeakSet<EpoxyWorld>();
+
+/** Takes the pending classic teleport delay: ticks to add to the player's wait, 0 when no jump just happened. */
+export function takeClassicTeleportDelay(w: EpoxyWorld): number {
+  return pendingTeleportDelay.delete(w) ? CC_TELEPORT_DELAY_TICKS : 0;
+}
+
+/**
  * The pads of a group that the terrain holds now and that are live teleporters, in reading order (row by row, left to
  * right): the portable pads a player set down, or the lit relay pads. A pad can be set down, lit or darkened at any
  * time, so the list is read live instead of from the lookups built at load. A dark relay pad is plain floor and never
@@ -204,6 +219,8 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
           w.player.x = exitX;
           w.player.y = exitY;
           w.player.dir = tryDir;
+          // Leaving by the pad that was entered is no jump: nothing to wait for.
+          if (w.ccRules && !(candidate.x === fromX && candidate.y === fromY)) pendingTeleportDelay.add(w);
           return true;
         }
       }

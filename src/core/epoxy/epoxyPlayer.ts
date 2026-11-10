@@ -31,7 +31,7 @@ import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
-import { teleportPlayer } from './epoxyTeleports';
+import { takeClassicTeleportDelay, teleportPlayer } from './epoxyTeleports';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -598,5 +598,7 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   if (w.ccRules && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
     w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
   }
+  // Classic rules: a slide that ended on a teleporter pays the pad time too.
+  w.player.moveCooldown += takeClassicTeleportDelay(w);
   ctx.checkTargetsWin();
 }

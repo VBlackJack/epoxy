@@ -440,7 +440,7 @@ export const SHA256_HEX_LENGTH = 64;
 export const NATIVE_RULES_VERSION = 1;
 
 /** Rules version of Epoxy levels played with the classic Chip's Challenge timing; bumping it drops their stored replays. */
-export const CC_RULES_VERSION = 3;
+export const CC_RULES_VERSION = 4;
 
 /** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
 export const LYNX_RULES_VERSION = 1;
