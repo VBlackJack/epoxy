@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.29.0] - 2026-11-10
+
 ### Added
 
 - Pack format 16, CC3D imports: the CC3D dirt block now plays by its CC3D rule (it fills water with CC3D dirt, which the next block clears, and it refuses fire and item cells), and the omni leaves CC3D slime. Water and the dirt block are now exact; 218 of 769 community CC3D maps convert exactly, up from 78. Levels imported before keep their tiles until imported again.
