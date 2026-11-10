@@ -5173,6 +5173,30 @@
         "label": "Kills the player and most monsters. A player holding both fire boots and water boots survives and turns the cell into floor. A block is destroyed as it cleans the slime."
       }
     },
+    "ice_corner_3d_nw": {
+      "name": "Ice Corner N-W (CC3D)",
+      "desc": {
+        "label": "A CC3D ice corner: like the ice corner, but when its exit is blocked a slider is sent straight back against the exit and, since that side of the corner is closed, stops on the corner instead of sliding back the way it came."
+      }
+    },
+    "ice_corner_3d_ne": {
+      "name": "Ice Corner N-E (CC3D)",
+      "desc": {
+        "label": "A CC3D ice corner: like the ice corner, but when its exit is blocked a slider is sent straight back against the exit and, since that side of the corner is closed, stops on the corner instead of sliding back the way it came."
+      }
+    },
+    "ice_corner_3d_sw": {
+      "name": "Ice Corner S-W (CC3D)",
+      "desc": {
+        "label": "A CC3D ice corner: like the ice corner, but when its exit is blocked a slider is sent straight back against the exit and, since that side of the corner is closed, stops on the corner instead of sliding back the way it came."
+      }
+    },
+    "ice_corner_3d_se": {
+      "name": "Ice Corner S-E (CC3D)",
+      "desc": {
+        "label": "A CC3D ice corner: like the ice corner, but when its exit is blocked a slider is sent straight back against the exit and, since that side of the corner is closed, stops on the corner instead of sliding back the way it came."
+      }
+    },
     "teleport_red_cc2_off": {
       "name": "Red Teleporter (CC2, Off)",
       "desc": {

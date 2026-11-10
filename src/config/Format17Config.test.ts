@@ -25,7 +25,10 @@ import { makeLevel } from '../test/packFixtures';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
-const NEW_IDS = ['trap_sealed', 'color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow'];
+const NEW_IDS = [
+  'trap_sealed', 'color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow',
+  'ice_corner_3d_nw', 'ice_corner_3d_ne', 'ice_corner_3d_sw', 'ice_corner_3d_se'
+];
 
 function tiles() {
   return structuredClone(ConfigRegistry.getTiles().tiles);
@@ -133,5 +136,13 @@ describe('findFormat17ConfigErrors', () => {
     const errors = (patch: Record<string, unknown>) => findFormat17ConfigErrors({ ...all, trap_sealed: { ...all.trap_sealed, ...patch } });
     expect(errors({ closesTo: 'trap' })).toHaveLength(1);
     expect(errors({ wiredTrap: true })).toHaveLength(1);
+  });
+
+  it('refuses cc3dCornerBounce on a tile that is not ice, has no deflection map, or is not true', () => {
+    const all = tiles();
+    const errors = (patch: Record<string, unknown>) => findFormat17ConfigErrors({ ...all, ice_corner_3d_ne: { ...all.ice_corner_3d_ne, ...patch } });
+    expect(errors({ cc3dCornerBounce: false })).toEqual(['ice_corner_3d_ne.cc3dCornerBounce: expected true']);
+    expect(errors({ slideType: undefined })).toHaveLength(1);
+    expect(errors({ deflectionMap: undefined })).toHaveLength(1);
   });
 });

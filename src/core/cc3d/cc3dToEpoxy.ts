@@ -151,7 +151,7 @@ function cornerId(layer: Cc3dTerrain): string {
   const east = sides.includes('E');
   const west = sides.includes('W');
   if (north === south || east === west) throw new Error('CC3D converter: ice_corner needs one north or south side and one east or west side');
-  return `ice_${north ? 'n' : 's'}${east ? 'e' : 'w'}`;
+  return `ice_corner_3d_${north ? 'n' : 's'}${east ? 'e' : 'w'}`;
 }
 
 function toggleDoorId(layer: Cc3dTerrain): string {

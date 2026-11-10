@@ -5173,6 +5173,30 @@
         "label": "Tue le joueur et la plupart des monstres. Un joueur qui porte à la fois les bottes de feu et les bottes d'eau survit et change la case en sol. Un bloc est détruit en nettoyant la gelée."
       }
     },
+    "ice_corner_3d_nw": {
+      "name": "Coin Glace N-O (CC3D)",
+      "desc": {
+        "label": "Un coin de glace de CC3D : comme le coin de glace, mais quand sa sortie est bloquée, celui qui glisse est renvoyé droit contre la sortie et, ce côté du coin étant fermé, s'arrête sur le coin au lieu de repartir par où il est venu."
+      }
+    },
+    "ice_corner_3d_ne": {
+      "name": "Coin Glace N-E (CC3D)",
+      "desc": {
+        "label": "Un coin de glace de CC3D : comme le coin de glace, mais quand sa sortie est bloquée, celui qui glisse est renvoyé droit contre la sortie et, ce côté du coin étant fermé, s'arrête sur le coin au lieu de repartir par où il est venu."
+      }
+    },
+    "ice_corner_3d_sw": {
+      "name": "Coin Glace S-O (CC3D)",
+      "desc": {
+        "label": "Un coin de glace de CC3D : comme le coin de glace, mais quand sa sortie est bloquée, celui qui glisse est renvoyé droit contre la sortie et, ce côté du coin étant fermé, s'arrête sur le coin au lieu de repartir par où il est venu."
+      }
+    },
+    "ice_corner_3d_se": {
+      "name": "Coin Glace S-E (CC3D)",
+      "desc": {
+        "label": "Un coin de glace de CC3D : comme le coin de glace, mais quand sa sortie est bloquée, celui qui glisse est renvoyé droit contre la sortie et, ce côté du coin étant fermé, s'arrête sur le coin au lieu de repartir par où il est venu."
+      }
+    },
     "teleport_red_cc2_off": {
       "name": "Téléporteur rouge (CC2, éteint)",
       "desc": {

@@ -1201,6 +1201,13 @@ export interface TileDefinition {
    */
   railJunction?: boolean;
   deflectionMap?: Partial<Record<Direction, Direction>>;
+  /**
+   * Format 17, the CC3D ice corner: whoever slides over the corner and finds its exit blocked is sent straight back the
+   * way opposite to that exit, without the corner deflecting the bounce. That step crosses a closed side of the corner,
+   * so the slider stops on the corner; a native corner turns the bounce and sends the slider back the way it came. Needs
+   * `slideType` 'ice' and a `deflectionMap`.
+   */
+  cc3dCornerBounce?: boolean;
   forceDirection?: Direction | 'RANDOM';
   /** A turning force floor: no fixed direction; each arrival of any actor on any such cell takes the next direction of the level's shared turn. */
   forceCycle?: boolean;

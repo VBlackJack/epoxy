@@ -2321,6 +2321,11 @@ export function findFormat17ConfigErrors(tiles: Record<string, TileDefinition>):
   const errors: string[] = [];
   for (const tile of Object.values(tiles)) {
     const { id } = tile;
+    if (tile.cc3dCornerBounce !== undefined) {
+      if (tile.cc3dCornerBounce !== true) errors.push(`${id}.cc3dCornerBounce: expected true`);
+      if (tile.slideType !== 'ice') errors.push(`${id}.cc3dCornerBounce: only an ice tile bounces`);
+      if (tile.deflectionMap === undefined) errors.push(`${id}.cc3dCornerBounce: a corner without a deflection map has no bounce to leave undeflected`);
+    }
     if (tile.sealedTrap === undefined) continue;
     if (tile.sealedTrap !== true) errors.push(`${id}.sealedTrap: expected true`);
     if (tile.isTrap !== true) errors.push(`${id}.sealedTrap: only a trap is sealed`);

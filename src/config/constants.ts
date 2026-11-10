@@ -381,9 +381,9 @@ export const PACK_JSON_VERSION_V16_IDS: ReadonlySet<string> = new Set(['button_o
 
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 17 (see
- * PACK_JSON_VERSION_V17_IDS): the sealed trap, which no button ever opens, and the four CC3D colour blocks, which stop against a wall
- * on ice. An older build would play them as an ordinary trap that a brown button releases and as the native colour blocks
- * that bounce back, so it must refuse the file.
+ * PACK_JSON_VERSION_V17_IDS): the sealed trap, which no button ever opens, the four CC3D colour blocks, which stop against a wall
+ * on ice, and the four CC3D ice corners, which do not turn a bounce. An older build would play them as an ordinary trap that
+ * a brown button releases, as the native colour blocks that bounce back and as native corners that turn the bounce, so it must refuse the file.
  */
 export const PACK_JSON_VERSION_V17 = 17;
 
@@ -393,7 +393,11 @@ export const PACK_JSON_VERSION_V17_IDS: ReadonlySet<string> = new Set([
   'color_block_3d_red',
   'color_block_3d_green',
   'color_block_3d_blue',
-  'color_block_3d_yellow'
+  'color_block_3d_yellow',
+  'ice_corner_3d_nw',
+  'ice_corner_3d_ne',
+  'ice_corner_3d_sw',
+  'ice_corner_3d_se'
 ]);
 
 /**
