@@ -73,6 +73,10 @@ describe('epoxy coverage table', () => {
     check('bomb_with_item');
     check('laser_shooter_covered');
     check('gravel_with_reflector');
+    check('orbs_over_cap');
+    check('appearing_wall_with_monster');
+    check('appearing_wall_with_slide');
+    check('monsters_meet');
     expect(missing).toEqual([]);
   });
 
@@ -89,7 +93,8 @@ describe('epoxy coverage table', () => {
     }
     for (const key of [
       'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
-      'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector'
+      'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector', 'orbs_over_cap',
+      'appearing_wall_with_monster', 'appearing_wall_with_slide', 'monsters_meet'
     ]) named.add(key);
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });
@@ -125,9 +130,27 @@ describe('classifyLevel', () => {
     expect(result).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
-  it('calls a level with an appearing wall approx', () => {
+  it('calls a level with an appearing wall and no walking monster exact (cc3dEvidenceTerrain.test.ts)', () => {
     const result = classifyLevel(levelOf(['#####', '#@VX#', '#####'], { V: terrain('appearing_wall') }));
-    expect(result).toEqual({ verdict: 'approx', lost: [], approx: ['appearing_wall'] });
+    expect(result).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('calls a level with an appearing wall and a walking monster approx, whatever the monster', () => {
+    for (const kind of ['walker', 'golem_blue', 'golem_yellow', 'omni'] as const) {
+      const glyphs = { V: terrain('appearing_wall'), M: { mob: { kind, dir: 'E' as const } } };
+      const result = classifyLevel(levelOf(['######', '#@VXM#', '######'], glyphs));
+      expect(result.lost, kind).toEqual([]);
+      expect(result.approx, kind).toContain('appearing_wall_with_monster');
+      expect(result.approx, kind).not.toContain('appearing_wall');
+    }
+  });
+
+  it('keeps an appearing wall exact beside monsters that do not walk: blocks, reflectors, turrets', () => {
+    for (const kind of ['block_dirt', 'block_ice', 'reflector', 'bot_static', 'bot_cw'] as const) {
+      const glyphs = { V: terrain('appearing_wall'), M: { mob: { kind, dir: 'E' as const, mirror: kind === 'reflector' ? 'LU' : undefined } } };
+      const keys = elementKeys(levelOf(['######', '#@VXM#', '######'], glyphs));
+      expect(keys.has('appearing_wall_with_monster'), kind).toBe(false);
+    }
   });
 
   it('calls a level with a laser controller approx now that Epoxy has the shot trigger, and lists the other approx elements', () => {
@@ -135,7 +158,7 @@ describe('classifyLevel', () => {
     const result = classifyLevel(levelOf(['######', '#@ZVX#', '######'], glyphs));
     expect(result.verdict).toBe('approx');
     expect(result.lost).toEqual([]);
-    expect(result.approx).toEqual(['appearing_wall', 'laser_controller']);
+    expect(result.approx).toEqual(['laser_controller']);
     expect(EPOXY_COVERAGE.laser_shooter.level).toBe('approx');
     expect(EPOXY_COVERAGE.laser_controller.level).toBe('approx');
   });
@@ -183,6 +206,18 @@ describe('classifyLevel', () => {
     expect(EPOXY_COVERAGE.orb_speed.level).toBe('approx');
   });
 
+  it('plays the four orbs exactly while the map holds four orb items or fewer, the speed orb counting as one', () => {
+    const glyphs = { a: { item: { kind: 'orb_ice' as const } }, o: { item: { kind: 'orb_force' as const } }, f: { item: { kind: 'orb_fire' as const } }, w: { item: { kind: 'orb_water' as const } }, s: { item: { kind: 'orb_speed' as const } } };
+    expect(classifyLevel(levelOf(['#######', '#@afwo#', '#######'], glyphs))).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    const five = classifyLevel(levelOf(['########', '#@afwos#', '########'], glyphs));
+    expect(five.lost).toEqual([]);
+    expect(five.approx).toEqual(['orb_speed', 'orbs_over_cap']);
+    const fourWithSpeed = classifyLevel(levelOf(['######', '#@afs#', '######'], glyphs));
+    expect(fourWithSpeed.approx).toEqual(['orb_speed']);
+    const overWithoutSpeed = classifyLevel(levelOf(['########', '#@afwoa#', '########'], glyphs));
+    expect(overWithoutSpeed.approx).toEqual(['orbs_over_cap']);
+  });
+
   it('separates the colours of a colour block, a plate and a toggle door, all played by Epoxy now', () => {
     const glyphs = {
       B: { stack: [{ kind: 'floor' as const }, { kind: 'plate' as const, color: 'blue' as const }] },
@@ -190,7 +225,8 @@ describe('classifyLevel', () => {
     };
     const result = classifyLevel(levelOf(['#####', '#@BR#', '#####'], glyphs));
     expect(result.lost).toEqual([]);
-    expect(result.approx).toEqual(['plate_blue']);
+    expect(result.approx).toEqual([]);
+    expect(result.verdict).toBe('exact');
     const green = classifyLevel(levelOf(['#####', '#@J.#', '#####']));
     expect(green.verdict).toBe('exact');
     const colorBlock = classifyLevel(levelOf(['####', '#@C#', '####']));
@@ -286,11 +322,30 @@ describe('relation keys', () => {
   it('flags a trap no control works, and only that one', () => {
     const worked = levelOf(['#####', '#@bT#', '#####'], { b: stacked({ kind: 'floor' }, control), T: stacked({ kind: 'floor' }, trap) });
     expect(elementKeys(worked).has('trap_unworked')).toBe(false);
-    const idle = levelOf(['#####', '#@.T#', '#####'], { T: stacked({ kind: 'floor' }, trap) });
-    expect(elementKeys(idle).has('trap_unworked')).toBe(true);
-    expect(classifyLevel(idle).lost).toEqual(['trap_unworked']);
     const second = levelOf(['######', '#@bTT#', '######'], { b: stacked({ kind: 'floor' }, control), T: stacked({ kind: 'floor' }, trap) });
     expect(elementKeys(second).has('trap_unworked')).toBe(true);
+  });
+
+  it('does not flag a trap on a map without any trap control: it stays shut in both engines (cc3dEvidenceDevices.test.ts)', () => {
+    const idle = levelOf(['#####', '#@.T#', '#####'], { T: stacked({ kind: 'floor' }, trap) });
+    expect(elementKeys(idle).has('trap_unworked')).toBe(false);
+    expect(classifyLevel(idle)).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('flags monsters_meet for two or more walking monsters with one of a differing kind, and for a cloned one', () => {
+    const mob = (kind: Cc3dMobKind) => ({ mob: { kind, dir: 'E' as const } });
+    const two = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('bouncer') }));
+    expect(two.approx).toContain('monsters_meet');
+    const mixed = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('golem_blue') }));
+    expect(mixed.approx).toContain('monsters_meet');
+    const agreeing = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('golem_blue'), N: mob('snappy') }));
+    expect(agreeing.approx).not.toContain('monsters_meet');
+    const alone = classifyLevel(levelOf(['#####', '#@M.#', '#####'], { M: mob('bouncer') }));
+    expect(alone.approx).not.toContain('monsters_meet');
+    const blocks = classifyLevel(levelOf(['######', '#@MK.#', '######'], { M: mob('bouncer') }));
+    expect(blocks.approx).not.toContain('monsters_meet');
+    const cloned = classifyLevel(levelOf(['#####', '#@c.#', '#####'], { c: { stack: [{ kind: 'floor' }, { kind: 'clone_machine', dir: 'E' }], mob: { kind: 'bouncer', dir: 'E' } } }));
+    expect(cloned.approx).toContain('monsters_meet');
   });
 
   it('flags a clone switch whose nearest machine holds no template or a shooter, not one with a walker', () => {
@@ -360,9 +415,9 @@ describe('colour channel coverage', () => {
     for (const color of CC3D_COLORS) expect(EPOXY_COVERAGE[`hold_door_${color}`].level).toBe('exact');
   });
 
-  it('plays every plate approximately and every colour block exactly, and loses none of them', () => {
+  it('plays every plate and every colour block exactly (plate timelines: cc3dEvidenceDevices.test.ts), and loses none of them', () => {
     for (const color of CC3D_COLORS) {
-      expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('approx');
+      expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('exact');
       expect(EPOXY_COVERAGE[`block_color_${color}`].level).toBe('exact');
     }
   });

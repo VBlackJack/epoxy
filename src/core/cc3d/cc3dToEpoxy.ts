@@ -34,10 +34,14 @@ import {
   classifyStack,
   elementKeys,
   EPOXY_COVERAGE,
+  KEY_APPEARING_WALL_WITH_MONSTER,
+  KEY_APPEARING_WALL_WITH_SLIDE,
   KEY_BOMB_WITH_ITEM,
   KEY_CLONE_SWITCH_EMPTY,
   KEY_GRAVEL_WITH_REFLECTOR,
   KEY_LASER_SHOOTER_COVERED,
+  KEY_MONSTERS_MEET,
+  KEY_ORBS_OVER_CAP,
   KEY_PANELS_ON_NONFLOOR,
   KEY_SOCKET_RED_STACKED,
   KEY_STACKED_RUNTIME,
@@ -279,7 +283,11 @@ const STRUCTURAL_RULE_KEYS: readonly string[] = [
   KEY_CLONE_SWITCH_EMPTY,
   KEY_LASER_SHOOTER_COVERED,
   KEY_TRAP_UNWORKED,
-  KEY_GRAVEL_WITH_REFLECTOR
+  KEY_GRAVEL_WITH_REFLECTOR,
+  KEY_ORBS_OVER_CAP,
+  KEY_APPEARING_WALL_WITH_MONSTER,
+  KEY_APPEARING_WALL_WITH_SLIDE,
+  KEY_MONSTERS_MEET
 ];
 
 /** Every coverage key the converter has a rule for (drift-tested against EPOXY_COVERAGE). */
@@ -448,7 +456,8 @@ function buildTrapLinks(input: LinkInput): TrapLink[] {
   const trapLinks = cc3dLinks(input.level).trapControls;
   for (const link of trapLinks) if (link.to !== null) worked.add(link.to);
   input.level.cells.forEach((cell, index) => {
-    if (!cell.terrain.some((layer) => layer.kind === 'trap') || worked.has(index)) return;
+    // A map without any trap control is no loss: the trap stays shut in both engines (cc3dEvidenceDevices.test.ts).
+    if (trapLinks.length === 0 || !cell.terrain.some((layer) => layer.kind === 'trap') || worked.has(index)) return;
     const trap = pointOf(input, index);
     input.drop(KEY_TRAP_UNWORKED, trap.x, trap.y);
   });
