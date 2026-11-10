@@ -21,6 +21,7 @@ import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
+import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
 import type { CcArrival } from '../types';
@@ -149,6 +150,11 @@ export interface EpoxyWorld {
   hasShots: boolean;
   /** True when the level plays with the classic Chip's Challenge rules (see usesCcRules); fixed for the level, read by later batches. */
   ccRules: boolean;
+  /**
+   * True when the level is a CC3D level converted to Epoxy that plays on the Epoxy engine (never one with the classic
+   * rules): the player and the blocks it pushes keep the CC3D pace on ice and force floors; fixed for the level.
+   */
+  cc3dPace: boolean;
   /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
   ccMonsterClock: number;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
@@ -265,6 +271,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasLaunchers: false,
     hasShots: false,
     ccRules: false,
+    cc3dPace: false,
     ccMonsterClock: 0,
     ccGenerators: null,
     ccSlots: [],
@@ -315,6 +322,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasLaunchers = false;
   w.hasShots = false;
   w.ccRules = usesCcRules(w.level);
+  w.cc3dPace = !w.ccRules && isConvertedCc3dLevel(w.level);
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();

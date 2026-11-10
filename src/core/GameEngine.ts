@@ -919,7 +919,10 @@ export class GameEngine {
         currentTile.forceDirection && currentTile.forceDirection !== 'RANDOM'
           ? currentTile.forceDirection
           : this.w.player.slideDir;
-      if (activeForceDir && dir === OPPOSITE_DIRECTION[activeForceDir]) {
+      // A converted CC3D level: the player resting on a force floor whose forced step was refused keeps its drift, and his
+      // input along that axis is refused both ways (Cc3dSimulation.inputAllowed).
+      const keptDrift = this.w.cc3dPace && !this.w.player.isSliding;
+      if (activeForceDir && (dir === OPPOSITE_DIRECTION[activeForceDir] || (keptDrift && dir === activeForceDir))) {
         AudioManager.playSfx('blocked');
         return false;
       }

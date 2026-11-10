@@ -317,6 +317,21 @@ export const CC_ICE_SLIDE_COOLDOWN_TICKS = 1;
 export const CC_BLOCK_SLIDE_COOLDOWN_TICKS = 1;
 
 /**
+ * Ticks a chosen step onto ice or a force floor, and the arrival of a slide step, wait before the first slide step on a
+ * converted CC3D level (CC3D fast step: two ticks), whatever the floor.
+ */
+export const CC3D_SLIDE_ENTRY_COOLDOWN_TICKS = 2;
+
+/** Slide delay between two cells of a slide of the player on a converted CC3D level: one cell every two ticks. */
+export const CC3D_SLIDE_STEP_COOLDOWN_TICKS = 1;
+
+/** Ticks the player stays busy after the step that ends a slide, before his input is read again (converted CC3D level). */
+export const CC3D_SLIDE_END_WAIT_TICKS = 1;
+
+/** Slide delay of the first slide step of a block the player pushed onto ice or a force floor (converted CC3D level). */
+export const CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS = 2;
+
+/**
  * Entity passes a monster's button press waits before it takes effect on a classic-rules level (a blob waits
  * CC_BLOB_BUTTON_DELAY_PASSES). Calibrated against Chip's Challenge 1 (Steam and the original .DAT levels) and the
  * official Chip's Challenge 2 levels.
