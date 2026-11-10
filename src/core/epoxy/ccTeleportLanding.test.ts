@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
-import type { CompiledLevel } from '../types';
+import type { CompiledLevel, Direction, EntityPlacement } from '../types';
 import { playerWalkCooldown } from './epoxyPlayer';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -125,7 +125,7 @@ describe('classic teleport landing', () => {
     expect(engine.getPlayer().teleportExit).toBe('E');
   });
 
-  it('rolls the landing back with undo', () => {
+  it('rolls the first step back with undo', () => {
     const { engine } = load(room({ cc: true }));
     expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(engine.undo()).toBe(true);
@@ -135,7 +135,7 @@ describe('classic teleport landing', () => {
     expect(p.moveCooldown).toBe(0);
   });
 
-  it('restores a player waiting on a pad when undoing a later move', () => {
+  it('restores the post-exit state when undoing a later move', () => {
     const { engine } = load(room({ cc: true }));
     engine.attemptPlayerMove('E');
     waitOut(engine);
@@ -158,5 +158,117 @@ describe('classic teleport landing', () => {
       return trace;
     };
     expect(run()).toEqual(run());
+  });
+});
+
+interface Extra {
+  entities?: EntityPlacement[];
+  others?: Array<{ x: number; y: number }>;
+  terrain?: Array<[number, number, string]>;
+}
+
+function roomWith(extra: Extra): CompiledLevel {
+  const level = room({ cc: true });
+  for (const [x, y, id] of extra.terrain ?? []) level.terrain[y][x] = id;
+  return {
+    ...level,
+    entities: extra.entities ?? [],
+    ...(extra.others === undefined
+      ? {}
+      : { extraPlayers: extra.others.map((o) => ({ x: o.x, y: o.y, dir: 'E' as Direction, character: 'chip' as const })) })
+  };
+}
+
+describe('classic teleport landing: occupied pads and other players', () => {
+  it.each([['dirt_block'], ['pink_ball']])('skips a pad where a %s stands', (type) => {
+    const { engine } = load(roomWith({ entities: [{ type, x: FAR_PAD, y: ROW, dir: 'E' }] }));
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    // The far pad is taken: the entered pad is the only one left.
+    expect(engine.getPlayer().x).toBe(NEAR_PAD);
+    expect(engine.getPlayer().teleportExit).toBe('E');
+  });
+
+  it('skips a pad where a parked player stands', () => {
+    const { engine } = load(roomWith({ others: [{ x: FAR_PAD, y: ROW }] }));
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getPlayer().x).toBe(NEAR_PAD);
+  });
+
+  it('skips a pad where a parked player waits for his forced exit', () => {
+    const { engine } = load(roomWith({ others: [{ x: FAR_PAD, y: ROW }] }));
+    const w = world(engine);
+    w.parked[0].teleportExit = 'E';
+    w.parked[0].moveCooldown = MAX_WAIT_TICKS;
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getPlayer().x).toBe(NEAR_PAD);
+  });
+
+  it('lets a parked player leave his pad on his own wait, and undo restores his waiting state', () => {
+    const { engine } = load(roomWith({ others: [{ x: FAR_PAD, y: ROW }] }));
+    const w = world(engine);
+    w.parked[0].teleportExit = 'E';
+    w.parked[0].moveCooldown = 2;
+    // A swap saves an undo snapshot that holds the parked player waiting.
+    expect(engine.swapPlayer()).toBe(true);
+    expect(world(engine).player.teleportExit).toBe('E');
+    engine.tick();
+    engine.tick();
+    expect(world(engine).player.x).toBe(FAR_PAD + 1);
+    expect(engine.undo()).toBe(true);
+    const back = world(engine);
+    expect([back.player.x, back.parked[0]?.teleportExit]).toEqual([2, 'E']);
+  });
+
+  it('holds the swap key input of a player waiting on a pad: the swapped-in waiting player takes no move', () => {
+    const { engine } = load(roomWith({ others: [{ x: FAR_PAD, y: ROW }] }));
+    const w = world(engine);
+    w.parked[0].teleportExit = 'E';
+    w.parked[0].moveCooldown = MAX_WAIT_TICKS;
+    expect(engine.swapPlayer()).toBe(true);
+    expect(engine.attemptPlayerMove('N')).toBe(false);
+  });
+});
+
+describe('classic teleport landing: where the forced exit leads', () => {
+  const exitOnto = (id: string, parked: boolean): { x: number; slide: number; sliding: boolean } => {
+    const { engine } = load(
+      roomWith({ terrain: [[FAR_PAD + 1, ROW, id]], ...(parked ? { others: [{ x: FAR_PAD, y: ROW }] } : {}) })
+    );
+    const w = world(engine);
+    const who = parked ? w.parked[0] : w.player;
+    who.x = FAR_PAD;
+    who.y = ROW;
+    who.teleportExit = 'E';
+    who.moveCooldown = 1;
+    engine.tick();
+    const after = parked ? world(engine).parked[0] : world(engine).player;
+    return { x: after.x, slide: after.slideCooldown, sliding: after.isSliding };
+  };
+
+  it('starts a slide on ice the same way for the active and a parked player', () => {
+    const active = exitOnto('ice', false);
+    const parked = exitOnto('ice', true);
+    expect(active.x).toBe(FAR_PAD + 1);
+    expect(active.sliding).toBe(true);
+    expect(parked).toEqual(active);
+  });
+
+  it('starts a carry on a force floor the same way for the active and a parked player', () => {
+    const active = exitOnto('force_e', false);
+    expect(active.x).toBe(FAR_PAD + 1);
+    expect(exitOnto('force_e', true)).toEqual(active);
+  });
+
+  it('lands on a second pad when the exit cell is a pad, with a new forced exit', () => {
+    const { engine } = load(roomWith({ terrain: [[FAR_PAD + 1, ROW, 'teleport']] }));
+    const w = world(engine);
+    w.player.x = FAR_PAD;
+    w.player.y = ROW;
+    w.player.teleportExit = 'E';
+    w.player.moveCooldown = 1;
+    engine.tick();
+    const p = engine.getPlayer();
+    expect(p.teleportExit).toBe('E');
+    expect(p.x).not.toBe(FAR_PAD + 1);
   });
 });

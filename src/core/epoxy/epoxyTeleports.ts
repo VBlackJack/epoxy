@@ -187,7 +187,13 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
       ? cc2PadPlan(w, origin, teleporters, startIdx, dir)
       : nativePadPlan(teleporters, startIdx, origin, candidateDirs);
   for (const { pad: candidate, dirs: tryDirs } of playerPlan) {
-    if (!(candidate.x === fromX && candidate.y === fromY) && padRefusesLanding(w, origin, candidate, true)) continue;
+    const isSource = candidate.x === fromX && candidate.y === fromY;
+    if (!isSource && padRefusesLanding(w, origin, candidate, true)) continue;
+    // Landing on a pad (classic rules): a pad that a block, a monster or another player stands on is skipped, as Lynx does.
+    if (landOnPad && !isSource) {
+      const other = playerAtCell(w, candidate.x, candidate.y);
+      if (getEntityAt(w, candidate.x, candidate.y) || (other !== undefined && other !== w.player)) continue;
+    }
     for (const tryDir of tryDirs) {
       const vec = DIRECTION_VECTORS[tryDir];
       const exitX = candidate.x + vec.dx;

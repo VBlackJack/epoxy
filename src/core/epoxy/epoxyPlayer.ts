@@ -131,7 +131,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   const targetY = w.player.y + vec.dy;
 
   if (!isInBounds(w, targetX, targetY)) {
-    AudioManager.playSfx('blocked');
+    if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
 
@@ -560,10 +560,11 @@ export function tickParkedPlayers(ctx: EpoxyContext): void {
     if (!w.player.alive || w.levelCompleted) return;
     withPlayer(w, parked, () => {
       if (w.player.moveCooldown > 0) w.player.moveCooldown--;
+      if (w.player.isSliding) {
+        if (w.player.slideCooldown > 0) w.player.slideCooldown--;
+        else processPlayerSlideStep(ctx);
+      }
       processTeleportExit(ctx);
-      if (!w.player.isSliding) return;
-      if (w.player.slideCooldown > 0) w.player.slideCooldown--;
-      else processPlayerSlideStep(ctx);
     });
   }
 }
