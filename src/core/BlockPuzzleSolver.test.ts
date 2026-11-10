@@ -229,6 +229,23 @@ describe('BlockPuzzleSolver', () => {
     expect(BlockPuzzleSolver.hint(engine)).toEqual(['E']);
   });
 
+  it('offers no push onto an item cell when a block refuses items', () => {
+    const refusing = corridorEngine();
+    refusing.getEntities()[0].type = 'dirt_block_3d';
+    refusing.getItems()[2][3] = 'key_red';
+    expect(BlockPuzzleSolver.hint(refusing)).toBeNull();
+    // A plain dirt block takes the same cell.
+    const plain = corridorEngine();
+    plain.getItems()[2][3] = 'key_red';
+    expect(BlockPuzzleSolver.hint(plain)).toEqual(['E']);
+  });
+
+  it('does not treat a self-teleporting pad as plain ground for a block', () => {
+    const engine = corridorEngine({ 3: 'teleport_red_cc2_off' });
+    expect(BlockPuzzleSolver.hint(engine)).toBeNull();
+    expect(BlockPuzzleSolver.isStuck(engine)).toBe(false);
+  });
+
   it('does not check the solvability of a level with signal wires, which the search does not model', () => {
     const engine = corridorEngine();
     engine.getLevel().winRule = 'targets';

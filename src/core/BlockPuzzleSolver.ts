@@ -237,11 +237,14 @@ export class BlockPuzzleSolver {
     // A 'receivers' level is won with beams, not by covering buttons: its blocks are not judged here.
     const lightsReceivers = engine.getLevel().winRule === 'receivers';
     const monsters = new Set<number>();
+    // A block of the CC3D rules keeps out of any cell holding an item: the search does not play those cells.
+    let anyBlockRefusesItems = false;
     this.blocks = [];
     for (const e of engine.getEntities()) {
       const kind = ConfigRegistry.getEntityDef(e.type)?.kind;
       if (kind === 'block') {
         const cell = e.y * this.width + e.x;
+        if (ConfigRegistry.getEntityDef(e.type)?.refusesItems === true) anyBlockRefusesItems = true;
         this.blocks.push(cell);
         const allowed = allowedPushDirs(e, ConfigRegistry.getEntityDef(e.type));
         const mask = allowed === undefined
@@ -257,13 +260,15 @@ export class BlockPuzzleSolver {
         const tile = ConfigRegistry.getTile(terrain[y][x]);
         const item = items[y][x];
         const itemHazard = item ? Boolean(ConfigRegistry.getTile(item).hazard) : false;
-        const plain = !tile.slideType && !tile.hazard && !tile.isTrap && !tile.isTeleporter && !tile.swivelTurns && !itemHazard;
+        const plain = !tile.slideType && !tile.hazard && !tile.isTrap && !tile.isTeleporter && !tile.teleportsToSelf && !tile.swivelTurns && !itemHazard;
+        // With a block that refuses items, a cell holding one is no ground for a block.
+        const itemBars = anyBlockRefusesItems && item !== null;
         const unlocked = !tile.requiredKey || (player.keys[tile.requiredKey] ?? 0) > 0;
         this.playerOk[k] = plain && unlocked && tile.passableByPlayer === true && !monsters.has(k) ? 1 : 0;
-        this.blockOk[k] = plain && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
+        this.blockOk[k] = plain && !itemBars && tile.passableByBlock === true && !monsters.has(k) ? 1 : 0;
         this.plateTurn[k] = tile.facingTurn ?? 0;
         // A fish gate opens to a block once the chips are in, which the search does not play.
-        this.blockUnmodelled[k] = (!plain && tile.passableByBlock === true) || tile.fishGate === true ? 1 : 0;
+        this.blockUnmodelled[k] = ((!plain || itemBars) && tile.passableByBlock === true) || tile.fishGate === true ? 1 : 0;
         const isGoal = coversTargets ? terrain[y][x] === BLOCK_TARGET_TILE_ID : tile.buttonAction === 'hold_trap';
         if (isGoal && !lightsReceivers) this.buttons.push(k);
       }
