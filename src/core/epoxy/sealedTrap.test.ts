@@ -27,7 +27,8 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { deviceRelations } from '../DeviceRelations';
 import { GameEngine } from '../GameEngine';
 import { LevelValidator } from '../LevelValidator';
-import type { CompiledLevel, Direction, EntityPlacement, TrapLink } from '../types';
+import type { CompiledLevel, Direction, EntityPlacement, SignalLink, TrapLink } from '../types';
+import type { EpoxyContext } from './epoxyWorld';
 
 const SIZE = 11;
 const ROW = 5;
@@ -49,6 +50,8 @@ interface Setup {
   entities?: EntityPlacement[];
   player?: { x: number; y: number };
   trapLinks?: TrapLink[];
+  signalLinks?: SignalLink[];
+  cloneLinks?: CompiledLevel['cloneLinks'];
 }
 
 /** A walled room; the player stands in the corner unless the setup says otherwise. */
@@ -68,7 +71,8 @@ function room(setup: Setup = {}): CompiledLevel {
     items: Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => null)),
     entities: setup.entities ?? [],
     trapLinks: setup.trapLinks ?? [],
-    cloneLinks: []
+    cloneLinks: setup.cloneLinks ?? [],
+    ...(setup.signalLinks === undefined ? {} : { signalLinks: setup.signalLinks })
   };
 }
 
@@ -148,6 +152,47 @@ describe('trap_sealed in the engine', () => {
   });
 });
 
+describe('a wire or a clone machine aimed at a sealed trap', () => {
+  it('opens nothing when a signal link ends on it and its plate is pressed', () => {
+    const engine = load(
+      room({
+        terrain: [
+          [BUTTON_X, ROW, 'signal_plate'],
+          [TRAP_X, ROW, SEALED]
+        ],
+        signalLinks: [{ fromX: BUTTON_X, fromY: ROW, toX: TRAP_X, toY: ROW }],
+        player: { x: PLAYER_X, y: ROW }
+      })
+    );
+    expect(engine.isCellClosedTrap(TRAP_X, ROW)).toBe(true);
+    step(engine, 'E');
+    tickFor(engine, MAX_TICKS);
+    expect(engine.getPlayer().x).toBe(BUTTON_X);
+    expect(engine.isCellClosedTrap(TRAP_X, ROW)).toBe(true);
+    expect(engine.getTerrain()[ROW][TRAP_X]).toBe(SEALED);
+  });
+
+  it('holds the block a clone machine puts into it', () => {
+    const engine = load(
+      room({
+        terrain: [
+          [TRAP_X - 1, ROW, 'clone_machine'],
+          [8, 8, 'button_red'],
+          [TRAP_X, ROW, SEALED]
+        ],
+        entities: [{ type: 'dirt_block', x: TRAP_X - 1, y: ROW, dir: 'E' }],
+        cloneLinks: [{ buttonX: 8, buttonY: 8, clonerX: TRAP_X - 1, clonerY: ROW, templateType: 'dirt_block', templateDir: 'E' }],
+        player: FAR_CORNER
+      })
+    );
+    (engine as unknown as { ctx: EpoxyContext }).ctx.triggerButton(8, 8, 'trigger_cloner');
+    tickFor(engine, MAX_TICKS);
+    const inTrap = engine.getEntities().filter((e) => e.x === TRAP_X && e.y === ROW);
+    expect(inTrap).toHaveLength(1);
+    expect(engine.isCellClosedTrap(TRAP_X, ROW)).toBe(true);
+  });
+});
+
 describe('trap_sealed in the device relations', () => {
   it('is left out of the relation of an unlinked brown button, where a plain trap is in', () => {
     const level = room({
@@ -158,6 +203,12 @@ describe('trap_sealed in the device relations', () => {
       ]
     });
     expect(deviceRelations(level, 1, 1).controls).toEqual([{ x: 6, y: 1, kind: 'level', system: 'trap', fallback: true }]);
+    expect(deviceRelations(level, 4, 1).controlledBy).toEqual([]);
+  });
+
+  it('draws no relation for a trap link that ends on it', () => {
+    const level = room({ terrain: [[1, 1, BUTTON], [4, 1, SEALED]], trapLinks: [{ buttonX: 1, buttonY: 1, trapX: 4, trapY: 1 }] });
+    expect(deviceRelations(level, 1, 1).controls).toEqual([]);
     expect(deviceRelations(level, 4, 1).controlledBy).toEqual([]);
   });
 });
@@ -173,6 +224,14 @@ describe('trap_sealed in the validator', () => {
   it('does not count it as the trap a brown button works', () => {
     expect(issueKeys(room({ terrain: [[3, 3, BUTTON], [4, 4, SEALED]] }))).toContain(KEY_TRAP_BUTTON_NO_TRAP);
     expect(issueKeys(room({ terrain: [[3, 3, BUTTON], [4, 4, TRAP]] }))).not.toContain(KEY_TRAP_BUTTON_NO_TRAP);
+  });
+
+  it('warns about a trap link that ends on it, and not about one that ends on a plain trap', () => {
+    const KEY = `${PREFIX}trap_link_sealed.label`;
+    const sealed = room({ terrain: [[3, 3, BUTTON], [4, 4, SEALED]], trapLinks: [{ buttonX: 3, buttonY: 3, trapX: 4, trapY: 4 }] });
+    expect(issueKeys(sealed)).toContain(KEY);
+    const plain = room({ terrain: [[3, 3, BUTTON], [4, 4, TRAP]], trapLinks: [{ buttonX: 3, buttonY: 3, trapX: 4, trapY: 4 }] });
+    expect(issueKeys(plain)).not.toContain(KEY);
   });
 
   it('does not ask for a brown button when another trap has one', () => {

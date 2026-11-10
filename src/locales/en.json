@@ -1892,6 +1892,9 @@
       "trap_link_target": {
         "label": "Warning: A trap link ends at ({x}, {y}), which is not a trap."
       },
+      "trap_link_sealed": {
+        "label": "Warning: A trap link ends at ({x}, {y}), a sealed trap that no link opens."
+      },
       "clone_link_button": {
         "label": "Warning: A clone link starts from ({x}, {y}), which is not a red button."
       },
@@ -2133,6 +2136,9 @@
       "opens_with_any": {
         "label": "opens with any brown button"
       },
+      "never_opens": {
+        "label": "sealed: no button ever opens it"
+      },
       "fires_cloners": {
         "label": "fires {count, plural, one {# clone machine} other {# clone machines}}"
       },
@@ -2371,6 +2377,7 @@
       "fallback": {
         "trap_button": "Opens unlinked traps while held (every brown button opens unlinked traps).",
         "trap_unlinked": "No link: any brown button opens it.",
+        "trap_sealed": "Sealed: no button or link ever opens it.",
         "trap_linked": "Answers to its linked buttons only.",
         "clone_any": "No link: fires every clone machine with a creature.",
         "clone_none": "No link, and no clone machine holds a creature: fires nothing.",
@@ -3976,9 +3983,9 @@
         "name": "Appearing wall in a level with a walking monster",
         "label": "A monster that reveals an appearing wall turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
       },
-      "color_block_on_ice": {
-        "name": "Colour block and ice",
-        "label": "A colour block that slides on ice into a wall stops against it in CC3D, where the Epoxy colour block bounces back the way it came and can crush the player. The dirt and ice blocks stop in both engines."
+      "block_slides_into_monster": {
+        "name": "Block that can slide into a monster",
+        "label": "A CC3D dirt or colour block that slides into a monster kills it, where the Epoxy block stops against it and leaves it alive. The ice block and a block pushed straight into a monster agree."
       },
       "orbs_over_cap": {
         "name": "More than four orbs",
@@ -5841,13 +5848,13 @@
     "dirt_block_3d": {
       "name": "Dirt Block (CC3D)",
       "desc": {
-        "label": "A pushable block that slides on ice and force floors. Pushed into water it turns the water into CC3D dirt, which a second block cannot fill again. It will not enter fire and it will not push onto an item. A bomb destroys it."
+        "label": "A pushable block that slides on ice and force floors. Pushed into water it turns the water into CC3D dirt, which a second block cannot fill again. It will not enter fire and it will not push onto an item. A bomb destroys it. Sliding on ice, it stops against a wall, a door or another block instead of bouncing back."
       }
     },
     "ice_block_3d": {
       "name": "Ice Block (CC3D)",
       "desc": {
-        "label": "A pushable block that slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over security gates without opening them, and it passes over CC3D dirt without clearing it."
+        "label": "A pushable block that slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over security gates without opening them, and it passes over CC3D dirt without clearing it. Sliding on ice, it stops against a wall, a door or another block instead of bouncing back."
       }
     },
     "arrow_block_none": {

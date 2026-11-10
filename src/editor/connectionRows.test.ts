@@ -132,6 +132,12 @@ describe('connectionRows', () => {
     expect(unlinked.note).toEqual({ key: CONNECTIONS_KEYS.fallbackTrapUnlinked });
   });
 
+  it('says a sealed trap is never opened, with a brown button on the map or not', () => {
+    const sealed = connectionRows(makeLevel({ '1,1': 'button_brown', '4,1': 'trap_sealed' }), 4, 1);
+    expect(sealed.note).toEqual({ key: CONNECTIONS_KEYS.fallbackTrapSealed });
+    expect(sealed.controlledBy?.rows ?? []).toEqual([]);
+  });
+
   it('spells out the red button fallback: every machine with a creature, or nothing', () => {
     const base = { '1,1': 'button_red', '4,1': 'clone_machine' };
     const withCreature = connectionRows(makeLevel(base, { entities: [{ x: 4, y: 1, type: 'walker' }] }), 1, 1);

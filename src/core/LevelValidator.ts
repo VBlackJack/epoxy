@@ -1438,7 +1438,8 @@ export class LevelValidator {
    * on any of them). The slide follows the engine: an ice corner deflects the
    * direction, the block stops on the first non-ice cell, vanishes in water or
    * slime (or in fire when the type burns), and when blocked on ice it bounces
-   * back along the lane. Other blocks, the player and the exact slide timing
+   * back along the lane, except a block that stops at a wall (stopsAtWall, the CC3D blocks), which stays where it
+   * was blocked. Other blocks, the player and the exact slide timing
    * are ignored, so the result over-approximates. Known limits: force floors
    * after the ice are not followed, and terrain changed during play (melted or
    * filled cells) is not modelled here. Without ice it is just the entered cell.
@@ -1489,6 +1490,7 @@ export class LevelValidator {
         if (nextTile.slideType === 'ice') heading = nextTile.deflectionMap?.[heading] ?? heading;
         continue;
       }
+      if (def?.stopsAtWall === true) break;
       const bounce = tile.deflectionMap?.[OPPOSITE_DIRECTION[heading]] ?? OPPOSITE_DIRECTION[heading];
       const back = canEnter(cur.x, cur.y, bounce);
       if (!back) break;
@@ -1614,10 +1616,18 @@ export class LevelValidator {
           params: { x: link.buttonX, y: link.buttonY }
         });
       }
-      if (!tileAt(link.trapX, link.trapY)?.isTrap) {
+      const target = tileAt(link.trapX, link.trapY);
+      if (!target?.isTrap) {
         issues.push({
           severity: 'warning',
           i18nKey: 'validator.issues.trap_link_target.label',
+          params: { x: link.trapX, y: link.trapY }
+        });
+      } else if (target.sealedTrap === true) {
+        // A sealed trap answers to nothing: the link does nothing.
+        issues.push({
+          severity: 'warning',
+          i18nKey: 'validator.issues.trap_link_sealed.label',
           params: { x: link.trapX, y: link.trapY }
         });
       }

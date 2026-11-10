@@ -319,7 +319,9 @@ function buildEdges(level: DeviceLevel): Edge[] {
   const cloneLinks = level.cloneLinks ?? [];
   const launcherLinks = level.launcherLinks ?? [];
   for (const l of trapLinks) {
-    if (inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.trapX, l.trapY)) {
+    // A link that ends on a sealed trap does nothing, so it draws no relation.
+    const endsOnSealed = inBounds(level, l.trapX, l.trapY) && tilesAt(level, l.trapX, l.trapY).some((t) => t.tile.sealedTrap === true);
+    if (!endsOnSealed && inBounds(level, l.buttonX, l.buttonY) && inBounds(level, l.trapX, l.trapY)) {
       add({ x: l.buttonX, y: l.buttonY }, { x: l.trapX, y: l.trapY }, 'link', 'trap');
     }
   }

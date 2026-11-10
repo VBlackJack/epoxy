@@ -1892,6 +1892,9 @@
       "trap_link_target": {
         "label": "Avertissement : un lien de piège arrive en ({x}, {y}), qui n'est pas un piège."
       },
+      "trap_link_sealed": {
+        "label": "Avertissement : un lien de piège arrive en ({x}, {y}), un piège scellé qu'aucun lien n'ouvre."
+      },
       "clone_link_button": {
         "label": "Avertissement : un lien de clonage part de ({x}, {y}), qui n'est pas un bouton rouge."
       },
@@ -2133,6 +2136,9 @@
       "opens_with_any": {
         "label": "s'ouvre avec n'importe quel bouton brun"
       },
+      "never_opens": {
+        "label": "scellé : aucun bouton ne l'ouvre jamais"
+      },
       "fires_cloners": {
         "label": "active {count, plural, one {# machine à cloner} other {# machines à cloner}}"
       },
@@ -2371,6 +2377,7 @@
       "fallback": {
         "trap_button": "Ouvre les pièges sans lien tant qu'il est maintenu (tout bouton brun ouvre les pièges sans lien).",
         "trap_unlinked": "Aucun lien : n'importe quel bouton brun l'ouvre.",
+        "trap_sealed": "Scellé : aucun bouton ni lien ne l'ouvre jamais.",
         "trap_linked": "Ne répond qu'à ses boutons liés.",
         "clone_any": "Aucun lien : active toutes les machines à cloner qui portent une créature.",
         "clone_none": "Aucun lien, et aucune machine à cloner ne porte de créature : n'active rien.",
@@ -3976,9 +3983,9 @@
         "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
         "label": "Un monstre qui révèle un mur apparaissant fait demi-tour avec un pas de décalage par rapport à celui de CC3D ensuite, et un golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
       },
-      "color_block_on_ice": {
-        "name": "Bloc de couleur et glace",
-        "label": "Un bloc de couleur qui glisse sur la glace contre un mur s'arrête contre lui dans CC3D, là où le bloc de couleur d'Epoxy rebondit en arrière et peut écraser le joueur. Les blocs de terre et de glace s'arrêtent dans les deux moteurs."
+      "block_slides_into_monster": {
+        "name": "Bloc qui peut glisser sur un monstre",
+        "label": "Un bloc de terre ou de couleur CC3D qui glisse sur un monstre le tue, là où le bloc d'Epoxy s'arrête contre lui et le laisse en vie. Le bloc de glace et un bloc poussé droit sur un monstre sont identiques."
       },
       "orbs_over_cap": {
         "name": "Plus de quatre orbes",
@@ -5841,13 +5848,13 @@
     "dirt_block_3d": {
       "name": "Bloc de terre (CC3D)",
       "desc": {
-        "label": "Un bloc poussable qui glisse sur la glace et les sols de force. Poussé dans l'eau, il la change en terre CC3D, qu'un second bloc ne peut plus combler. Il n'entre pas dans le feu et ne se pousse pas sur un objet. Une bombe le détruit."
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force. Poussé dans l'eau, il la change en terre CC3D, qu'un second bloc ne peut plus combler. Il n'entre pas dans le feu et ne se pousse pas sur un objet. Une bombe le détruit. En glissant sur la glace, il s'arrête contre un mur, une porte ou un autre bloc au lieu de rebondir."
       }
     },
     "ice_block_3d": {
       "name": "Bloc de glace (CC3D)",
       "desc": {
-        "label": "Un bloc poussable qui glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir, et passe sur la terre CC3D sans la dégager."
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir, et passe sur la terre CC3D sans la dégager. En glissant sur la glace, il s'arrête contre un mur, une porte ou un autre bloc au lieu de rebondir."
       }
     },
     "arrow_block_none": {
