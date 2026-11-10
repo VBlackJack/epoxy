@@ -21,6 +21,7 @@ import { compileSignalSpec } from '../signalLinks';
 import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
 import { usesCcRules } from './ccRules';
+import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { newCcGenerators } from './ccGenerators';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
@@ -51,6 +52,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.ccArrivals = [];
   w.ccArrivalsRunning = false;
   const ccCadence = usesCcRules(level);
+  const cc3dLevel = !ccCadence && isConvertedCc3dLevel(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);
   w.rng = new SeededRandom(levelSeed);
   // Every classic-rules level (a .DAT import and a CC2 import alike) draws walker and blob turns from the classic
@@ -66,8 +68,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       x: e.x,
       y: e.y,
       dir: e.dir,
-      // A classic-rules monster decides at tick 0; any other monster waits out its first interval.
-      cooldownTicks: ccCadence && CC_CADENCE_TYPES.includes(e.type) ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      // A classic-rules monster and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
+      cooldownTicks: (ccCadence && CC_CADENCE_TYPES.includes(e.type)) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),
@@ -103,6 +105,19 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   if (extras.length > 0) w.player.character = level.character ?? DEFAULT_PLAYER_CHARACTER;
   w.exitedPlayers = 0;
   w.swappedIn = null;
+
+  // A converted CC3D level: a block that rests on a force floor at the start is carried as soon as play starts.
+  if (cc3dLevel) {
+    for (const e of w.entities) {
+      if (e.kind !== 'block') continue;
+      const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
+      if (tile.slideType !== 'force' || !tile.forceDirection || tile.forceDirection === 'RANDOM' || tile.forceCycle === true) continue;
+      if (ConfigRegistry.getEntityDef(e.type)?.slidesOnForce !== true) continue;
+      e.isSliding = true;
+      e.dir = tile.forceDirection;
+      e.cooldownTicks = 0;
+    }
+  }
 
   w.chipsRemaining = level.chipsRequired;
   w.playStartTick = NO_PLAY_START_TICK;

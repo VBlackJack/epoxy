@@ -362,6 +362,26 @@ export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
+/** Converted CC3D levels: ticks of a monster step on plain floor, and on ice or a force floor (the floor carries it faster). */
+export const CC3D_MONSTER_STEP_TICKS = 4;
+export const CC3D_MONSTER_FLOOR_STEP_TICKS = 2;
+/** Converted CC3D levels: a monster that chooses its step and then rests (snappy, nibble, omni) rests a full period of this many ticks. */
+export const CC3D_MONSTER_REST_STEP_TICKS = 8;
+export const CC3D_RESTING_MONSTER_TYPES: readonly string[] = ['snappy', 'nibble', 'omni'];
+/** Converted CC3D levels: the ticks a blocked snappy or nibble waits before it decides again (the other monsters retry next tick). */
+export const CC3D_BLOCKED_REST_TICKS = 3;
+export const CC3D_BLOCKED_REST_TYPES: readonly string[] = ['snappy', 'nibble'];
+/** Converted CC3D levels: the last ticks of a snappy's or nibble's period of eight are its rest, in which it stands at rest (presses a plate). */
+export const CC3D_REST_PHASE_TICKS = 4;
+
+/**
+ * Converted CC3D levels: the ticks left of the part of a step in which the monster is on the move. A snappy or nibble that
+ * chose a normal step moves for the first half of its period and rests for the second; any other monster moves all along.
+ */
+export function cc3dMovingTicksLeft(type: string, cooldownTicks: number): number {
+  return CC3D_BLOCKED_REST_TYPES.includes(type) ? Math.max(0, cooldownTicks - CC3D_REST_PHASE_TICKS) : cooldownTicks;
+}
+
 /** Ticks one step of a classic monster lasts; the blob steps at half the speed of the others. */
 export function ccStepTicks(type: string): number {
   return type === CC_BLOB_TYPE ? CC_BLOB_STEP_TICKS : CC_MONSTER_STEP_TICKS;

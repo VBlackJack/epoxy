@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, cc3dMovingTicksLeft, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -155,6 +155,8 @@ export interface EpoxyWorld {
    * rules): the player and the blocks it pushes keep the CC3D pace on ice and force floors; fixed for the level.
    */
   cc3dPace: boolean;
+  /** Uids of the entities the running entity pass has already visited (empty outside a pass); read to count a deferred arrival down in the tick of its push. */
+  entityPassSeen: Set<number>;
   /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
   ccMonsterClock: number;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
@@ -272,6 +274,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasShots: false,
     ccRules: false,
     cc3dPace: false,
+    entityPassSeen: new Set(),
     ccMonsterClock: 0,
     ccGenerators: null,
     ccSlots: [],
@@ -868,6 +871,11 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
   return w.entities.some((e) => e.x === bx && e.y === by && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
 
+/** On a converted CC3D level a monster presses a plate only once it rests (its step has ended). */
+function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  return !(w.cc3dPace && e.kind === 'monster' && cc3dMovingTicksLeft(e.type, e.cooldownTicks) > 0);
+}
+
 /**
  * Whether something presses the plate at a cell: the live player, a block at rest, its step ended (a colour block only
  * on a plate of its own colour) or a monster that presses plates. A sliding entity is passing, not
@@ -875,7 +883,7 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
   if (playerAtCell(w, x, y) !== undefined) return true;
-  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && e.arrivalTicks === undefined && entityPressesPlate(e.type, e.kind, color));
+  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && e.arrivalTicks === undefined && isAtRest(w, e) && entityPressesPlate(e.type, e.kind, color));
 }
 
 /**

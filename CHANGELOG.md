@@ -8,6 +8,7 @@ versions follow Semantic Versioning.
 ### Changed
 
 - A CC3D level converted to Epoxy now keeps the CC3D pace on ice and force floors: the player slides one cell every two ticks and is busy one more tick after the slide, a block he pushes onto ice or a force floor waits two ticks before its first slide step, and a refused forced step on a force floor keeps its direction and bars the input along that axis. Native levels and levels of the classic rules are unchanged. On the corpus the random-walk mismatches go from 28 to 17. Replays recorded on converted CC3D levels are no longer offered (scores are kept).
+- The monsters of a CC3D level converted to Epoxy now keep the CC3D cadence: they decide at tick 0, a step on ice or a force floor lasts two ticks instead of four, a blocked monster tries again on the next tick (a snappy or nibble after three), a monster presses a plate only once its step has ended, a toggle, clone or laser press by a monster takes effect when its step ends, and a block resting on a force floor at the start is carried as play starts. On the corpus the random-walk mismatches go from 17 to 11 and the walks ended as monster timing differences from 30 to 6. Replays recorded on converted CC3D levels are no longer offered (scores are kept).
 
 ## [2.30.0] - 2026-11-11
 

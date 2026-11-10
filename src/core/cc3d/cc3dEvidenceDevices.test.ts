@@ -66,7 +66,7 @@ const doorClosed = (color: Cc3dColor): string => `cc3d_hold_door_${color}_closed
 const PACE_TICKS = 40;
 const MIN_PACE_STEPS = 5;
 const GOLEM_STEP_TICKS = 4;
-const EPOXY_FIRST_STEP_LAG_TICKS = 3;
+const EPOXY_FIRST_STEP_LAG_TICKS = 0;
 
 /** The player sealed in a corner cell, so that only the monsters move. */
 const SEALED_START = '@#########';
@@ -282,7 +282,7 @@ describe('blue golem', () => {
     expect((def?.moveIntervalTicks ?? 0) + 1).toBe(GOLEM_STEP_TICKS);
   });
 
-  it('keeps the pace of CC3D: a cell in 4 ticks, the Epoxy golem starting its first step 3 ticks later', () => {
+  it('keeps the pace of CC3D: a cell in 4 ticks, the Epoxy golem starting its first step with the CC3D golem', () => {
     const source = cc3dLevel(corridor('.B.......'), { glyphs: GLYPHS });
     const pair = new DifferentialPair(source, convertCc3dLevel(source).level, 1);
     const stepTicks: { cc3d: number[]; epoxy: number[] } = { cc3d: [], epoxy: [] };
@@ -519,9 +519,8 @@ describe('plate timelines: CC3D presses a plate only at rest, Epoxy counts a mon
 
 // ------------------------------------------------------- monsters meeting
 
-/** Kinds whose head-on meeting with another walking monster differs from CC3D, and kinds where it was measured to agree. */
-const MEETING_DIFFERS: Cc3dMobKind[] = ['limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'];
-const MEETING_AGREES: Cc3dMobKind[] = ['nibble', 'snappy', 'golem_blue', 'golem_yellow'];
+/** Kinds whose head-on meeting with another walking monster was measured to agree with CC3D (the converted-level cadence closed the gap once pinned here). */
+const MEETING_AGREES: Cc3dMobKind[] = ['limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer', 'nibble', 'snappy', 'golem_blue', 'golem_yellow'];
 const MEETING_ROWS = ['M....N', 'M...N', 'M..N'];
 
 function meeting(a: Cc3dMobKind, b: Cc3dMobKind, row: string): ReturnType<typeof playTimeline> {
@@ -534,27 +533,23 @@ function meeting(a: Cc3dMobKind, b: Cc3dMobKind, row: string): ReturnType<typeof
 }
 
 describe('two walking monsters meeting head-on', () => {
-  it.each(MEETING_DIFFERS)('parts the engines for two %s, with no plate or door on the map', (kind) => {
-    for (const row of MEETING_ROWS) expect(meeting(kind, kind, row).sameSequence, row).toBe(false);
-  });
-
-  it.each(MEETING_DIFFERS)('parts the engines for a %s and a bouncer', (kind) => {
-    for (const row of MEETING_ROWS) expect(meeting(kind, 'bouncer', row).sameSequence, row).toBe(false);
+  it.each(MEETING_AGREES)('agrees for a %s and a bouncer', (kind) => {
+    for (const row of MEETING_ROWS) expect(meeting(kind, 'bouncer', row).sameSequence, row).toBe(true);
   });
 
   it.each(MEETING_AGREES)('agrees for two %s', (kind) => {
     for (const row of MEETING_ROWS) expect(meeting(kind, kind, row).sameSequence, row).toBe(true);
   });
 
-  it('is what parts two engines near a plate: the plate itself changes the door the same way', () => {
+  it('plays two bouncers near a plate as CC3D does: the plate changes the door the same way', () => {
     const bare = meeting('bouncer', 'bouncer', 'M....N');
-    expect(bare.sameSequence).toBe(false);
+    expect(bare.sameSequence).toBe(true);
     expect(bare.cc3d.terrain).toHaveLength(1);
     expect(sameTerrainChanges(bare)).toBe(true);
     // With a plate and a door between the pair the bodies part in the same way, and the first door changes are alike
     // up to the moment the monsters meet; what differs after that is the walk of the monsters.
     const withPlate = meeting('bouncer', 'bouncer', 'M=.dN');
-    expect(withPlate.sameSequence).toBe(false);
+    expect(withPlate.sameSequence).toBe(true);
     expect(withPlate.cc3d.terrain[1]).toBe(withPlate.epoxy.terrain[1]);
   });
 
