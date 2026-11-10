@@ -3970,7 +3970,15 @@
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
-        "label": "Le joueur qui se cogne à un mur apparaissant en fait un mur, comme dans CC3D. Un bloc poussé ou un monstre en fait aussi un mur dans CC3D, là où Epoxy le laisse tel quel."
+        "label": "Le joueur qui se cogne à un mur apparaissant, ou un bloc poussé dedans, en fait un mur, comme dans CC3D."
+      },
+      "appearing_wall_with_monster": {
+        "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
+        "label": "Un monstre qui révèle un mur apparaissant fait demi-tour un pas à côté de celui de CC3D ensuite, et le golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
+      },
+      "orbs_over_cap": {
+        "name": "Plus de quatre orbes",
+        "label": "Le niveau contient plus de quatre orbes : un joueur CC3D qui ramasse un cinquième outil dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes."
       },
       "trap": {
         "name": "Piège",
@@ -4154,7 +4162,7 @@
       },
       "trap_unworked": {
         "name": "Piège sans commande",
-        "label": "Aucune commande de piège n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun. Un lien de piège d'Epoxy n'a pas de forme vide, le convertisseur ne peut donc pas le garder fermé."
+        "label": "Dans un niveau qui a des commandes de piège, aucune n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun. Un lien de piège d'Epoxy n'a pas de forme vide, le convertisseur ne peut donc pas le garder fermé."
       },
       "clone_switch_empty": {
         "name": "Interrupteur de clonage sans modèle",

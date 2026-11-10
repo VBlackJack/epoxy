@@ -3970,7 +3970,15 @@
       },
       "appearing_wall": {
         "name": "Appearing wall",
-        "label": "The player bumping an appearing wall makes a wall, as in CC3D. A pushed block or a monster also makes a wall in CC3D, where Epoxy leaves it as it is."
+        "label": "The player bumping an appearing wall, or a block pushed into it, makes a wall, as in CC3D."
+      },
+      "appearing_wall_with_monster": {
+        "name": "Appearing wall in a level with a walking monster",
+        "label": "A monster that reveals an appearing wall turns round a step apart from the CC3D one afterwards, and the yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
+      },
+      "orbs_over_cap": {
+        "name": "More than four orbs",
+        "label": "The level holds more than four orbs: a CC3D player who picks up a fifth tool drops the oldest on the cell, where Epoxy keeps every pair of boots."
       },
       "trap": {
         "name": "Trap",
@@ -4154,7 +4162,7 @@
       },
       "trap_unworked": {
         "name": "Trap without a control",
-        "label": "No trap control works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button. An Epoxy trap link has no empty form, so the converter cannot keep it shut."
+        "label": "In a level that has trap controls, none works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button. An Epoxy trap link has no empty form, so the converter cannot keep it shut."
       },
       "clone_switch_empty": {
         "name": "Clone switch with nothing to clone",
