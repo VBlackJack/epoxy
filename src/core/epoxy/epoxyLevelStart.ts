@@ -31,7 +31,8 @@ import {
   BASE_LEVEL_SCORE_MULTIPLIER,
   EpoxyContext,
   NO_PLAY_START_TICK,
-  buildLevelLookups
+  buildLevelLookups,
+  refreshTrapLatch
 } from './epoxyWorld';
 
 /**
@@ -142,4 +143,5 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   // A hold door starts in the state its plates ask for (a block may start on a plate); no sound at load.
   setHoldDoors(ctx, false);
   w.beamDirty = true;
+  refreshTrapLatch(w);
 }

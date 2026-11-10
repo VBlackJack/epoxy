@@ -84,8 +84,10 @@ import { turnMarkedTanks } from './epoxyDevices';
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
-  if (w.ccRules || w.cc3dPace) {
+  if (w.ccRules) {
     if (!applyQueuedArrivals(ctx)) return;
+  } else if (w.cc3dPace) {
+    dropOrphanArrivals(w);
   }
   w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
@@ -103,27 +105,38 @@ export function updateEntities(ctx: EpoxyContext): void {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext): boolean {
+function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
-  const pass = w.ccMonsterClock;
-  const due = w.ccArrivals.filter((a) => a.due <= pass);
+  const pass = passClock ?? w.ccMonsterClock;
+  const isDue = (a: { uid: number; due: number }): boolean => a.due <= pass && (ownerUid === undefined || a.uid === ownerUid);
+  const due = w.ccArrivals.filter(isDue);
   if (due.length === 0) return true;
-  w.ccArrivals = w.ccArrivals.filter((a) => a.due > pass);
+  w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
   w.ccArrivalsRunning = true;
   try {
     for (const arrival of due) {
       const monster = w.entities.find((e) => e.uid === arrival.uid);
       if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
+      if (arrival.removal !== undefined) {
+        applyPendingRemoval(ctx, monster);
+        continue;
+      }
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
       const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
-      if (tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
+      if (arrival.action === undefined || tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
       if (!ctx.triggerButton(arrival.x, arrival.y, tile.buttonAction)) return false;
     }
   } finally {
     w.ccArrivalsRunning = false;
   }
   return true;
+}
+
+/** A converted CC3D level fires a press in its monster's own turn: a press whose monster is gone is void. */
+function dropOrphanArrivals(w: EpoxyWorld): void {
+  if (w.ccArrivals.length === 0) return;
+  w.ccArrivals = w.ccArrivals.filter((a) => w.entities.some((e) => e.uid === a.uid));
 }
 
 /**
@@ -165,7 +178,13 @@ function runEntityPass(ctx: EpoxyContext): void {
   if (w.ccRules) snapshotEntities.reverse();
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
-    if (w.cc3dPace) w.entityPassSeen.add(entity.uid);
+    if (w.cc3dPace) {
+      w.entityPassSeen.add(entity.uid);
+      // CC3D fires a monster's button press inside that monster's own turn, so the monsters ahead of it in the list
+      // acted on the old state of what the button works.
+      if (!applyQueuedArrivals(ctx, entity.uid, clock)) return;
+      if (w.removedUids.has(entity.uid)) continue;
+    }
 
     // Entities sitting directly on a clone machine act as templates and do not move on their own
     // (a wisp is never a template: it drifts over a machine like over any other tile)
@@ -417,34 +436,20 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     const lying = w.items[ny][nx];
     if (lying && monsterPicksUp(lying)) w.items[ny][nx] = null;
   }
-  const destItem = w.items[ny][nx];
 
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
-    if (destItem && ConfigRegistry.getTile(destItem).hazard === 'bomb') {
-      w.items[ny][nx] = null;
-      removeEntity(w, entity.uid);
-      AudioManager.playSfx('bomb');
-      return true;
-    }
-
-    if (destTile.hazard === 'water' && !def?.immuneToWater) {
-      removeEntity(w, entity.uid);
-      AudioManager.playSfx('splash');
-      return true;
-    }
-    if (destTile.hazard === 'fire' && !def?.immuneToFire) {
-      removeEntity(w, entity.uid);
-      AudioManager.playSfx('burn');
-      return true;
-    }
-
-    if (destTile.hazard === 'slime') {
-      if (!def?.immuneToSlime) {
-        removeEntity(w, entity.uid);
-        AudioManager.playSfx('splash');
-        return true;
+    const removal = hazardRemoval(w, entity, def);
+    if (removal !== null) {
+      if (w.cc3dPace && w.inTick) {
+        // CC3D keeps the monster in the cell for the whole step and removes it, and the bomb, when the step ends.
+        w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+      } else {
+        applyPendingRemoval(ctx, entity);
       }
+      return true;
+    }
+    if (destTile.hazard === 'slime') {
       // A monster slime does not hurt carries it from now on: it leaves the trail tile behind.
       entity.slimed = true;
     }
@@ -496,6 +501,30 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
   return true;
+}
+
+/** The hazard of the cell a monster stands in that removes it (a bomb, water, fire, slime it is not immune to), or null. */
+function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): 'bomb' | 'splash' | 'burn' | null {
+  const item = w.items[entity.y][entity.x];
+  if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return 'bomb';
+  const hazard = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).hazard;
+  if (hazard === 'water' && !def?.immuneToWater) return 'splash';
+  if (hazard === 'fire' && !def?.immuneToFire) return 'burn';
+  if (hazard === 'slime' && !def?.immuneToSlime) return 'splash';
+  return null;
+}
+
+/** Removes a monster the hazard of its cell destroys, spending the bomb, with the sound of that hazard. */
+function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
+  const w = ctx.world;
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const removal = hazardRemoval(w, entity, def);
+  if (removal === null) return;
+  if (removal === 'bomb') w.items[entity.y][entity.x] = null;
+  removeEntity(w, entity.uid);
+  w.beamDirty = true;
+  AudioManager.playSfx(removal === 'bomb' ? 'bomb' : removal);
+  if (entity.kind === 'block') ctx.emitVisual('explosion', entity.x, entity.y);
 }
 
 /**

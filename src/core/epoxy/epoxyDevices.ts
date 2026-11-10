@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
+  CC3D_MONSTER_STEP_TICKS,
   CC_CADENCE_TYPES,
   CC_QUEUED_TANK_TURN_DELAY_PASSES,
   CC_TANK_TURN_DELAY_PASSES,
@@ -509,6 +510,21 @@ export function spawnFromCloner(
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  // CC3D lets the template itself out (a pushed step at the normal pace, keeping its place in the list) and puts a new
+  // template on the machine, at the end of the list, which does not act in this tick.
+  if (w.cc3dPace && kind === 'monster' && template !== undefined) {
+    const seen = w.entityPassSeen.has(template.uid);
+    const fresh: RuntimeEntity = { uid: w.nextEntityUid++, type: template.type, kind, x: clonerX, y: clonerY, dir: templateDir, cooldownTicks: 0, isSliding: false, ...(template.facing !== undefined ? { facing: template.facing } : {}), ...initialEmulationState(def) };
+    template.x = spawnX;
+    template.y = spawnY;
+    template.dir = templateDir;
+    delete template.restTicks;
+    // A template that has not had its turn yet in this pass counts that turn down at once.
+    template.cooldownTicks = CC3D_MONSTER_STEP_TICKS * monsterSlowdown(w) - 1 + (seen ? 0 : 1);
+    addClonedEntity(w, fresh);
+    w.entityPassSeen.add(fresh.uid);
+    return resolveMonsterArrival(ctx, template, true);
+  }
   const spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
     type: templateType,

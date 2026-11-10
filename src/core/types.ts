@@ -2139,7 +2139,13 @@ export interface CcArrival {
   uid: number;
   x: number;
   y: number;
-  action: ButtonAction;
+  /** The button the monster stepped on; absent for a pending removal. */
+  action?: ButtonAction;
+  /**
+   * A converted CC3D level keeps a monster in its cell for the whole step that took it onto a bomb, water, fire or slime
+   * and removes it when the step ends: the hazard that will remove it then.
+   */
+  removal?: 'bomb' | 'splash' | 'burn';
   /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
   due: number;
 }
