@@ -2223,6 +2223,11 @@ export interface RuntimeEntity {
   emulationMoves?: number;
   /** Monsters with a trail only: the monster has stood on slime, so it leaves the trail tile on the floor it steps out of. */
   slimed?: boolean;
+  /**
+   * Tanks of a classic-rules level only: the entity pass at which a blue button press turns this tank around; absent
+   * when the tank is not marked. A second press before that pass takes the mark off.
+   */
+  tankTurn?: number;
 }
 
 export interface PlayerState {
