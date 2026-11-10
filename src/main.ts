@@ -463,6 +463,7 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
+    this.announceCc3dMigration();
     // A parked share link opens its own dialog: the notice would sit on top of it.
     if (!this.parkedShareHash) this.maybeShowTutorialNotice();
     this.bindShareLinks();
@@ -2771,6 +2772,15 @@ class EpoxyApplication {
       MODAL_IDS.ONBOARDING,
       offerTutorial ? byId('onboarding-tutorial-btn') : byId('onboarding-close-btn')
     );
+  }
+
+  /** Tells the player, once, that stored CC3D levels were converted to Epoxy levels (and any that stayed on the CC3D engine). */
+  private announceCc3dMigration(): void {
+    const report = ConfigRegistry.takeCc3dMigrationReport();
+    if (!report) return;
+    const lines = [t('cc3d.import.migration.converted.label', { count: report.converted })];
+    if (report.kept > 0) lines.push(t('cc3d.import.migration.kept.label', { kept: report.kept }));
+    this.showTransientStatus(lines.join(' '));
   }
 
   private tutorialNoticeKey(): string {
