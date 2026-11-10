@@ -89,7 +89,8 @@ const ORB_WATER_REASON = `The orb protects from water and not from fire, as in C
 const ORBS_OVER_CAP_REASON =
   'The map holds more than four orb items (speed included): a CC3D player who picks up a fifth tool drops the oldest on the cell, where Epoxy keeps every pair of boots (cc3dEvidenceOrbs.test.ts).';
 const PLATE_REASON =
-  'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, the baby blinky, the baby screamer, both legs, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither.';
+  'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, the baby blinky, the baby screamer, both legs, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither.' +
+  ' The timing is measured too: a monster crossing a plate, walking on into the door cell, or stopped on the plate by a wall changes the door in the same order in both engines (CC3D presses only at rest, Epoxy counts a monster on the cell, and the two agree), and a dirt or ice block pushed across a plate, at any pace of the player, leaves the same state after every press. What parts two engines near a plate is two monsters meeting, which happens without any plate on the map and belongs to the monster keys.';
 const BLOCK_GAPS =
   'The dirt block is dirt_block_3d, which refuses fire and items and makes dirt_3d in water, as the CC3D one does.';
 const COLOR_BLOCK_REASON =
@@ -217,7 +218,7 @@ const HOLD_DOOR_REASON = 'Epoxy plays the hold door as CC3D does: all plates of 
 
 const EXACT_KEYS: readonly string[] = [
   'floor', 'wall', 'fire', 'ice', 'ice_corner', 'force', 'force_random', 'exit', 'turtle', 'sand', 'fish_extra', 'socket', KEY_SOCKET_RED, 'push_up_wall', 'false_wall', 'door',
-  'fish', 'key', 'appearing_wall', 'orb_ice', 'orb_force', 'orb_fire', 'orb_water', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
+  'fish', 'key', 'plate_red', 'plate_green', 'plate_blue', 'plate_yellow', 'appearing_wall', 'orb_ice', 'orb_force', 'orb_fire', 'orb_water', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
   'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
@@ -234,6 +235,10 @@ const EXACT_KEYS: readonly string[] = [
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
   turtle: TURTLE_REASON,
+  plate_red: PLATE_REASON,
+  plate_green: PLATE_REASON,
+  plate_blue: PLATE_REASON,
+  plate_yellow: PLATE_REASON,
   appearing_wall: APPEARING_WALL_REASON,
   orb_ice: ORB_ICE_REASON,
   orb_force: ORB_FORCE_REASON,
@@ -285,10 +290,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
   [KEY_APPEARING_WALL_WITH_MONSTER]: APPEARING_WALL_WITH_MONSTER_REASON,
-  plate_red: PLATE_REASON,
-  plate_green: PLATE_REASON,
-  plate_blue: PLATE_REASON,
-  plate_yellow: PLATE_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: WALKER_REASON,

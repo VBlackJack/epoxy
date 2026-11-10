@@ -22,7 +22,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
 import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
-import { device, holdDoor, plate, playTimeline, room, withMob } from './cc3dEvidenceRig';
+import { device, holdDoor, plate, playSettled, playTimeline, room, withMob } from './cc3dEvidenceRig';
 import { cc3dLevel, cc3dModel } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { convertCc3dLevel } from './cc3dToEpoxy';
@@ -70,6 +70,8 @@ const EPOXY_FIRST_STEP_LAG_TICKS = 3;
 
 /** The player sealed in a corner cell, so that only the monsters move. */
 const SEALED_START = '@#########';
+/** Ticks of the long plate timelines: a player keeps pushing at a door while a monster walks to the plate. */
+const TIMELINE_TICKS_LONG = 320;
 
 /** A corridor with a sealed player and the given row of cells. */
 function corridor(cells: string): string[] {
@@ -387,6 +389,87 @@ describe.each(CC3D_COLORS)('%s plate', (color) => {
 
 });
 
+// ---------------------------------------------------------- plate timelines
+
+/**
+ * The monsters whose walk is the same in both engines on a corridor (the walker and the omni draw their way at
+ * random, from different sequences, so they cannot be matched step by step) and that press a plate.
+ */
+const TIMELINE_WALKERS: Cc3dMobKind[] = [
+  'limpa', 'limpy', 'bouncer', 'golem_blue', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'nibble'
+];
+/** Ticks between two presses of the settled block runs: a block step in CC3D is slower than the shortest of them. */
+const BLOCK_PRESS_SPACINGS = [4, 8, 16];
+const RED_DOOR_OPEN_ID = 'hold_door_red_open';
+
+function walkerGlyphs(kind: Cc3dMobKind, dir: 'E' | 'W'): Record<string, GlyphMeaning> {
+  return { ...GLYPHS, M: withMob(device('floor'), { kind, dir }) };
+}
+
+function sameTerrainChanges(t: ReturnType<typeof playTimeline>): boolean {
+  return JSON.stringify(t.cc3d.terrain) === JSON.stringify(t.epoxy.terrain);
+}
+
+describe('plate timelines: CC3D presses a plate only at rest, Epoxy counts a monster on the cell', () => {
+  it.each(TIMELINE_WALKERS.filter((kind) => kind !== 'nibble'))('opens and closes the door in the same order when a %s crosses the plate, the player waiting at the door', (kind) => {
+    const glyphs = walkerGlyphs(kind, 'W');
+    // The player waits (and keeps pushing east) at the closed door while the monster crosses the plate towards him (not the nibble, which walks away from him).
+    const t = playTimeline({ rows: room('@d.=..M'), moves: '', glyphs }, 'E'.repeat(20), TIMELINE_TICKS_LONG);
+    expect(t.cc3d.terrain.length, 'CC3D must have moved the door').toBeGreaterThan(1);
+    expect(sameTerrainChanges(t)).toBe(true);
+    expect(t.sameFinal).toBe(true);
+  });
+
+  it.each(TIMELINE_WALKERS)('changes the door in the same order when a %s walks over the plate and on into the door cell', (kind) => {
+    const t = playTimeline({ rows: corridor('M=d..'), moves: '', glyphs: walkerGlyphs(kind, 'E') });
+    expect(t.cc3d.terrain.length).toBeGreaterThan(1);
+    expect(sameTerrainChanges(t)).toBe(true);
+    expect(t.sameSequence).toBe(true);
+  });
+
+  it.each(TIMELINE_WALKERS)('keeps the door open while a %s is stopped on the plate by a wall, and follows it when it turns back', (kind) => {
+    const t = playTimeline({ rows: corridor('M.=#.d.'), moves: '', glyphs: walkerGlyphs(kind, 'E') });
+    expect(t.cc3d.terrain.length).toBeGreaterThan(1);
+    expect(sameTerrainChanges(t)).toBe(true);
+  });
+
+  it('presses for a golem that never leaves the plate, and for good', () => {
+    const t = playTimeline({ rows: corridor('M.=#.d.'), moves: '', glyphs: walkerGlyphs('golem_blue', 'E') });
+    expect(t.cc3d.terrain).toHaveLength(2);
+    expect(t.epoxy.terrain).toEqual(t.cc3d.terrain);
+    expect(t.cc3d.final).toBe(t.epoxy.final);
+  });
+
+  it.each([['K', 'a dirt block'], ['Z', 'an ice block']])('follows %s pushed across the plate and on, press by press, at any pace of the player', (block) => {
+    for (const spacing of BLOCK_PRESS_SPACINGS) {
+      for (const presses of ['E', 'EE', 'EEEE', 'EEEEE']) {
+        const run = playSettled({ rows: room(`@${block}=..d.`), moves: '', glyphs: GLYPHS }, presses, spacing);
+        expect(run.same, `${block} ${presses} every ${spacing} ticks`).toBe(true);
+      }
+    }
+    // The block does open the door while it stands on the plate: the settled states show it open and then shut again.
+    const crossing = playSettled({ rows: room(`@${block}=..d.`), moves: '', glyphs: GLYPHS }, 'EEEE');
+    expect(crossing.cc3d.some((state) => state.includes(RED_DOOR_OPEN_ID))).toBe(true);
+    expect(crossing.cc3d[crossing.cc3d.length - 1]).not.toContain(RED_DOOR_OPEN_ID);
+    expect(crossing.epoxy).toEqual(crossing.cc3d);
+  });
+
+  it('shows that the one disagreement near a plate is the monsters meeting, which happens with no plate on the map', () => {
+    const glyphs: Record<string, GlyphMeaning> = {
+      ...GLYPHS,
+      M: withMob(device('floor'), { kind: 'bouncer', dir: 'E' }),
+      N: withMob(device('floor'), { kind: 'bouncer', dir: 'W' })
+    };
+    // Two bouncers walking into each other, no plate and no door anywhere: the engines already part.
+    const bare = playTimeline({ rows: corridor('M....N'), moves: '', glyphs });
+    expect(bare.sameSequence).toBe(false);
+    expect(bare.cc3d.terrain).toHaveLength(1);
+    // The same pair with a plate and a door between them parts the same way, so the plate is not what differs.
+    const withPlate = playTimeline({ rows: corridor('M=.dN'), moves: '', glyphs });
+    expect(withPlate.sameSequence).toBe(false);
+  });
+});
+
 describe('coverage verdicts that rest on this evidence', () => {
   it('plays the trap, the clone machine, the golem control and the golem as CC3D does, each reason citing this file', () => {
     for (const key of ['trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_blue']) {
@@ -395,9 +478,9 @@ describe('coverage verdicts that rest on this evidence', () => {
     }
   });
 
-  it('keeps the four plates approximate, each reason citing this file', () => {
+  it('plays the four plates as CC3D does, each reason citing this file: the gap once pinned here is measured as absent', () => {
     for (const key of [...CC3D_COLORS.map((color) => `plate_${color}`)]) {
-      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+      expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceDevices.test.ts');
     }
   });

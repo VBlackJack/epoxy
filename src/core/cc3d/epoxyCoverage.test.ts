@@ -145,7 +145,7 @@ describe('classifyLevel', () => {
 
   it('keeps an appearing wall exact beside monsters that do not walk: blocks, reflectors, turrets', () => {
     for (const kind of ['block_dirt', 'block_ice', 'reflector', 'bot_static', 'bot_cw'] as const) {
-      const glyphs = { V: terrain('appearing_wall'), M: { mob: { kind, dir: 'E' as const, reflector: kind === 'reflector' ? 'LU' : undefined } } };
+      const glyphs = { V: terrain('appearing_wall'), M: { mob: { kind, dir: 'E' as const, mirror: kind === 'reflector' ? 'LU' : undefined } } };
       const keys = elementKeys(levelOf(['######', '#@VXM#', '######'], glyphs));
       expect(keys.has('appearing_wall_with_monster'), kind).toBe(false);
     }
@@ -223,7 +223,8 @@ describe('classifyLevel', () => {
     };
     const result = classifyLevel(levelOf(['#####', '#@BR#', '#####'], glyphs));
     expect(result.lost).toEqual([]);
-    expect(result.approx).toEqual(['plate_blue']);
+    expect(result.approx).toEqual([]);
+    expect(result.verdict).toBe('exact');
     const green = classifyLevel(levelOf(['#####', '#@J.#', '#####']));
     expect(green.verdict).toBe('exact');
     const colorBlock = classifyLevel(levelOf(['####', '#@C#', '####']));
@@ -396,9 +397,9 @@ describe('colour channel coverage', () => {
     for (const color of CC3D_COLORS) expect(EPOXY_COVERAGE[`hold_door_${color}`].level).toBe('exact');
   });
 
-  it('plays every plate approximately and every colour block exactly, and loses none of them', () => {
+  it('plays every plate and every colour block exactly (plate timelines: cc3dEvidenceDevices.test.ts), and loses none of them', () => {
     for (const color of CC3D_COLORS) {
-      expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('approx');
+      expect(EPOXY_COVERAGE[`plate_${color}`].level).toBe('exact');
       expect(EPOXY_COVERAGE[`block_color_${color}`].level).toBe('exact');
     }
   });
