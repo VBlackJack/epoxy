@@ -78,6 +78,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
     };
   });
 
+  // The classic game keeps its creatures in numbered slots; a clone takes the first free one (see addClonedEntity).
+  w.ccSlots = ccCadence ? w.entities.map((e) => e.uid) : [];
+
   const newPlayer = (x: number, y: number, dir: Direction, character?: PlayerCharacter): PlayerState => ({
     x,
     y,

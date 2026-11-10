@@ -2366,6 +2366,8 @@ export interface UndoSnapshot {
   ccGenerators?: [number, number, number];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
+  /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */
+  ccSlots?: (number | null)[];
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
   /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */

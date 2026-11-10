@@ -30,7 +30,7 @@ import { GameEngine } from '../GameEngine';
 import type { CompiledLevel, EntityPlacement } from '../types';
 import { resolveMonsterArrival } from './epoxyMonsters';
 import { playerWalkCooldown } from './epoxyPlayer';
-import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
+import { addClonedEntity, removeEntity, type EpoxyContext, type EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -145,6 +145,55 @@ describe('classic held monster', () => {
     expect(presser.x).toBe(7);
     expect(held.x).toBe(6);
     expect(held.dir).toBe('E');
+  });
+});
+
+describe('classic creature slots', () => {
+  const THREE = [
+    { type: 'bug', x: 3, y: 1, dir: 'E' as const },
+    { type: 'bug', x: 6, y: 1, dir: 'E' as const },
+    { type: 'bug', x: 9, y: 1, dir: 'E' as const }
+  ];
+
+  function cloneOf(w: EpoxyWorld, x: number): EpoxyWorld['entities'][number] {
+    return { ...w.entities[0], uid: w.nextEntityUid++, x };
+  }
+
+  it('puts a clone into the first freed slot, not at the end of the list', () => {
+    const { w } = start(level(CORRIDOR, THREE));
+    const [a, b, c] = w.entities.map((e) => e.uid);
+    removeEntity(w, b);
+    const clone = cloneOf(w, 12);
+    addClonedEntity(w, clone);
+    expect(w.entities.map((e) => e.uid)).toEqual([a, clone.uid, c]);
+    // No slot is free any more: the next clone goes to the end.
+    const next = cloneOf(w, 13);
+    addClonedEntity(w, next);
+    expect(w.entities.map((e) => e.uid)).toEqual([a, clone.uid, c, next.uid]);
+  });
+
+  it('puts a clone at the end of the list on a native level', () => {
+    const { w } = start(level(CORRIDOR, THREE, 'native'));
+    const [a, b, c] = w.entities.map((e) => e.uid);
+    removeEntity(w, b);
+    const clone = cloneOf(w, 12);
+    addClonedEntity(w, clone);
+    expect(w.entities.map((e) => e.uid)).toEqual([a, c, clone.uid]);
+  });
+
+  it('puts the slots back with an undo', () => {
+    const { engine, w } = start(level(CORRIDOR, THREE));
+    const [a, b, c] = w.entities.map((e) => e.uid);
+    const saved = engine.captureState();
+    removeEntity(w, b);
+    addClonedEntity(w, cloneOf(w, 12));
+    engine.restoreState(saved);
+    expect(w.entities.map((e) => e.uid)).toEqual([a, b, c]);
+    expect(w.ccSlots).toEqual([a, b, c]);
+    removeEntity(w, a);
+    const clone = cloneOf(w, 12);
+    addClonedEntity(w, clone);
+    expect(w.entities.map((e) => e.uid)).toEqual([clone.uid, b, c]);
   });
 });
 

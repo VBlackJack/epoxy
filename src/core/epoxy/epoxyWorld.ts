@@ -153,6 +153,8 @@ export interface EpoxyWorld {
   ccMonsterClock: number;
   /** The walker and blob generators of a level made for the classic game (a .DAT import); null on every other level. */
   ccGenerators: CcGenerators | null;
+  /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
+  ccSlots: (number | null)[];
   /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */
   ccPlans: Map<number, Direction | null>;
   /** Monster button presses waiting to take effect on a classic-rules level, oldest first; saved with the undo snapshot. */
@@ -265,6 +267,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     ccRules: false,
     ccMonsterClock: 0,
     ccGenerators: null,
+    ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
     ccArrivals: [],
     ccArrivalsRunning: false,
@@ -922,6 +925,30 @@ export function getEntityAt(w: EpoxyWorld, x: number, y: number): RuntimeEntity 
 /** The shot in the cell, if any. Two shots may share a cell: the first fired is returned. */
 export function shotAt(w: EpoxyWorld, x: number, y: number): Shot | undefined {
   return w.shots.find((s) => s.x === x && s.y === y);
+}
+
+/**
+ * Adds a cloned entity. On a classic-rules level the creature takes the first free slot of the list, as the classic
+ * game does (a freed slot is reused, so the entity pass, which runs from the end of the list, reaches it in that
+ * position); elsewhere it goes to the end.
+ */
+export function addClonedEntity(w: EpoxyWorld, entity: RuntimeEntity): void {
+  if (!w.ccRules) {
+    w.entities.push(entity);
+    return;
+  }
+  const live = new Set(w.entities.map((e) => e.uid));
+  const slots = w.ccSlots;
+  for (let i = 0; i < slots.length; i++) {
+    const held = slots[i];
+    if (held !== null && !live.has(held)) slots[i] = null;
+  }
+  const free = slots.indexOf(null);
+  if (free >= 0) slots[free] = entity.uid;
+  else slots.push(entity.uid);
+  const byUid = new Map<number, RuntimeEntity>(w.entities.map((e) => [e.uid, e]));
+  byUid.set(entity.uid, entity);
+  w.entities = slots.filter((u): u is number => u !== null && byUid.has(u)).map((u) => byUid.get(u) as RuntimeEntity);
 }
 
 export function removeEntity(w: EpoxyWorld, uid: number): void {

@@ -54,6 +54,7 @@ import {
   killPlayer,
   mapWidth,
   monsterSlowdown,
+  addClonedEntity,
   removeEntity,
   signalSinkOn,
   killPlayerAt,
@@ -523,7 +524,7 @@ export function spawnFromCloner(
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
     ...initialEmulationState(def)
   };
-  w.entities.push(spawned);
+  addClonedEntity(w, spawned);
   if (spawned.kind === 'block') {
     moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir);
   } else {
