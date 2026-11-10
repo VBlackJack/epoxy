@@ -663,7 +663,7 @@ export class PieceSolver {
     };
   }
 
-  /** A refused move can still matter: it may reveal a hidden wall or turn the player. */
+  /** A refused move can still matter: it may reveal a hidden wall. Only a terrain change is detected, not a turn. */
   private static changedByFailedMove(engine: GameEngine, before: UndoSnapshot): boolean {
     // Compares the live grid in place: copying the whole state for this check dominated the search.
     const after = engine.getTerrain();
