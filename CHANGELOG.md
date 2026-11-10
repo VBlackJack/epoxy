@@ -14,6 +14,7 @@ versions follow Semantic Versioning.
 
 ### Changed
 
+- Levels read from a .DAT file with the Epoxy rules also play with the classic monster, force floor and ice rules. Among the bundled packs this concerns CCLP2, the only .DAT pack already played by the Epoxy engine: its older high-score replays are no longer offered (scores and completion stay). Imported .DAT files still play on the Lynx engine for now.
 - Levels imported from CC1 and CC2 files slide the player over ice at two ticks per cell, and after any slide ends the player waits one full step before moving again, as in the original games. Official solutions now replay to a win on 61 of the 149 CC1 Steam levels (the Lynx engine wins 50) and 46 of the 200 CC2 levels, with no level lost. Replays recorded on the earlier classic rules are no longer offered.
 - Levels imported from CC1 and CC2 files handle force floors the classic way: the player may choose a direction only after the floor itself carried him, a floor keeps pushing a player stopped against a wall, and the player and blocks cross force floors (blocks also ice) at two ticks per cell. Replays recorded on the earlier classic rules are no longer offered.
 - A high-score replay remembers the engine and rules it was recorded on. When a level's rules or engine change (an import now played by the Epoxy engine, or a classic-rules update), its older replays are no longer offered, with the reason shown, but scores, ranks and completion stay, and the replay data is kept. A worse run never replaces a replay that can still play.

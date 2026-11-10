@@ -26,6 +26,10 @@
  *   CC1_STEAM_DIR  the folder of CC1 .c2m levels (required for the replay part)
  *   CC1_DAT_DIR    optional folder of .DAT packs: each level is decoded with the Epoxy ruleset and run through the
  *                  level validator. This is a LINT (error issues by key), not a solvability measure.
+ *   CC1_STEAM_DAT  optional path of the CC1 .DAT that matches the Steam levels (CHIPS_CC1_MS.DAT), with CC1_STEAM_DIR:
+ *                  paired mode. Steam level n is paired with .DAT level n and the Steam solution is replayed on the
+ *                  c2m conversion and on the .DAT level, each on the Epoxy (classic rules) and Lynx engines. Writes
+ *                  `cc1-fidelity-dat-gaps.json` (the .DAT levels Lynx wins and Epoxy loses).
  *   CC1_OUT_DIR    where the reports go (default: local/cc1 under the repository)
  *
  * Writes `cc1-fidelity.md` and `cc1-fidelity-gaps.json` (the levels Lynx wins and Epoxy loses, to diff against a later
@@ -49,7 +53,18 @@ import { cc2ReplaySections } from '../src/formats/cc2Model';
 import { decodeCc2Replay } from '../src/formats/cc2Replay';
 import { checkCc2ReplayBest, type Cc2Divergence, type Cc2ReplayBestResult, type Cc2ReplayEngine } from '../src/formats/cc2ReplayCheck';
 import { DatCodec } from '../src/formats/DatCodec';
-import { divergenceBucket, gatePasses, rankBuckets, type FidelityGap } from '../src/formats/cc1Fidelity';
+import {
+  classifyMapPair,
+  divergenceBucket,
+  gatePasses,
+  levelNumberOfFile,
+  MAP_CLASSES,
+  pairedWins,
+  rankBuckets,
+  titlesMatch,
+  type FidelityGap,
+  type MapClass
+} from '../src/formats/cc1Fidelity';
 import { convertC2mBytes } from '../src/ui/cc2Import';
 import { listLevels, pct, table } from './reportUtil';
 
@@ -66,6 +81,9 @@ const JSON_INDENT = 2;
 const DECODE_ERROR = 'decode error';
 const NONE = '-';
 const EPOXY_RULESET = 'epoxy';
+const LYNX_RULESET = 'lynx';
+const DAT_PREFIX = 'cc1';
+const PAIRED_GAPS_NAME = 'cc1-fidelity-dat-gaps.json';
 
 interface LevelRun {
   path: string;
@@ -188,6 +206,135 @@ function reportReplays(runs: readonly LevelRun[], stem: string): { lines: string
   return { lines, gaps };
 }
 
+interface PairedRun {
+  path: string;
+  number: number;
+  mapClass: MapClass | null;
+  titleMatch: boolean;
+  /** Engine -> best result of the Steam solution on the c2m conversion. */
+  c2m: Partial<Record<Cc2ReplayEngine, Cc2ReplayBestResult>>;
+  /** Engine -> best result of the same solution on the paired .DAT level (Epoxy engine: classic rules). */
+  dat: Partial<Record<Cc2ReplayEngine, Cc2ReplayBestResult>>;
+  error?: string;
+}
+
+function readArrayBuffer(path: string): ArrayBuffer {
+  const buffer = readFileSync(path);
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
+
+/** Plays each Steam solution on the c2m conversion and on the .DAT level of the same number, on both engines. */
+async function playPaired(root: string, datPath: string): Promise<PairedRun[]> {
+  const files = listLevels(root);
+  expect(files.length, 'no CC1 level found').toBeGreaterThan(0);
+  const buffer = readArrayBuffer(datPath);
+  const epoxyLevels = DatCodec.decodeBuffer(buffer, DAT_PREFIX, EPOXY_RULESET);
+  const lynxLevels = DatCodec.decodeBuffer(buffer, DAT_PREFIX, LYNX_RULESET);
+  const runs: PairedRun[] = [];
+  let order = 0;
+  for (const full of files) {
+    order += 1;
+    const path = relative(root, full).split(SPLIT_PATTERN).join(PATH_SEPARATOR);
+    const number = levelNumberOfFile(basename(full)) ?? 0;
+    const run: PairedRun = { path, number, mapClass: null, titleMatch: false, c2m: {}, dat: {} };
+    try {
+      const bytes = new Uint8Array(readFileSync(full));
+      const level = (await convertC2mBytes(bytes, { file: basename(full), order })).level;
+      const sections = cc2ReplaySections(decodeC2m(bytes));
+      const index = number <= 0 ? -1 : epoxyLevels.findIndex((l) => l.number === number);
+      const datEpoxy = index >= 0 ? epoxyLevels[index] : null;
+      const datLynx = index >= 0 ? lynxLevels[index] : null;
+      if (datEpoxy) {
+        run.mapClass = classifyMapPair(datEpoxy, level);
+        run.titleMatch = titlesMatch(datEpoxy.customTitle, level.customTitle);
+      }
+      if (sections.length > 0) {
+        const replay = decodeCc2Replay(sections[0]);
+        for (const engine of ENGINES) run.c2m[engine] = checkCc2ReplayBest(level, replay, engine);
+        if (datEpoxy) run.dat.epoxy = checkCc2ReplayBest(datEpoxy, replay, 'epoxy');
+        if (datLynx) run.dat.lynx = checkCc2ReplayBest(datLynx, replay, 'lynx');
+      }
+    } catch (error) {
+      run.error = `${DECODE_ERROR}: ${(error as Error).message}`;
+    }
+    runs.push(run);
+  }
+  return runs;
+}
+
+function reportPaired(runs: readonly PairedRun[], stem: string): { lines: string[]; gaps: GapRecord[] } {
+  const replayed = runs.filter((r) => r.c2m.epoxy !== undefined);
+  const played = replayed.filter((r) => r.mapClass !== null);
+  const outcomes = played.map((r) => ({
+    mapClass: r.mapClass ?? 'differs',
+    c2mEpoxy: !!r.c2m.epoxy?.won,
+    c2mLynx: !!r.c2m.lynx?.won,
+    datEpoxy: !!r.dat.epoxy?.won,
+    datLynx: !!r.dat.lynx?.won
+  }));
+  const total = pairedWins(outcomes);
+  const unpaired = replayed.filter((r) => r.mapClass === null);
+  const mismatched = played.filter((r) => !r.titleMatch);
+  const mismatchWins = pairedWins(outcomes.filter((_, i) => !played[i].titleMatch));
+
+  const lines: string[] = [`## Paired replay wins (${stem} against the .DAT)`, ''];
+  lines.push(
+    `Steam levels: ${runs.length}; with a replay: ${replayed.length}; paired: ${played.length}; left out (no .DAT level or no number in the file name): ${unpaired.length}${unpaired.length > 0 ? ` (${unpaired.map((r) => r.path).join(", ")})` : ""}; conversion errors: ${runs.filter((r) => r.error).length}.`,
+    ''
+  );
+  lines.push(
+    `Title mismatches (${mismatched.length}): ${mismatched.length > 0 ? mismatched.map((r) => `${r.path} (level ${r.number})`).join(', ') : NONE}`,
+    ''
+  );
+  lines.push(
+    ...table(
+      ['source / engine', 'wins', 'rate'],
+      [
+        ['c2m Epoxy+cc', total.c2mEpoxy, pct(total.c2mEpoxy, total.levels)],
+        ['c2m Lynx', total.c2mLynx, pct(total.c2mLynx, total.levels)],
+        ['DAT Epoxy+cc', total.datEpoxy, pct(total.datEpoxy, total.levels)],
+        ['DAT Lynx', total.datLynx, pct(total.datLynx, total.levels)],
+        [`(of which on title-mismatch levels: ${mismatched.length}; DAT Epoxy+cc ${mismatchWins.datEpoxy}, DAT Lynx ${mismatchWins.datLynx})`, '', '']
+      ]
+    ),
+    ''
+  );
+  lines.push(
+    `Wins in that order: ${total.c2mEpoxy} / ${total.c2mLynx} / ${total.datEpoxy} / ${total.datLynx}.`,
+    '',
+    `GATE: DAT Epoxy+cc >= DAT Lynx: ${gatePasses(total.datEpoxy, total.datLynx) ? 'yes' : 'no'} (Epoxy ${total.datEpoxy}, Lynx ${total.datLynx}).`,
+    ''
+  );
+
+  lines.push('## Wins per map class', '');
+  lines.push(
+    ...table(
+      ['map class', 'levels', 'c2m Epoxy+cc', 'c2m Lynx', 'DAT Epoxy+cc', 'DAT Lynx'],
+      MAP_CLASSES.map((c) => {
+        const w = pairedWins(outcomes, c);
+        return [c, w.levels, w.c2mEpoxy, w.c2mLynx, w.datEpoxy, w.datLynx];
+      })
+    ),
+    ''
+  );
+
+  const withDat = played.filter((r) => r.dat.epoxy !== undefined);
+  const lynxOnly = withDat.filter((r) => r.dat.lynx?.won && !r.dat.epoxy?.won);
+  const epoxyOnly = withDat.filter((r) => r.dat.epoxy?.won && !r.dat.lynx?.won);
+  lines.push(`DAT levels won by Lynx only: ${lynxOnly.length}. DAT levels won by Epoxy+cc only: ${epoxyOnly.length}.`, '');
+  const gaps = lynxOnly.map((r) => gapRecord(`${r.path} (level ${r.number}, ${r.mapClass}${r.titleMatch ? "" : ", TITLE MISMATCH"})`, firstDivergence(r.dat.epoxy)));
+  lines.push('## DAT levels won by Lynx only', '');
+  lines.push('Divergence of the DAT Epoxy+cc run (first strategy); the monsters are the ones on the death cell or next to it, nearest first.', '');
+  lines.push(...(gaps.length > 0 ? gaps.map(gapLine) : [NONE]), '');
+
+  lines.push('## Divergence causes over those levels, biggest first', '');
+  const ranked = rankBuckets(lynxOnly.map((r): FidelityGap => ({ path: `${r.path} (level ${r.number})`, divergence: firstDivergence(r.dat.epoxy) })));
+  lines.push(...table(['cause', 'levels'], ranked.map((c) => [c.bucket, c.levels])), '');
+  for (const bucket of ranked) lines.push(`- ${bucket.bucket}: ${bucket.paths.join(', ')}`);
+  lines.push('');
+  return { lines, gaps };
+}
+
 function listDatFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true })
     .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(DAT_EXTENSION))
@@ -252,6 +399,13 @@ it('measures the CC1 fidelity of the Epoxy engine against Lynx and writes a repo
     gaps = part.gaps;
     lines.push(...part.lines);
     writeFileSync(join(outDir, GAPS_NAME), JSON.stringify(gaps, null, JSON_INDENT), 'utf8');
+  }
+  const pairedDat = process.env.CC1_STEAM_DAT;
+  if (hasSteam && pairedDat && existsSync(pairedDat)) {
+    const root = resolve(steamDir as string);
+    const part = reportPaired(await playPaired(root, resolve(pairedDat)), basename(root));
+    lines.push(...part.lines);
+    writeFileSync(join(outDir, PAIRED_GAPS_NAME), JSON.stringify(part.gaps, null, JSON_INDENT), 'utf8');
   }
   if (hasDat) lines.push(...lintLines(lintDatFolder(resolve(datDir as string))));
   writeFileSync(join(outDir, REPORT_NAME), lines.join(NEWLINE), 'utf8');
