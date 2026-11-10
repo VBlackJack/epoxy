@@ -281,7 +281,7 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ slidesOnIce: false })).toEqual(['ice_block_3d.stopsAtWall: only a block that slides on ice stops at a wall']);
   });
 
-  it('crushes monsters only with the CC3D dirt block, and refuses crushesMonsters on a block that does not slide, or that is not true', () => {
+  it('flags only the CC3D dirt block with crushesMonsters, and refuses the flag on a block that does not slide, that is not a block, or that is not true', () => {
     const { tiles, entities } = clones();
     expect(entities.dirt_block_3d.crushesMonsters).toBe(true);
     for (const id of ['dirt_block', 'ice_block', 'ice_block_3d', 'color_block_red']) expect(entities[id].crushesMonsters, id).toBeUndefined();

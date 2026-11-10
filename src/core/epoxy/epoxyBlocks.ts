@@ -402,6 +402,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
     isCanBlockEnter(w, entity, nx, ny, slideDir, ahead)
   ) {
     removeEntity(w, ahead.uid);
+    // A monster gone from a beam path changes the beams.
+    w.beamDirty = true;
     AudioManager.playSfx('bomb');
     ctx.emitVisual('explosion', nx, ny);
     moveBlockTo(ctx, entity, nx, ny, slideDir);

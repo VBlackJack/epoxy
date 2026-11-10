@@ -56,7 +56,6 @@ export const KEY_ORBS_OVER_CAP = 'orbs_over_cap';
 export const KEY_APPEARING_WALL_WITH_MONSTER = 'appearing_wall_with_monster';
 /** Two or more walking monsters on a map, one of a kind whose head-on meeting differs between the engines. */
 export const KEY_MONSTERS_MEET = 'monsters_meet';
-/** A dirt or colour block, a slide terrain (ice or force floor) and a walking monster on one map: the CC3D block kills a monster it slides into. */
 /** A clone switch whose nearest machine holds no template Epoxy can clone. */
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
