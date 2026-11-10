@@ -527,6 +527,9 @@
             "label": "Sokoban"
           }
         },
+        "lynx_notice": {
+          "label": "This pack was imported for the Lynx engine and plays without the Epoxy aids. Import the .DAT file again to get them."
+        },
         "levels": {
           "title": {
             "label": "Levels of the pack"

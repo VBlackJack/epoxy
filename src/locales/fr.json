@@ -527,6 +527,9 @@
             "label": "Sokoban"
           }
         },
+        "lynx_notice": {
+          "label": "Ce pack a été importé pour le moteur Lynx et se joue sans les aides d'Epoxy. Réimportez le fichier .DAT pour les obtenir."
+        },
         "levels": {
           "title": {
             "label": "Niveaux du pack"
