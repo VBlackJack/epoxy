@@ -322,6 +322,12 @@ export const CC_BLOCK_SLIDE_COOLDOWN_TICKS = 1;
  */
 export const CC3D_SLIDE_ENTRY_COOLDOWN_TICKS = 2;
 
+/**
+ * Ticks the player waits on a teleporter after his step ended on it, before the forced exit step starts, on a converted
+ * CC3D level: the jump happens when the step ends and the exit step is decided on the next tick.
+ */
+export const CC3D_TELEPORT_LANDING_WAIT_TICKS = 1;
+
 /** Slide delay between two cells of a slide of the player on a converted CC3D level: one cell every two ticks. */
 export const CC3D_SLIDE_STEP_COOLDOWN_TICKS = 1;
 
@@ -513,6 +519,9 @@ export const RAIL_TRACK_MASK_ALL = (1 << RAIL_TRACK_COUNT) - 1;
 
 /** Entry side of a track cell nobody came into: the south side, as for an actor that came in moving north (the modifier default). */
 export const RAIL_DEFAULT_ENTRY: Direction = 'S';
+
+/** Prefix of the step-end effects waiting on the players of a converted CC3D level in a search state key; written only while one waits. */
+export const CC3D_ARRIVAL_KEY_PREFIX = 'ca';
 
 /** Prefix of the track cell state in a search state key. */
 export const RAIL_STATE_KEY_PREFIX = 'rl';

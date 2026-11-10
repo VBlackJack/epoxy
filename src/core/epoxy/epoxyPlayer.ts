@@ -18,9 +18,10 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
-import { Direction, PlayerState, TileDefinition } from '../types';
+import { Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
+import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
@@ -289,6 +290,11 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
         return false;
       }
     } else if (entityAtTarget.kind === 'monster') {
+      // CC3D: the player who walks into a monster dies where he stands (Cc3dSimulation.tryStep), he does not enter its cell.
+      if (w.cc3dPace) {
+        killPlayer(ctx, 'hud.messages.death_monster', 'death');
+        return true;
+      }
       leaveSwivel(w, w.player.x, w.player.y, dir);
       leaveCell(w, w.player.x, w.player.y, { leavingPlayer: w.player });
       w.player.x = targetX;
@@ -359,7 +365,7 @@ function spendTollToken(w: EpoxyWorld): boolean {
  * resolved first: the player jumps, then the arrival cell (items, thief,
  * buttons, hazards, exit) is resolved at the destination coordinates.
  */
-function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTeleport: boolean): void {
+function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTeleport: boolean, atStepEnd = false): void {
   const w = ctx.world;
   const x = w.player.x;
   const y = w.player.y;
@@ -373,7 +379,10 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     return;
   }
 
-  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && w.cc3dPace) {
+    // CC3D: the jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
+    cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
+  } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir, w.ccRules)) {
       ctx.emitVisual('teleport', w.player.x, w.player.y);
@@ -405,11 +414,12 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
       return;
     }
-    if (itemDef.collectible === 'chip') {
-      w.items[y][x] = null;
-      if (itemDef.countsAsChip !== false) w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
-      AudioManager.playSfx('chip');
-      ctx.emitVisual('chip', x, y, 'green');
+    if (itemDef.collectible === 'chip' && w.cc3dPace && !atStepEnd) {
+      // CC3D picks the chip up when the step ends. The keys and tools below are still taken at the start of the step: a
+      // known gap, as only a monster or a button acting inside the step could tell.
+      cc3dArrivalOf(w.player).chip = { x, y };
+    } else if (itemDef.collectible === 'chip') {
+      takeChip(ctx, x, y, itemDef);
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
@@ -455,7 +465,10 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   notePulseArrival(w, x, y, null);
 
-  if (tile.buttonAction) {
+  if (tile.buttonAction === 'trigger_cloner' && w.cc3dPace && !atStepEnd) {
+    // CC3D: the player works a clone switch when the step that took him onto it ends.
+    cc3dArrivalOf(w.player).press = { x, y };
+  } else if (tile.buttonAction) {
     triggerButton(ctx, x, y, tile.buttonAction);
     if (!w.player.alive) return;
   }
@@ -492,6 +505,63 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   evaluatePlayerSliding(w, tile, entryDir);
+}
+
+/** The step-end effects waiting on `p`, created on first use. */
+function cc3dArrivalOf(p: PlayerState): Cc3dPlayerArrival {
+  p.cc3dArrival ??= {};
+  return p.cc3dArrival;
+}
+
+/** Takes the chip lying on (x, y): the cell empties, the count drops unless the chip is not one of the level's, and the pick-up plays. */
+function takeChip(ctx: EpoxyContext, x: number, y: number, itemDef: TileDefinition): void {
+  const w = ctx.world;
+  w.items[y][x] = null;
+  if (itemDef.countsAsChip !== false) w.chipsRemaining = Math.max(0, w.chipsRemaining - 1);
+  AudioManager.playSfx('chip');
+  ctx.emitVisual('chip', x, y, 'green');
+}
+
+/**
+ * Converted CC3D level: acts on what the controlled player's step left pending once that step has ended (CC3D acts on
+ * arrival, Cc3dSimulation.onArrival) - a clone switch he stands on, the chip of the cell, the teleporter he stopped on.
+ * The step has ended when its wait has run out (the slide wait while he slides). A player who died during the step takes
+ * nothing. Order as in CC3D: the switch, the chip of the cell, then the jump and the item of the pad he lands on.
+ * Returns false when the tick must stop (a clone press that ended the level).
+ */
+export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  const p = w.player;
+  const pending = p.cc3dArrival;
+  if (pending === undefined) return true;
+  if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
+  delete p.cc3dArrival;
+  if (!p.alive || p.exited === true || w.levelCompleted) return true;
+  if (pending.press !== undefined) {
+    const { x, y } = pending.press;
+    const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+    if (p.x === x && p.y === y && tile.buttonAction === 'trigger_cloner' && !triggerButton(ctx, x, y, tile.buttonAction)) return false;
+    if (!p.alive) return true;
+  }
+  if (pending.chip !== undefined) {
+    const { x, y } = pending.chip;
+    const itemId = w.items[y]?.[x];
+    if (itemId) {
+      const itemDef = ConfigRegistry.getTile(itemId);
+      if (itemDef.collectible === 'chip') takeChip(ctx, x, y, itemDef);
+    }
+  }
+  if (pending.teleport !== undefined) {
+    const { x, y, dir } = pending.teleport;
+    ctx.emitVisual('teleport', x, y);
+    if (teleportPlayer(w, x, y, dir, true)) {
+      ctx.emitVisual('teleport', w.player.x, w.player.y);
+      // The exit step is decided on the next tick (see processTeleportExit).
+      p.moveCooldown = Math.max(p.moveCooldown, CC3D_TELEPORT_LANDING_WAIT_TICKS);
+      resolvePlayerArrival(ctx, w.player.dir, false, true);
+    }
+  }
+  return true;
 }
 
 /**
@@ -584,9 +654,14 @@ export function tickParkedPlayers(ctx: EpoxyContext): void {
     if (!w.player.alive || w.levelCompleted) return;
     withPlayer(w, parked, () => {
       if (w.player.moveCooldown > 0) w.player.moveCooldown--;
+      if (w.cc3dPace) applyCc3dStepEnd(ctx);
       if (w.player.isSliding) {
-        if (w.player.slideCooldown > 0) w.player.slideCooldown--;
-        else processPlayerSlideStep(ctx);
+        if (w.player.slideCooldown > 0) {
+          w.player.slideCooldown--;
+          if (w.cc3dPace && w.player.slideCooldown === 0) applyCc3dStepEnd(ctx);
+        } else {
+          processPlayerSlideStep(ctx);
+        }
       }
       processTeleportExit(ctx);
     });
@@ -604,7 +679,11 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   delete w.player.teleportExit;
   const mover = w.player;
   const moved = executePlayerMove(ctx, dir, true);
-  if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
+  if (moved && mover === w.player && w.player.alive && w.player.exited !== true && w.cc3dPace) {
+    // CC3D: the exit is a fast step, started on the tick after the jump (the rest of its wait is what is left here).
+    if (w.player.isSliding) w.player.slideCooldown = Math.min(w.player.slideCooldown, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS - 1);
+    else w.player.moveCooldown = Math.max(w.player.moveCooldown, STEP_TICKS.fast - CC3D_TELEPORT_LANDING_WAIT_TICKS);
+  } else if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
     w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
   }
   ctx.checkTargetsWin();

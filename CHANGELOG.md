@@ -12,6 +12,8 @@ versions follow Semantic Versioning.
 
 - Several monsters on a CC3D level converted to Epoxy now interact as in CC3D: a monster's toggle or clone press takes effect in that monster's own turn, a monster entering a bomb stays in its cell for the whole step and is removed when it ends, traps are recomputed once at the end of each tick and a monster works a brown button only at rest, and a clone machine lets its template itself out and keeps a new template. On the corpus the random-walk mismatches with the meeting rule narrowed to walkers and omnis go from 55 to 43. Replays recorded on converted CC3D levels are no longer offered (scores are kept).
 
+- The player of a CC3D level converted to Epoxy now acts on arrival, as in CC3D: walking into a monster kills him where he stands, a clone switch is pressed and a chip taken when his step ends, and a teleporter jumps him when his step ends and sends him out by a fast step of his own on the next tick. On the corpus the random-walk mismatches with the meeting rule narrowed to walkers and omnis go from 43 to 35; the committed ones stay at 10 (one walk moves from a monster timing difference to a mismatch). Replays recorded on converted CC3D levels are no longer offered (scores are kept).
+
 ## [2.30.0] - 2026-11-11
 
 ### Added

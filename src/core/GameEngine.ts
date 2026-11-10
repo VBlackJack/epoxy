@@ -27,6 +27,7 @@ import {
   OPPOSITE_DIRECTION,
   SPENT_REVEAL_KEY_PREFIX,
   PLAYER_CHARACTER_KEY_PREFIX,
+  CC3D_ARRIVAL_KEY_PREFIX,
   PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
@@ -59,6 +60,7 @@ import {
   isCarriedByForceFloor,
   playerWalkCooldown,
   processPlayerSlideStep,
+  applyCc3dStepEnd,
   processTeleportExit,
   resumeForceCarry,
   tickParkedPlayers
@@ -77,6 +79,8 @@ import {
   rotatePlayers,
   revealedTerrain,
   canPlayerEnter,
+  cc3dArrivalKey,
+  copyCc3dArrival,
   createEpoxyWorld,
   getEntityAt,
   holdsItem,
@@ -417,6 +421,8 @@ export class GameEngine {
       parts.push(`${SWIVEL_ENTRY_KEY_PREFIX}${entries.join(',')}`);
     }
     if (this.w.railCells.size > 0) parts.push(`${RAIL_STATE_KEY_PREFIX}${railStateKey(this.w)}`);
+    const arrivals = cc3dArrivalKey(this.w);
+    if (arrivals !== '') parts.push(`${CC3D_ARRIVAL_KEY_PREFIX}${arrivals}`);
     return parts.join('|');
   }
 
@@ -758,6 +764,7 @@ export class GameEngine {
       boots: Array.from(p.boots),
       ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
       ...(p.teleportExit !== undefined ? { teleportExit: p.teleportExit } : {}),
+      ...(p.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(p.cc3dArrival) } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -779,6 +786,7 @@ export class GameEngine {
       boots: new Set(snap.boots),
       ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
       ...(snap.teleportExit !== undefined ? { teleportExit: snap.teleportExit } : {}),
+      ...(snap.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(snap.cc3dArrival) } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -864,6 +872,11 @@ export class GameEngine {
     if (this.w.player.moveCooldown > 0) {
       this.w.player.moveCooldown--;
     }
+    // A converted CC3D level: what the player's step onto a cell does acts when that step ends.
+    if (this.w.cc3dPace && !applyCc3dStepEnd(this.ctx)) {
+      this.w.inTick = false;
+      return;
+    }
 
     // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
     // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
@@ -871,12 +884,16 @@ export class GameEngine {
     if (this.w.player.isSliding) {
       if (this.w.player.slideCooldown > 0) {
         this.w.player.slideCooldown--;
+        if (this.w.cc3dPace && this.w.player.slideCooldown === 0 && !applyCc3dStepEnd(this.ctx)) {
+          this.w.inTick = false;
+          return;
+        }
       } else {
         processPlayerSlideStep(this.ctx);
       }
     }
-    // Classic rules: a player on a teleporter pad leaves it by his forced exit step.
-    if (this.w.ccRules) processTeleportExit(this.ctx);
+    // Classic rules and converted CC3D levels: a player on a teleporter pad leaves it by his forced exit step.
+    if (this.w.ccRules || this.w.cc3dPace) processTeleportExit(this.ctx);
     // The players not controlled finish their forced moves (slides, force floors); they take no voluntary move.
     if (this.w.parked.length > 0) tickParkedPlayers(this.ctx);
 

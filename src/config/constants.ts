@@ -474,7 +474,7 @@ export const CC3D_RULES_VERSION = 1;
  * Pace version of a CC3D level converted to Epoxy, for replays recorded on those levels (they sign as
  * "epoxy-3d:<version>"); bump it when a change alters how recorded moves play out on them.
  */
-export const CC3D_PACE_VERSION = 3;
+export const CC3D_PACE_VERSION = 4;
 
 /**
  * Feature switches. `foreignAuthoring` brings back the editing and export
