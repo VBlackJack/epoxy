@@ -59,6 +59,7 @@ import {
   isCarriedByForceFloor,
   playerWalkCooldown,
   processPlayerSlideStep,
+  processTeleportExit,
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
@@ -752,6 +753,7 @@ export class GameEngine {
       keys: { ...p.keys },
       boots: Array.from(p.boots),
       ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
+      ...(p.teleportExit !== undefined ? { teleportExit: p.teleportExit } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -772,6 +774,7 @@ export class GameEngine {
       keys: { ...snap.keys },
       boots: new Set(snap.boots),
       ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
+      ...(snap.teleportExit !== undefined ? { teleportExit: snap.teleportExit } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -859,6 +862,8 @@ export class GameEngine {
         processPlayerSlideStep(this.ctx);
       }
     }
+    // Classic rules: a player on a teleporter pad leaves it by his forced exit step.
+    if (this.w.ccRules) processTeleportExit(this.ctx);
     // The players not controlled finish their forced moves (slides, force floors); they take no voluntary move.
     if (this.w.parked.length > 0) tickParkedPlayers(this.ctx);
 
@@ -894,7 +899,7 @@ export class GameEngine {
     }
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
-    if (isLockedByIce || this.w.player.moveCooldown > 0) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined) {
       return false;
     }
 

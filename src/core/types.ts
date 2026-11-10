@@ -2250,6 +2250,11 @@ export interface PlayerState {
    */
   forcePermission?: boolean;
   /**
+   * Set only on a level with the classic rules: the player landed on a teleporter pad and leaves it by a forced step in
+   * this direction once his wait is over; he takes no move of his own until then.
+   */
+  teleportExit?: Direction;
+  /**
    * The character this player is; absent until set, when it is the level's character. Each player of a level with
    * several has its own, and a transmogrifier switches only the player that arrives on it.
    */
@@ -2293,6 +2298,8 @@ export interface PlayerSnapshot {
   boots: string[];
   /** The player's forcePermission; written only when the player has one. */
   forcePermission?: boolean;
+  /** The player's teleportExit; written only when the player waits on a pad. */
+  teleportExit?: Direction;
   /** The player's character; written only on a level with several players, where each has its own. */
   character?: PlayerCharacter;
 }

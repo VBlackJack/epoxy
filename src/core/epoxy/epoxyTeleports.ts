@@ -165,9 +165,12 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
 
 /**
  * Moves the player out of the next free teleporter of the same group.
+ * With `landOnPad` (classic rules) the player lands ON the destination pad instead and carries the exit direction as a
+ * forced step for later (`teleportExit`); a pad is then chosen by the same exit test, but a plain pad tries only the
+ * direction the player entered in.
  * Returns false when no exit exists.
  */
-export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction): boolean {
+export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction, landOnPad = false): boolean {
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
   const selfPad = origin.teleportsToSelf === true;
   const teleporters = selfPad ? [] : teleportersLinkedTo(w, fromX, fromY);
@@ -175,10 +178,8 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
   if (!selfPad && startIdx < 0) return false;
 
   if (!selfPad && teleporters.length <= 1 && !isCc2Order(origin)) return false;
-  const candidateDirs: Direction[] = namedExitDirections(origin, dir) ?? [
-    dir,
-    ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
-  ];
+  const candidateDirs: Direction[] =
+    namedExitDirections(origin, dir) ?? (landOnPad ? [dir] : [dir, ...ORDERED_DIRECTIONS.filter((d) => d !== dir)]);
 
   const playerPlan = selfPad
     ? selfPadPlan({ x: fromX, y: fromY }, dir)
@@ -186,7 +187,13 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
       ? cc2PadPlan(w, origin, teleporters, startIdx, dir)
       : nativePadPlan(teleporters, startIdx, origin, candidateDirs);
   for (const { pad: candidate, dirs: tryDirs } of playerPlan) {
-    if (!(candidate.x === fromX && candidate.y === fromY) && padRefusesLanding(w, origin, candidate, true)) continue;
+    const isSource = candidate.x === fromX && candidate.y === fromY;
+    if (!isSource && padRefusesLanding(w, origin, candidate, true)) continue;
+    // Landing on a pad (classic rules): a pad that a block, a monster or another player stands on is skipped, as Lynx does.
+    if (landOnPad && !isSource) {
+      const other = playerAtCell(w, candidate.x, candidate.y);
+      if (getEntityAt(w, candidate.x, candidate.y) || (other !== undefined && other !== w.player)) continue;
+    }
     for (const tryDir of tryDirs) {
       const vec = DIRECTION_VECTORS[tryDir];
       const exitX = candidate.x + vec.dx;
@@ -201,6 +208,13 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
           AudioManager.playSfx('teleport');
+          if (landOnPad) {
+            w.player.x = candidate.x;
+            w.player.y = candidate.y;
+            w.player.dir = tryDir;
+            w.player.teleportExit = tryDir;
+            return true;
+          }
           w.player.x = exitX;
           w.player.y = exitY;
           w.player.dir = tryDir;
