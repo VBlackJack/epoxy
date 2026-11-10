@@ -25,7 +25,7 @@ import { makeLevel } from '../test/packFixtures';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 
-const NEW_IDS = ['trap_sealed'];
+const NEW_IDS = ['trap_sealed', 'color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow'];
 
 function tiles() {
   return structuredClone(ConfigRegistry.getTiles().tiles);
@@ -42,23 +42,29 @@ describe('format 17 ids', () => {
 
   it('defines every new id in the shipped configs, with a name and a description in both languages', () => {
     const defined = tiles();
+    const entities = ConfigRegistry.getMonsters().entities;
     for (const id of NEW_IDS) {
-      expect(defined[id], id).toBeDefined();
+      expect(defined[id] ?? entities[id], id).toBeDefined();
       for (const locale of [en, fr]) {
-        const entry = (locale.tiles as Record<string, { name?: string; desc?: { label?: string } }>)[id];
-        expect(entry?.name, id).toBeTruthy();
-        expect(entry?.desc?.label, id).toBeTruthy();
+        const entry = (defined[id] === undefined ? locale.entities : locale.tiles) as Record<string, { name?: string; desc?: { label?: string } }>;
+        const found = entry[id];
+        expect(found?.name, id).toBeTruthy();
+        expect(found?.desc?.label, id).toBeTruthy();
       }
     }
   });
 
-  it('writes a pack holding the sealed trap in format 17, and an older reader refuses it', () => {
-    const level = makeLevel('f17');
-    level.terrain[1][1] = 'trap_sealed';
-    expect(idSetVersionOf(level)).toBe(PACK_JSON_VERSION_V17);
-    const written = serializePack('P', [level]);
-    expect(JSON.parse(written).version).toBe(PACK_JSON_VERSION_V17);
-    expect(parsePackJson(written, ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0)).toMatchObject({ ok: true });
+  it('writes a pack holding one of the new ids in format 17, and an older reader refuses it', () => {
+    const defined = tiles();
+    for (const id of NEW_IDS) {
+      const level = makeLevel('f17');
+      if (defined[id] === undefined) level.entities.push({ x: 1, y: 1, type: id, dir: 'S' });
+      else level.terrain[1][1] = id;
+      expect(idSetVersionOf(level), id).toBe(PACK_JSON_VERSION_V17);
+      const written = serializePack('P', [level]);
+      expect(JSON.parse(written).version, id).toBe(PACK_JSON_VERSION_V17);
+      expect(parsePackJson(written, ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0)).toMatchObject({ ok: true });
+    }
     expect(JSON.parse(serializePack('P', [makeLevel('plain')])).version).toBeLessThan(PACK_JSON_VERSION_V17);
   });
 
@@ -86,6 +92,24 @@ describe('shipped format 17 fields', () => {
     expect(sealed.sealedTrap).toBe(true);
     expect(sealed.closesTo).toBeUndefined();
     expect(sealed.wiredTrap).toBeUndefined();
+  });
+});
+
+describe('shipped CC3D colour blocks', () => {
+  beforeEach(() => loadTestConfigs());
+
+  it('are the native colour blocks that also stop against a wall on ice', () => {
+    const entities = ConfigRegistry.getMonsters().entities;
+    for (const c of ['red', 'green', 'blue', 'yellow']) {
+      const { stopsAtWall, id, i18nKey, ...rest } = entities[`color_block_3d_${c}`];
+      const { id: nativeId, i18nKey: nativeKey, ...native } = entities[`color_block_${c}`];
+      expect(stopsAtWall, id).toBe(true);
+      expect(i18nKey).toBe(`entities.color_block_3d_${c}.name`);
+      expect(nativeId).toBe(`color_block_${c}`);
+      expect(nativeKey).toBe(`entities.color_block_${c}.name`);
+      expect(rest, c).toEqual(native);
+      expect(entities[`color_block_${c}`].stopsAtWall).toBeUndefined();
+    }
   });
 });
 

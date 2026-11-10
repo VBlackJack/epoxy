@@ -32,7 +32,7 @@ describe('colour channel config', () => {
     expect(findColorChannelConfigErrors(ConfigRegistry.getTiles().tiles, ConfigRegistry.getMonsters().entities)).toEqual([]);
   });
 
-  it('ships 25 channel tiles and 4 colour blocks', () => {
+  it('ships 25 channel tiles and 8 colour blocks (4 native, 4 CC3D)', () => {
     const tiles = Object.values(ConfigRegistry.getTiles().tiles);
     const channel = tiles.filter(
       (t) =>
@@ -44,7 +44,7 @@ describe('colour channel config', () => {
     );
     expect(channel).toHaveLength(CHANNEL_TILE_COUNT);
     const blocks = Object.values(ConfigRegistry.getMonsters().entities).filter((e) => e.plateColor !== undefined);
-    expect(blocks.map((b) => b.id).sort()).toEqual(COLORS.map((c) => `color_block_${c}`).sort());
+    expect(blocks.map((b) => b.id).sort()).toEqual(COLORS.flatMap((c) => [`color_block_${c}`, `color_block_3d_${c}`]).sort());
   });
 
   it('pairs every colour block with the floating tile it leaves in water', () => {

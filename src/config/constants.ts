@@ -381,13 +381,20 @@ export const PACK_JSON_VERSION_V16_IDS: ReadonlySet<string> = new Set(['button_o
 
 /**
  * Version of a pack file that holds at least one level using an id introduced with format 17 (see
- * PACK_JSON_VERSION_V17_IDS): the sealed trap, which no button ever opens. An older build would play it as an ordinary
- * trap that a brown button releases, so it must refuse the file.
+ * PACK_JSON_VERSION_V17_IDS): the sealed trap, which no button ever opens, and the four CC3D colour blocks, which stop against a wall
+ * on ice. An older build would play them as an ordinary trap that a brown button releases and as the native colour blocks
+ * that bounce back, so it must refuse the file.
  */
 export const PACK_JSON_VERSION_V17 = 17;
 
 /** Ids that only exist from pack format 17; matched by name like the format 7 ids. */
-export const PACK_JSON_VERSION_V17_IDS: ReadonlySet<string> = new Set(['trap_sealed']);
+export const PACK_JSON_VERSION_V17_IDS: ReadonlySet<string> = new Set([
+  'trap_sealed',
+  'color_block_3d_red',
+  'color_block_3d_green',
+  'color_block_3d_blue',
+  'color_block_3d_yellow'
+]);
 
 /**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids

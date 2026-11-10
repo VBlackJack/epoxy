@@ -168,7 +168,7 @@ const ARROW_MARK_SPRITES: readonly string[] = DIRECTIONS.map((d) => `${RETRO_SPR
 /** The four one-sided mirror blocks: sprites of the sheet, which the game draws through the cc3d reflector painter. */
 const ONE_SIDED_MIRROR_SPRITES: readonly string[] = Object.keys(MIRROR_FRONT_AXIS).map((c) => `one_sided_mirror_${c.toLowerCase()}`);
 /** The colour block sprites: one per channel colour, named after the entity they draw. */
-const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.map((c) => `color_block_${c}`);
+const COLOR_BLOCK_SPRITES: readonly string[] = CHANNEL_COLORS.flatMap((c) => [`color_block_${c}`, `color_block_3d_${c}`]);
 
 /** Every sprite name the renderer needs (spec section 4). */
 export const RETRO_SPRITE_NAMES: readonly string[] = [

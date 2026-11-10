@@ -75,7 +75,6 @@ describe('epoxy coverage table', () => {
     check('gravel_with_reflector');
     check('orbs_over_cap');
     check('appearing_wall_with_monster');
-    check('color_block_on_ice');
     check('monsters_meet');
     expect(missing).toEqual([]);
   });
@@ -94,7 +93,7 @@ describe('epoxy coverage table', () => {
     for (const key of [
       'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
       'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector', 'orbs_over_cap',
-      'appearing_wall_with_monster', 'color_block_on_ice', 'monsters_meet'
+      'appearing_wall_with_monster', 'monsters_meet'
     ]) named.add(key);
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });

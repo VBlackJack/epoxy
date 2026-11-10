@@ -5814,6 +5814,30 @@
         "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
+    "color_block_3d_red": {
+      "name": "Bloc de Couleur Rouge (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression rouges (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_green": {
+      "name": "Bloc de Couleur Vert (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression vertes (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_blue": {
+      "name": "Bloc de Couleur Bleu (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression bleues (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_yellow": {
+      "name": "Bloc de Couleur Jaune (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression jaunes (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
     "dirt_block_3d": {
       "name": "Bloc de terre (CC3D)",
       "desc": {

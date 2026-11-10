@@ -315,18 +315,16 @@ describe('appearing wall', () => {
     expect(classifyLevel(cc3dModel(room('@K>>>Q.'))).verdict).toBe('exact');
   });
 
-  it('differs for a colour block that slides on ice into a wall: CC3D stops it, Epoxy bounces it back', () => {
+  it('stops a colour block that slides on ice against a wall, as color_block_3d_<colour> does; the native colour block bounces back', () => {
     const glyphs: Record<string, GlyphMeaning> = { R: { mob: { kind: 'block_color', color: 'red' } } };
-    for (const rows of [room('@RIII#.'), room('@RIIIQ.')]) {
-      const t = playTimeline({ rows, moves: '', glyphs }, 'E');
-      expect(t.sameSequence, rows[1]).toBe(false);
+    for (const rows of [room('@RIII#.'), room('@RIIIQ.'), room('@R>>>#.')]) {
+      const t = playTimeline({ rows, moves: '', glyphs }, 'EE');
+      expect(t.sameSequence, rows[1]).toBe(true);
+      expect(t.sameFinal, rows[1]).toBe(true);
     }
-    // A force floor never bounces a block: the colour block stops against the wall in both engines.
-    expect(playTimeline({ rows: room('@R>>>#.'), moves: '', glyphs }, 'E').sameSequence).toBe(true);
-    expect(classifyLevel(cc3dModel(room('@RIII#.'), glyphs)).approx).toEqual(['color_block_on_ice']);
-    expect(classifyLevel(cc3dModel(room('@R>>>#.'), glyphs)).verdict).toBe('exact');
-    expect(EPOXY_COVERAGE.color_block_on_ice.level).toBe('approx');
-    expect(EPOXY_COVERAGE.color_block_on_ice.reason).toContain('cc3dEvidenceTerrain.test.ts');
+    // No key is raised for it any more: the level stays exact.
+    expect(classifyLevel(cc3dModel(room('@RIII#.'), glyphs)).verdict).toBe('exact');
+    expect(EPOXY_COVERAGE.color_block_on_ice).toBeUndefined();
   });
 
   it('becomes a wall when a monster tries to enter it, as the Epoxy appearing_wall_any does; the monster walk is then a step out of phase', () => {

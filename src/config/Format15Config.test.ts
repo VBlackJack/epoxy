@@ -179,6 +179,7 @@ describe('shipped format 15 fields', () => {
     const expected = [
       'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d',
       'color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow',
+      'color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow',
       'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross',
       ...MIRROR_AND_TURRET_BLOCKS
     ];

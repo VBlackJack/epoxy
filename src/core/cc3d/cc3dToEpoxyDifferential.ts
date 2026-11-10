@@ -104,10 +104,10 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   cc3d_bot_cw: 'turret_cw',
   cc3d_bot_ccw: 'turret_ccw',
   cc3d_bot_multi: 'turret_multi',
-  cc3d_block_red: 'color_block_red',
-  cc3d_block_green: 'color_block_green',
-  cc3d_block_blue: 'color_block_blue',
-  cc3d_block_yellow: 'color_block_yellow',
+  cc3d_block_red: 'color_block_3d_red',
+  cc3d_block_green: 'color_block_3d_green',
+  cc3d_block_blue: 'color_block_3d_blue',
+  cc3d_block_yellow: 'color_block_3d_yellow',
   // Format 15: the converter plays the CC3D ice block as ice_block_3d.
   ice_block: 'ice_block_3d',
   // Format 16: the converter plays the CC3D dirt block as dirt_block_3d.

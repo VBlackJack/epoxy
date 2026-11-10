@@ -5814,6 +5814,30 @@
         "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
+    "color_block_3d_red": {
+      "name": "Red Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the red pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_green": {
+      "name": "Green Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the green pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_blue": {
+      "name": "Blue Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the blue pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_yellow": {
+      "name": "Yellow Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the yellow pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
     "dirt_block_3d": {
       "name": "Dirt Block (CC3D)",
       "desc": {

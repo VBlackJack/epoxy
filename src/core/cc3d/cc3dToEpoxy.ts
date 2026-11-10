@@ -38,7 +38,6 @@ import {
   KEY_APPEARING_WALL_WITH_MONSTER,
   KEY_BOMB_WITH_ITEM,
   KEY_CLONE_SWITCH_EMPTY,
-  KEY_COLOR_BLOCK_ON_ICE,
   KEY_GRAVEL_WITH_REFLECTOR,
   KEY_LASER_SHOOTER_COVERED,
   KEY_MONSTERS_MEET,
@@ -246,7 +245,7 @@ interface MobRule {
 const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
   block_dirt: { type: fixed('dirt_block_3d') },
   block_ice: { type: fixed('ice_block_3d') },
-  block_color: { type: (mob) => `color_block_${need(mob.color, 'color', mob.kind)}`, colored: true },
+  block_color: { type: (mob) => `color_block_3d_${need(mob.color, 'color', mob.kind)}`, colored: true },
   reflector: {
     type: (mob) => {
       const id = REFLECTOR_IDS[need(mob.mirror, 'mirror', mob.kind).toUpperCase()];
@@ -289,7 +288,6 @@ const STRUCTURAL_RULE_KEYS: readonly string[] = [
   KEY_GRAVEL_WITH_REFLECTOR,
   KEY_ORBS_OVER_CAP,
   KEY_APPEARING_WALL_WITH_MONSTER,
-  KEY_COLOR_BLOCK_ON_ICE,
   KEY_MONSTERS_MEET
 ];
 

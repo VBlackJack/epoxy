@@ -200,7 +200,7 @@ const mobCase = (key: string, type: string | null, extra: Partial<MobCase['mob']
 const MOB_CASES: MobCase[] = [
   mobCase('block_dirt', 'dirt_block_3d'),
   mobCase('block_ice', 'ice_block_3d'),
-  ...CC3D_COLORS.map((color): MobCase => ({ key: `block_color_${color}`, type: `color_block_${color}`, mob: { kind: 'block_color', dir: 'N', color } })),
+  ...CC3D_COLORS.map((color): MobCase => ({ key: `block_color_${color}`, type: `color_block_3d_${color}`, mob: { kind: 'block_color', dir: 'N', color } })),
   mobCase('reflector', 'one_sided_mirror_sw', { mirror: 'LU' }),
   mobCase('reflector', 'one_sided_mirror_nw', { mirror: 'DL' }),
   mobCase('reflector', 'one_sided_mirror_se', { mirror: 'UR' }),
@@ -294,16 +294,6 @@ const STRUCTURAL_CASES: StructuralCase[] = [
       }),
     check: (result) => {
       expect(result.report.approx.map((e) => e.key)).toContain('orbs_over_cap');
-    }
-  },
-  {
-    key: 'color_block_on_ice',
-    build: () => convertRows(['#######', '#@RIQX#', '#######'], { R: { mob: { kind: 'block_color', color: 'red' } }, Q: terrain('appearing_wall'), I: terrain('ice') }),
-    check: (result) => {
-      expect(result.report.approx.map((e) => e.key)).toContain('color_block_on_ice');
-      // A dirt block on the same ice raises nothing: it stops at the wall in both engines.
-      const dirt = convertRows(['#######', '#@KIQX#', '#######'], { Q: terrain('appearing_wall'), I: terrain('ice') });
-      expect(dirt.result.report.approx.map((e) => e.key)).not.toContain('color_block_on_ice');
     }
   },
   {
@@ -528,9 +518,9 @@ describe('arbitration rules', () => {
       c: { stack: normalizeCell([{ kind: 'clone_machine', dir: 'S' }]), mob: { kind: 'block_color', color: 'red', dir: 'E' } }
     });
     expect(withDir.result.level.cloneLinks).toEqual([
-      { buttonX: 2, buttonY: 1, clonerX: 3, clonerY: 1, templateType: 'color_block_red', templateDir: 'S' }
+      { buttonX: 2, buttonY: 1, clonerX: 3, clonerY: 1, templateType: 'color_block_3d_red', templateDir: 'S' }
     ]);
-    expect(withDir.result.level.entities).toEqual([{ x: 3, y: 1, type: 'color_block_red', dir: 'E' }]);
+    expect(withDir.result.level.entities).toEqual([{ x: 3, y: 1, type: 'color_block_3d_red', dir: 'E' }]);
     const without = convertRows(['######', '#@xc.#', '######'], {
       x: stackOf({ kind: 'clone_switch' }),
       c: { stack: normalizeCell([{ kind: 'clone_machine' }]), mob: { kind: 'walker', dir: 'W' } }
@@ -631,7 +621,7 @@ describe('arbitration rules', () => {
       F: { stack: [{ kind: 'fire' }], mob: { kind: 'block_color', color: 'red', dir: 'N' } }
     });
     expect(result.level.terrain[1].slice(2, 4)).toEqual(['water', 'fire']);
-    expect(result.level.entities.map((e) => e.type)).toEqual(['dirt_block_3d', 'color_block_red']);
+    expect(result.level.entities.map((e) => e.type)).toEqual(['dirt_block_3d', 'color_block_3d_red']);
     expect(result.level.terrain.flat().some((id) => id.startsWith('floating_block'))).toBe(false);
   });
 

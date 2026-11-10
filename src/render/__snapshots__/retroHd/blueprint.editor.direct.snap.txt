@@ -591,6 +591,10 @@ editor entity over floor blob 41e2a02cd09b3b5c
 editor entity over floor color_block_red 3dd1543db88857d6
 editor entity over floor color_block_green b3ff82f84ae2a2dd
 editor entity over floor color_block_blue 0ef40c5d7ee3f494
+editor entity over floor color_block_3d_red db00276e466e5994
+editor entity over floor color_block_3d_green 97eb26226b20008f
+editor entity over floor color_block_3d_blue b6865e4805a5f1d9
+editor entity over floor color_block_3d_yellow f4fa6ab993b039a7
 editor entity over floor color_block_yellow 40cc9b21426882cd
 editor entity over floor puppet 6ae2cd2a33964d76
 editor entity over floor skitter 626f215db91bd290

@@ -119,6 +119,7 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   cc3d_dirt_block: ['dirt_block_3d'],
   // Format 17: the sealed trap.
   sealed_trap: ['trap_sealed'],
+  cc3d_colour_blocks: COLOURS.map((c) => `color_block_3d_${c}`),
   coloured_toggles: [
     ...['red', 'blue', 'yellow'].flatMap((c) => [
       `toggle_wall_${c}_closed`,
@@ -346,6 +347,7 @@ export const PENDING: readonly string[] = [
   'cc2_orange_button',
   'cc3d_dirt_block',
   'sealed_trap',
+  'cc3d_colour_blocks',
   'coloured_toggles',
   'pressure_plates',
   'flame_jets',
