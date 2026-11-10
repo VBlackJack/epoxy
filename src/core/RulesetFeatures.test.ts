@@ -378,7 +378,7 @@ describe('aids by level kind', () => {
     expect(features.deadEndWatch).toBe(false);
   });
 
-  it('keeps the tapped path off on a steering level and a turret level with colour content', () => {
+  it('keeps the tapped path off on a turret level and a signal-wired level with colour content', () => {
     expect(featuresFor(base('pressure_plate_red', 'turret_fixed')).tapToPath).toBe(false);
     expect(featuresFor({ ...base('pressure_plate_red'), signalLinks: [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }] }).tapToPath).toBe(false);
   });

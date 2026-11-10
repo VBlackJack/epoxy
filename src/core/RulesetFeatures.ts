@@ -486,7 +486,7 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
 
 /** True when the level has signal wires, or places a signal source or gate (terrain or underlay layer). */
 export function hasSignalContent(
-  level: Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'underlays' | 'signalLinks'>>
+  level: Partial<Pick<CompiledLevel, 'terrain' | 'underlays' | 'signalLinks'>>
 ): boolean {
   if ((level.signalLinks?.length ?? 0) > 0) return true;
   const underlays = level.underlays ?? [];
@@ -544,7 +544,7 @@ const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEAT
 
 /** A turret level with colour content: the turrets still fire at a walker, so no tapped path. */
 const TURRET_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_COLOR_LEVEL_FEATURES, tapToPath: false };
-const TURRET_RECEIVER_LEVEL_FEATURES_COLOR: RulesetFeatures = { ...RECEIVER_COLOR_LEVEL_FEATURES, tapToPath: false };
+const TURRET_RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_COLOR_LEVEL_FEATURES, tapToPath: false };
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
@@ -794,7 +794,7 @@ function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
     turretContentCache.set(level, turret);
   }
   if (receivers) {
-    if (color) return turret ? TURRET_RECEIVER_LEVEL_FEATURES_COLOR : RECEIVER_COLOR_LEVEL_FEATURES;
+    if (color) return turret ? TURRET_RECEIVER_COLOR_LEVEL_FEATURES : RECEIVER_COLOR_LEVEL_FEATURES;
     return turret ? TURRET_RECEIVER_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
   }
   if (!color) {

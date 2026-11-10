@@ -242,3 +242,32 @@ describe('Pathfinder colour safety', () => {
     expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
   });
 });
+
+describe('Pathfinder.isNextStepSafe (auto-move guard)', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('goes on over a plain cell', () => {
+    expect(Pathfinder.isNextStepSafe(engineFor(corridor()), 'E', false)).toBe(true);
+  });
+
+  it('stops before a cell a beam has lit since the plan was made', () => {
+    const engine = engineFor(corridor());
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(true);
+    vi.spyOn(engine, 'getBeamCells').mockReturnValue([{ x: 3, y: 2 }] as never);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', true)).toBe(false);
+  });
+
+  it('stops before a channel button unless it ends the walk', () => {
+    const engine = engineFor(corridor({ 3: 'toggle_button_red' }));
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', true)).toBe(true);
+  });
+
+  it('stops before a hold door that only the player holds open', () => {
+    const engine = engineFor(corridor({ 2: 'pressure_plate_red', 3: 'hold_door_red_open' }));
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+  });
+});
