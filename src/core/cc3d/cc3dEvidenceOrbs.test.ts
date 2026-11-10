@@ -20,8 +20,9 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
-import { EPOXY_COVERAGE } from './epoxyCoverage';
+import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
 import { room } from './cc3dEvidenceRig';
+import { cc3dModel } from './cc3dTestMaps';
 
 /**
  * Coverage evidence for the four orbs (ice, force, fire, water), which Epoxy plays as boots. Each case plays a
@@ -124,10 +125,25 @@ describe('the four orbs together', () => {
 });
 
 describe('coverage verdicts that rest on this evidence', () => {
-  it('keeps the orbs approximate, each reason citing this file', () => {
+  it('plays the orbs exactly up to the cap, each reason citing this file', () => {
     for (const key of ['orb_ice', 'orb_force', 'orb_fire', 'orb_water']) {
-      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
+      expect(EPOXY_COVERAGE[key].level, key).toBe('exact');
       expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceOrbs.test.ts');
     }
+  });
+
+  it('puts the cap boundary where the engines part: four orb items agree above, a fifth is orbs_over_cap', () => {
+    // 'afwo' agrees move by move (see above), and the map is exact.
+    expect(classifyLevel(cc3dModel(room('@afwo.')))).toEqual({ verdict: 'exact', lost: [], approx: [] });
+    // Three orbs and the speed orb are four items: no fifth tool can be picked up, and only the speed orb itself is approximate.
+    expect(classifyLevel(cc3dModel(room('@afws.'))).approx).toEqual(['orb_speed']);
+    // A fifth item is the disagreement pinned above, in every order.
+    for (const order of ['afwo', 'fwoa', 'woaf', 'oafw']) {
+      const result = classifyLevel(cc3dModel(room(`@${order}${FIFTH_TOOL}.`)));
+      expect(result.approx, order).toContain('orbs_over_cap');
+    }
+    expect(classifyLevel(cc3dModel(room('@afwoa.'))).approx).toEqual(['orbs_over_cap']);
+    expect(EPOXY_COVERAGE.orbs_over_cap.level).toBe('approx');
+    expect(EPOXY_COVERAGE.orbs_over_cap.reason).toContain('cc3dEvidenceOrbs.test.ts');
   });
 });

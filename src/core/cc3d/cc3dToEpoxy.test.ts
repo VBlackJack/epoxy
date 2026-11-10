@@ -268,11 +268,37 @@ const STRUCTURAL_CASES: StructuralCase[] = [
   },
   {
     key: 'trap_unworked',
-    build: () => convertCell(stackOf({ kind: 'trap' })),
+    // A control works the next trap only: the second trap is worked by nothing (a map with no control at all is no loss).
+    build: () =>
+      convertRows(['#######', '#@bTU.#', '#######'], {
+        b: stackOf({ kind: 'trap_control' }),
+        T: stackOf({ kind: 'trap' }),
+        U: stackOf({ kind: 'trap' })
+      }),
     check: (result) => {
-      expect(terrainAtCell(result)).toBe('trap');
-      expect(result.level.trapLinks).toEqual([]);
+      expect(result.level.trapLinks).toHaveLength(1);
       expect(lostKeys(result)).toContain('trap_unworked');
+    }
+  },
+  {
+    key: 'orbs_over_cap',
+    build: () =>
+      convertRows(['########', '#@afwos#', '########'], {
+        a: { item: { kind: 'orb_ice' } },
+        f: { item: { kind: 'orb_fire' } },
+        w: { item: { kind: 'orb_water' } },
+        o: { item: { kind: 'orb_force' } },
+        s: { item: { kind: 'orb_speed' } }
+      }),
+    check: (result) => {
+      expect(result.report.approx.map((e) => e.key)).toContain('orbs_over_cap');
+    }
+  },
+  {
+    key: 'appearing_wall_with_monster',
+    build: () => convertRows(['######', '#@VbX#', '######'], { V: terrain('appearing_wall'), b: { mob: { kind: 'bouncer', dir: 'E' } } }),
+    check: (result) => {
+      expect(result.report.approx.map((e) => e.key)).toContain('appearing_wall_with_monster');
     }
   },
   {

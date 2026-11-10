@@ -19,9 +19,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { EPOXY_COVERAGE } from './epoxyCoverage';
+import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
 import { device, playTimeline, room, withMob } from './cc3dEvidenceRig';
+import { cc3dModel } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 
 /**
@@ -408,11 +409,23 @@ describe('gravel', () => {
 });
 
 describe('coverage verdicts that rest on this evidence', () => {
-  it('keeps the elements with a pinned difference approximate, and each reason cites this file', () => {
-    for (const key of ['appearing_wall', 'gravel_with_reflector']) {
-      expect(EPOXY_COVERAGE[key].level, key).toBe('approx');
-      expect(EPOXY_COVERAGE[key].reason, key).toContain('cc3dEvidenceTerrain.test.ts');
+  it('keeps gravel beside a reflector approximate, its reason citing this file', () => {
+    expect(EPOXY_COVERAGE.gravel_with_reflector.level).toBe('approx');
+    expect(EPOXY_COVERAGE.gravel_with_reflector.reason).toContain('cc3dEvidenceTerrain.test.ts');
+  });
+
+  it('plays the appearing wall as CC3D does when no walking monster is on the map: the player and a pushed block agree above', () => {
+    expect(EPOXY_COVERAGE.appearing_wall.level).toBe('exact');
+    expect(EPOXY_COVERAGE.appearing_wall.reason).toContain('cc3dEvidenceTerrain.test.ts');
+    for (const block of ['K', 'Z']) {
+      expect(classifyLevel(cc3dModel(room(`@${block}Q.`)))).toEqual({ verdict: 'exact', lost: [], approx: [] });
     }
+    // The same wall with a walking monster is the key whose reason names the step-apart turn (pinned by the bouncer timeline above).
+    const withBouncer = classifyLevel(cc3dModel(bouncerInto('Q'), BOUNCER));
+    expect(withBouncer.verdict).toBe('approx');
+    expect(withBouncer.approx).toEqual(['appearing_wall_with_monster']);
+    expect(EPOXY_COVERAGE.appearing_wall_with_monster.level).toBe('approx');
+    expect(EPOXY_COVERAGE.appearing_wall_with_monster.reason).toContain('cc3dEvidenceTerrain.test.ts');
   });
 
   it('plays water as CC3D does now that a dirt block fills it with dirt_3d, its reason citing this file', () => {

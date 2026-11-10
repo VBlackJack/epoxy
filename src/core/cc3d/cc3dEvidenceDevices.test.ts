@@ -21,9 +21,9 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
-import { EPOXY_COVERAGE } from './epoxyCoverage';
+import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
 import { device, holdDoor, plate, playTimeline, room, withMob } from './cc3dEvidenceRig';
-import { cc3dLevel } from './cc3dTestMaps';
+import { cc3dLevel, cc3dModel } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 import { convertCc3dLevel } from './cc3dToEpoxy';
 import { DifferentialPair } from './cc3dToEpoxyDifferential';
@@ -111,6 +111,21 @@ describe('trap and trap control', () => {
     expectAgree({ rows: room('@Kq.q..', '...p...'), moves: 'ESEEE', glyphs: GLYPHS }, (pair) => {
       expect(pair.rig.player).toMatchObject({ x: 5, y: 2 });
     });
+  });
+
+  it('keeps a trap shut in both engines on a map with no trap control at all', () => {
+    expectAgree({ rows: room('@p..'), moves: 'EEE', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.player.x).toBe(2);
+    });
+    expectAgree({ rows: room('@Kp..'), moves: 'EE', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.player.x).toBe(2);
+      expect(pair.rig.entities.map((e) => e.x)).toEqual([3]);
+    });
+    expectAgree({ rows: room('@..', '.p.'), moves: 'SEE', glyphs: GLYPHS }, (pair) => {
+      expect(pair.rig.player).toMatchObject({ x: 2, y: 2 });
+    });
+    // The coverage follows: no trap_unworked without a control to be confused by.
+    expect(classifyLevel(cc3dModel(room('@p..'), GLYPHS))).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
   it('differs for a trap no control works: CC3D keeps it shut, Epoxy opens it with any brown button held', () => {
@@ -387,8 +402,9 @@ describe('coverage verdicts that rest on this evidence', () => {
     }
   });
 
-  it('keeps a trap no control works lost, since an Epoxy trap link has no empty form', () => {
+  it('keeps a trap no control works lost on a map that has trap controls, since an Epoxy trap link has no empty form', () => {
     expect(EPOXY_COVERAGE.trap_unworked.level).toBe('lost');
     expect(EPOXY_COVERAGE.trap_unworked.reason).toContain('cc3dEvidenceDevices.test.ts');
+    expect(classifyLevel(cc3dModel(room('@Kq....', '..p.p..'), GLYPHS)).lost).toEqual(['trap_unworked']);
   });
 });
