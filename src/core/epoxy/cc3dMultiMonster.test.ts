@@ -48,6 +48,8 @@ interface Layout {
   items?: Array<[number, string]>;
   trapLinks?: CompiledLevel['trapLinks'];
   cloneLinks?: CompiledLevel['cloneLinks'];
+  /** The player starts in the corridor at this x instead of in the pocket. */
+  playerX?: number;
 }
 
 /** One corridor row between walls, the player sealed in a pocket below it. */
@@ -64,7 +66,7 @@ function build(layout: Layout, flavor: Flavor): { engine: GameEngine; w: EpoxyWo
     password: 'TEST',
     timeLimitSeconds: 0,
     chipsRequired: 0,
-    playerStart: { x: 1, y: 3, dir: 'E' },
+    playerStart: layout.playerX !== undefined ? { x: layout.playerX, y: ROW_Y, dir: 'W' } : { x: 1, y: 3, dir: 'E' },
     terrain,
     items,
     entities: layout.entities,
@@ -181,12 +183,19 @@ describe('a monster entering a bomb (water and fire work the same way, but a mon
     });
   }
 
-  it('still kills the player standing in its cell while it waits to be removed', () => {
-    const { engine, w } = build({ cells: [FLOOR, FLOOR, FLOOR, FLOOR, FLOOR], items: [[4, 'bomb']], entities: [{ type: 'bouncer', x: 2, y: ROW_Y, dir: 'E' }] }, 'converted');
+  it('still kills the player who steps into its cell while it waits to be removed', () => {
+    const { engine, w } = build(
+      { cells: [FLOOR, FLOOR, FLOOR, FLOOR, FLOOR, FLOOR], items: [[4, 'bomb']], playerX: 5, entities: [{ type: 'bouncer', x: 2, y: ROW_Y, dir: 'E' }] },
+      'converted'
+    );
     for (let t = 0; t < RUN_TICKS && !w.entities.some((e) => e.x === 4); t++) engine.tick();
-    const m = w.entities.find((e) => e.kind === 'monster');
-    expect(m?.x).toBe(4);
+    expect(w.entities.find((e) => e.kind === 'monster')?.x).toBe(4);
     expect(w.ccArrivals.some((a) => a.removal === 'bomb')).toBe(true);
+    expect(engine.getPlayer().alive).toBe(true);
+    // The player walks west into the monster's cell: the contact is lethal, the monster is still there.
+    engine.attemptPlayerMove('W');
+    engine.tick();
+    expect(engine.getPlayer().alive).toBe(false);
   });
 });
 
@@ -219,14 +228,16 @@ describe('a brown button worked by a monster', () => {
     expect(open).toBe(arrival);
   });
 
-  it('keeps the latch through an undo', () => {
+  it('keeps the latch through an undo: the trap that opened is closed again once the move is undone', () => {
     const { engine, w } = build({ cells: CELLS, trapLinks: LINKS, entities: [{ type: 'bouncer', x: 1, y: ROW_Y, dir: 'E' }] }, 'converted');
-    for (let i = 0; i < 4; i++) engine.tick();
-    const before = engine.isCellClosedTrap(5, ROW_Y);
-    engine.attemptPlayerMove('E');
-    engine.undo();
-    expect(engine.isCellClosedTrap(5, ROW_Y)).toBe(before);
-    expect(w.trapLatch).not.toBeNull();
+    engine.tick();
+    expect(engine.isCellClosedTrap(5, ROW_Y)).toBe(true);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    for (let t = 0; t < RUN_TICKS && engine.isCellClosedTrap(5, ROW_Y); t++) engine.tick();
+    expect(engine.isCellClosedTrap(5, ROW_Y)).toBe(false);
+    expect(engine.undo()).toBe(true);
+    expect(engine.isCellClosedTrap(5, ROW_Y)).toBe(true);
+    expect(w.trapLatch?.get(ROW_Y * (CELLS.length + 2) + 5)).toBe(true);
   });
 
   it('has no latch off a converted level', () => {
@@ -281,5 +292,78 @@ describe('a clone machine with a monster template', () => {
       return out.join(';');
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('the step of a template let out of a clone machine', () => {
+  const TEMPLATE_X = 3;
+  const link = (): NonNullable<CompiledLevel['cloneLinks']> => [{ buttonX: 9, buttonY: ROW_Y, clonerX: TEMPLATE_X, clonerY: ROW_Y, templateType: 'bouncer', templateDir: 'E' }];
+
+  /** The ticks at which the first template (uid 1 or the first of the list) changes cell, from the start. */
+  function templateMoves(cells: string[], type: string, firstInList: 'template' | 'presser'): number[] {
+    const template: EntityPlacement = { type, x: TEMPLATE_X, y: ROW_Y, dir: 'E' };
+    const presser: EntityPlacement = { type: 'bouncer', x: 10, y: ROW_Y, dir: 'W' };
+    const links = [{ ...link()[0], templateType: type }];
+    const { engine, w } = build({ cells, cloneLinks: links, entities: firstInList === 'template' ? [template, presser] : [presser, template] }, 'converted');
+    const uid = w.entities.find((e) => e.type === type && e.x === TEMPLATE_X)?.uid ?? -1;
+    const out: number[] = [];
+    let last = TEMPLATE_X;
+    for (let t = 1; t <= RUN_TICKS; t++) {
+      engine.tick();
+      const e = w.entities.find((q) => q.uid === uid);
+      if (e !== undefined && e.x !== last) out.push(t);
+      last = e?.x ?? last;
+    }
+    return out;
+  }
+
+  const PLAIN = [FLOOR, FLOOR, 'clone_machine', FLOOR, FLOOR, FLOOR, FLOOR, FLOOR, 'button_red', FLOOR];
+
+  it('lasts four ticks whether the template had its turn already or not', () => {
+    for (const order of ['template', 'presser'] as const) {
+      const moves = templateMoves(PLAIN, 'bouncer', order);
+      expect(moves.length, order).toBeGreaterThan(1);
+      expect(moves[1] - moves[0], order).toBe(STEP_TICKS);
+    }
+  });
+
+  it('lasts two ticks onto ice', () => {
+    const cells = [FLOOR, FLOOR, 'clone_machine', 'ice', 'ice', FLOOR, FLOOR, FLOOR, 'button_red', FLOOR];
+    for (const order of ['template', 'presser'] as const) {
+      const moves = templateMoves(cells, 'bouncer', order);
+      expect(moves[1] - moves[0], order).toBe(2);
+    }
+  });
+
+  it('lasts eight ticks for an omni: the cooldown left after the tick it was let out in', () => {
+    for (const order of ['template', 'presser'] as const) {
+      const template: EntityPlacement = { type: 'omni', x: TEMPLATE_X, y: ROW_Y, dir: 'E' };
+      const presser: EntityPlacement = { type: 'bouncer', x: 10, y: ROW_Y, dir: 'W' };
+      const links = [{ ...link()[0], templateType: 'omni' }];
+      const { engine, w } = build({ cells: PLAIN, cloneLinks: links, entities: order === 'template' ? [template, presser] : [presser, template] }, 'converted');
+      const uid = w.entities.find((e) => e.type === 'omni')?.uid ?? -1;
+      let left = -1;
+      for (let t = 1; t <= RUN_TICKS && left < 0; t++) {
+        engine.tick();
+        if (w.entities.find((e) => e.uid === uid)?.x !== TEMPLATE_X) left = t;
+      }
+      expect(left, order).toBeGreaterThan(0);
+      expect(w.entities.find((e) => e.uid === uid)?.cooldownTicks, order).toBe(7);
+    }
+  });
+
+  it('keeps the pending removal when the machine is worked between two ticks', () => {
+    const cells = [FLOOR, FLOOR, 'clone_machine', 'floor', FLOOR, FLOOR, FLOOR, FLOOR, 'button_red', FLOOR];
+    const { engine, w } = build(
+      { cells, items: [[4, 'bomb']], playerX: 10, cloneLinks: link(), entities: [{ type: 'bouncer', x: TEMPLATE_X, y: ROW_Y, dir: 'E' }] },
+      'converted'
+    );
+    expect(w.inTick).toBe(false);
+    expect(engine.attemptPlayerMove('W')).toBe(true);
+    expect(w.ccArrivals.some((a) => a.removal === 'bomb')).toBe(true);
+    expect(w.entities.some((e) => e.x === 4 && e.kind === 'monster')).toBe(true);
+    for (let t = 0; t < RUN_TICKS && w.entities.some((e) => e.x === 4 && e.kind === 'monster'); t++) engine.tick();
+    expect(w.entities.some((e) => e.x === 4 && e.kind === 'monster')).toBe(false);
+    expect(w.items[ROW_Y][4]).toBeNull();
   });
 });

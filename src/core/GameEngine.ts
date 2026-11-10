@@ -825,7 +825,6 @@ export class GameEngine {
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
-    refreshTrapLatch(this.w);
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     // A blast may have turned a device into floor: the devices are listed from the terrain put back.
     if (this.w.hasDynamite) rebuildDeviceLookups(this.w);
@@ -839,6 +838,8 @@ export class GameEngine {
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;
+    // The traps are read from the world as put back, signals included.
+    refreshTrapLatch(this.w);
     this.w.levelCompleted = false;
     this.w.statusBannerKey = null;
     this.w.beamDirty = true;
@@ -895,8 +896,6 @@ export class GameEngine {
     const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
-    // A converted CC3D level recomputes its traps once, at the end of the tick.
-    refreshTrapLatch(this.w);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
     fireSignalSinks(this.ctx, edges);
     // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
@@ -904,6 +903,8 @@ export class GameEngine {
     this.w.firedLaunchers.clear();
     turnTurrets(this.w, this.ticksElapsed);
     resolveLasers(this.ctx);
+    // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
+    refreshTrapLatch(this.w);
     this.checkTargetsWin();
   }
 

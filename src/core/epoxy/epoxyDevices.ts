@@ -19,7 +19,6 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
-  CC3D_MONSTER_STEP_TICKS,
   CC_CADENCE_TYPES,
   CC_QUEUED_TANK_TURN_DELAY_PASSES,
   CC_TANK_TURN_DELAY_PASSES,
@@ -43,7 +42,7 @@ import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
-import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
+import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
 import {
@@ -519,11 +518,14 @@ export function spawnFromCloner(
     template.y = spawnY;
     template.dir = templateDir;
     delete template.restTicks;
-    // A template that has not had its turn yet in this pass counts that turn down at once.
-    template.cooldownTicks = CC3D_MONSTER_STEP_TICKS * monsterSlowdown(w) - 1 + (seen ? 0 : 1);
+    // The step starts now, so what it queues is timed from now; a template that has not had its turn yet in this pass
+    // then counts that turn down, which the extra tick makes up for.
+    template.cooldownTicks = cc3dReleaseCooldown(w, template);
     addClonedEntity(w, fresh);
     w.entityPassSeen.add(fresh.uid);
-    return resolveMonsterArrival(ctx, template, true);
+    const alive = resolveMonsterArrival(ctx, template, true);
+    if (alive && !seen && w.entities.includes(template) && template.cooldownTicks > 0) template.cooldownTicks += 1;
+    return alive;
   }
   const spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,

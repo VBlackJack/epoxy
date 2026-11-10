@@ -441,7 +441,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
     if (removal !== null) {
-      if (w.cc3dPace && w.inTick) {
+      if (w.cc3dPace) {
         // CC3D keeps the monster in the cell for the whole step and removes it, and the bomb, when the step ends.
         w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
       } else {
@@ -503,6 +503,19 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   return true;
 }
 
+/**
+ * The cooldown of a monster that a clone machine lets out onto the cell it stands on now, as CC3D's pushed step lasts: the
+ * fast floor step onto ice or a force floor, the step of its kind otherwise (four ticks, eight for the omni), scaled by slow time.
+ */
+export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): number {
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+  const slowdown = monsterSlowdown(w);
+  if (!floorFree && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined) return CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown - 1;
+  if (CC3D_RESTING_TYPES.includes(entity.type)) return CC3D_MONSTER_STEP_TICKS * slowdown - 1;
+  return ((def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS) + 1) * slowdown - 1;
+}
+
 /** The hazard of the cell a monster stands in that removes it (a bomb, water, fire, slime it is not immune to), or null. */
 function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): 'bomb' | 'splash' | 'burn' | null {
   const item = w.items[entity.y][entity.x];
@@ -524,7 +537,6 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
   removeEntity(w, entity.uid);
   w.beamDirty = true;
   AudioManager.playSfx(removal === 'bomb' ? 'bomb' : removal);
-  if (entity.kind === 'block') ctx.emitVisual('explosion', entity.x, entity.y);
 }
 
 /**

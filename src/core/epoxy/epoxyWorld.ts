@@ -337,16 +337,22 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.ccRules = usesCcRules(w.level);
   w.cc3dPace = !w.ccRules && isConvertedCc3dLevel(w.level);
   w.trapLatch = null;
-  w.trapCells = [];
-  if (w.cc3dPace) {
-    w.level.terrain.forEach((row, y) => row.forEach((id, x) => { if (ConfigRegistry.getTile(id).isTrap) w.trapCells.push(y * row.length + x); }));
-  }
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();
   w.inTick = false;
   w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
+  // The cells that hold a trap, or hide one under a removable top that may be gone later (read to fill the latch).
+  w.trapCells = [];
+  if (w.cc3dPace) {
+    w.level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        const hidden = underlayAt(w.underlays, row.length, x, y);
+        if (ConfigRegistry.getTile(id).isTrap || (hidden !== undefined && ConfigRegistry.getTile(hidden).isTrap)) w.trapCells.push(y * row.length + x);
+      })
+    );
+  }
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.toggleParity = 0;
@@ -897,11 +903,12 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
-  if (w.player.x === bx && w.player.y === by) return true;
+  // On a converted CC3D level the player works a brown button only at rest, like everything else.
+  if (w.player.x === bx && w.player.y === by && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
   if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.
-  return w.entities.some((e) => e.x === bx && e.y === by && isAtRest(w, e) && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
+  return w.entities.some((e) => e.x === bx && e.y === by && restsOnButton(w, e) && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
 
 /** On a converted CC3D level a monster presses a plate only once it rests (its step has ended). */
@@ -909,10 +916,15 @@ function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
   return !(w.cc3dPace && e.kind === 'monster' && e.cooldownTicks > 0);
 }
 
+/** A converted CC3D level counts a brown button's occupant only at rest: a monster after its step, a block neither sliding nor arriving. */
+function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
+}
+
 /**
  * Whether something presses the plate at a cell: the live player, a block at rest, its step ended (a colour block only
  * on a plate of its own colour) or a monster that presses plates. A sliding entity is passing, not
- * pressing. Brown buttons keep their own rule (`isButtonPressed`), which every occupant satisfies.
+ * pressing. Brown buttons keep their own rule (`isButtonPressed`), which the player and a block satisfy while moving too.
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
   if (playerAtCell(w, x, y) !== undefined) return true;
