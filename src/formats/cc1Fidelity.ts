@@ -69,3 +69,81 @@ export function rankBuckets(gaps: readonly FidelityGap[]): BucketCount[] {
 export function gatePasses(epoxyWins: number, lynxWins: number): boolean {
   return epoxyWins >= lynxWins;
 }
+
+/** How the map of a Steam level compares with the map of the same-numbered .DAT level. */
+export type MapClass = 'exact' | 'terrain' | 'differs';
+
+/** The classes in report order. */
+export const MAP_CLASSES: readonly MapClass[] = ['exact', 'terrain', 'differs'];
+
+/** The parts of a level the map comparison reads (structural, so a test needs no full level). */
+export interface MapLike {
+  terrain: unknown;
+  items: unknown;
+  entities: ReadonlyArray<{ x: number; y: number; type: string; dir?: string }>;
+  playerStart: unknown;
+  missingStart?: boolean;
+}
+
+const SIGNATURE_SEPARATOR = ';';
+const FIELD_SEPARATOR = ',';
+const DIRT_BLOCK = 'dirt_block';
+
+/** A string that is equal for two levels exactly when their terrain, items, entities and start are equal. */
+export function mapSignature(level: MapLike): string {
+  const entities = level.entities
+    .map((e) => [e.x, e.y, e.type, e.type === DIRT_BLOCK ? '' : (e.dir ?? '')].join(FIELD_SEPARATOR))
+    .sort()
+    .join(SIGNATURE_SEPARATOR);
+  return JSON.stringify([level.terrain, level.items, entities, level.missingStart ? null : level.playerStart]);
+}
+
+/** 'exact' when the whole map is equal, 'terrain' when only the terrain is, 'differs' otherwise. */
+export function classifyMapPair(a: MapLike, b: MapLike): MapClass {
+  if (mapSignature(a) === mapSignature(b)) return 'exact';
+  return JSON.stringify(a.terrain) === JSON.stringify(b.terrain) ? 'terrain' : 'differs';
+}
+
+const LEVEL_NUMBER_PATTERN = /map(\d+)/i;
+const DECIMAL_RADIX = 10;
+
+/** The level number written in a Steam file name ("map012.c2m" gives 12), or null when it has none. */
+export function levelNumberOfFile(fileName: string): number | null {
+  const match = LEVEL_NUMBER_PATTERN.exec(fileName);
+  return match ? Number.parseInt(match[1], DECIMAL_RADIX) : null;
+}
+
+/** Whether two level titles are the same once trimmed and compared without case. */
+export function titlesMatch(a: string | undefined, b: string | undefined): boolean {
+  return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+}
+
+/** One paired level: whether each source/engine run won. */
+export interface PairedOutcome {
+  mapClass: MapClass;
+  c2mEpoxy: boolean;
+  c2mLynx: boolean;
+  datEpoxy: boolean;
+  datLynx: boolean;
+}
+
+/** Win counts per source/engine over a set of paired levels. */
+export interface PairedWins {
+  levels: number;
+  c2mEpoxy: number;
+  c2mLynx: number;
+  datEpoxy: number;
+  datLynx: number;
+}
+
+/** Sums the wins of the paired outcomes, optionally only for one map class. */
+export function pairedWins(outcomes: readonly PairedOutcome[], mapClass?: MapClass): PairedWins {
+  const kept = mapClass ? outcomes.filter((o) => o.mapClass === mapClass) : outcomes;
+  return {
+    levels: kept.length,
+    c2mEpoxy: kept.filter((o) => o.c2mEpoxy).length,
+    c2mLynx: kept.filter((o) => o.c2mLynx).length,
+    datEpoxy: kept.filter((o) => o.datEpoxy).length,
+    datLynx: kept.filter((o) => o.datLynx).length
+  };
+}
