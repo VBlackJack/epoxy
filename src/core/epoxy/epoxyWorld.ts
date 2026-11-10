@@ -149,6 +149,8 @@ export interface EpoxyWorld {
   ccRules: boolean;
   /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
   ccMonsterClock: number;
+  /** True while an entity pass of a classic-rules level runs (the clock already counts it); transient, never saved. */
+  ccPassOpen: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -252,6 +254,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasShots: false,
     ccRules: false,
     ccMonsterClock: 0,
+    ccPassOpen: false,
     shotStepTicks: 0,
     launcherLinks: [],
     inTick: false,

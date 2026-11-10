@@ -20,6 +20,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
   CC_CADENCE_TYPES,
+  CC_TANK_TURN_DELAY_PASSES,
   CHIP_ITEM_ID,
   ccStepTicks,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -86,6 +87,8 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     burnEntitiesOnFire(ctx);
   } else if (action === 'swap_chips_bombs') {
     swapChipsAndBombs(w, bx, by);
+  } else if (action === 'reverse_tanks' && w.ccRules) {
+    markTanksToTurn(w);
   } else if (action === 'reverse_tanks') {
     for (const ent of w.entities) {
       if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
@@ -117,6 +120,41 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     }
   }
   return true;
+}
+
+/**
+ * Classic rules, blue button: every tank off a clone machine and off the ice carries one toggled mark, due a few entity
+ * passes later; a second press before the tank acts takes the mark off again (one flag, as in the reference engine).
+ * Epoxy's own levels turn every tank at once.
+ */
+function markTanksToTurn(w: EpoxyWorld): void {
+  // The clock counts the pass of the current tick as soon as it starts: count from the passes begun before this tick,
+  // whatever the source of the press (the player, a slide, a monster stepping on the button).
+  const begun = w.ccPassOpen ? w.ccMonsterClock - 1 : w.ccMonsterClock;
+  const due = begun + CC_TANK_TURN_DELAY_PASSES;
+  for (const ent of w.entities) {
+    if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
+    const tile = ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]);
+    if (tile.isCloneMachine || tile.slideType === 'ice') continue;
+    if (ent.tankTurn !== undefined) delete ent.tankTurn;
+    else ent.tankTurn = due;
+  }
+}
+
+/**
+ * Start of an entity pass of a classic-rules level: a marked tank whose pass has come turns around if it is at rest;
+ * a tank in the middle of a step ignores the press. The mark is spent either way. A press made later in the same
+ * pass marks the tank again for a later pass, as the reference engine does (its flag is toggled after the tank turned).
+ */
+export function turnMarkedTanks(w: EpoxyWorld): void {
+  const pass = w.ccMonsterClock;
+  for (const ent of w.entities) {
+    if (ent.tankTurn === undefined || ent.tankTurn > pass) continue;
+    delete ent.tankTurn;
+    // A creature that is no tank any more (transmogrified) keeps no mark.
+    if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
+    if (ent.cooldownTicks === 0) ent.dir = OPPOSITE_DIRECTION[ent.dir];
+  }
 }
 
 /**
