@@ -163,4 +163,65 @@ describe('classic tank reversal', () => {
     expect(dirs).toEqual(expected);
     expect(dirs.indexOf('W') + 1).toBe(5);
   });
+
+  it('marks a tank again when a press comes inside the pass where its mark was spent', () => {
+    const { engine, w, press, tank } = setup(true);
+    press();
+    tank().tankTurn = w.ccMonsterClock;
+    // Pass 0 turns the tank (due now); a press made inside that pass marks it again for a later pass.
+    engine.tick();
+    expect(tank().dir).toBe('W');
+    expect(tank().tankTurn).toBeUndefined();
+    // A press after the pass marks the tank again for a later pass.
+    press();
+    expect(tank().tankTurn).toBeDefined();
+  });
+
+  it('keeps no mark on a creature that is not a tank any more', () => {
+    const { engine, w, press, tank } = setup(true);
+    press();
+    const creature = tank();
+    creature.type = 'bug';
+    w.ccMonsterClock = creature.tankTurn!;
+    const dir = creature.dir;
+    engine.tick();
+    expect(creature.tankTurn).toBeUndefined();
+    expect(creature.dir).toBe(dir);
+  });
+
+  it('presses from a real monster step inside the pass, and the flag is closed after the pass', () => {
+    const rows = ['######################', '#@.......-...........#', '######################'];
+    const level = {
+      ...buildTestLevel(rows, {
+        entities: [
+          { type: 'tank', x: 3, y: 1, dir: 'E' },
+          { type: 'bug', x: 10, y: 1, dir: 'W' }
+        ]
+      }),
+      rulesFlavor: 'cc'
+    } as CompiledLevel;
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const w = (engine as unknown as { w: TestWorld }).w;
+    const tankOf = () => w.entities.find((e) => e.type === 'tank')!;
+    engine.tick();
+    expect(w.entities.find((e) => e.type === 'bug')!.x).toBe(9);
+    expect(tankOf().tankTurn).toBe(4);
+    expect(w.ccPassOpen).toBe(false);
+  });
+
+  it('closes the pass flag when the player dies in the middle of the pass', () => {
+    const level = {
+      ...buildTestLevel(['######################', '#@...................#', '######################'], {
+        entities: [{ type: 'bug', x: 2, y: 1, dir: 'W' }]
+      }),
+      rulesFlavor: 'cc'
+    } as CompiledLevel;
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const w = (engine as unknown as { w: TestWorld & { player: { alive: boolean } } }).w;
+    for (let t = 0; t < 3 && w.player.alive; t++) engine.tick();
+    expect(w.player.alive).toBe(false);
+    expect(w.ccPassOpen).toBe(false);
+  });
 });

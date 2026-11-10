@@ -323,6 +323,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // rules apply.
   if (!floorFree && destTile.transmogrifies && destTile.transmogrifyTable !== 'cc2' && def?.transmogrifiesTo !== undefined) {
     entity.type = def.transmogrifiesTo;
+    delete entity.tankTurn;
   }
   // A CC2 transmogrifier changes only the monster that arrives: the one kind its table names, or for a blob a kind drawn
   // from the level random stream (drawn only here, so a level without this tile draws nothing more).
@@ -330,6 +331,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     const pool = def?.transmogrifiesToCc2Pool;
     if (def?.transmogrifiesToCc2 !== undefined) entity.type = def.transmogrifiesToCc2;
     else if (pool !== undefined && pool.length > 0) entity.type = pool[w.rng.nextInt(0, pool.length - 1)];
+    delete entity.tankTurn;
   }
 
   // The first monster into an open fish gate turns it into what it hid. CC3D judges the arrival on the gate and does

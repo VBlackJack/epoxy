@@ -143,13 +143,16 @@ function markTanksToTurn(w: EpoxyWorld): void {
 
 /**
  * Start of an entity pass of a classic-rules level: a marked tank whose pass has come turns around if it is at rest;
- * a tank in the middle of a step ignores the press. The mark is spent either way.
+ * a tank in the middle of a step ignores the press. The mark is spent either way. A press made later in the same
+ * pass marks the tank again for a later pass, as the reference engine does (its flag is toggled after the tank turned).
  */
 export function turnMarkedTanks(w: EpoxyWorld): void {
   const pass = w.ccMonsterClock;
   for (const ent of w.entities) {
     if (ent.tankTurn === undefined || ent.tankTurn > pass) continue;
     delete ent.tankTurn;
+    // A creature that is no tank any more (transmogrified) keeps no mark.
+    if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
     if (ent.cooldownTicks === 0) ent.dir = OPPOSITE_DIRECTION[ent.dir];
   }
 }
