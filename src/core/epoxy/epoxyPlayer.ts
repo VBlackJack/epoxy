@@ -559,6 +559,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
       // The exit step is decided on the next tick (see processTeleportExit).
       p.moveCooldown = Math.max(p.moveCooldown, CC3D_TELEPORT_LANDING_WAIT_TICKS);
       resolvePlayerArrival(ctx, w.player.dir, false, true);
+      if (w.player.alive && !w.levelCompleted && w.player.exited !== true) wakeLurkersNearPlayer(w);
     }
   }
   return true;

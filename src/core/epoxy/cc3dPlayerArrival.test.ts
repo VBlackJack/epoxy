@@ -148,6 +148,58 @@ describe('a chip under the step', () => {
   });
 });
 
+describe('a step whose effect is still waiting', () => {
+  const ROWS = ['############', '#..........#', '#.@>>>>....#', '#..........#', '############'];
+
+  function onForce(): { engine: GameEngine; w: WorldView } {
+    const level = buildTestLevel(ROWS, { chipsRequired: 2 });
+    const items = level.items.map((r) => [...r]);
+    items[ROW][3] = 'chip';
+    items[ROW][4] = 'chip';
+    return load({ ...level, items }, 'converted');
+  }
+
+  it('bars the input until the chip is taken, and takes it at the end of the step', () => {
+    const { engine, w } = onForce();
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    let barred = 0;
+    for (let t = 0; t < 12 && w.player.cc3dArrival !== undefined; t++) {
+      engine.tick();
+      if (w.player.cc3dArrival !== undefined) {
+        expect(engine.attemptPlayerMove('N')).toBe(false);
+        barred++;
+      }
+    }
+    expect(w.player.cc3dArrival).toBeUndefined();
+    expect(barred).toBeGreaterThan(0);
+  });
+
+  it('takes the chip of the recorded cell, not the one of the cell the player has been carried to', () => {
+    const { engine, w } = onForce();
+    engine.attemptPlayerMove('E');
+    for (let t = 0; t < 12 && w.player.cc3dArrival !== undefined; t++) engine.tick();
+    expect(engine.getItems()[ROW][3]).toBeNull();
+    expect(engine.getChipsRemaining()).toBe(1);
+    expect(engine.getItems()[ROW][4]).toBe('chip');
+  });
+
+  it('never leaves a step waiting for good: the player can move again soon after', () => {
+    const { engine, w } = onForce();
+    engine.attemptPlayerMove('E');
+    tick(engine, 40);
+    expect(w.player.cc3dArrival).toBeUndefined();
+  });
+});
+
+describe('a step into a monster', () => {
+  it('is not counted as a step', () => {
+    const rows = ['##########', '#........#', '#.@......#', '#........#', '##########'];
+    const { engine } = lane(rows, 'converted', { entities: [{ type: 'bouncer', x: 3, y: ROW, dir: 'W' }] });
+    engine.attemptPlayerMove('E');
+    expect(engine.getStepsCount()).toBe(0);
+  });
+});
+
 describe('a clone switch under the step', () => {
   const ROWS = ['##########', '#........#', '#.@+.M...#', '#........#', '##########'];
   const TEMPLATE: EntityPlacement = { type: 'bouncer', x: 5, y: ROW, dir: 'E' };

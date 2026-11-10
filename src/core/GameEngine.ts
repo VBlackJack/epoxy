@@ -931,7 +931,9 @@ export class GameEngine {
     }
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
-    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined) {
+    // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
+    // switch, a jump) bars the input. It always acts at the true end of the step (see applyCc3dStepEnd), so this never sticks.
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || this.w.player.cc3dArrival !== undefined) {
       return false;
     }
 
@@ -969,10 +971,14 @@ export class GameEngine {
     // The mover may leave through an exit during the move, which hands control to the next player.
     const mover = this.w.player;
     const permissionBefore = mover.forcePermission;
+    const fromX = mover.x;
+    const fromY = mover.y;
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
+    // A converted CC3D level: a step into a monster kills the player where he stands; it is no step and leaves nothing behind.
+    const diedInPlace = moved && this.w.cc3dPace && !mover.alive && mover.x === fromX && mover.y === fromY;
     if (moved) {
-      lightDepartedDynamite(this.w, this.ticksElapsed);
+      if (!diedInPlace) lightDepartedDynamite(this.w, this.ticksElapsed);
       const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
       // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
       setPoweredCells(this.ctx);
@@ -980,7 +986,7 @@ export class GameEngine {
       // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
       // following tick, as one fired by a button does (see the clear in tick()).
       fireSignalSinks(this.ctx, edges);
-      this.stepsCount++;
+      if (!diedInPlace) this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);
