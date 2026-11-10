@@ -59,11 +59,12 @@ import {
   isCarriedByForceFloor,
   playerWalkCooldown,
   processPlayerSlideStep,
+  processTeleportExit,
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
-import { takeClassicTeleportDelay, teleportEntity } from './epoxy/epoxyTeleports';
+import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
 import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
@@ -752,6 +753,7 @@ export class GameEngine {
       keys: { ...p.keys },
       boots: Array.from(p.boots),
       ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
+      ...(p.teleportExit !== undefined ? { teleportExit: p.teleportExit } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -772,6 +774,7 @@ export class GameEngine {
       keys: { ...snap.keys },
       boots: new Set(snap.boots),
       ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
+      ...(snap.teleportExit !== undefined ? { teleportExit: snap.teleportExit } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -859,6 +862,8 @@ export class GameEngine {
         processPlayerSlideStep(this.ctx);
       }
     }
+    // Classic rules: a player on a teleporter pad leaves it by his forced exit step.
+    if (this.w.ccRules) processTeleportExit(this.ctx);
     // The players not controlled finish their forced moves (slides, force floors); they take no voluntary move.
     if (this.w.parked.length > 0) tickParkedPlayers(this.ctx);
 
@@ -894,7 +899,7 @@ export class GameEngine {
     }
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
-    if (isLockedByIce || this.w.player.moveCooldown > 0) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined) {
       return false;
     }
 
@@ -945,15 +950,12 @@ export class GameEngine {
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);
       this.timedMoveHistory.push({ tick: tickAtMove, dir });
-      // Classic rules: a teleport jump costs the pad time on top of the step (taken always, so it never lingers).
-      const teleportDelay = takeClassicTeleportDelay(this.w);
       if (mover.exited !== true) {
         const destTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
         // Boots cancel the push, so a booted player keeps the walking cadence.
         this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
           : playerWalkCooldown(this.w);
-        this.w.player.moveCooldown += teleportDelay;
       }
       resolveLasers(this.ctx);
       this.checkTargetsWin();

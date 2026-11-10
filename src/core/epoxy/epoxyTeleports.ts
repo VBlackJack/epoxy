@@ -34,21 +34,6 @@ import {
 } from './epoxyWorld';
 
 /**
- * Classic rules: ticks a player waits after a teleport jump, on top of the usual cadence. In the original game the
- * player lands on the destination pad and leaves it by a forced exit step a moment later; the jump to the exit cell
- * is kept and the pad time is paid as this wait (measured on the official replays: 4 ticks).
- */
-export const CC_TELEPORT_DELAY_TICKS = 4;
-
-/** Worlds whose player just jumped and whose delay is not yet charged (charged by the caller that sets the cooldown). */
-const pendingTeleportDelay = new WeakSet<EpoxyWorld>();
-
-/** Takes the pending classic teleport delay: ticks to add to the player's wait, 0 when no jump just happened. */
-export function takeClassicTeleportDelay(w: EpoxyWorld): number {
-  return pendingTeleportDelay.delete(w) ? CC_TELEPORT_DELAY_TICKS : 0;
-}
-
-/**
  * The pads of a group that the terrain holds now and that are live teleporters, in reading order (row by row, left to
  * right): the portable pads a player set down, or the lit relay pads. A pad can be set down, lit or darkened at any
  * time, so the list is read live instead of from the lookups built at load. A dark relay pad is plain floor and never
@@ -180,9 +165,12 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
 
 /**
  * Moves the player out of the next free teleporter of the same group.
+ * With `landOnPad` (classic rules) the player lands ON the destination pad instead and carries the exit direction as a
+ * forced step for later (`teleportExit`); a pad is then chosen by the same exit test, but a plain pad tries only the
+ * direction the player entered in.
  * Returns false when no exit exists.
  */
-export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction): boolean {
+export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction, landOnPad = false): boolean {
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
   const selfPad = origin.teleportsToSelf === true;
   const teleporters = selfPad ? [] : teleportersLinkedTo(w, fromX, fromY);
@@ -190,10 +178,8 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
   if (!selfPad && startIdx < 0) return false;
 
   if (!selfPad && teleporters.length <= 1 && !isCc2Order(origin)) return false;
-  const candidateDirs: Direction[] = namedExitDirections(origin, dir) ?? [
-    dir,
-    ...ORDERED_DIRECTIONS.filter((d) => d !== dir)
-  ];
+  const candidateDirs: Direction[] =
+    namedExitDirections(origin, dir) ?? (landOnPad ? [dir] : [dir, ...ORDERED_DIRECTIONS.filter((d) => d !== dir)]);
 
   const playerPlan = selfPad
     ? selfPadPlan({ x: fromX, y: fromY }, dir)
@@ -216,11 +202,16 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))
         ) {
           AudioManager.playSfx('teleport');
+          if (landOnPad) {
+            w.player.x = candidate.x;
+            w.player.y = candidate.y;
+            w.player.dir = tryDir;
+            w.player.teleportExit = tryDir;
+            return true;
+          }
           w.player.x = exitX;
           w.player.y = exitY;
           w.player.dir = tryDir;
-          // Leaving by the pad that was entered is no jump: nothing to wait for.
-          if (w.ccRules && !(candidate.x === fromX && candidate.y === fromY)) pendingTeleportDelay.add(w);
           return true;
         }
       }

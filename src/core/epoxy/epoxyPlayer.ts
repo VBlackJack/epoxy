@@ -31,7 +31,7 @@ import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
-import { takeClassicTeleportDelay, teleportPlayer } from './epoxyTeleports';
+import { teleportPlayer } from './epoxyTeleports';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -357,7 +357,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
-    if (teleportPlayer(w, x, y, entryDir)) {
+    if (teleportPlayer(w, x, y, entryDir, w.ccRules)) {
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
       return;
@@ -560,11 +560,29 @@ export function tickParkedPlayers(ctx: EpoxyContext): void {
     if (!w.player.alive || w.levelCompleted) return;
     withPlayer(w, parked, () => {
       if (w.player.moveCooldown > 0) w.player.moveCooldown--;
+      processTeleportExit(ctx);
       if (!w.player.isSliding) return;
       if (w.player.slideCooldown > 0) w.player.slideCooldown--;
       else processPlayerSlideStep(ctx);
     });
   }
+}
+
+/**
+ * Classic rules: a player who landed on a teleporter leaves it by a forced step in the direction recorded at the
+ * landing, once his wait is over. The step is made once: if it is blocked he stays on the pad.
+ */
+export function processTeleportExit(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  const dir = w.player.teleportExit;
+  if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
+  delete w.player.teleportExit;
+  const mover = w.player;
+  const moved = executePlayerMove(ctx, dir, true);
+  if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
+  }
+  ctx.checkTargetsWin();
 }
 
 export function processPlayerSlideStep(ctx: EpoxyContext): void {
@@ -598,7 +616,5 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   if (w.ccRules && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
     w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
   }
-  // Classic rules: a slide that ended on a teleporter pays the pad time too.
-  w.player.moveCooldown += takeClassicTeleportDelay(w);
   ctx.checkTargetsWin();
 }
