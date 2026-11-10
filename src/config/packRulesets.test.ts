@@ -27,12 +27,12 @@ const PUBLIC_DIR = resolve(__dirname, '..', '..', 'public');
 
 /** Rulesets the bundled packs must declare; a pack missing here stays on the default ruleset. */
 const EXPECTED_PACK_RULESETS: Record<string, Ruleset | undefined> = {
-  ccup_tw_intro: 'lynx',
-  ccup_cclp1: 'lynx',
+  ccup_tw_intro: undefined,
+  ccup_cclp1: undefined,
   ccup_cclp2: undefined,
-  ccup_cclp3: 'lynx',
-  ccup_cclp4: 'lynx',
-  ccup_cclp5: 'lynx'
+  ccup_cclp3: undefined,
+  ccup_cclp4: undefined,
+  ccup_cclp5: undefined
 };
 
 describe('bundled pack rulesets', () => {

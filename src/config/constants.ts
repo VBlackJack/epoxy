@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
+import { DEFAULT_RULESET, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
 import type { Ruleset } from '../core/types';
 
 export const ENV_CONFIG = {
@@ -61,8 +61,8 @@ export const DEFAULT_FACING = 'S' as const;
 /** The directions a turning force floor pushes in, one per arrival of any actor, in turn. */
 export const FORCE_CYCLE_ORDER = ['E', 'S', 'W', 'N'] as const;
 
-/** Ruleset given to the levels of a .DAT / .CCL file the player imports: community content. */
-export const IMPORTED_PACK_RULESET: Ruleset = 'lynx';
+/** Ruleset given to the levels of a .DAT / .CCL file the player imports: they play on the Epoxy engine with the classic rules flavor. */
+export const IMPORTED_PACK_RULESET: Ruleset = DEFAULT_RULESET;
 
 /** Password assigned to a level that does not define one. */
 export const DEFAULT_LEVEL_PASSWORD = 'EPOX';
