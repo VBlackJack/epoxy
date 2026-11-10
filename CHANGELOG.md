@@ -5,8 +5,13 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Pack format 17: the sealed trap (trap_sealed), a trap that no button, wire or link ever opens, drawn as the trap with the 3d badge. A CC3D trap that no trap control works is now played as a sealed trap instead of being reported lost.
+
 ### Changed
 
+- CC3D imports: a laser shooter standing on gravel, dirt, ice, sand, water or a laser controller is no longer reported lost (nothing in CC3D acts on the layer under a shooter). The dirt and ice blocks now stop against a wall when they slide on ice, as in CC3D, instead of bouncing back; a colour block that slides on ice still bounces back in Epoxy, so a map with a colour block and ice is now marked approximate. On the 769 community CC3D maps none is lost any more: 355 convert exactly and 414 approximately.
 - CC3D coverage verdicts are measured against the CC3D engine for more elements: plates, the orbs (when a map holds four or fewer) and appearing walls are now exact, a trap no control works is no longer counted as lost on maps without trap controls, and three differences found on the way are now named (two walking monsters meeting head-on, more than four orbs, a block sliding into an appearing wall). 403 of 769 community CC3D maps convert exactly (218 before).
 - Monsters on levels imported from CC1 and CC2 files take their turns the classic way: all of them choose a direction first, then all of them move, in the original order; a boxed-in monster still tries its fallback once the way clears, a trapped one keeps its facing when released, a monster's press on a button takes effect a moment after it arrives, and clones take the place of creatures that are gone. Walkers and blobs on CC2 imports also use the classic random draws. Official solutions now replay to a win on 79 of the 149 CC1 .DAT levels (Lynx engine: 69), 82 of the CC1 Steam levels and 49 of the 200 CC2 levels, with no level lost. Replays recorded on the earlier classic rules are no longer offered.
 - Generated levels with many puzzle wings are built about a third faster, with exactly the same levels for the same seed.
