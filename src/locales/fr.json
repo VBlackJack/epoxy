@@ -3769,6 +3769,14 @@
           "label": "{levels} et {count} autres"
         }
       },
+      "migration": {
+        "converted": {
+          "label": "{count, plural, one {# niveau CC3D a été converti en niveau Epoxy} other {# niveaux CC3D ont été convertis en niveaux Epoxy}}. Vos scores et votre progression sont conservés ; les anciens rejeux de ces niveaux ne sont plus proposés."
+        },
+        "kept": {
+          "label": "{kept, plural, one {# niveau n'a pas pu être converti et reste sur le moteur CC3D.} other {# niveaux n'ont pas pu être convertis et restent sur le moteur CC3D.}}"
+        }
+      },
       "error": {
         "malformed_xml": {
           "label": "Le fichier n'est pas un XML valide : {detail} (à {position})."

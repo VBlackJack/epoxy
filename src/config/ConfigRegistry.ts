@@ -121,6 +121,7 @@ import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
 import { readSharedPack, SharedPackResult } from '../packs/shareLink';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
+import { Cc3dMigrationReport, migrateCc3dPack } from '../packs/cc3dMigration';
 import { Cc2SourceStorage, Cc2SourceRecord } from '../storage/Cc2SourceStorage';
 import { base64ToBytes, cc2SourceHashes, sha256OfBytes } from '../storage/cc2Sources';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
@@ -285,6 +286,7 @@ class ConfigRegistryService {
   private legacyCustomStore = false;
   /** True when the legacy list could not be backed up: it must not be overwritten. */
   private legacyWriteBlocked = false;
+  private cc3dMigrationReport: Cc3dMigrationReport | null = null;
   private activePackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   public async loadAll(): Promise<void> {
@@ -610,6 +612,7 @@ class ConfigRegistryService {
     this.ultimatePacks = [];
     this.proceduralLevels = [];
     this.storedPacks = [];
+    this.cc3dMigrationReport = null;
     this.legacyCustomStore = false;
     this.legacyWriteBlocked = false;
     this.activePackId = BUILTIN_PACK_IDS.CAMPAIGN;
@@ -1045,6 +1048,33 @@ class ConfigRegistryService {
     this.storedPacks = stored ?? [];
     await this.migrateLegacyCustomLevels();
     await this.dedupeStoredLevelIds();
+    await this.migrateStoredCc3dLevels();
+  }
+
+  /**
+   * Packs stored before CC3D imports became Epoxy levels hold 'cc3d' levels. Each is replaced by its Epoxy conversion
+   * (same id, CC3D payload kept) and the pack is written once; a pack with no CC3D level left is not touched again.
+   * A refused write keeps the stored pack as it was and the converted copy plays from memory; the next start retries.
+   */
+  private async migrateStoredCc3dLevels(): Promise<void> {
+    let converted = 0;
+    let kept = 0;
+    for (const pack of this.storedPacks.filter((p) => p.builtIn !== true)) {
+      const migration = migrateCc3dPack(pack);
+      kept += migration.kept;
+      if (migration.converted === 0) continue;
+      this.upsertStoredPack(migration.pack);
+      // Only a written pack is reported: after a refused write the next start converts again, and would announce again.
+      if (await this.persistPack(migration.pack)) converted += migration.converted;
+    }
+    this.cc3dMigrationReport = converted > 0 ? { converted, kept } : null;
+  }
+
+  /** What the load-time CC3D migration did, once: null when it converted nothing or was already reported. */
+  public takeCc3dMigrationReport(): Cc3dMigrationReport | null {
+    const report = this.cc3dMigrationReport;
+    this.cc3dMigrationReport = null;
+    return report;
   }
 
   /**
