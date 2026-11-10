@@ -4181,8 +4181,8 @@
         "label": "Une couche de bombe partage sa case avec un objet : Epoxy ne tient qu'un objet par case, donc la bombe est supprimée et l'objet reste."
       },
       "laser_shooter_covered": {
-        "name": "Tireur laser sur un objet ou une autre couche",
-        "label": "Le tireur se trouve sur un objet ou sur une couche autre que le sol ordinaire (un dispositif, une machine, un terrain) : le lanceur d'Epoxy remplace toute la case, donc ce qui s'y trouvait est supprimé, et un tireur utilisé comme modèle de clonage n'est pas cloné."
+        "name": "Tireur laser sur un objet ou une couche active",
+        "label": "Le tireur se trouve sur un objet ou sur une couche qui agit (une porte, un dispositif, une machine, du feu, un sol de force) : le lanceur d'Epoxy remplace toute la case, donc ce qui s'y trouvait est supprimé, et un tireur utilisé comme modèle de clonage n'est pas cloné. Le gravier, la terre, la glace, le sable, l'eau et un contrôleur laser sous un tireur ne font rien dans CC3D et sont supprimés sans perte."
       },
       "stacked_runtime": {
         "name": "Pile active sous une autre couche",

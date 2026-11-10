@@ -34,6 +34,7 @@ import {
   classifyStack,
   elementKeys,
   EPOXY_COVERAGE,
+  isShooterCovered,
   KEY_APPEARING_WALL_WITH_MONSTER,
   KEY_APPEARING_WALL_WITH_SLIDE,
   KEY_BOMB_WITH_ITEM,
@@ -406,7 +407,8 @@ function convertCell(
 ): ConvertedCell {
   const edges = SIDE_ORDER.filter((side) => cell.panels.includes(side));
   if (shooter !== undefined) {
-    if (cell.item !== null || nonFloor(cell.terrain).length > 0) drop(KEY_LASER_SHOOTER_COVERED);
+    // The inert ground under a shooter (SHOOTER_INERT_KINDS) is dropped without a loss: nothing in CC3D acts on it.
+    if (isShooterCovered(cell)) drop(KEY_LASER_SHOOTER_COVERED);
     return { terrain: `${SHOT_LAUNCHER_PREFIX}${shooter.dir.toLowerCase()}`, item: null, underlay: null, edges };
   }
 

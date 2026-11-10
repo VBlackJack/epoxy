@@ -377,7 +377,18 @@ describe('relation keys', () => {
     const shooter = { kind: 'laser_shooter' as const };
     expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter } })).has('laser_shooter_covered')).toBe(false);
     expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, item: { kind: 'fish' } } })).has('laser_shooter_covered')).toBe(true);
-    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'ice' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'door', color: 'red' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'fire' }] } })).has('laser_shooter_covered')).toBe(true);
+  });
+
+  it('does not flag a shooter standing on ground that does nothing under it: gravel, dirt, ice, sand, water or a laser controller', () => {
+    const shooter = { kind: 'laser_shooter' as const };
+    for (const kind of ['gravel', 'dirt', 'ice', 'sand', 'water', 'laser_controller'] as const) {
+      expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind }] } })).has('laser_shooter_covered'), kind).toBe(false);
+    }
+    // An item on the same cell, a second shooter or a live layer above the ground still count.
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, item: { kind: 'fish' }, stack: [{ kind: 'water' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'ice' }, { kind: 'door', color: 'red' }] } })).has('laser_shooter_covered')).toBe(true);
   });
 
   it('plays a red socket over a socket as a flattened stack, still exact', () => {

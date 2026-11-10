@@ -4181,8 +4181,8 @@
         "label": "A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays."
       },
       "laser_shooter_covered": {
-        "name": "Laser shooter on an item or another layer",
-        "label": "The shooter stands on an item or on a layer other than plain floor (a device, a machine, ground): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned."
+        "name": "Laser shooter on an item or a working layer",
+        "label": "The shooter stands on an item or on a layer that does something (a door, a device, a machine, fire, a force floor): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned. Gravel, dirt, ice, sand, water and a laser controller under a shooter do nothing in CC3D and are dropped without a loss."
       },
       "stacked_runtime": {
         "name": "Stack that acts while covered",

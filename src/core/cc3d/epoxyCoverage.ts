@@ -62,7 +62,7 @@ export const KEY_APPEARING_WALL_WITH_SLIDE = 'appearing_wall_with_slide';
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
 export const KEY_BOMB_WITH_ITEM = 'bomb_with_item';
-/** A laser shooter standing on an item or on a layer other than plain floor. */
+/** A laser shooter standing on an item or on a layer that does something (not plain floor, nor the inert ground and laser controller). */
 export const KEY_LASER_SHOOTER_COVERED = 'laser_shooter_covered';
 
 const KEY_SEPARATOR = '_';
@@ -148,7 +148,7 @@ const GOLEM_CONTROL_YELLOW_REASON =
 const LASER_CONTROLLER_REASON =
   'Epoxy plays the laser controller as its shot trigger, linked to the shooters it fires (the nearest shooter in CC3D); any mob works it in CC3D, and Epoxy lets whatever steps on it work it; in Epoxy a trigger hidden under a removable top acts only once revealed [unverified].';
 const LASER_SHOOTER_REASON =
-  'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened; a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
+  'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened (the layers that do nothing under a shooter are no loss, see laser_shooter_covered); a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
 const NIBBLE_REASON =
   'Epoxy plays the nibble as a monster of its own: it steps away from the player along the axis of the greater distance (horizontal on a tie), tries the other axis only when not lined up, and waits otherwise, with its rest folded into an eight-tick step.' +
   MONSTER_EVIDENCE +
@@ -210,7 +210,7 @@ const CLONE_SWITCH_EMPTY_REASON =
 const BOMB_WITH_ITEM_REASON =
   'A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays.';
 const LASER_SHOOTER_COVERED_REASON =
-  'The shooter stands on an item or on a layer other than plain floor (a device, a machine, ground): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned.';
+  'The shooter stands on an item or on a layer that does something (a door, a device, a machine, fire, a force floor): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned. Gravel, dirt, ice, sand, water and a laser controller under a shooter do nothing in CC3D and are dropped without a loss (cc3dEvidenceShooter.test.ts).';
 const GRAVEL_PLAIN_REASON =
   'Epoxy plays plain gravel as CC3D does: the player and every block may enter it, monsters may not (cc3dEvidenceTerrain.test.ts).';
 const BOMB_REASON =
@@ -458,9 +458,16 @@ function countOrbItems(level: Cc3dLevel): number {
   return level.cells.filter((cell) => cell.item !== null && ORB_ITEM_KINDS.includes(cell.item.kind)).length;
 }
 
-/** True when a shooter's cell holds an item or a layer other than plain floor. */
-function isShooterCovered(cell: Cc3dCell | undefined): boolean {
-  return cell !== undefined && (cell.item !== null || nonFloorLayers(cell).length > 0);
+/**
+ * The layers that do nothing under a CC3D laser shooter, since the shooter never moves, cannot be pushed and presses
+ * nothing: the ground it cannot slide on, sink in or dig (gravel, dirt, ice, sand, water) and a laser controller nobody
+ * can step on (cc3dEvidenceShooter.test.ts). The converter drops them silently.
+ */
+export const SHOOTER_INERT_KINDS: readonly Cc3dTerrainKind[] = ['gravel', 'dirt', 'ice', 'ice_corner', 'sand', 'water', 'laser_controller'];
+
+/** True when a shooter's cell holds an item or a layer that does something besides plain floor and the inert layers. */
+export function isShooterCovered(cell: Cc3dCell | undefined): boolean {
+  return cell !== undefined && (cell.item !== null || nonFloorLayers(cell).some((layer) => !SHOOTER_INERT_KINDS.includes(layer.kind)));
 }
 
 /**
