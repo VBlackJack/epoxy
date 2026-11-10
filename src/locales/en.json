@@ -3995,6 +3995,10 @@
         "name": "Walking monsters that meet",
         "label": "The level has two or more walking monsters, and two of them meeting head-on do not behave as in CC3D for some kinds (bouncer, limpa, limpy, baby blinky, baby screamer, legs, blinky, screamer, walker, omni)."
       },
+      "time_limit": {
+        "name": "Time limit",
+        "label": "The level is timed. The limit carries over in seconds, but Epoxy ends the run one tick (50 ms) before CC3D does."
+      },
       "trap": {
         "name": "Trap",
         "label": "Epoxy plays the trap as CC3D does: it holds what enters it until a control works it, and each control works the next trap after it in reading order."

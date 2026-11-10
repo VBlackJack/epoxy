@@ -186,7 +186,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
         if (under === 'water' || under === 'fire') waterFireBlocks += 1;
       }
       dropCount += report.drops.length;
-      bump(verdicts, classifyLevel(cc3d).verdict);
+      bump(verdicts, classifyLevel(cc3d, source.timeLimitSeconds).verdict);
       if (report.lost.length > 0) {
         lostMaps.push(source.id);
         for (const entry of report.lost) bump(lostKeys, entry.key);
@@ -232,7 +232,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     let moves = 0;
     for (const source of levels) {
       const cc3d = source.cc3d;
-      if (!cc3d || classifyLevel(cc3d).verdict !== 'exact') continue;
+      if (!cc3d || classifyLevel(cc3d, source.timeLimitSeconds).verdict !== 'exact') continue;
       exactMaps += 1;
       const { level } = convertCc3dLevel(source);
       for (const seed of WALK_SEEDS) {
