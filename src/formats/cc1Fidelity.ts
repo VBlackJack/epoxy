@@ -104,7 +104,7 @@ export function classifyMapPair(a: MapLike, b: MapLike): MapClass {
   return JSON.stringify(a.terrain) === JSON.stringify(b.terrain) ? 'terrain' : 'differs';
 }
 
-const LEVEL_NUMBER_PATTERN = /map(\d+)/i;
+const LEVEL_NUMBER_PATTERN = /^map(\d+)\.[^.]*$/i;
 const DECIMAL_RADIX = 10;
 
 /** The level number written in a Steam file name ("map012.c2m" gives 12), or null when it has none. */

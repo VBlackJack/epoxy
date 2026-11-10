@@ -90,6 +90,7 @@ describe('cc1Fidelity paired helpers', () => {
   it('reads the level number of a file name', () => {
     expect(levelNumberOfFile('MAP012.c2m')).toBe(12);
     expect(levelNumberOfFile('intro.c2m')).toBeNull();
+    expect(levelNumberOfFile('bigmap12.c2m')).toBeNull();
   });
 
   it('compares titles without case or outer spaces', () => {

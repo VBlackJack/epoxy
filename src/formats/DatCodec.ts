@@ -259,7 +259,7 @@ export class DatCodec {
           }
           if (ruleset !== DEFAULT_RULESET) level.ruleset = ruleset;
           // The Epoxy reading plays the original game's timing rules; the Lynx reading is its own engine
-          if (ruleset !== LYNX_RULESET) level.rulesFlavor = CC_RULES_FLAVOR;
+          if (ruleset === DEFAULT_RULESET) level.rulesFlavor = CC_RULES_FLAVOR;
           usedIds.add(level.id);
           levels.push(level);
         }

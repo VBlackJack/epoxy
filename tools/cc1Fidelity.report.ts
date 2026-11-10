@@ -241,7 +241,7 @@ async function playPaired(root: string, datPath: string): Promise<PairedRun[]> {
       const bytes = new Uint8Array(readFileSync(full));
       const level = (await convertC2mBytes(bytes, { file: basename(full), order })).level;
       const sections = cc2ReplaySections(decodeC2m(bytes));
-      const index = epoxyLevels.findIndex((l) => l.number === number);
+      const index = number <= 0 ? -1 : epoxyLevels.findIndex((l) => l.number === number);
       const datEpoxy = index >= 0 ? epoxyLevels[index] : null;
       const datLynx = index >= 0 ? lynxLevels[index] : null;
       if (datEpoxy) {
@@ -263,7 +263,8 @@ async function playPaired(root: string, datPath: string): Promise<PairedRun[]> {
 }
 
 function reportPaired(runs: readonly PairedRun[], stem: string): { lines: string[]; gaps: GapRecord[] } {
-  const played = runs.filter((r) => r.c2m.epoxy !== undefined);
+  const replayed = runs.filter((r) => r.c2m.epoxy !== undefined);
+  const played = replayed.filter((r) => r.mapClass !== null);
   const outcomes = played.map((r) => ({
     mapClass: r.mapClass ?? 'differs',
     c2mEpoxy: !!r.c2m.epoxy?.won,
@@ -272,12 +273,13 @@ function reportPaired(runs: readonly PairedRun[], stem: string): { lines: string
     datLynx: !!r.dat.lynx?.won
   }));
   const total = pairedWins(outcomes);
-  const unpaired = played.filter((r) => r.mapClass === null);
-  const mismatched = played.filter((r) => r.mapClass !== null && !r.titleMatch);
+  const unpaired = replayed.filter((r) => r.mapClass === null);
+  const mismatched = played.filter((r) => !r.titleMatch);
+  const mismatchWins = pairedWins(outcomes.filter((_, i) => !played[i].titleMatch));
 
   const lines: string[] = [`## Paired replay wins (${stem} against the .DAT)`, ''];
   lines.push(
-    `Steam levels: ${runs.length}; with a replay: ${played.length}; without a .DAT level of that number: ${unpaired.length}; conversion errors: ${runs.filter((r) => r.error).length}.`,
+    `Steam levels: ${runs.length}; with a replay: ${replayed.length}; paired: ${played.length}; left out (no .DAT level or no number in the file name): ${unpaired.length}${unpaired.length > 0 ? ` (${unpaired.map((r) => r.path).join(", ")})` : ""}; conversion errors: ${runs.filter((r) => r.error).length}.`,
     ''
   );
   lines.push(
@@ -291,7 +293,8 @@ function reportPaired(runs: readonly PairedRun[], stem: string): { lines: string
         ['c2m Epoxy+cc', total.c2mEpoxy, pct(total.c2mEpoxy, total.levels)],
         ['c2m Lynx', total.c2mLynx, pct(total.c2mLynx, total.levels)],
         ['DAT Epoxy+cc', total.datEpoxy, pct(total.datEpoxy, total.levels)],
-        ['DAT Lynx', total.datLynx, pct(total.datLynx, total.levels)]
+        ['DAT Lynx', total.datLynx, pct(total.datLynx, total.levels)],
+        [`(of which on title-mismatch levels: ${mismatched.length}; DAT Epoxy+cc ${mismatchWins.datEpoxy}, DAT Lynx ${mismatchWins.datLynx})`, '', '']
       ]
     ),
     ''
@@ -319,7 +322,7 @@ function reportPaired(runs: readonly PairedRun[], stem: string): { lines: string
   const lynxOnly = withDat.filter((r) => r.dat.lynx?.won && !r.dat.epoxy?.won);
   const epoxyOnly = withDat.filter((r) => r.dat.epoxy?.won && !r.dat.lynx?.won);
   lines.push(`DAT levels won by Lynx only: ${lynxOnly.length}. DAT levels won by Epoxy+cc only: ${epoxyOnly.length}.`, '');
-  const gaps = lynxOnly.map((r) => gapRecord(`${r.path} (level ${r.number}, ${r.mapClass})`, firstDivergence(r.dat.epoxy)));
+  const gaps = lynxOnly.map((r) => gapRecord(`${r.path} (level ${r.number}, ${r.mapClass}${r.titleMatch ? "" : ", TITLE MISMATCH"})`, firstDivergence(r.dat.epoxy)));
   lines.push('## DAT levels won by Lynx only', '');
   lines.push('Divergence of the DAT Epoxy+cc run (first strategy); the monsters are the ones on the death cell or next to it, nearest first.', '');
   lines.push(...(gaps.length > 0 ? gaps.map(gapLine) : [NONE]), '');
