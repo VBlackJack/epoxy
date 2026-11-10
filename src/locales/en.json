@@ -3983,10 +3983,6 @@
         "name": "Appearing wall in a level with a walking monster",
         "label": "A monster that reveals an appearing wall turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
       },
-      "block_slides_into_monster": {
-        "name": "Block that can slide into a monster",
-        "label": "A CC3D dirt or colour block that slides into a monster kills it, where the Epoxy block stops against it and leaves it alive. The ice block and a block pushed straight into a monster agree."
-      },
       "orbs_over_cap": {
         "name": "More than four orbs",
         "label": "The level holds more than four orbs: a CC3D player who picks up a fifth tool drops the oldest on the cell, where Epoxy keeps every pair of boots."

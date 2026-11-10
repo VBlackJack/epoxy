@@ -297,13 +297,6 @@ const STRUCTURAL_CASES: StructuralCase[] = [
     }
   },
   {
-    key: 'block_slides_into_monster',
-    build: () => convertRows(['#######', '#@KIbX#', '#######'], { I: terrain('ice'), b: { mob: { kind: 'bouncer', dir: 'W' } } }),
-    check: (result) => {
-      expect(result.report.approx.map((e) => e.key)).toContain('block_slides_into_monster');
-    }
-  },
-  {
     key: 'monsters_meet',
     build: () => convertRows(['#######', '#@b.cX#', '#######'], { b: { mob: { kind: 'bouncer', dir: 'E' } }, c: { mob: { kind: 'bouncer', dir: 'W' } } }),
     check: (result) => {

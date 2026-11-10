@@ -1537,6 +1537,12 @@ export interface EntityDefinition {
    */
   stopsAtWall?: boolean;
   /**
+   * A block that, sliding on ice or a force floor, crushes a monster standing in the next cell and goes on into its cell,
+   * as the CC3D dirt and colour blocks do (a pushed block is still refused by the monster). Needs `slidesOnIce` or
+   * `slidesOnForce`.
+   */
+  crushesMonsters?: boolean;
+  /**
    * Format 15, the CC3D ice block: the `chainPushes` list of the head block (the one the player pushes) governs the whole
    * line, whatever the blocks behind it would push themselves. Needs `chainPushes`.
    */

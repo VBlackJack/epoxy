@@ -201,7 +201,8 @@ export function isCanBlockEnter(
   block: RuntimeEntity,
   destX: number,
   destY: number,
-  dir: Direction
+  dir: Direction,
+  crushable?: RuntimeEntity
 ): boolean {
   if (!isInBounds(w, destX, destY)) return false;
   if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
@@ -229,7 +230,7 @@ export function isCanBlockEnter(
   }
 
   const existingEntity = getEntityAt(w, destX, destY);
-  if (existingEntity) return false;
+  if (existingEntity && existingEntity !== crushable) return false;
   // A block never rides into a player in a helmet: it is stopped, as it would be by a monster.
   if (shieldedPlayerAt(w, destX, destY)) return false;
   // A flying shot is no occupant, but a block never rides into it.
@@ -389,6 +390,24 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
     // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
     if (!w.player.alive) return;
+  }
+
+  // A sliding block of the CC3D kind crushes the monster in its way and goes on into its cell, wherever it could enter
+  // the cell if the monster were not there (a pushed block is refused by a monster, so this is the slide only).
+  const ahead = isInBounds(w, nx, ny) ? getEntityAt(w, nx, ny) : undefined;
+  if (
+    ahead !== undefined &&
+    ahead.kind === 'monster' &&
+    ConfigRegistry.getEntityDef(entity.type)?.crushesMonsters === true &&
+    isCanBlockEnter(w, entity, nx, ny, slideDir, ahead)
+  ) {
+    removeEntity(w, ahead.uid);
+    // A monster gone from a beam path changes the beams.
+    w.beamDirty = true;
+    AudioManager.playSfx('bomb');
+    ctx.emitVisual('explosion', nx, ny);
+    moveBlockTo(ctx, entity, nx, ny, slideDir);
+    return;
   }
 
   if (isCanBlockEnter(w, entity, nx, ny, slideDir)) {

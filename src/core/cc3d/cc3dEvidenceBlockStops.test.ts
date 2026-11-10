@@ -62,20 +62,72 @@ const OBSTACLES: Array<[string, string]> = [
   ['an ice corner open on its east side', '@xIIIe.']
 ];
 
+const MONSTER_KINDS = [
+  'walker', 'limpa', 'limpy', 'bouncer', 'golem_blue', 'golem_yellow', 'blinky', 'baby_blinky', 'screamer', 'baby_screamer',
+  'snappy', 'nibble', 'legs_green', 'legs_red', 'omni'
+] as const;
+
 describe('a CC3D block that slides into a monster', () => {
-  it('kills it when the block is a dirt or colour block, which Epoxy does not; the ice block agrees', () => {
-    for (const [blockName, glyph] of BLOCKS) {
-      for (const floor of ['III', '>>>']) {
-        const t = playTimeline({ rows: room(`@${glyph}${floor}M.`), moves: '', glyphs: GLYPHS }, 'E');
-        expect(t.sameSequence, `${blockName} on ${floor}`).toBe(glyph === 'Z');
+  for (const [blockName, glyph] of BLOCKS) {
+    for (const floor of ['III', '>>>']) {
+      for (const kind of MONSTER_KINDS) {
+        // The ice block is refused by the screamers in both engines for another reason: they melt it (their own key).
+        if (glyph === 'Z' && (kind === 'screamer' || kind === 'baby_screamer')) continue;
+        it(`${blockName} on ${floor} crushes a ${kind}, as in CC3D`, () => {
+          const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, M: withMob(device('trap'), { kind, dir: 'W' }) };
+          const t = playTimeline({ rows: room(`@${glyph}${floor}M.`), moves: '', glyphs }, 'E');
+          expect(t.sameSequence, `${blockName} on ${floor} into ${kind}`).toBe(true);
+          expect(t.sameFinal).toBe(true);
+        });
       }
     }
-    // The coverage names it: a slide terrain, a dirt or colour block and a walking monster on one map.
+  }
+
+  it('a block pushed straight into a monster is refused by both engines', () => {
+    for (const [blockName, glyph] of BLOCKS) {
+      const t = playTimeline({ rows: room(`@${glyph}M..`), moves: '', glyphs: GLYPHS }, 'E');
+      expect(t.sameSequence, blockName).toBe(true);
+      expect(t.sameFinal, blockName).toBe(true);
+    }
+  });
+
+  it('a chain pushed by a slide, or by the ice block, into a monster plays the same in both engines', () => {
+    const rows = ['@KDIIM.', '@ZKIIM.', '@ZDIIM.', '@KDDIM.', '@RDIIM.', '@KKIIM.', '@ZKKIM.', '@K>D>M.', '@KI>>DM.'];
+    for (const row of rows) {
+      for (const kind of ['bouncer', 'walker'] as const) {
+        const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, D: { mob: { kind: 'block_dirt' } }, M: withMob(device('trap'), { kind, dir: 'W' }) };
+        const t = playTimeline({ rows: room(row), moves: '', glyphs }, 'E');
+        expect(t.sameSequence, `${row} ${kind}`).toBe(true);
+        expect(t.sameFinal, `${row} ${kind}`).toBe(true);
+      }
+    }
+  });
+
+  it('a free walking monster that steps toward a sliding block: the dirt and colour blocks are off the CC3D timeline exactly as the ice block is', () => {
+    // The walking monsters keep their own step phase in Epoxy (their coverage keys), so a free monster never matches the
+    // CC3D timeline, ice block included. What the crush rule must not add is a difference of its own: the verdicts are the same.
+    const verdict = (glyph: string, row: string, kind: 'bouncer' | 'walker' | 'limpa'): [boolean, boolean] => {
+      const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, b: { mob: { kind, dir: 'W' } } };
+      const t = playTimeline({ rows: room(row.replace('x', glyph)), moves: '', glyphs }, 'E');
+      return [t.sameSequence, t.sameFinal];
+    };
+    for (const floor of ['III', '>>>']) {
+      for (const row of [`@x${floor}b.`, `@x${floor}.b`, `@x${floor}.b.`]) {
+        for (const kind of ['bouncer', 'walker', 'limpa'] as const) {
+          const ice = verdict('Z', row, kind);
+          // The timeline is the same kind of difference for all three blocks; the last state differs only because the ice
+          // block is not crushed in either engine while the others are, so the last state is compared between dirt and colour.
+          expect(verdict('K', row, kind)[0], `dirt ${row} ${kind}`).toBe(ice[0]);
+          expect(verdict('R', row, kind), `colour ${row} ${kind}`).toEqual(verdict('K', row, kind));
+        }
+      }
+    }
+  });
+
+  it('the coverage no longer names the case', () => {
+    expect(EPOXY_COVERAGE).not.toHaveProperty('block_slides_into_monster');
     const level = cc3dModel(room('@KIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } });
-    expect(classifyLevel(level).approx).toContain('block_slides_into_monster');
-    expect(classifyLevel(cc3dModel(room('@ZIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } })).approx).not.toContain('block_slides_into_monster');
-    expect(EPOXY_COVERAGE.block_slides_into_monster.level).toBe('approx');
-    expect(EPOXY_COVERAGE.block_slides_into_monster.reason).toContain('cc3dEvidenceBlockStops.test.ts');
+    expect(classifyLevel(level).approx).not.toContain('block_slides_into_monster');
   });
 });
 

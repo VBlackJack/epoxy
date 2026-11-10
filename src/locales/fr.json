@@ -3983,10 +3983,6 @@
         "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
         "label": "Un monstre qui révèle un mur apparaissant fait demi-tour avec un pas de décalage par rapport à celui de CC3D ensuite, et un golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
       },
-      "block_slides_into_monster": {
-        "name": "Bloc qui peut glisser sur un monstre",
-        "label": "Un bloc de terre ou de couleur CC3D qui glisse sur un monstre le tue, là où le bloc d'Epoxy s'arrête contre lui et le laisse en vie. Le bloc de glace et un bloc poussé droit sur un monstre sont identiques."
-      },
       "orbs_over_cap": {
         "name": "Plus de quatre orbes",
         "label": "Le niveau contient plus de quatre orbes : un joueur CC3D qui ramasse un cinquième outil dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes."
