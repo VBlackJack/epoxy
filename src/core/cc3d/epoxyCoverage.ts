@@ -60,6 +60,8 @@ export const KEY_MONSTERS_MEET = 'monsters_meet';
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
 export const KEY_BOMB_WITH_ITEM = 'bomb_with_item';
+/** A bomb layer buried under a layer the player or a mob can clear, so it may become the live top later. */
+export const KEY_BOMB_BURIED = 'bomb_buried';
 /** A laser shooter standing on an item or on a layer that does something (not plain floor, nor the inert ground and laser controller). */
 export const KEY_LASER_SHOOTER_COVERED = 'laser_shooter_covered';
 
@@ -203,6 +205,8 @@ const TRAP_UNWORKED_REASON =
   'Epoxy plays a trap no control works, on a map that has trap controls, as the sealed trap (trap_sealed, pack format 17): no button ever opens it, and the player, a block or a monster that enters it stays held for good, as in CC3D (cc3dEvidenceDevices.test.ts). A map without any trap control has no brown button either, and the plain trap stays shut in both engines (cc3dEvidenceDevices.test.ts).';
 const CLONE_SWITCH_EMPTY_REASON =
   'The nearest clone machine of this switch holds no template Epoxy can clone (none, or a laser shooter): CC3D does nothing, and a switch left unlinked would fire every machine in Epoxy, so the converter drops the switch link.';
+const BOMB_BURIED_REASON =
+  'A bomb layer lies under a door, a socket or a false wall: inert in CC3D until that layer is cleared, then live. Epoxy holds the bomb as an item of the cell from the start, so it is live under the cover (when the cell also holds an item, only the item stays, see bomb_with_item). A bomb under a layer that is never cleared (a wall, a plate, a device) is inert in CC3D and is dropped without a loss.';
 const BOMB_WITH_ITEM_REASON =
   'A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays.';
 const LASER_SHOOTER_COVERED_REASON =
@@ -294,6 +298,7 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
 
 const APPROX_ENTRIES: Record<string, string> = {
   [KEY_GRAVEL_WITH_REFLECTOR]: GRAVEL_REASON,
+  [KEY_BOMB_BURIED]: BOMB_BURIED_REASON,
   [KEY_SOCKET_RED_STACKED]: SOCKET_RED_STACKED_REASON,
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
@@ -412,6 +417,32 @@ const ORB_ITEM_KINDS: readonly Cc3dItemKind[] = ['orb_ice', 'orb_force', 'orb_fi
 /** Tops that are a socket: a socket over another one is one socket, whichever colour. */
 const SOCKET_KINDS: readonly Cc3dTerrainKind[] = ['socket', 'socket_red'];
 
+/**
+ * Layers that can be cleared off the top of a stack in CC3D (a key opens a door, the chips a socket, the player or a
+ * block a false wall, a mob or a shot that detonates a bomb): what lies under them can become the acting layer later.
+ */
+const BOMB_EXPOSING_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket', 'socket_red', 'false_wall', 'bomb'];
+
+/**
+ * Settles the bombs of a terrain stack. Only the top layer of a CC3D cell acts, so a bomb is live when it is the top
+ * layer, and inert when a layer that is never cleared lies above it (a plate, a wall, a device...): that
+ * bomb is dropped. A bomb under clearable layers only is kept (buried: it can become the top later).
+ */
+export function settleBombs(terrain: readonly Cc3dTerrain[]): { layers: Cc3dTerrain[]; buried: boolean; dropped: boolean } {
+  let buried = false;
+  let dropped = false;
+  const layers = terrain.filter((layer, index) => {
+    if (layer.kind !== BOMB_KIND || index === terrain.length - 1) return true;
+    if (terrain.slice(index + 1).every((above) => BOMB_EXPOSING_KINDS.includes(above.kind))) {
+      buried = true;
+      return true;
+    }
+    dropped = true;
+    return false;
+  });
+  return { layers, buried, dropped };
+}
+
 /** How Epoxy holds the terrain stack of one cell. */
 export type StackKind = 'plain' | 'flattened' | 'underlay' | 'runtime';
 
@@ -425,8 +456,10 @@ export type StackKind = 'plain' | 'flattened' | 'underlay' | 'runtime';
  * Anything else ('runtime') needs a layer that acts while covered, or a deeper stack, and is lost.
  */
 export function classifyStack(cell: Cc3dCell): StackKind {
-  let layers = nonFloorLayers(cell);
-  if (layers.length < MIN_STACKED_ENTRIES) return 'plain';
+  if (nonFloorLayers(cell).length < MIN_STACKED_ENTRIES) return 'plain';
+  const settled = settleBombs(cell.terrain);
+  let layers = nonFloorLayers({ ...cell, terrain: settled.layers });
+  if (settled.dropped && layers.length < MIN_STACKED_ENTRIES) return 'flattened';
   if (cell.item === null && layers.filter((layer) => layer.kind === BOMB_KIND).length === 1) {
     layers = layers.filter((layer) => layer.kind !== BOMB_KIND);
     if (layers.length < MIN_STACKED_ENTRIES) return 'flattened';
@@ -484,9 +517,10 @@ function relationKeys(level: Cc3dLevel): string[] {
     return template === null || template === undefined || level.mobs[template].kind === SHOOTER_KIND;
   });
   if (emptySwitch) keys.push(KEY_CLONE_SWITCH_EMPTY);
-  if (level.cells.some((cell) => cell.item !== null && cell.terrain.some((layer) => layer.kind === BOMB_KIND))) {
+  if (level.cells.some((cell) => cell.item !== null && settleBombs(cell.terrain).layers.some((layer) => layer.kind === BOMB_KIND))) {
     keys.push(KEY_BOMB_WITH_ITEM);
   }
+  if (level.cells.some((cell) => settleBombs(cell.terrain).buried)) keys.push(KEY_BOMB_BURIED);
   const shooterCells = new Set<number>();
   let covered = false;
   for (const mob of level.mobs) {
