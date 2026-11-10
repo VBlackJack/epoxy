@@ -192,3 +192,82 @@ describe('Pathfinder.findPath for Melinda', () => {
     expect(Pathfinder.findPath(engine, 6, 2).moves).toEqual([]);
   });
 });
+
+describe('Pathfinder colour safety', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('refuses to cross a colour toggle button but may end on it', () => {
+    const engine = engineFor(corridor({ 4: 'toggle_button_red' }));
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engine, 4, 2).moves).toEqual(['E', 'E']);
+  });
+
+  it('refuses to cross a colour button on the item layer', () => {
+    const level = corridor();
+    level.items[2][4] = 'toggle_button_red';
+    const engine = engineFor(level);
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
+    expect(Pathfinder.findPath(engine, 4, 2).moves).toHaveLength(2);
+  });
+
+  it('walks over a plate: the press is momentary', () => {
+    const engine = engineFor(corridor({ 4: 'pressure_plate_red' }));
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toHaveLength(5);
+  });
+
+  it('refuses a hold door that only the player holds open', () => {
+    // The player starts on the plate at (2, 2): the door at (5, 2) is open, but would close behind the walker.
+    const engine = engineFor(corridor({ 2: 'pressure_plate_red', 5: 'hold_door_red_open' }));
+    expect(ConfigRegistry.getTile(engine.getTerrain()[2][5]).holdDoorOpen).toBe(true);
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
+  });
+
+  it('crosses a hold door whose plate a resting block holds', () => {
+    const level = corridor({ 5: 'hold_door_red_open' });
+    level.terrain[3][4] = 'pressure_plate_red';
+    level.entities = [{ type: 'dirt_block', x: 4, y: 3, dir: 'N' }];
+    const engine = engineFor(level);
+    expect(ConfigRegistry.getTile(engine.getTerrain()[2][5]).holdDoorOpen).toBe(true);
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toHaveLength(5);
+  });
+
+  it('refuses a hold door when one of its plates is not held by a block', () => {
+    const level = corridor({ 5: 'hold_door_red_open' });
+    level.terrain[3][4] = 'pressure_plate_red';
+    level.terrain[3][3] = 'pressure_plate_red';
+    level.entities = [{ type: 'dirt_block', x: 4, y: 3, dir: 'N' }];
+    const engine = engineFor(level);
+    expect(Pathfinder.findPath(engine, 7, 2).moves).toEqual([]);
+  });
+});
+
+describe('Pathfinder.isNextStepSafe (auto-move guard)', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('goes on over a plain cell', () => {
+    expect(Pathfinder.isNextStepSafe(engineFor(corridor()), 'E', false)).toBe(true);
+  });
+
+  it('stops before a cell a beam has lit since the plan was made', () => {
+    const engine = engineFor(corridor());
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(true);
+    vi.spyOn(engine, 'getBeamCells').mockReturnValue([{ x: 3, y: 2 }] as never);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', true)).toBe(false);
+  });
+
+  it('stops before a channel button unless it ends the walk', () => {
+    const engine = engineFor(corridor({ 3: 'toggle_button_red' }));
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+    expect(Pathfinder.isNextStepSafe(engine, 'E', true)).toBe(true);
+  });
+
+  it('stops before a hold door that only the player holds open', () => {
+    const engine = engineFor(corridor({ 2: 'pressure_plate_red', 3: 'hold_door_red_open' }));
+    expect(Pathfinder.isNextStepSafe(engine, 'E', false)).toBe(false);
+  });
+});

@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, RAILROAD_SIGN_ITEM_ID, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { isConvertedCc3dLevel } from './cc3d/cc3dConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -78,20 +79,19 @@ const RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, obje
 
 /**
  * The aids that stay off on a level with colour channels (plates, hold doors, colour walls and blocks):
- * the hint and the watch model pushes onto buttons and targets, not plates, and a tapped path does not
- * press a plate to hold a door open.
+ * the hint and the watch model pushes onto buttons and targets, not plates. A tapped path stays on: the
+ * Pathfinder never walks through a channel button and only crosses a hold door that blocks hold open.
  */
 const COLOR_LEVEL_FEATURES: RulesetFeatures = {
   ...EPOXY_FEATURES,
-  tapToPath: false,
   blockHint: false,
   deadEndWatch: false
 };
 
-/** Laser aids win for what a laser level already loses; the colour aids are turned off too. */
+/** Laser aids win for what a laser level already loses; the colour level adds nothing more. */
 const LASER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToPath: COLOR_LEVEL_FEATURES.tapToPath };
 
-/** A receivers level with colour content: the receivers aids and the colour aids are both off. */
+/** A receivers level with colour content: the receivers aids and the colour aids are both applied. */
 const RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = {
   ...RECEIVER_LEVEL_FEATURES,
   tapToPath: COLOR_LEVEL_FEATURES.tapToPath
@@ -542,9 +542,13 @@ const TURRET_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToP
 /** A receivers level with turrets: the receivers aids and no tapped path. */
 const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEATURES, tapToPath: false };
 
+/** A turret level with colour content: the turrets still fire at a walker, so no tapped path. */
+const TURRET_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_COLOR_LEVEL_FEATURES, tapToPath: false };
+const TURRET_RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_COLOR_LEVEL_FEATURES, tapToPath: false };
+
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
+  Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
@@ -660,12 +664,31 @@ function withoutSignalAids(base: RulesetFeatures): RulesetFeatures {
 /** The aid sets without item drop, kept per source set so a level of one kind always gets the same object. */
 const noDropFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
+const convertedCc3dFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/**
+ * A level converted from CC3D keeps no push hint and no dead-end watch: the block solver does not model the CC3D
+ * goals, and a brown button there is a trap control, not a block target. Cached per aid set.
+ */
+function withoutHintsOnConvertedCc3d(level: FeatureLevel | undefined, base: RulesetFeatures): RulesetFeatures {
+  if (level === undefined || typeof level.id !== 'string' || !isConvertedCc3dLevel({ id: level.id, cc3dSource: level.cc3dSource })) {
+    return base;
+  }
+  if (!base.blockHint && !base.deadEndWatch) return base;
+  let overlaid = convertedCc3dFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    convertedCc3dFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
 /**
  * The aids available on a level, by the ruleset it is played under and the mechanics it uses. A classic (rules flavor 'cc') level that did not come from a CC2 file follows the
  * original Chip's Challenge 1, which has no item drop; CC2 imports keep it.
  */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
-  const features = contentFeaturesFor(level);
+  const features = withoutHintsOnConvertedCc3d(level, contentFeaturesFor(level));
   if (!features.itemDrop || level?.rulesFlavor !== 'cc' || level.cc2 !== undefined) return features;
   let noDrop = noDropFeaturesCache.get(features);
   if (noDrop === undefined) {
@@ -771,12 +794,13 @@ function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
     turretContentCache.set(level, turret);
   }
   if (receivers) {
-    if (color) return RECEIVER_COLOR_LEVEL_FEATURES;
+    if (color) return turret ? TURRET_RECEIVER_COLOR_LEVEL_FEATURES : RECEIVER_COLOR_LEVEL_FEATURES;
     return turret ? TURRET_RECEIVER_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
   }
   if (!color) {
     if (turret) return TURRET_LEVEL_FEATURES;
     return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
   }
+  if (turret) return TURRET_COLOR_LEVEL_FEATURES;
   return laser ? LASER_COLOR_LEVEL_FEATURES : COLOR_LEVEL_FEATURES;
 }
