@@ -151,7 +151,7 @@ export interface EpoxyWorld {
   ccRules: boolean;
   /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
   ccMonsterClock: number;
-  /** The walker and blob generators of a level made for the classic game (a .DAT import); null on every other level. */
+  /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
   ccGenerators: CcGenerators | null;
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
   ccSlots: (number | null)[];

@@ -110,7 +110,10 @@ function applyQueuedArrivals(ctx: EpoxyContext): boolean {
     for (const arrival of due) {
       const monster = w.entities.find((e) => e.uid === arrival.uid);
       if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
-      if (!ctx.triggerButton(arrival.x, arrival.y, arrival.action)) return false;
+      // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
+      const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
+      if (tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
+      if (!ctx.triggerButton(arrival.x, arrival.y, tile.buttonAction)) return false;
     }
   } finally {
     w.ccArrivalsRunning = false;
@@ -428,7 +431,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (queuesButtonPress(w, entity, destTile.buttonAction)) {
       const delay = entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
-      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: w.ccMonsterClock + delay });
+      // The clock counts the pass of the current tick only once it has started (as markTanksToTurn reads it).
+      const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay });
     } else if (!ctx.triggerButton(nx, ny, destTile.buttonAction)) {
       return false;
     }

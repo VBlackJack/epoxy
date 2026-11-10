@@ -210,13 +210,15 @@ describe('classic queued monster button arrivals', () => {
   }
 
   /** Steps the monster onto the button by the arrival routine, inside an entity pass. */
-  function stepOntoButton(state: ReturnType<typeof buttonLevel>, type: string): void {
+  function stepOntoButton(state: ReturnType<typeof buttonLevel>, type: string, passOpen = true): void {
     const { w, ctx } = state;
     const monster = monsters(w).find((e) => e.type === type)!;
     monster.x = GREEN_CELL.x;
     monster.y = GREEN_CELL.y;
     w.inTick = true;
+    w.ccPassOpen = passOpen;
     resolveMonsterArrival(ctx, monster, true);
+    w.ccPassOpen = false;
     w.inTick = false;
   }
 
@@ -230,6 +232,26 @@ describe('classic queued monster button arrivals', () => {
     const blob = buttonLevel('dat', 'blob', 'button_green');
     stepOntoButton(blob, 'blob');
     expect(blob.w.ccArrivals[0].due - blob.w.ccMonsterClock).toBe(CC_BLOB_BUTTON_DELAY_PASSES);
+  });
+
+  it('counts the pass of the tick when the arrival comes before the pass has started', () => {
+    const state = buttonLevel('dat', 'bug', 'button_green');
+    stepOntoButton(state, 'bug', false);
+    expect(state.w.ccArrivals[0].due - state.w.ccMonsterClock).toBe(CC_MONSTER_BUTTON_DELAY_PASSES + 1);
+  });
+
+  it('fires the action the button has when the press is applied, or nothing if it is no button any more', () => {
+    const state = buttonLevel('dat', 'bug', 'button_green');
+    const { engine, w } = state;
+    const monster = monsters(w)[0];
+    monster.cooldownTicks = 50;
+    monster.x = GREEN_CELL.x;
+    monster.y = GREEN_CELL.y;
+    w.ccArrivals.push({ uid: monster.uid, x: GREEN_CELL.x, y: GREEN_CELL.y, action: 'toggle_walls', due: w.ccMonsterClock });
+    w.terrain[GREEN_CELL.y][GREEN_CELL.x] = 'floor';
+    engine.tick();
+    expect(w.terrain[WALL_CELL.y][WALL_CELL.x]).toBe('toggle_wall_closed');
+    expect(w.ccArrivals).toEqual([]);
   });
 
   it('presses the button when the delay is over, not before', () => {
