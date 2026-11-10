@@ -223,12 +223,17 @@ export class DifferentialPair {
   private epoxySettled = true;
   /** The converted level holds a socket, so chips matter; without one it asks for none. */
   private readonly hasSocket: boolean;
+  /** Thin walls the converter kept as cell edges (under a terrain that is not floor), by cell: their CC3D display id. */
+  private readonly edgeIds: ReadonlyMap<string, string>;
 
   constructor(source: CompiledLevel, converted: CompiledLevel, seed: number) {
     this.rig = new Cc3dRig(source, seed);
     this.epoxy = new GameEngine();
     this.epoxy.loadLevel(converted, seed);
     this.hasSocket = converted.terrain.some((row) => row.includes('socket') || row.includes('fish_gate'));
+    this.edgeIds = new Map(
+      (converted.cellEdges ?? []).map((e) => [`${e.x},${e.y}`, displayTerrainId({ terrain: [{ kind: FLOOR_ID }], panels: [...e.sides], item: null })] as const)
+    );
   }
 
   /**
@@ -343,6 +348,19 @@ export class DifferentialPair {
     const doneA = this.rig.engine.isLevelCompleted();
     const doneB = this.epoxy.isLevelCompleted();
     if (doneA !== doneB) return at('complete', `cc3d ${doneA} epoxy ${doneB}`);
+    // The level is over in both engines: Epoxy ends it when the last step starts (water, fire, exit), CC3D when it
+    // ends, so the world ran a different number of ticks afterwards. The outcome was compared above (alive, complete);
+    // when both are done the time left is compared too, so a timing difference on a timed level is still reported.
+    // Not compared after this point: chips, keys, terrain cells, items and entities.
+    if (doneA && doneB) {
+      const timeA = this.rig.engine.getTimeRemainingSeconds();
+      const timeB = this.epoxy.getTimeRemainingSeconds();
+      if (timeA !== timeB) return at('complete', `time left cc3d ${timeA} epoxy ${timeB}`);
+    }
+    if ((!a.alive && !b.alive) || (doneA && doneB)) {
+      if (timing) this.monsterTiming = true;
+      return null;
+    }
     const chipsA = this.rig.engine.getChipsRemaining();
     const chipsB = this.epoxy.getChipsRemaining();
     // Without a socket the converted level needs no chips (chipsRequired 0), while CC3D still counts its fish.
@@ -360,7 +378,10 @@ export class DifferentialPair {
         const cell = terrainA[y][x] === BOMB_ID ? this.cc3dCellAt(x, y) : undefined;
         const ground = cell ? displayTerrainWithoutBomb(cell) : terrainA[y][x];
         const mapped = floatingColor === undefined ? epoxyIdOf(ground) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
-        if (mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
+        // A thin wall kept as a cell edge shows as floor in Epoxy once the terrain above it is gone; the CC3D cell must
+        // then show exactly the thin wall(s) the converter stored, so a panel lost by either engine is still caught.
+        const edgeOnFloor = terrainB[y][x] === FLOOR_ID && this.edgeIds.get(`${x},${y}`) === mapped;
+        if (!edgeOnFloor && mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
     }
     // Bombs are always compared, one by one: a bomb layer is the item `bomb` of the converted level.

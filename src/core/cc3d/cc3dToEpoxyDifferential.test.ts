@@ -184,4 +184,94 @@ describe('DifferentialPair.compare', () => {
     stage(water, { x: 2, y: 1, alive: false, death: OTHER_DEATH }, { x: 3, y: 1, alive: false, death: OTHER_DEATH });
     expect(water.compare()?.field).toBe('player');
   });
+
+  describe('a thin wall kept as a cell edge', () => {
+    const EDGE_X = 4;
+    const EDGE_Y = 1;
+
+    function edgeRoom(): DifferentialPair {
+      const source = cc3dLevel(ROOM, { glyphs: { B: { stack: normalizeCell([{ kind: 'gravel' }, { kind: 'bomb' }]) } } });
+      const converted = convertCc3dLevel(source).level;
+      converted.cellEdges = [{ x: EDGE_X, y: EDGE_Y, sides: ['N'] }];
+      return new DifferentialPair(source, converted, SEED);
+    }
+
+    function show(pair: DifferentialPair, cc3d: string, epoxy: string): void {
+      const put = (rows: string[][], id: string): string[][] => rows.map((row, y) => row.map((value, x) => (x === EDGE_X && y === EDGE_Y ? id : value)));
+      vi.spyOn(pair.rig.engine, 'getTerrain').mockReturnValue(put(pair.rig.engine.getTerrain(), cc3d));
+      vi.spyOn(pair.epoxy, 'getTerrain').mockReturnValue(put(pair.epoxy.getTerrain(), epoxy));
+    }
+
+    it('accepts floor on Epoxy when CC3D shows the stored thin wall', () => {
+      const pair = edgeRoom();
+      show(pair, 'thin_wall_n', 'floor');
+      expect(pair.compare()).toBeNull();
+    });
+
+    it('refuses a different panel and an edge cell that is not floor on Epoxy', () => {
+      const otherPanel = edgeRoom();
+      show(otherPanel, 'thin_wall_s', 'floor');
+      expect(otherPanel.compare()?.field).toBe('cells');
+      const notFloor = edgeRoom();
+      show(notFloor, 'thin_wall_n', 'water');
+      expect(notFloor.compare()?.field).toBe('cells');
+    });
+
+    it('does not excuse a thin wall on a cell that has no stored edge', () => {
+      const pair = edgeRoom();
+      const put = (rows: string[][], id: string): string[][] => rows.map((row, y) => row.map((value, x) => (x === 5 && y === 1 ? id : value)));
+      vi.spyOn(pair.rig.engine, 'getTerrain').mockReturnValue(put(pair.rig.engine.getTerrain(), 'thin_wall_n'));
+      expect(pair.compare()?.field).toBe('cells');
+    });
+  });
+
+  describe('a level that is over in both engines', () => {
+    /** A terrain difference that any full compare would report. */
+    function differAtCell(pair: DifferentialPair): void {
+      const real = pair.epoxy.getTerrain();
+      vi.spyOn(pair.epoxy, 'getTerrain').mockReturnValue(real.map((row, y) => row.map((id, x) => (x === 5 && y === 1 ? 'water' : id))));
+    }
+
+    function finish(pair: DifferentialPair, done: { cc3d: boolean; epoxy: boolean }, time: { cc3d: number; epoxy: number }): void {
+      vi.spyOn(pair.rig.engine, 'isLevelCompleted').mockReturnValue(done.cc3d);
+      vi.spyOn(pair.epoxy, 'isLevelCompleted').mockReturnValue(done.epoxy);
+      vi.spyOn(pair.rig.engine, 'getTimeRemainingSeconds').mockReturnValue(time.cc3d);
+      vi.spyOn(pair.epoxy, 'getTimeRemainingSeconds').mockReturnValue(time.epoxy);
+    }
+
+    it('stops comparing once both players are dead', () => {
+      const pair = room();
+      stage(pair, { x: 2, y: 1, alive: false, death: MONSTER_DEATH }, { x: 2, y: 1, alive: false, death: MONSTER_DEATH });
+      differAtCell(pair);
+      expect(pair.compare()).toBeNull();
+    });
+
+    it('still compares the cells while only one of them is over', () => {
+      const pair = room();
+      differAtCell(pair);
+      expect(pair.compare()?.field).toBe('cells');
+    });
+
+    it('stops comparing once both levels are done with the same time left', () => {
+      const pair = room();
+      finish(pair, { cc3d: true, epoxy: true }, { cc3d: 30, epoxy: 30 });
+      differAtCell(pair);
+      expect(pair.compare()).toBeNull();
+    });
+
+    it('reports a different time left when both levels are done', () => {
+      const pair = room();
+      finish(pair, { cc3d: true, epoxy: true }, { cc3d: 30, epoxy: 29 });
+      differAtCell(pair);
+      const mismatch = pair.compare();
+      expect(mismatch?.field).toBe('complete');
+      expect(mismatch?.detail).toContain('time left');
+    });
+
+    it('reports one level done and the other not', () => {
+      const pair = room();
+      finish(pair, { cc3d: true, epoxy: false }, { cc3d: 30, epoxy: 30 });
+      expect(pair.compare()?.field).toBe('complete');
+    });
+  });
 });
