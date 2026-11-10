@@ -45,7 +45,9 @@ const RUN_TICKS = 40;
 const PLAIN_STEP_TICKS = 4;
 const FLOOR_STEP_TICKS = 2;
 const REST_STEP_TICKS = 8;
-const BLOCKED_REST_TICKS = 3;
+const REST_PHASE_TICKS = 4;
+const SLOW_TIME = 'slow_time';
+const SLOW_FACTOR = 2;
 /** Ticks between the arrival on a button and its press when the step lasts four ticks. */
 const PRESS_DELAY_TICKS = 3;
 
@@ -188,13 +190,22 @@ describe('a blocked monster', () => {
     expect(monsterOf(w).cooldownTicks).toBeGreaterThan(0);
   });
 
-  it('is three ticks from ready for a snappy', () => {
+  it('rests three more ticks for a snappy', () => {
     // The snappy chases the player in the sealed cell on its left, behind a wall.
     const cells = [FLOOR, WALL, FLOOR, FLOOR, FLOOR];
     const { engine, w } = start(cells, [{ type: 'snappy', x: 3, y: ROW_Y, dir: 'W' }], 'converted', 1);
     engine.tick();
     expect(monsterOf(w).x).toBe(3);
-    expect(monsterOf(w).cooldownTicks).toBe(BLOCKED_REST_TICKS);
+    expect(monsterOf(w).cooldownTicks).toBe(0);
+    expect(monsterOf(w).restTicks).toBe(REST_PHASE_TICKS - 1);
+  });
+
+  it('rests for slow-time boots scaled, a snappy deciding again after seven ticks instead of three', () => {
+    const cells = [FLOOR, WALL, FLOOR, FLOOR, FLOOR];
+    const { engine, w } = start(cells, [{ type: 'snappy', x: 3, y: ROW_Y, dir: 'W' }], 'converted', 1);
+    w.player.boots.add(SLOW_TIME);
+    engine.tick();
+    expect(monsterOf(w).restTicks).toBe(REST_PHASE_TICKS * SLOW_FACTOR - 1);
   });
 });
 
@@ -299,6 +310,76 @@ describe('determinism', () => {
       }
       engine.attemptPlayerMove('W');
       return trace(engine, w, RUN_TICKS);
+    };
+    expect(run(true)).toEqual(run(false));
+  });
+});
+
+describe('the rest of a snappy and a nibble', () => {
+  const SNAPPY_AT = (x: number, dir: Direction = 'E'): EntityPlacement[] => [{ type: 'snappy', x, y: ROW_Y, dir }];
+
+  it('follows a chosen step with a rest: a step every eight ticks on plain floor', () => {
+    const { engine, w } = start(OPEN_FLOOR, SNAPPY_AT(8), 'converted', 20);
+    const ticks = stepTicks(engine, w, 60);
+    expect(ticks.length).toBeGreaterThan(3);
+    expect(new Set(gaps(ticks))).toEqual(new Set([REST_STEP_TICKS]));
+  });
+
+  it('scales the whole period by the slow-time factor', () => {
+    const { engine, w } = start(OPEN_FLOOR, SNAPPY_AT(8), 'converted', 20);
+    w.player.boots.add(SLOW_TIME);
+    const ticks = stepTicks(engine, w, 100);
+    expect(ticks.length).toBeGreaterThan(3);
+    expect(new Set(gaps(ticks))).toEqual(new Set([REST_STEP_TICKS * SLOW_FACTOR]));
+  });
+
+  it('does not press a plate during a short step the floor carried, only once that step has ended', () => {
+    const { w } = start(['floor', 'floor', 'pressure_plate_red', 'hold_door_red_closed', 'floor'], SNAPPY_AT(3), 'converted');
+    const snappy = monsterOf(w);
+    snappy.cooldownTicks = 1;
+    delete snappy.restTicks;
+    expect(pressesPlate(w, 3, ROW_Y, 'red')).toBe(false);
+    snappy.cooldownTicks = 0;
+    expect(pressesPlate(w, 3, ROW_Y, 'red')).toBe(true);
+  });
+
+  it('carries the rest of a chosen step over a slide onto ice: nothing is decided until the rest has run out', () => {
+    // The snappy walks onto the ice strip, is carried to its end, and stays put for the rest of its period.
+    const cells = [FLOOR, FLOOR, FLOOR, FLOOR, FLOOR, FLOOR, 'ice', 'ice', FLOOR, FLOOR, FLOOR, FLOOR];
+    const { engine, w } = start(cells, SNAPPY_AT(6, 'E'), 'converted', 12);
+    const snappy = monsterOf(w);
+    engine.tick();
+    expect(snappy.x).toBe(7);
+    expect(snappy.restTicks).toBeGreaterThan(0);
+    const restAfterEntry = snappy.restTicks as number;
+    const reached = new Map<number, number>();
+    for (let t = 2; t <= 20; t++) {
+      engine.tick();
+      if (!reached.has(snappy.x)) reached.set(snappy.x, t);
+    }
+    // Carried across the ice at the fast pace (cells 8 and 9 reached 2 and 4 ticks after the entry) ...
+    expect(reached.get(8)).toBe(1 + FLOOR_STEP_TICKS);
+    expect(reached.get(9)).toBe(1 + 2 * FLOOR_STEP_TICKS);
+    // ... and the first step it chooses afterwards waits for the rest that began with the step onto the ice.
+    expect(reached.get(10)).toBe(1 + restAfterEntry + 1);
+  });
+
+  it('keeps the same state through an undo while it rests', () => {
+    const run = (withUndo: boolean): string[] => {
+      const { engine, w } = start(OPEN_FLOOR, SNAPPY_AT(8), 'converted', 20);
+      for (let i = 0; i < 3; i++) engine.tick();
+      if (withUndo) {
+        engine.attemptPlayerMove('W');
+        for (let i = 0; i < 6; i++) engine.tick();
+        expect(engine.undo()).toBe(true);
+      }
+      engine.attemptPlayerMove('W');
+      const out: string[] = [];
+      for (let i = 0; i < 30; i++) {
+        engine.tick();
+        out.push(`${monsterOf(w).x}:${monsterOf(w).cooldownTicks}:${monsterOf(w).restTicks ?? 0}`);
+      }
+      return out;
     };
     expect(run(true)).toEqual(run(false));
   });

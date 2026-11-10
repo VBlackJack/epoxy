@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { BLOCK_TARGET_TILE_ID, cc3dMovingTicksLeft, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, toggleParityBitOf, toggleWallOtherForm } from '../coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
@@ -157,7 +157,7 @@ export interface EpoxyWorld {
   cc3dPace: boolean;
   /** Uids of the entities the running entity pass has already visited (empty outside a pass); read to count a deferred arrival down in the tick of its push. */
   entityPassSeen: Set<number>;
-  /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
+  /** Entity-update passes run since the level started (the teeth cycle of a classic-rules level and the press queue of a converted CC3D level read it); counts only while ccRules or cc3dPace. */
   ccMonsterClock: number;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
   ccGenerators: CcGenerators | null;
@@ -873,7 +873,7 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
 
 /** On a converted CC3D level a monster presses a plate only once it rests (its step has ended). */
 function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
-  return !(w.cc3dPace && e.kind === 'monster' && cc3dMovingTicksLeft(e.type, e.cooldownTicks) > 0);
+  return !(w.cc3dPace && e.kind === 'monster' && e.cooldownTicks > 0);
 }
 
 /**

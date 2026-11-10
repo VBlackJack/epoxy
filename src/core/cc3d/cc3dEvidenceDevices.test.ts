@@ -415,7 +415,7 @@ function sameTerrainChanges(t: ReturnType<typeof playTimeline>): boolean {
   return JSON.stringify(t.cc3d.terrain) === JSON.stringify(t.epoxy.terrain);
 }
 
-describe('plate timelines: CC3D presses a plate only at rest, Epoxy counts a monster on the cell', () => {
+describe('plate timelines: a monster presses a plate only at rest, in CC3D and in Epoxy', () => {
   it.each(TIMELINE_WALKERS.filter((kind) => kind !== 'nibble'))('opens and closes the door in the same order when a %s crosses the plate, the player waiting at the door', (kind) => {
     const glyphs = walkerGlyphs(kind, 'W');
     // The player waits (and keeps pushing east) at the closed door while the monster crosses the plate towards him (not the nibble, which walks away from him).

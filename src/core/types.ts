@@ -2253,6 +2253,8 @@ export interface RuntimeEntity {
   isSliding: boolean;
   /** A CC3D block the player pushed, still finishing its step: the ticks left before its cell acts on it. */
   arrivalTicks?: number;
+  /** Snappy and nibble of a converted CC3D level: the ticks left of the rest after a step they chose (or a blocked try), in which they decide nothing; runs beside the step and outlasts a slide. */
+  restTicks?: number;
   /** Turrets only: the way the turret fires; `dir` stays the way it was pushed or slides. */
   facing?: Direction;
   /** Rovers only: index, in the `emulates` list of the definition, of the monster whose behaviour it follows now. */
