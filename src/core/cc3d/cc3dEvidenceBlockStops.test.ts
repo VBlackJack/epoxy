@@ -94,7 +94,7 @@ describe('a CC3D block that slides into a monster', () => {
   it('a chain pushed by a slide, or by the ice block, into a monster plays the same in both engines', () => {
     const rows = ['@KDIIM.', '@ZKIIM.', '@ZDIIM.', '@KDDIM.', '@RDIIM.', '@KKIIM.', '@ZKKIM.', '@K>D>M.', '@KI>>DM.'];
     for (const row of rows) {
-      for (const kind of ['bouncer', 'walker']) {
+      for (const kind of ['bouncer', 'walker'] as const) {
         const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, D: { mob: { kind: 'block_dirt' } }, M: withMob(device('trap'), { kind, dir: 'W' }) };
         const t = playTimeline({ rows: room(row), moves: '', glyphs }, 'E');
         expect(t.sameSequence, `${row} ${kind}`).toBe(true);
@@ -106,14 +106,14 @@ describe('a CC3D block that slides into a monster', () => {
   it('a free walking monster that steps toward a sliding block: the dirt and colour blocks are off the CC3D timeline exactly as the ice block is', () => {
     // The walking monsters keep their own step phase in Epoxy (their coverage keys), so a free monster never matches the
     // CC3D timeline, ice block included. What the crush rule must not add is a difference of its own: the verdicts are the same.
-    const verdict = (glyph: string, row: string, kind: string): [boolean, boolean] => {
+    const verdict = (glyph: string, row: string, kind: 'bouncer' | 'walker' | 'limpa'): [boolean, boolean] => {
       const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, b: { mob: { kind, dir: 'W' } } };
       const t = playTimeline({ rows: room(row.replace('x', glyph)), moves: '', glyphs }, 'E');
       return [t.sameSequence, t.sameFinal];
     };
     for (const floor of ['III', '>>>']) {
       for (const row of [`@x${floor}b.`, `@x${floor}.b`, `@x${floor}.b.`]) {
-        for (const kind of ['bouncer', 'walker', 'limpa']) {
+        for (const kind of ['bouncer', 'walker', 'limpa'] as const) {
           const ice = verdict('Z', row, kind);
           // The timeline is the same kind of difference for all three blocks; the last state differs only because the ice
           // block is not crushed in either engine while the others are, so the last state is compared between dirt and colour.
