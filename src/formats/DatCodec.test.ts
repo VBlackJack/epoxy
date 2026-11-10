@@ -828,6 +828,14 @@ describe('DatCodec ruleset tagging', () => {
     expect(decoded.every((level) => level.ruleset === 'lynx')).toBe(true);
   });
 
+  it('flags the Epoxy reading with the classic rules flavor and leaves the Lynx reading alone', () => {
+    const bytes = toBuffer(DatCodec.encodeLevels([richLevel(1), blankLevel(2)]));
+    const epoxy = DatCodec.decodeBuffer(bytes, PREFIX, 'epoxy');
+    const lynx = DatCodec.decodeBuffer(bytes, PREFIX, 'lynx');
+    expect(epoxy.every((level) => level.rulesFlavor === 'cc')).toBe(true);
+    expect(lynx.some((level) => 'rulesFlavor' in level)).toBe(false);
+  });
+
   it('leaves the ruleset implicit for the default one', () => {
     const bytes = toBuffer(DatCodec.encodeLevels([richLevel(1), blankLevel(2)]));
     const decoded = DatCodec.decodeBuffer(bytes, PREFIX, DEFAULT_RULESET);

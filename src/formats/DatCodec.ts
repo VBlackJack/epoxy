@@ -94,6 +94,9 @@ const SWIMMING_CHIP_CODE_LAST = 0x3f;
 
 /** The ruleset whose reading of a .DAT follows Tile World's Lynx rules. */
 const LYNX_RULESET: Ruleset = 'lynx';
+
+/** The rules flavor of a level read with the Epoxy ruleset: the classic Chip's Challenge timing rules. */
+const CC_RULES_FLAVOR = 'cc' as const;
 /** Terrain the player can enter that turns into a wall when left: a wall under an item in the original files. */
 const RECESSED_WALL_TILE_ID = 'recessed_wall';
 
@@ -255,6 +258,8 @@ export class DatCodec {
             level.id = `${level.id}_${idx + 1}`;
           }
           if (ruleset !== DEFAULT_RULESET) level.ruleset = ruleset;
+          // The Epoxy reading plays the original game's timing rules; the Lynx reading is its own engine
+          if (ruleset !== LYNX_RULESET) level.rulesFlavor = CC_RULES_FLAVOR;
           usedIds.add(level.id);
           levels.push(level);
         }
