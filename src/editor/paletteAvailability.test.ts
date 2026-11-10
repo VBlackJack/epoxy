@@ -81,8 +81,9 @@ describe('paletteAvailability', () => {
       const isSignalTile = def.signalSource !== undefined || def.signalGate !== undefined;
       const isForceCycle = def.forceCycle === true;
       const isRail = def.railSides !== undefined || def.railJunction === true;
+      const isCc3dTwin = def.cc3dCornerBounce !== undefined || def.sealedTrap !== undefined;
       const result = tileAvailability('lynx', id);
-      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle || isRail));
+      expect(result.available, id).toBe(!(isLaser || isColourChannel || isEpoxyOnlyItem || isSteeringPad || isShotDevice || isSwivelDoor || isTransmogrifier || isTurnPlate || isSignalTile || isForceCycle || isRail || isCc3dTwin));
       if (!result.available) blocked.push(id);
     }
     expect(blocked.length).toBeGreaterThan(0);

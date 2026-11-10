@@ -21,6 +21,8 @@ import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V16_IDS, PACK_JSON_VERSION_V17
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
+import { isEpoxyOnlyTileId } from '../core/RulesetFeatures';
+import { EPOXY_ONLY_REASON_KEY, tileAvailability } from '../editor/paletteAvailability';
 import { makeLevel } from '../test/packFixtures';
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
@@ -95,6 +97,19 @@ describe('shipped format 17 fields', () => {
     expect(sealed.sealedTrap).toBe(true);
     expect(sealed.closesTo).toBeUndefined();
     expect(sealed.wiredTrap).toBeUndefined();
+  });
+});
+
+describe('Epoxy-only format 17 tiles', () => {
+  beforeEach(() => loadTestConfigs());
+
+  it('refuses the sealed trap and the CC3D ice corners under the Lynx rules, and not the native corners', () => {
+    for (const id of ['trap_sealed', 'ice_corner_3d_nw', 'ice_corner_3d_ne', 'ice_corner_3d_sw', 'ice_corner_3d_se']) {
+      expect(isEpoxyOnlyTileId(id), id).toBe(true);
+      expect(tileAvailability('lynx', id), id).toEqual({ available: false, reasonKey: EPOXY_ONLY_REASON_KEY });
+    }
+    expect(isEpoxyOnlyTileId('ice_nw')).toBe(false);
+    expect(tileAvailability('lynx', 'ice_nw')).toEqual({ available: true });
   });
 });
 
