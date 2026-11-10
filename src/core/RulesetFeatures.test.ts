@@ -363,6 +363,7 @@ describe('aids by level kind', () => {
 
   const grid = (cell: string): string[][] => [['wall', 'wall', 'wall'], ['wall', cell, 'wall'], ['wall', 'wall', 'wall']];
   const base = (cell: string, entityType?: string): FeatureLevelForTest => ({
+    id: 'aids_probe',
     ruleset: 'epoxy',
     terrain: grid(cell),
     items: grid('x').map((row) => row.map(() => null)),
@@ -380,5 +381,16 @@ describe('aids by level kind', () => {
   it('keeps the tapped path off on a steering level and a turret level with colour content', () => {
     expect(featuresFor(base('pressure_plate_red', 'turret_fixed')).tapToPath).toBe(false);
     expect(featuresFor({ ...base('pressure_plate_red'), signalLinks: [{ fromX: 1, fromY: 1, toX: 2, toY: 1 }] }).tapToPath).toBe(false);
+  });
+
+  it('turns the hint and the watch off on a converted CC3D level, by id suffix or by source marker', () => {
+    expect(featuresFor(base('floor')).blockHint).toBe(true);
+    expect(featuresFor(base('floor')).deadEndWatch).toBe(true);
+    for (const converted of [{ ...base('floor'), id: 'pack_1~epoxy' }, { ...base('floor'), id: 'pack_1~epoxy_2' }, { ...base('floor'), cc3dSource: {} as never }]) {
+      const features = featuresFor(converted);
+      expect(features.blockHint).toBe(false);
+      expect(features.deadEndWatch).toBe(false);
+      expect(features.tapToPath).toBe(true);
+    }
   });
 });

@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, RAILROAD_SIGN_ITEM_ID, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { isConvertedCc3dLevel } from './cc3d/cc3dConstants';
 import { CompiledLevel } from './types';
 
 /**
@@ -485,7 +486,7 @@ export function hasColorChannelContent(level: Pick<CompiledLevel, 'terrain' | 'i
 
 /** True when the level has signal wires, or places a signal source or gate (terrain or underlay layer). */
 export function hasSignalContent(
-  level: Partial<Pick<CompiledLevel, 'terrain' | 'underlays' | 'signalLinks'>>
+  level: Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'underlays' | 'signalLinks'>>
 ): boolean {
   if ((level.signalLinks?.length ?? 0) > 0) return true;
   const underlays = level.underlays ?? [];
@@ -547,7 +548,7 @@ const TURRET_RECEIVER_LEVEL_FEATURES_COLOR: RulesetFeatures = { ...RECEIVER_COLO
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
+  Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
@@ -663,12 +664,31 @@ function withoutSignalAids(base: RulesetFeatures): RulesetFeatures {
 /** The aid sets without item drop, kept per source set so a level of one kind always gets the same object. */
 const noDropFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
+const convertedCc3dFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/**
+ * A level converted from CC3D keeps no push hint and no dead-end watch: the block solver does not model the CC3D
+ * goals, and a brown button there is a trap control, not a block target. Cached per aid set.
+ */
+function withoutHintsOnConvertedCc3d(level: FeatureLevel | undefined, base: RulesetFeatures): RulesetFeatures {
+  if (level === undefined || typeof level.id !== 'string' || !isConvertedCc3dLevel({ id: level.id, cc3dSource: level.cc3dSource })) {
+    return base;
+  }
+  if (!base.blockHint && !base.deadEndWatch) return base;
+  let overlaid = convertedCc3dFeaturesCache.get(base);
+  if (!overlaid) {
+    overlaid = { ...base, blockHint: false, deadEndWatch: false };
+    convertedCc3dFeaturesCache.set(base, overlaid);
+  }
+  return overlaid;
+}
+
 /**
  * The aids available on a level, by the ruleset it is played under and the mechanics it uses. A classic (rules flavor 'cc') level that did not come from a CC2 file follows the
  * original Chip's Challenge 1, which has no item drop; CC2 imports keep it.
  */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
-  const features = contentFeaturesFor(level);
+  const features = withoutHintsOnConvertedCc3d(level, contentFeaturesFor(level));
   if (!features.itemDrop || level?.rulesFlavor !== 'cc' || level.cc2 !== undefined) return features;
   let noDrop = noDropFeaturesCache.get(features);
   if (noDrop === undefined) {
