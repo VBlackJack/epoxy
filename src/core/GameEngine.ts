@@ -58,6 +58,7 @@ import {
   executePlayerMove,
   isCarriedByForceFloor,
   processPlayerSlideStep,
+  resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
@@ -852,6 +853,8 @@ export class GameEngine {
       this.w.player.moveCooldown--;
     }
 
+    // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
+    if (this.w.ccRules) resumeForceCarry(this.w);
     if (this.w.player.isSliding) {
       if (this.w.player.slideCooldown > 0) {
         this.w.player.slideCooldown--;
@@ -928,6 +931,7 @@ export class GameEngine {
     this.w.rejectedPushMovedBlocks = false;
     // The mover may leave through an exit during the move, which hands control to the next player.
     const mover = this.w.player;
+    const permissionBefore = mover.forcePermission;
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     if (moved) {
@@ -958,7 +962,7 @@ export class GameEngine {
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
       if (!this.w.rejectedPushMovedBlocks) this.undoStack.pop();
-      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || this.w.player.dir !== dirBefore) {
+      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }
     }

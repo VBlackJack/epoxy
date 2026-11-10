@@ -171,3 +171,62 @@ describe('classic slide speed', () => {
     expect(native.every((g) => g === 3)).toBe(true);
   });
 });
+
+describe('classic force floor softlock', () => {
+  const WALL_LANE = ['#######', '#.@>>>##', '#......#', '#######'];
+
+  it('lets a player pushed against a wall choose again after a blocked press', () => {
+    const { engine, w } = start(WALL_LANE, true);
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < 12; i++) engine.tick();
+    expect(w.player.x).toBe(5);
+    settleCooldown(engine);
+    expect(engine.attemptPlayerMove('E')).toBe(false);
+    for (let i = 0; i < 3; i++) engine.tick();
+    expect(engine.attemptPlayerMove('S')).toBe(true);
+    expect(w.player.y).toBe(2);
+  });
+
+  it('lets a player who starts on a force floor be carried and then choose', () => {
+    const built = level(['#######', '#.>>>..#', '#......#', '#######'], true);
+    const engine = new GameEngine();
+    engine.loadLevel({ ...built, playerStart: { x: 2, y: 1, dir: 'S' } });
+    const w = (engine as unknown as { w: TestWorld }).w;
+    engine.tick();
+    engine.tick();
+    expect(w.player.x).toBeGreaterThan(2);
+    for (let i = 0; i < 12; i++) engine.tick();
+    expect(engine.attemptPlayerMove('S')).toBe(true);
+  });
+
+  it('lets a player who starts against a wall on a force floor choose', () => {
+    const built = level(['#####', '#.>##', '#...#', '#####'], true);
+    const engine = new GameEngine();
+    engine.loadLevel({ ...built, playerStart: { x: 2, y: 1, dir: 'S' } });
+    for (let i = 0; i < 3; i++) engine.tick();
+    expect(engine.attemptPlayerMove('S')).toBe(true);
+  });
+
+  it('plays a recorded blocked press the same live and in replay', () => {
+    const script = (engine: GameEngine, w: TestWorld, moves: { tick: number; dir: 'N' | 'E' | 'S' | 'W' }[]): string => {
+      let next = 0;
+      for (let t = 0; t < 40; t++) {
+        while (next < moves.length && moves[next].tick === engine.getTick()) engine.attemptPlayerMove(moves[next++].dir);
+        engine.tick();
+      }
+      return `${w.player.x},${w.player.y},${w.player.forcePermission}`;
+    };
+    const live = start(WALL_LANE, true);
+    const presses: Record<number, ('N' | 'E' | 'S' | 'W')[]> = { 0: ['E'], 20: ['E', 'S'] };
+    for (let t = 0; t < 40; t++) {
+      for (const dir of presses[t] ?? []) live.engine.attemptPlayerMove(dir);
+      live.engine.tick();
+    }
+    const state = `${live.w.player.x},${live.w.player.y},${live.w.player.forcePermission}`;
+    const history = live.engine.getTimedMoveHistory().map((m) => ({ tick: m.tick, dir: m.dir as 'N' | 'E' | 'S' | 'W' }));
+    const replay = start(WALL_LANE, true);
+    expect(script(replay.engine, replay.w, history)).toBe(state);
+    // The blocked press at tick 20 is in the history, so the replay replays it.
+    expect(history.some((m) => m.tick === 20 && m.dir === 'E')).toBe(true);
+  });
+});
