@@ -447,3 +447,13 @@ export const LYNX_RULES_VERSION = 1;
 
 /** Rules version of the CC3D engine, for replays recorded on CC3D levels. */
 export const CC3D_RULES_VERSION = 1;
+
+/**
+ * Feature switches. `foreignAuthoring` brings back the editing and export
+ * paths for other games' formats: the Lynx and CC3D rule sets for new levels,
+ * the CC3D room template, and the .DAT and CC3D XML exports. Off by default:
+ * Epoxy levels are authored for Epoxy. The code and its tests stay in place.
+ */
+export const FEATURE_FLAGS = {
+  foreignAuthoring: false
+} as const;

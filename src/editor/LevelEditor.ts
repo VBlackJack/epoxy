@@ -16,6 +16,7 @@
 
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
+import { isForeignAuthoringEnabled } from '../config/featureFlags';
 import { CC2_LEVEL_EXTENSION, IMPORTED_PACK_RULESET } from '../config/constants';
 import { InvalidLevelError, isPlayerCharacter, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { i18n, t } from '../i18n/I18nManager';
@@ -62,7 +63,7 @@ import { clonerTemplateMessage, clonersTemplateMessage, describeEditorCell, enti
 import { entityHasFacing } from './entityFacing';
 import { BlockCheckRunner, BlockCheckWorkerLike } from './blockCheckRunner';
 import { LevelCheckResult, LevelCheckRunner, LevelCheckWorkerLike } from './levelCheckRunner';
-import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, templateContent } from './levelTemplates';
+import { EMPTY_TEMPLATE_ID, LevelTemplate, loadLevelTemplates, offeredTemplates, templateContent } from './levelTemplates';
 import {
   GridCell,
   levelStartingAt,
@@ -1282,7 +1283,8 @@ export class LevelEditor {
     const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
     this.initBlankMap({
       packId: pack?.id ?? null,
-      ruleset: ruleset ?? (pack ? majorityRuleset(pack.levels) : undefined),
+      // A new level is an Epoxy level unless foreign authoring is on: a pack of another engine does not make it one.
+      ruleset: ruleset ?? (pack && isForeignAuthoringEnabled() ? majorityRuleset(pack.levels) : undefined),
       template
     });
   }
@@ -1301,7 +1303,8 @@ export class LevelEditor {
       if (!(await this.confirmDiscardIfDirty())) return;
       const packId = this.source.packId;
       const pack = packId ? ConfigRegistry.getEditablePacks().find((p) => p.id === packId) : undefined;
-      const lynxPack = pack !== undefined && majorityRuleset(pack.levels) === LYNX_RULESET;
+      const foreign = isForeignAuthoringEnabled();
+      const lynxPack = foreign && pack !== undefined && majorityRuleset(pack.levels) === LYNX_RULESET;
       const templates = lynxPack ? [] : await loadLevelTemplates();
       if (!templates) {
         this.openNewLevel(packId);
@@ -1313,8 +1316,8 @@ export class LevelEditor {
         message: t(lynxPack ? 'editor.template.lynx_only' : 'editor.template.message'),
         options: [
           { id: EMPTY_TEMPLATE_ID, label: t('editor.template.empty.label'), primary: true },
-          { id: CC3D_ROOM_CHOICE_ID, label: t('editor.template.cc3d_room.label') },
-          ...templates.map((template) => ({ id: template.id, label: t(template.labelKey) }))
+          ...(foreign ? [{ id: CC3D_ROOM_CHOICE_ID, label: t('editor.template.cc3d_room.label') }] : []),
+          ...offeredTemplates(templates).map((template) => ({ id: template.id, label: t(template.labelKey) }))
         ],
         cancelLabel: t('app.confirm.cancel.action')
       });
@@ -1323,7 +1326,7 @@ export class LevelEditor {
         this.openNewLevel(packId, undefined, CC3D_RULESET);
         return;
       }
-      this.openNewLevel(packId, templates.find((candidate) => candidate.id === choice));
+      this.openNewLevel(packId, offeredTemplates(templates).find((candidate) => candidate.id === choice));
     } finally {
       this.newLevelPending = false;
     }
@@ -2228,7 +2231,10 @@ export class LevelEditor {
         ccl.removeAttribute('title');
       }
     }
-    byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d);
+    // The .DAT and CC3D XML exports belong to foreign authoring: hidden while it is off.
+    const foreign = isForeignAuthoringEnabled();
+    byId('editor-export-xml-btn')?.classList.toggle('hidden', !cc3d || !foreign);
+    byId('editor-export-ccl-btn')?.classList.toggle('hidden', !foreign);
     for (const id of ['editor-field-winrule', 'editor-field-chips']) byId(id)?.classList.toggle('hidden', cc3d);
     this.updateToolButtons();
     this.refreshLayersList();
@@ -3508,7 +3514,10 @@ export class LevelEditor {
     // The engine of a level never changes into another one here: a CC3D level shows its own engine
     // read-only, and the other levels cannot take the CC3D option.
     rulesetEl.disabled = cc3d;
+    const foreign = isForeignAuthoringEnabled();
     for (const option of Array.from(rulesetEl.options)) {
+      // Without foreign authoring only the engine the level already has is listed besides Epoxy.
+      option.hidden = !foreign && option.value !== DEFAULT_RULESET && option.value !== (this.doc.ruleset ?? DEFAULT_RULESET);
       if (option.value === CC3D_RULESET) {
         option.disabled = !cc3d;
         option.title = cc3d ? '' : t('editor.metadata.ruleset_cc3d_unavailable.label');
