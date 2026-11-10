@@ -16,6 +16,7 @@
 
 import { ConfigRegistry, PackOperationResult } from '../config/ConfigRegistry';
 import { PACK_NAME_MAX_LENGTH } from '../config/constants';
+import { isForeignAuthoringEnabled } from '../config/featureFlags';
 import { convertCc3dLevel } from '../core/cc3d/cc3dToEpoxy';
 import { LevelValidator } from '../core/LevelValidator';
 import { CompiledLevel, LevelPack } from '../core/types';
@@ -491,6 +492,7 @@ export class PackManager {
     }
     const exportCcl = byId<HTMLButtonElement>('packs-export-ccl-btn');
     if (exportCcl) {
+      exportCcl.classList.toggle('hidden', !isForeignAuthoringEnabled());
       exportCcl.disabled = !actions.canExportCcl;
       this.setDisabledReason(exportCcl, !actions.canExportCcl, 'app.export.none_exportable.label');
     }

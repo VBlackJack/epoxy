@@ -22,6 +22,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     // DOM tests opt in per file with a `// @vitest-environment happy-dom` comment (see src/test/domFixture.ts).
-    environment: 'node'
+    environment: 'node',
+    // The foreign-authoring UI stays covered: its flag is on for every test unless a test turns it off.
+    setupFiles: ['src/test/foreignAuthoringOn.ts']
   }
 });

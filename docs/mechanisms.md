@@ -6,7 +6,7 @@ This page lists the mechanisms added after the Sanctuary archetypes of the [Puzz
 
 ## 0. Before you start
 
-- **Epoxy rules only.** Every mechanism below is played by the Epoxy engine. A Lynx level cannot hold them (the editor's `Rules` field switches a level between Epoxy and Lynx), and a native CC3D level has its own palette. The CC3D conversion and the CC2 import produce Epoxy-rules levels that use these mechanisms.
+- **Epoxy rules only.** Every mechanism below is played by the Epoxy engine. A Lynx level cannot hold them, and a native CC3D level has its own palette. New levels are Epoxy levels: the editor's `Rules` field offers Lynx or CC3D only for an existing level of that engine, which can still be switched to Epoxy. The CC3D conversion and the CC2 import produce Epoxy-rules levels that use these mechanisms.
 - **Pack formats 13, 14 and 15.** Levels that use them are written with pack format 13 (`PACK_JSON_VERSION_V13`); the CC2 mechanisms of section 1.14 need pack format 14, and those of sections 1.15 and 2.3 need pack format 15.
 - **Placing.** Pick the entry in the editor palette (the search field lists every variant by name) and paint it. Entries that come in variants (no-signs, counters, swivel doors, CC2 swivel doors, toggle switch) take one palette entry each: `R` cycles the brush through the family, the entry shows the variant in hand, and the eyedropper picks the variant under the cursor.
 - **Turning.** `R` rotates the brush clockwise (or goes to the next variant). `Shift+R` turns the creature or turret under the cursor, a floating stamp, or, for a track cell, its tracks a quarter turn.
