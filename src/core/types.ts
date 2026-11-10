@@ -1322,6 +1322,12 @@ export interface TileDefinition {
   /** A relay pad: the id of its other form, which the pad swaps to when its input changes. */
   relayTwin?: string;
   isTrap?: boolean;
+  /**
+   * Format 17, the sealed trap: a trap that no button ever opens. Whatever enters it stays held for good, whether or not a
+   * brown button is pressed or a wire is powered, and a trap link or a signal link ending on it changes nothing. Needs
+   * `isTrap` and neither `closesTo` nor `wiredTrap`.
+   */
+  sealedTrap?: boolean;
   isCloneMachine?: boolean;
   /** Whether a laser beam passes through the cell; every tile declares it. */
   laserTransparent?: boolean;
@@ -1524,6 +1530,12 @@ export interface EntityDefinition {
    * (the security gates), without changing them. A block only.
    */
   slidesOverTiles?: string[];
+  /**
+   * A block that, sliding on ice, stops where it is when the next cell refuses it (a wall, an appearing wall that its bump
+   * has just shown, a block it cannot push), as the CC3D blocks do; without it the block bounces back the way it came, as
+   * the CC2 blocks do. A force floor never bounces a block either way. Needs `slidesOnIce`.
+   */
+  stopsAtWall?: boolean;
   /**
    * Format 15, the CC3D ice block: the `chainPushes` list of the head block (the one the player pushes) governs the whole
    * line, whatever the blocks behind it would push themselves. Needs `chainPushes`.

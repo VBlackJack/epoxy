@@ -1892,6 +1892,9 @@
       "trap_link_target": {
         "label": "Warning: A trap link ends at ({x}, {y}), which is not a trap."
       },
+      "trap_link_sealed": {
+        "label": "Warning: A trap link ends at ({x}, {y}), a sealed trap that no link opens."
+      },
       "clone_link_button": {
         "label": "Warning: A clone link starts from ({x}, {y}), which is not a red button."
       },
@@ -2133,6 +2136,9 @@
       "opens_with_any": {
         "label": "opens with any brown button"
       },
+      "never_opens": {
+        "label": "sealed: no button ever opens it"
+      },
       "fires_cloners": {
         "label": "fires {count, plural, one {# clone machine} other {# clone machines}}"
       },
@@ -2371,6 +2377,7 @@
       "fallback": {
         "trap_button": "Opens unlinked traps while held (every brown button opens unlinked traps).",
         "trap_unlinked": "No link: any brown button opens it.",
+        "trap_sealed": "Sealed: no button or link ever opens it.",
         "trap_linked": "Answers to its linked buttons only.",
         "clone_any": "No link: fires every clone machine with a creature.",
         "clone_none": "No link, and no clone machine holds a creature: fires nothing.",
@@ -3970,15 +3977,15 @@
       },
       "appearing_wall": {
         "name": "Appearing wall",
-        "label": "The player bumping an appearing wall, or a block pushed into it, makes a wall, as in CC3D."
+        "label": "The player bumping an appearing wall, a block pushed into it, or a dirt or ice block sliding into it, makes a wall, as in CC3D."
       },
       "appearing_wall_with_monster": {
         "name": "Appearing wall in a level with a walking monster",
         "label": "A monster that reveals an appearing wall turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
       },
-      "appearing_wall_with_slide": {
-        "name": "Appearing wall and a block that can slide",
-        "label": "A block that slides into an appearing wall over ice or a force floor makes a wall in CC3D, where Epoxy leaves it as it is."
+      "block_slides_into_monster": {
+        "name": "Block that can slide into a monster",
+        "label": "A CC3D dirt or colour block that slides into a monster kills it, where the Epoxy block stops against it and leaves it alive. The ice block and a block pushed straight into a monster agree."
       },
       "orbs_over_cap": {
         "name": "More than four orbs",
@@ -4170,7 +4177,7 @@
       },
       "trap_unworked": {
         "name": "Trap without a control",
-        "label": "In a level that has trap controls, none works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button. An Epoxy trap link has no empty form, so the converter cannot keep it shut."
+        "label": "In a level that has trap controls, none works this trap: CC3D keeps it shut for good, and Epoxy plays it as a sealed trap, which no button opens."
       },
       "clone_switch_empty": {
         "name": "Clone switch with nothing to clone",
@@ -4181,8 +4188,8 @@
         "label": "A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays."
       },
       "laser_shooter_covered": {
-        "name": "Laser shooter on an item or another layer",
-        "label": "The shooter stands on an item or on a layer other than plain floor (a device, a machine, ground): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned."
+        "name": "Laser shooter on an item or a working layer",
+        "label": "The shooter stands on an item or on a layer that does something (a door, a device, a machine, fire, a force floor): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned. Gravel, dirt, ice, sand, water and a laser controller under a shooter do nothing in CC3D and are dropped without a loss."
       },
       "stacked_runtime": {
         "name": "Stack that acts while covered",
@@ -5152,6 +5159,12 @@
         "label": "A trap that starts open and holds nothing. The first time a linked button or wire releases or loses power, it becomes an ordinary trap. Needs: a link from a button or a signal source."
       }
     },
+    "trap_sealed": {
+      "name": "Sealed Trap (CC3D)",
+      "desc": {
+        "label": "A trap that no button ever opens: whatever enters it, a player, a monster or a block, stays held for good. A brown button or a wire linked to it changes nothing."
+      }
+    },
     "appearing_wall_any": {
       "name": "Appearing Wall (CC3D)",
       "desc": {
@@ -5808,16 +5821,40 @@
         "label": "A pushable block that moves toward all four sides, each of which shows an arrow. A push also moves the dirt blocks, ice blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push."
       }
     },
+    "color_block_3d_red": {
+      "name": "Red Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the red pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_green": {
+      "name": "Green Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the green pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_blue": {
+      "name": "Blue Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the blue pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
+    "color_block_3d_yellow": {
+      "name": "Yellow Color Block (CC3D)",
+      "desc": {
+        "label": "A pushable block that presses only the yellow pressure plates (other blocks and the player press any). Pushed into water, it floats as a walkable block. Sliding on ice, it stops against a wall instead of bouncing back."
+      }
+    },
     "dirt_block_3d": {
       "name": "Dirt Block (CC3D)",
       "desc": {
-        "label": "A pushable block that slides on ice and force floors. Pushed into water it turns the water into CC3D dirt, which a second block cannot fill again. It will not enter fire and it will not push onto an item. A bomb destroys it."
+        "label": "A pushable block that slides on ice and force floors. Pushed into water it turns the water into CC3D dirt, which a second block cannot fill again. It will not enter fire and it will not push onto an item. A bomb destroys it. Sliding on ice, it stops against a wall, a door or another block instead of bouncing back."
       }
     },
     "ice_block_3d": {
       "name": "Ice Block (CC3D)",
       "desc": {
-        "label": "A pushable block that slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over security gates without opening them, and it passes over CC3D dirt without clearing it."
+        "label": "A pushable block that slides on ice and force floors, turns water into ice and melts into water in fire. A push also moves the dirt blocks, ice blocks, colour blocks and arrow blocks lined up ahead of it; a wall, the map edge or a sliding block ahead refuses the whole push. It slides over security gates without opening them, and it passes over CC3D dirt without clearing it. Sliding on ice, it stops against a wall, a door or another block instead of bouncing back."
       }
     },
     "arrow_block_none": {

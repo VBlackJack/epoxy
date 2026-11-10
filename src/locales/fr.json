@@ -1892,6 +1892,9 @@
       "trap_link_target": {
         "label": "Avertissement : un lien de piège arrive en ({x}, {y}), qui n'est pas un piège."
       },
+      "trap_link_sealed": {
+        "label": "Avertissement : un lien de piège arrive en ({x}, {y}), un piège scellé qu'aucun lien n'ouvre."
+      },
       "clone_link_button": {
         "label": "Avertissement : un lien de clonage part de ({x}, {y}), qui n'est pas un bouton rouge."
       },
@@ -2133,6 +2136,9 @@
       "opens_with_any": {
         "label": "s'ouvre avec n'importe quel bouton brun"
       },
+      "never_opens": {
+        "label": "scellé : aucun bouton ne l'ouvre jamais"
+      },
       "fires_cloners": {
         "label": "active {count, plural, one {# machine à cloner} other {# machines à cloner}}"
       },
@@ -2371,6 +2377,7 @@
       "fallback": {
         "trap_button": "Ouvre les pièges sans lien tant qu'il est maintenu (tout bouton brun ouvre les pièges sans lien).",
         "trap_unlinked": "Aucun lien : n'importe quel bouton brun l'ouvre.",
+        "trap_sealed": "Scellé : aucun bouton ni lien ne l'ouvre jamais.",
         "trap_linked": "Ne répond qu'à ses boutons liés.",
         "clone_any": "Aucun lien : active toutes les machines à cloner qui portent une créature.",
         "clone_none": "Aucun lien, et aucune machine à cloner ne porte de créature : n'active rien.",
@@ -3970,15 +3977,15 @@
       },
       "appearing_wall": {
         "name": "Mur apparaissant",
-        "label": "Le joueur qui se cogne à un mur apparaissant, ou un bloc poussé dedans, en fait un mur, comme dans CC3D."
+        "label": "Le joueur qui se cogne à un mur apparaissant, un bloc poussé dedans, ou un bloc de terre ou de glace qui glisse contre lui, en fait un mur, comme dans CC3D."
       },
       "appearing_wall_with_monster": {
         "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
         "label": "Un monstre qui révèle un mur apparaissant fait demi-tour avec un pas de décalage par rapport à celui de CC3D ensuite, et un golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
       },
-      "appearing_wall_with_slide": {
-        "name": "Mur apparaissant et bloc qui peut glisser",
-        "label": "Un bloc qui glisse contre un mur apparaissant sur de la glace ou un sol de force en fait un mur dans CC3D, là où Epoxy le laisse tel quel."
+      "block_slides_into_monster": {
+        "name": "Bloc qui peut glisser sur un monstre",
+        "label": "Un bloc de terre ou de couleur CC3D qui glisse sur un monstre le tue, là où le bloc d'Epoxy s'arrête contre lui et le laisse en vie. Le bloc de glace et un bloc poussé droit sur un monstre sont identiques."
       },
       "orbs_over_cap": {
         "name": "Plus de quatre orbes",
@@ -4170,7 +4177,7 @@
       },
       "trap_unworked": {
         "name": "Piège sans commande",
-        "label": "Dans un niveau qui a des commandes de piège, aucune n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun. Un lien de piège d'Epoxy n'a pas de forme vide, le convertisseur ne peut donc pas le garder fermé."
+        "label": "Dans un niveau qui a des commandes de piège, aucune n'actionne ce piège : CC3D le garde fermé pour de bon, et Epoxy le joue comme un piège scellé, qu'aucun bouton n'ouvre."
       },
       "clone_switch_empty": {
         "name": "Interrupteur de clonage sans modèle",
@@ -4181,8 +4188,8 @@
         "label": "Une couche de bombe partage sa case avec un objet : Epoxy ne tient qu'un objet par case, donc la bombe est supprimée et l'objet reste."
       },
       "laser_shooter_covered": {
-        "name": "Tireur laser sur un objet ou une autre couche",
-        "label": "Le tireur se trouve sur un objet ou sur une couche autre que le sol ordinaire (un dispositif, une machine, un terrain) : le lanceur d'Epoxy remplace toute la case, donc ce qui s'y trouvait est supprimé, et un tireur utilisé comme modèle de clonage n'est pas cloné."
+        "name": "Tireur laser sur un objet ou une couche active",
+        "label": "Le tireur se trouve sur un objet ou sur une couche qui agit (une porte, un dispositif, une machine, du feu, un sol de force) : le lanceur d'Epoxy remplace toute la case, donc ce qui s'y trouvait est supprimé, et un tireur utilisé comme modèle de clonage n'est pas cloné. Le gravier, la terre, la glace, le sable, l'eau et un contrôleur laser sous un tireur ne font rien dans CC3D et sont supprimés sans perte."
       },
       "stacked_runtime": {
         "name": "Pile active sous une autre couche",
@@ -5152,6 +5159,12 @@
         "label": "Un piège qui commence ouvert et ne retient rien. La première fois qu'un bouton ou un fil relié le relâche ou perd son courant, il devient un piège ordinaire. Nécessite : un lien depuis un bouton ou une source de signal."
       }
     },
+    "trap_sealed": {
+      "name": "Piège scellé (CC3D)",
+      "desc": {
+        "label": "Un piège qu'aucun bouton n'ouvre jamais : ce qui y entre, joueur, monstre ou bloc, y reste retenu pour de bon. Un bouton marron ou un fil relié à lui ne change rien."
+      }
+    },
     "appearing_wall_any": {
       "name": "Mur apparaissant (CC3D)",
       "desc": {
@@ -5808,16 +5821,40 @@
         "label": "Un bloc poussable qui bouge vers les quatre côtés, chacun marqué d'une flèche. Une poussée déplace aussi les blocs de terre, de glace et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée."
       }
     },
+    "color_block_3d_red": {
+      "name": "Bloc de Couleur Rouge (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression rouges (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_green": {
+      "name": "Bloc de Couleur Vert (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression vertes (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_blue": {
+      "name": "Bloc de Couleur Bleu (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression bleues (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
+    "color_block_3d_yellow": {
+      "name": "Bloc de Couleur Jaune (CC3D)",
+      "desc": {
+        "label": "Un bloc poussable qui n'enfonce que les plaques de pression jaunes (les autres blocs et le joueur enfoncent toutes les plaques). Poussé dans l'eau, il flotte et devient praticable. En glissant sur la glace, il s'arrête contre un mur au lieu de rebondir."
+      }
+    },
     "dirt_block_3d": {
       "name": "Bloc de terre (CC3D)",
       "desc": {
-        "label": "Un bloc poussable qui glisse sur la glace et les sols de force. Poussé dans l'eau, il la change en terre CC3D, qu'un second bloc ne peut plus combler. Il n'entre pas dans le feu et ne se pousse pas sur un objet. Une bombe le détruit."
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force. Poussé dans l'eau, il la change en terre CC3D, qu'un second bloc ne peut plus combler. Il n'entre pas dans le feu et ne se pousse pas sur un objet. Une bombe le détruit. En glissant sur la glace, il s'arrête contre un mur, une porte ou un autre bloc au lieu de rebondir."
       }
     },
     "ice_block_3d": {
       "name": "Bloc de glace (CC3D)",
       "desc": {
-        "label": "Un bloc poussable qui glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir, et passe sur la terre CC3D sans la dégager."
+        "label": "Un bloc poussable qui glisse sur la glace et les sols de force, change l'eau en glace et fond en eau dans le feu. Une poussée déplace aussi les blocs de terre, de glace, de couleur et à flèches alignés devant lui ; un mur, le bord de la carte ou un bloc qui glisse devant refuse toute la poussée. Il glisse par-dessus les barrières de sécurité sans les ouvrir, et passe sur la terre CC3D sans la dégager. En glissant sur la glace, il s'arrête contre un mur, une porte ou un autre bloc au lieu de rebondir."
       }
     },
     "arrow_block_none": {

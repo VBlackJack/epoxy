@@ -467,7 +467,8 @@ function tileDefinitionOf(id: string | undefined): TileDefinition | undefined {
 function tileHoldsLinkEnd(tile: TileDefinition | undefined, system: ButtonLinkSystem, end: LinkEnd): boolean {
   if (!tile) return false;
   if (end === 'button') return tile.buttonAction === (system === 'trap' ? 'hold_trap' : 'trigger_cloner');
-  return (system === 'trap' ? tile.isTrap : tile.isCloneMachine) === true;
+  // A sealed trap answers to no button, so no link may end on it.
+  return (system === 'trap' ? tile.isTrap === true && tile.sealedTrap !== true : tile.isCloneMachine) === true;
 }
 
 /**

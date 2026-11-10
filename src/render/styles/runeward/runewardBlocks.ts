@@ -36,6 +36,7 @@ import type {
   RunewardSolidColours
 } from '../../../core/types';
 import { paintColorGlyph } from '../../colorGlyph';
+import { drawsMark, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
 import { hasInkHatching, heavyLineWidth, inkLineWidth, paintHatching, paintVerticalHatching } from './runewardInk';
 import { linear, roundRect } from './runewardPainters';
 import type { RunewardEntityPainter } from './runewardTiles';
@@ -496,6 +497,8 @@ function blockColour(id: string, art: Art): RunewardKeyColour | null {
 }
 
 const COLOUR_BLOCK_IDS: readonly string[] = ['color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow'];
+/** The CC3D colour blocks (format 17): the colour block of the channel with the 3d corner badge. */
+const COLOUR_BLOCK_3D_IDS: readonly string[] = ['color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow'];
 const ARROW_BLOCK_IDS: readonly string[] = ['arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross', 'arrow_block_none'];
 const MIRROR_IDS: readonly string[] = ['mirror_slash', 'mirror_backslash'];
 const ONE_SIDED_MIRROR_IDS: readonly string[] = [
@@ -524,6 +527,17 @@ const drawOneSidedMirror: BlockDrawing = (ctx, size, art, _dir, id) => {
   paintOneSidedMirror(ctx, size, art, ConfigRegistry.getEntityDef(id)?.mirrorFrontCorner ?? 'NE');
 };
 
+/** A CC3D colour block: the colour block of its channel with the 3d badge, which is left out in play on an imported level. */
+function colourBlock3dPainter(id: string): RunewardEntityPainter {
+  const base = entityPainter(drawColourBlock, id);
+  return (ctx, dir, x, y, size, env) => {
+    base(ctx, dir, x, y, size, env);
+    if (drawsMark('3d', { isEditor: false, importedLevel: env.hideLookAlikeMarks === true })) {
+      paintCc2Mark(ctx, '3d', x, y, size, runewardMarkColours(env.art, '3d'));
+    }
+  };
+}
+
 /** Painters by entity type; an id moves here from PENDING when its painter lands. */
 export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = Object.fromEntries([
   ['dirt_block', entityPainter((ctx, size, art) => paintDirtBlock(ctx, size, art), 'dirt_block')],
@@ -531,6 +545,7 @@ export const ENTITIES: Readonly<Record<string, RunewardEntityPainter>> = Object.
   ['ice_block', entityPainter((ctx, size, art) => paintIceBlock(ctx, size, art), 'ice_block')],
   ['ice_block_3d', entityPainter((ctx, size, art) => paintIceBlock3d(ctx, size, art), 'ice_block_3d')],
   ...COLOUR_BLOCK_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawColourBlock, id)]),
+  ...COLOUR_BLOCK_3D_IDS.map((id): [string, RunewardEntityPainter] => [id, colourBlock3dPainter(id)]),
   ...ARROW_BLOCK_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawArrowBlock, id)]),
   ...MIRROR_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawMirror, id)]),
   ...ONE_SIDED_MIRROR_IDS.map((id): [string, RunewardEntityPainter] => [id, entityPainter(drawOneSidedMirror, id)])

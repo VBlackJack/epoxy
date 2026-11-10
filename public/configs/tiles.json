@@ -1447,6 +1447,18 @@
       "passableByBlock": true,
       "isTrap": true
     },
+    "trap_sealed": {
+      "id": "trap_sealed",
+      "category": "mechanisms",
+      "layer": "terrain",
+      "i18nKey": "tiles.trap_sealed.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": true,
+      "passableByBlock": true,
+      "isTrap": true,
+      "sealedTrap": true
+    },
     "clone_machine": {
       "id": "clone_machine",
       "category": "mechanisms",

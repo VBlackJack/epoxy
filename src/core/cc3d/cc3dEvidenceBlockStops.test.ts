@@ -1,0 +1,93 @@
+/*
+ * Copyright 2026 Julien Bombled
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
+
+import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { device, playTimeline, room, withMob } from './cc3dEvidenceRig';
+import { cc3dModel, terrain } from './cc3dTestMaps';
+import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
+import type { GlyphMeaning } from './cc3dTestMaps';
+
+/**
+ * The CC3D dirt, ice and colour blocks stop where they are when a slide on ice meets something that refuses them
+ * (stopsAtWall on dirt_block_3d, ice_block_3d and color_block_3d_<colour>). Each obstacle is played on the CC3D engine and
+ * on its conversion, one press pushing the block onto the ice, and the two timelines must be the same.
+ */
+
+beforeEach(() => {
+  loadTestConfigs();
+});
+
+const BLOCKS: Array<[string, string]> = [
+  ['dirt block', 'K'],
+  ['ice block', 'Z'],
+  ['colour block', 'R']
+];
+
+const GLYPHS: Record<string, GlyphMeaning> = {
+  R: { mob: { kind: 'block_color', color: 'red' } },
+  // A monster held in a trap with no control: it cannot move out of the way.
+  M: withMob(device('trap'), { kind: 'bouncer', dir: 'W' }),
+  // A block against the wall behind it, which the sliding block cannot push.
+  D: { mob: { kind: 'block_dirt' } },
+  d: device('door', { color: 'red' }),
+  // The last ice cell has a thin wall on its east side.
+  T: { stack: [{ kind: 'ice' }], panels: ['E'] },
+  c: terrain('ice_corner', { corner: ['S', 'E'] }),
+  e: terrain('ice_corner', { corner: ['N', 'W'] })
+};
+
+const OBSTACLES: Array<[string, string]> = [
+  ['a wall', '@xIII#.'],
+  ['a block it cannot push', '@xIIID#'],
+  ['a closed door', '@xIIId.'],
+  ['a thin wall', '@xIIT..'],
+  ['an ice corner closed on its east side', '@xIIIc.'],
+  ['an ice corner open on its east side', '@xIIIe.']
+];
+
+describe('a CC3D block that slides into a monster', () => {
+  it('kills it when the block is a dirt or colour block, which Epoxy does not; the ice block agrees', () => {
+    for (const [blockName, glyph] of BLOCKS) {
+      for (const floor of ['III', '>>>']) {
+        const t = playTimeline({ rows: room(`@${glyph}${floor}M.`), moves: '', glyphs: GLYPHS }, 'E');
+        expect(t.sameSequence, `${blockName} on ${floor}`).toBe(glyph === 'Z');
+      }
+    }
+    // The coverage names it: a slide terrain, a dirt or colour block and a walking monster on one map.
+    const level = cc3dModel(room('@KIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } });
+    expect(classifyLevel(level).approx).toContain('block_slides_into_monster');
+    expect(classifyLevel(cc3dModel(room('@ZIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } })).approx).not.toContain('block_slides_into_monster');
+    expect(EPOXY_COVERAGE.block_slides_into_monster.level).toBe('approx');
+    expect(EPOXY_COVERAGE.block_slides_into_monster.reason).toContain('cc3dEvidenceBlockStops.test.ts');
+  });
+});
+
+describe('a CC3D block sliding on ice stops against what refuses it, as in CC3D', () => {
+  for (const [blockName, glyph] of BLOCKS) {
+    for (const [obstacleName, pattern] of OBSTACLES) {
+      it(`${blockName} against ${obstacleName}`, () => {
+        const rows = room(pattern.replace('x', glyph));
+        const t = playTimeline({ rows, moves: '', glyphs: GLYPHS }, 'E');
+        expect(t.sameSequence, `${blockName} ${obstacleName}`).toBe(true);
+        expect(t.sameFinal).toBe(true);
+      });
+    }
+  }
+});

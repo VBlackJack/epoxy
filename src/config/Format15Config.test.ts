@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { findFormat15ConfigErrors } from './ConfigValidation';
 import { ConfigRegistry } from './ConfigRegistry';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V14_IDS, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V15_IDS } from './constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V14_IDS, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V15_IDS } from './constants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
@@ -55,7 +55,7 @@ describe('format 15 ids', () => {
   it('lists exactly the new ids, none of them in an older format', () => {
     expect([...PACK_JSON_VERSION_V15_IDS].sort()).toEqual([...NEW_IDS].sort());
     for (const id of NEW_IDS) expect(PACK_JSON_VERSION_V14_IDS.has(id), id).toBe(false);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V16);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V17);
   });
 
   it('defines every new id in the shipped configs', () => {
@@ -87,7 +87,7 @@ describe('format 15 ids', () => {
     const level = makeLevel('f15');
     level.terrain[1][1] = 'dirt_3d';
     const file = JSON.parse(serializePack('P', [level]));
-    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V16 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
+    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V17 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
     expect(read).toEqual({ ok: false, error: 'version' });
   });
 
@@ -179,6 +179,7 @@ describe('shipped format 15 fields', () => {
     const expected = [
       'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d',
       'color_block_red', 'color_block_green', 'color_block_blue', 'color_block_yellow',
+      'color_block_3d_red', 'color_block_3d_green', 'color_block_3d_blue', 'color_block_3d_yellow',
       'arrow_block_one', 'arrow_block_line', 'arrow_block_corner', 'arrow_block_tee', 'arrow_block_cross',
       ...MIRROR_AND_TURRET_BLOCKS
     ];
@@ -186,6 +187,13 @@ describe('shipped format 15 fields', () => {
     expect(entities.ice_block_3d.chainPushesTransitive).toBe(true);
     expect(entities.ice_block_3d.slidesOverTiles).toEqual(['thief', 'thief_keys']);
     expect(entities.ice_block_3d.epoxyOnly).toBe(true);
+  });
+
+  it('stops the CC3D dirt and ice blocks at what refuses them on ice, where the other blocks bounce back', () => {
+    const { entities } = clones();
+    expect(entities.dirt_block_3d.stopsAtWall).toBe(true);
+    expect(entities.ice_block_3d.stopsAtWall).toBe(true);
+    for (const id of ['dirt_block', 'ice_block', 'color_block_red']) expect(entities[id].stopsAtWall, id).toBeUndefined();
   });
 });
 
@@ -264,6 +272,13 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ slidesOverTiles: ['nowhere'] })).toEqual(['ice_block_3d.slidesOverTiles: "nowhere" is not the id of an existing tile']);
     expect(errors({ slidesOverTiles: [] })).toEqual(['ice_block_3d.slidesOverTiles: expected a non-empty list of tile ids']);
     expect(errors({ kind: 'monster' })).toEqual(['ice_block_3d.slidesOverTiles: only a block slides over tiles']);
+  });
+
+  it('refuses stopsAtWall on a block that does not slide on ice, or that is not true', () => {
+    const { tiles, entities } = clones();
+    const errors = (patch: Record<string, unknown>) => findFormat15ConfigErrors(tiles, { ...entities, ice_block_3d: { ...entities.ice_block_3d, ...patch } }).monsters;
+    expect(errors({ stopsAtWall: false })).toEqual(['ice_block_3d.stopsAtWall: expected true']);
+    expect(errors({ slidesOnIce: false })).toEqual(['ice_block_3d.stopsAtWall: only a block that slides on ice stops at a wall']);
   });
 });
 

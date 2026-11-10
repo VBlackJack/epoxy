@@ -58,7 +58,7 @@ const ARROW_BLOCK_IDS = ['arrow_block_one', 'arrow_block_line', 'arrow_block_cor
 const MIRROR_IDS = ['mirror_slash', 'mirror_backslash'];
 const ONE_SIDED: readonly MirrorCorner[] = ['NE', 'NW', 'SE', 'SW'];
 const PAINTED_IDS = [
-  'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d', ...CHANNELS.map((c) => `color_block_${c}`), ...ARROW_BLOCK_IDS, ...MIRROR_IDS,
+  'dirt_block', 'dirt_block_3d', 'ice_block', 'ice_block_3d', ...CHANNELS.map((c) => `color_block_${c}`), ...CHANNELS.map((c) => `color_block_3d_${c}`), ...ARROW_BLOCK_IDS, ...MIRROR_IDS,
   ...ONE_SIDED.map((c) => `one_sided_mirror_${c.toLowerCase()}`)
 ];
 

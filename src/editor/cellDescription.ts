@@ -40,6 +40,7 @@ const FIRED_BY_KEY = 'editor.cell_speech.fired_by.label';
 const OPENS_TRAPS_KEY = 'editor.cell_speech.opens_traps.label';
 const OPENED_BY_KEY = 'editor.cell_speech.opened_by.label';
 const OPENS_WITH_ANY_KEY = 'editor.cell_speech.opens_with_any.label';
+const NEVER_OPENS_KEY = 'editor.cell_speech.never_opens.label';
 const FIRES_CLONERS_KEY = 'editor.cell_speech.fires_cloners.label';
 const FIRES_ANY_CLONER_KEY = 'editor.cell_speech.fires_any_cloner.label';
 const CLONER_FIRED_BY_KEY = 'editor.cell_speech.cloner_fired_by.label';
@@ -131,7 +132,9 @@ function deviceLinkParts(map: EditorMap, x: number, y: number, hidden: string | 
     const count = map.trapLinks.filter((l) => l.buttonX === x && l.buttonY === y).length;
     if (count > 0) parts.push({ key: OPENS_TRAPS_KEY, params: { count } });
   }
-  if (tiles.some((tile) => tile.isTrap)) {
+  if (tiles.some((tile) => tile.sealedTrap === true)) {
+    parts.push({ key: NEVER_OPENS_KEY });
+  } else if (tiles.some((tile) => tile.isTrap)) {
     const count = map.trapLinks.filter((l) => l.trapX === x && l.trapY === y).length;
     parts.push(count > 0 ? { key: OPENED_BY_KEY, params: { count } } : { key: OPENS_WITH_ANY_KEY });
   }

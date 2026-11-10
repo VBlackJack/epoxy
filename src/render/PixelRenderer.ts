@@ -69,6 +69,7 @@ import {
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
   drawsMark,
+  SEALED_TRAP_TILE,
   isImportedLevel,
   paintCc2Mark,
   paletteMarkColours,
@@ -589,12 +590,18 @@ const FLOATING_BLOCK_COLORS: Readonly<Record<string, string>> = Object.fromEntri
   CHANNEL_PAINTER_COLORS.map((c) => [`floating_block_${c}`, c])
 );
 
+/** The CC3D colour blocks (format 17) and the colour block each one is drawn as. */
+const CC3D_COLOR_BLOCK_BASES: Readonly<Record<string, string>> = Object.fromEntries(
+  CHANNEL_PAINTER_COLORS.map((c) => [`color_block_3d_${c}`, `color_block_${c}`])
+);
+
 const BLOCK_TYPES:ReadonlySet<string> = new Set([
   'dirt_block',
   'dirt_block_3d',
   'ice_block',
   'ice_block_3d',
-  ...CHANNEL_PAINTER_COLORS.map((c) => `color_block_${c}`)
+  ...CHANNEL_PAINTER_COLORS.map((c) => `color_block_${c}`),
+  ...Object.keys(CC3D_COLOR_BLOCK_BASES)
 ]);
 const GLOWING_MONSTERS: ReadonlySet<string> = new Set(['fireball', 'pink_ball', 'glider']);
 /** Monsters drawn facing their direction of travel; the others stay upright and look towards it. */
@@ -2184,7 +2191,7 @@ export class PixelRenderer {
             continue;
           }
         }
-        const isClosedTrap = tileId === 'trap' || tileId === WIRED_TRAP_TILE ? engine.isCellClosedTrap(mx, my) : false;
+        const isClosedTrap = tileId === 'trap' || tileId === WIRED_TRAP_TILE || tileId === SEALED_TRAP_TILE ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
       }
@@ -5925,6 +5932,15 @@ export class PixelRenderer {
       ctx.globalAlpha = LURKER_EDITOR_MARKER_ALPHA;
       this.drawEntity(ctx, awake, dir, x, y, size);
       ctx.restore();
+    }
+    // A CC3D colour block (format 17) is the colour block of its colour with the 3d badge, in every style.
+    const colourBase = CC3D_COLOR_BLOCK_BASES[type];
+    if (colourBase !== undefined && !this.runewardPainters()) {
+      this.drawEntity(ctx, colourBase, dir, x, y, size, isEditor);
+      if (drawsMark('3d', { isEditor: isEditor || !this.inFrame, importedLevel: this.frameImportedLevel })) {
+        paintCc2Mark(ctx, '3d', x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, '3d'));
+      }
+      return;
     }
     const runewardEntities = this.runewardPainters();
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;

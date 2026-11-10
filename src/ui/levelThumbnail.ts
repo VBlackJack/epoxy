@@ -134,6 +134,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   dirt_3d: 'dirtBase',
   popup_wall_cc2: 'floorBorder',
   trap_open: 'trapBorder',
+  trap_sealed: 'trapBorder',
   appearing_wall_any: 'floorBase',
   slime_3d: 'slimeBase',
   teleport_red_cc2_off: 'teleportRing',

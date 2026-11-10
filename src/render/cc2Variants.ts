@@ -42,6 +42,9 @@ import {
   paintTurningBadge
 } from './cc2Marks';
 
+/** The sealed trap (format 17): always drawn closed, whatever buttons are pressed. */
+export const SEALED_TRAP_TILE = 'trap_sealed';
+
 /** The marks a look-alike can wear. */
 export type Cc2Mark = 'toggle' | 'tread' | 'rivets' | 'sign_chip' | 'sign_melinda' | 'foil' | 'pause' | 'bribe' | 'bolt' | 'no_sign' | 'rail' | 'dynamite' | 'fish' | 'forward' | 'turning' | 'cc2' | 'random' | 'barrier' | 'helmet' | '3d' | 'off';
 
@@ -95,7 +98,9 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   teleport_red_cc2_off: { base: 'teleport_red', mark: 'off' },
   transmogrifier_cc2_off: { base: 'transmogrifier', mark: 'off' },
   // The format 16 look-alike: the CC2 orange button, held down by any actor, on the signal plate.
-  button_orange_cc2: { base: 'signal_plate', mark: 'cc2' }
+  button_orange_cc2: { base: 'signal_plate', mark: 'cc2' },
+  // The format 17 look-alike: the CC3D trap that no button opens, on the trap.
+  [SEALED_TRAP_TILE]: { base: 'trap', mark: '3d' }
 };
 
 /** The letter set on the plate of each gender sign, or on the corner badge of a look-alike: its initial or symbol. */

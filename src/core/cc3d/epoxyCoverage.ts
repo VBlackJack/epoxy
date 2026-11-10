@@ -46,7 +46,7 @@ export const KEY_PANELS_ON_NONFLOOR = 'panels_on_nonfloor';
 /** The red socket, as the key of one whose layer below is not plain floor (the plain one keeps its kind as key). */
 export const KEY_SOCKET_RED = 'socket_red';
 export const KEY_SOCKET_RED_STACKED = 'socket_red_stacked';
-/** A trap no trap control works, on a map that has trap controls: CC3D keeps it shut, Epoxy opens an unlinked trap with any brown button. */
+/** A trap no trap control works, on a map that has trap controls: CC3D keeps it shut for good, and Epoxy plays it as the sealed trap (format 17). */
 export const KEY_TRAP_UNWORKED = 'trap_unworked';
 /** A level with plain gravel and a reflector: CC3D gravel refuses reflectors, the Epoxy one admits mirrors. */
 export const KEY_GRAVEL_WITH_REFLECTOR = 'gravel_with_reflector';
@@ -56,13 +56,13 @@ export const KEY_ORBS_OVER_CAP = 'orbs_over_cap';
 export const KEY_APPEARING_WALL_WITH_MONSTER = 'appearing_wall_with_monster';
 /** Two or more walking monsters on a map, one of a kind whose head-on meeting differs between the engines. */
 export const KEY_MONSTERS_MEET = 'monsters_meet';
-/** An appearing wall on a map where a block can slide (ice or force floor): a sliding block does not reveal it in Epoxy. */
-export const KEY_APPEARING_WALL_WITH_SLIDE = 'appearing_wall_with_slide';
+/** A dirt or colour block, a slide terrain (ice or force floor) and a walking monster on one map: the CC3D block kills a monster it slides into. */
+export const KEY_BLOCK_SLIDES_INTO_MONSTER = 'block_slides_into_monster';
 /** A clone switch whose nearest machine holds no template Epoxy can clone. */
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
 export const KEY_BOMB_WITH_ITEM = 'bomb_with_item';
-/** A laser shooter standing on an item or on a layer other than plain floor. */
+/** A laser shooter standing on an item or on a layer that does something (not plain floor, nor the inert ground and laser controller). */
 export const KEY_LASER_SHOOTER_COVERED = 'laser_shooter_covered';
 
 const KEY_SEPARATOR = '_';
@@ -103,7 +103,7 @@ const MONSTERS_MEET_REASON =
 const BLOCK_GAPS =
   'The dirt block is dirt_block_3d, which refuses fire and items and makes dirt_3d in water, as the CC3D one does.';
 const COLOR_BLOCK_REASON =
-  'Plates (its own colour only), fire and items (both refused), dirt (entered and cleared, dirt_3d), slime, bombs, gravel, sand, ice, force floors, water (it floats, and no second block is pushed onto it), the open blue gate (it clears it) and the exit behave as in CC3D (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts).';
+  'Epoxy plays the CC3D colour block as color_block_3d_<colour> (pack format 17), the colour block that stops against a wall on ice instead of bouncing back. Plates (its own colour only), fire and items (both refused), dirt (entered and cleared, dirt_3d), slime, bombs, gravel, sand, ice, force floors, water (it floats, and no second block is pushed onto it), the open blue gate (it clears it) and the exit behave as in CC3D (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts).';
 const BLOCK_DIRT_REASON =
   'Epoxy plays the CC3D dirt block as dirt_block_3d. Plates, dirt (entered and cleared, dirt_3d), slime, bombs, gravel, sand, ice, force floors, the open blue gate (it clears it), the exit and the security gates behave as in CC3D. Water makes dirt_3d, which a second block enters and clears, and fire and any item cell refuse the block (cc3dEvidenceBlocks.test.ts, cc3dEvidenceTerrain.test.ts).';
 const BLOCK_ICE_REASON =
@@ -117,9 +117,9 @@ const DIRT_REASON =
 const SLIME_REASON =
   'Epoxy plays CC3D slime as slime_3d: it kills the player and is cleaned away with any block that enters it, and a player holding the fire and the water orb together survives it and cleans it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and the blue golem refuse slime, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts). The trail an omni leaves is slime_3d too.';
 const APPEARING_WALL_REASON =
-  'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, the player sliding into it and a block pushed into it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). Two cases differ and are keys of their own: a walking monster on the map (appearing_wall_with_monster) and a block that can slide into it over ice or a force floor (appearing_wall_with_slide).';
-const APPEARING_WALL_WITH_SLIDE_REASON =
-  'The map has an appearing wall, a block and ice or force floor: a block that slides into the wall turns it into a wall in CC3D, where Epoxy leaves it as it is (cc3dEvidenceTerrain.test.ts).';
+  'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, the player sliding into it and a block pushed into it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). A block sliding into it over ice or a force floor turns it into a wall too (dirt and ice blocks: cc3dEvidenceTerrain.test.ts; colour blocks too). One case differs and is a key of its own: a walking monster on the map (appearing_wall_with_monster).';
+const BLOCK_SLIDES_INTO_MONSTER_REASON =
+  'The map has a dirt or colour block, ice or a force floor and a walking monster: a CC3D dirt or colour block that slides into a monster kills it and goes on into its cell, where the Epoxy block stops against the monster and leaves it alive. A block pushed straight into a monster is refused in both engines, and the ice block agrees (cc3dEvidenceBlockStops.test.ts).';
 const APPEARING_WALL_WITH_MONSTER_REASON =
   'Epoxy plays CC3D appearing wall as appearing_wall_any (cc3dEvidenceTerrain.test.ts), but the map has a walking monster: the monster that reveals it turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers rather than lets walk, leaves the wall as it is where the CC3D golem makes it a wall (cc3dEvidenceYellowGolem.test.ts).';
 const GATE_TOOLS_REASON =
@@ -148,7 +148,7 @@ const GOLEM_CONTROL_YELLOW_REASON =
 const LASER_CONTROLLER_REASON =
   'Epoxy plays the laser controller as its shot trigger, linked to the shooters it fires (the nearest shooter in CC3D); any mob works it in CC3D, and Epoxy lets whatever steps on it work it; in Epoxy a trigger hidden under a removable top acts only once revealed [unverified].';
 const LASER_SHOOTER_REASON =
-  'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened; a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
+  'Epoxy plays the shooter as a shot launcher: a wall-like terrain tile that fires the way it faces, so the terrain under the shooter is flattened (the layers that do nothing under a shooter are no loss, see laser_shooter_covered); a shot crosses cells at the CC3D pace but its opacity follows Epoxy laser transparency, and the exit differs; the order of the first cell hit differs [unverified].';
 const NIBBLE_REASON =
   'Epoxy plays the nibble as a monster of its own: it steps away from the player along the axis of the greater distance (horizontal on a tie), tries the other axis only when not lined up, and waits otherwise, with its rest folded into an eight-tick step.' +
   MONSTER_EVIDENCE +
@@ -204,13 +204,13 @@ const WALKER_REASON =
 const OMNI_REASON =
   'Epoxy plays the omni as a monster of its own: it draws one direction at random, waits when the draw is blocked, steps in eight ticks, refuses water and fire, is not hurt by slime and leaves slime on the bare floor it steps out of once it has stood on slime (cc3dEvidenceMonsters.test.ts agrees on a corridor it cannot leave, the trail included). The trail is slime_3d, so a player holding the fire and the water orb together survives it as in CC3D. The draws of the two engines come from different random sequences, so a roaming omni cannot be matched step by step [unverified].';
 const TRAP_UNWORKED_REASON =
-  'No trap control works this trap, on a map that has trap controls: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button (cc3dEvidenceDevices.test.ts). An Epoxy trap link has no empty form, so the converter cannot say "worked by nothing". A map without any trap control has no brown button either, and the trap stays shut in both engines (cc3dEvidenceDevices.test.ts).';
+  'Epoxy plays a trap no control works, on a map that has trap controls, as the sealed trap (trap_sealed, pack format 17): no button ever opens it, and the player, a block or a monster that enters it stays held for good, as in CC3D (cc3dEvidenceDevices.test.ts). A map without any trap control has no brown button either, and the plain trap stays shut in both engines (cc3dEvidenceDevices.test.ts).';
 const CLONE_SWITCH_EMPTY_REASON =
   'The nearest clone machine of this switch holds no template Epoxy can clone (none, or a laser shooter): CC3D does nothing, and a switch left unlinked would fire every machine in Epoxy, so the converter drops the switch link.';
 const BOMB_WITH_ITEM_REASON =
   'A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays.';
 const LASER_SHOOTER_COVERED_REASON =
-  'The shooter stands on an item or on a layer other than plain floor (a device, a machine, ground): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned.';
+  'The shooter stands on an item or on a layer that does something (a door, a device, a machine, fire, a force floor): the Epoxy launcher replaces the whole cell, so what was there is dropped, and a shooter used as a clone template is not cloned. Gravel, dirt, ice, sand, water and a laser controller under a shooter do nothing in CC3D and are dropped without a loss (cc3dEvidenceShooter.test.ts).';
 const GRAVEL_PLAIN_REASON =
   'Epoxy plays plain gravel as CC3D does: the player and every block may enter it, monsters may not (cc3dEvidenceTerrain.test.ts).';
 const BOMB_REASON =
@@ -232,7 +232,7 @@ const EXACT_KEYS: readonly string[] = [
   'fish', 'key', 'plate_red', 'plate_green', 'plate_blue', 'plate_yellow', 'appearing_wall', 'orb_ice', 'orb_force', 'orb_fire', 'orb_water', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
-  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
+  'gravel', 'bomb', 'trap', 'trap_control', KEY_TRAP_UNWORKED, 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR,
   // A stack Epoxy holds exactly: see classifyStack.
@@ -267,6 +267,7 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   bomb: BOMB_REASON,
   trap: TRAP_REASON,
   trap_control: TRAP_CONTROL_REASON,
+  [KEY_TRAP_UNWORKED]: TRAP_UNWORKED_REASON,
   clone_machine: CLONE_MACHINE_REASON,
   clone_switch: CLONE_SWITCH_REASON,
   golem_control_blue: GOLEM_CONTROL_BLUE_REASON,
@@ -301,8 +302,8 @@ const APPROX_ENTRIES: Record<string, string> = {
   orb_speed: 'Epoxy slow-time boots slow the monsters only, where the CC3D speed orb also slows the blocks monsters push.',
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
   [KEY_APPEARING_WALL_WITH_MONSTER]: APPEARING_WALL_WITH_MONSTER_REASON,
-  [KEY_APPEARING_WALL_WITH_SLIDE]: APPEARING_WALL_WITH_SLIDE_REASON,
   [KEY_MONSTERS_MEET]: MONSTERS_MEET_REASON,
+  [KEY_BLOCK_SLIDES_INTO_MONSTER]: BLOCK_SLIDES_INTO_MONSTER_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: WALKER_REASON,
@@ -318,7 +319,6 @@ const APPROX_ENTRIES: Record<string, string> = {
 };
 
 const LOST_ENTRIES: Record<string, string> = {
-  [KEY_TRAP_UNWORKED]: TRAP_UNWORKED_REASON,
   [KEY_CLONE_SWITCH_EMPTY]: CLONE_SWITCH_EMPTY_REASON,
   [KEY_BOMB_WITH_ITEM]: BOMB_WITH_ITEM_REASON,
   [KEY_LASER_SHOOTER_COVERED]: LASER_SHOOTER_COVERED_REASON,
@@ -332,11 +332,11 @@ const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3
 ];
 
 /** Monsters whose head-on meeting with another walking monster differs between the engines (measured per kind pair). */
+const SLIDE_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['ice', 'ice_corner', 'force', 'force_random'];
+const KILLING_BLOCK_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_color'];
 const MEETING_DIFFERS_KINDS: readonly Cc3dMobKind[] = [
   'walker', 'omni', 'limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'
 ];
-const SLIDE_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['ice', 'ice_corner', 'force', 'force_random'];
-const BLOCK_MOB_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_ice', 'block_color'];
 
 function buildTable(): Record<string, CoverageEntry> {
   const table: Record<string, CoverageEntry> = {};
@@ -458,13 +458,21 @@ function countOrbItems(level: Cc3dLevel): number {
   return level.cells.filter((cell) => cell.item !== null && ORB_ITEM_KINDS.includes(cell.item.kind)).length;
 }
 
-/** True when a shooter's cell holds an item or a layer other than plain floor. */
-function isShooterCovered(cell: Cc3dCell | undefined): boolean {
-  return cell !== undefined && (cell.item !== null || nonFloorLayers(cell).length > 0);
+/**
+ * The layers that do nothing under a CC3D laser shooter, since the shooter never moves, cannot be pushed and presses
+ * nothing: the ground it cannot slide on, sink in or dig (gravel, dirt, ice, sand, water) and a laser controller nobody
+ * can step on (cc3dEvidenceShooter.test.ts). The converter drops them silently.
+ */
+export const SHOOTER_INERT_KINDS: readonly Cc3dTerrainKind[] = ['gravel', 'dirt', 'ice', 'ice_corner', 'sand', 'water', 'laser_controller'];
+
+/** True when a shooter's cell holds an item or a layer that does something besides plain floor and the inert layers. */
+export function isShooterCovered(cell: Cc3dCell | undefined): boolean {
+  return cell !== undefined && (cell.item !== null || nonFloorLayers(cell).some((layer) => !SHOOTER_INERT_KINDS.includes(layer.kind)));
 }
 
 /**
- * The keys that come from how elements relate to one another rather than from one element: a trap nobody works,
+ * The keys that come from how elements relate to one another rather than from one element: a trap nobody works (played
+ * as the sealed trap),
  * a clone switch with nothing to clone, a bomb sharing its cell with an item, a covered shooter, gravel in a level
  * with a reflector.
  */
@@ -508,11 +516,11 @@ function relationKeys(level: Cc3dLevel): string[] {
     keys.push(KEY_APPEARING_WALL_WITH_MONSTER);
   }
   if (
-    level.cells.some((cell) => cell.terrain.some((layer) => layer.kind === APPEARING_WALL_KIND)) &&
+    level.mobs.some((mob) => KILLING_BLOCK_KINDS.includes(mob.kind)) &&
     level.cells.some((cell) => cell.terrain.some((layer) => SLIDE_TERRAIN_KINDS.includes(layer.kind))) &&
-    level.mobs.some((mob) => BLOCK_MOB_KINDS.includes(mob.kind))
+    level.mobs.some((mob) => isSupportedMonster(mob.kind))
   ) {
-    keys.push(KEY_APPEARING_WALL_WITH_SLIDE);
+    keys.push(KEY_BLOCK_SLIDES_INTO_MONSTER);
   }
   if (meetingMonstersDiffer(level, links.cloneMachines)) keys.push(KEY_MONSTERS_MEET);
   return keys;

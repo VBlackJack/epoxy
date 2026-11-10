@@ -834,6 +834,8 @@ function isWiredTrapPowered(w: EpoxyWorld, tx: number, ty: number): boolean {
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
   const tile = ConfigRegistry.getTile(w.terrain[ty]?.[tx]);
   if (!tile.isTrap) return false;
+  // A sealed trap holds for good: no button, wire or link works it.
+  if (tile.sealedTrap === true) return true;
   // An open trap holds nothing until it closes into a trap.
   if (tile.closesTo !== undefined) return false;
   // A wired trap is also open while its signal is on, besides while a brown button is held.

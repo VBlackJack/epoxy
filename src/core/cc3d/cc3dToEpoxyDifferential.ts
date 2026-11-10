@@ -72,10 +72,11 @@ export function epoxyIdOf(displayId: string): string {
 /**
  * Tiles the Epoxy engine itself creates while it plays a converted level. Since format 16 the water a dirt block fills
  * is `dirt_3d` and an omni's trail is `slime_3d`, the tiles the converter places, so nothing needs reading as another
- * tile and the id is kept as it is.
+ * tile and the id is kept as it is. The sealed trap (format 17) is how the converter writes a CC3D trap no control
+ * works; the CC3D engine shows every trap as a trap, so it is read as one.
  */
 export function epoxyEngineIdOf(id: string): string {
-  return id;
+  return id === 'trap_sealed' ? 'trap' : id;
 }
 
 /** CC3D display ids of mobs that name another Epoxy entity type. */
@@ -103,10 +104,10 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
   cc3d_bot_cw: 'turret_cw',
   cc3d_bot_ccw: 'turret_ccw',
   cc3d_bot_multi: 'turret_multi',
-  cc3d_block_red: 'color_block_red',
-  cc3d_block_green: 'color_block_green',
-  cc3d_block_blue: 'color_block_blue',
-  cc3d_block_yellow: 'color_block_yellow',
+  cc3d_block_red: 'color_block_3d_red',
+  cc3d_block_green: 'color_block_3d_green',
+  cc3d_block_blue: 'color_block_3d_blue',
+  cc3d_block_yellow: 'color_block_3d_yellow',
   // Format 15: the converter plays the CC3D ice block as ice_block_3d.
   ice_block: 'ice_block_3d',
   // Format 16: the converter plays the CC3D dirt block as dirt_block_3d.

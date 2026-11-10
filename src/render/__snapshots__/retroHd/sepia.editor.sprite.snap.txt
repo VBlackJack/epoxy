@@ -194,6 +194,8 @@ editor tile relay_pad_lit closed=true 6f460ebec588917f
 editor tile relay_pad_lit closed=false ccb4e6a2361e36be
 editor tile trap closed=true de6eb00faf3bd7de
 editor tile trap closed=false 0c2e67a8a4389d33
+editor tile trap_sealed closed=true 6e380431413acc07
+editor tile trap_sealed closed=false 1e608098656a0927
 editor tile clone_machine closed=true d7001124af9d2162
 editor tile clone_machine closed=false 1da89d4f745e57b2
 editor tile laser_emitter_n closed=true c66b20f9152292b8
@@ -589,6 +591,10 @@ editor entity over floor blob b76e4f0e7f367084
 editor entity over floor color_block_red e62dd987427b912b
 editor entity over floor color_block_green f85c7a4dfe9bbfeb
 editor entity over floor color_block_blue d459fd9e797d5a5a
+editor entity over floor color_block_3d_red 91e1a78e27b13d07
+editor entity over floor color_block_3d_green a91c51bf889b0143
+editor entity over floor color_block_3d_blue de9220d8e9a1655f
+editor entity over floor color_block_3d_yellow b265dd270464c7cd
 editor entity over floor color_block_yellow 6570ca943ee59242
 editor entity over floor puppet 3a1c2a877cf4f621
 editor entity over floor skitter f49c465218b4bb91

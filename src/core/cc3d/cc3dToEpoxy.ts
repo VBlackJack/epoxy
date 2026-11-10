@@ -34,8 +34,9 @@ import {
   classifyStack,
   elementKeys,
   EPOXY_COVERAGE,
+  isShooterCovered,
   KEY_APPEARING_WALL_WITH_MONSTER,
-  KEY_APPEARING_WALL_WITH_SLIDE,
+  KEY_BLOCK_SLIDES_INTO_MONSTER,
   KEY_BOMB_WITH_ITEM,
   KEY_CLONE_SWITCH_EMPTY,
   KEY_GRAVEL_WITH_REFLECTOR,
@@ -79,6 +80,8 @@ const TELEPORT_TURNING_TILE_ID = 'teleport_turning';
 const SOCKET_TILE_IDS: ReadonlySet<string> = new Set([SOCKET_TILE_ID, FISH_GATE_TILE_ID]);
 const BUTTON_BROWN_ID = 'button_brown';
 const TRAP_ID = 'trap';
+/** The Epoxy trap no button opens (pack format 17), for a CC3D trap that no trap control works. */
+const SEALED_TRAP_ID = 'trap_sealed';
 const BUTTON_RED_ID = 'button_red';
 const CLONE_MACHINE_ID = 'clone_machine';
 const SHOT_TRIGGER_ID = 'shot_trigger';
@@ -243,7 +246,7 @@ interface MobRule {
 const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
   block_dirt: { type: fixed('dirt_block_3d') },
   block_ice: { type: fixed('ice_block_3d') },
-  block_color: { type: (mob) => `color_block_${need(mob.color, 'color', mob.kind)}`, colored: true },
+  block_color: { type: (mob) => `color_block_3d_${need(mob.color, 'color', mob.kind)}`, colored: true },
   reflector: {
     type: (mob) => {
       const id = REFLECTOR_IDS[need(mob.mirror, 'mirror', mob.kind).toUpperCase()];
@@ -286,8 +289,8 @@ const STRUCTURAL_RULE_KEYS: readonly string[] = [
   KEY_GRAVEL_WITH_REFLECTOR,
   KEY_ORBS_OVER_CAP,
   KEY_APPEARING_WALL_WITH_MONSTER,
-  KEY_APPEARING_WALL_WITH_SLIDE,
-  KEY_MONSTERS_MEET
+  KEY_MONSTERS_MEET,
+  KEY_BLOCK_SLIDES_INTO_MONSTER
 ];
 
 /** Every coverage key the converter has a rule for (drift-tested against EPOXY_COVERAGE). */
@@ -404,7 +407,8 @@ function convertCell(
 ): ConvertedCell {
   const edges = SIDE_ORDER.filter((side) => cell.panels.includes(side));
   if (shooter !== undefined) {
-    if (cell.item !== null || nonFloor(cell.terrain).length > 0) drop(KEY_LASER_SHOOTER_COVERED);
+    // The inert ground under a shooter (SHOOTER_INERT_KINDS) is dropped without a loss: nothing in CC3D acts on it.
+    if (isShooterCovered(cell)) drop(KEY_LASER_SHOOTER_COVERED);
     return { terrain: `${SHOT_LAUNCHER_PREFIX}${shooter.dir.toLowerCase()}`, item: null, underlay: null, edges };
   }
 
@@ -431,7 +435,7 @@ function convertCell(
 interface LinkInput {
   level: Cc3dLevel;
   terrain: string[][];
-  underlays: ReadonlyMap<number, string>;
+  underlays: Map<number, string>;
   /** Mob index -> true when the mob became a launcher. */
   launchers: ReadonlySet<number>;
   drop: (key: string, x: number, y: number) => void;
@@ -456,10 +460,12 @@ function buildTrapLinks(input: LinkInput): TrapLink[] {
   const trapLinks = cc3dLinks(input.level).trapControls;
   for (const link of trapLinks) if (link.to !== null) worked.add(link.to);
   input.level.cells.forEach((cell, index) => {
-    // A map without any trap control is no loss: the trap stays shut in both engines (cc3dEvidenceDevices.test.ts).
+    // A map without any trap control keeps the plain trap: it stays shut in both engines (cc3dEvidenceDevices.test.ts).
+    // On a map that has controls, a trap none of them works is sealed: Epoxy would open an unlinked trap with any brown button.
     if (trapLinks.length === 0 || !cell.terrain.some((layer) => layer.kind === 'trap') || worked.has(index)) return;
-    const trap = pointOf(input, index);
-    input.drop(KEY_TRAP_UNWORKED, trap.x, trap.y);
+    const { x, y } = pointOf(input, index);
+    if (input.terrain[y][x] === TRAP_ID) input.terrain[y][x] = SEALED_TRAP_ID;
+    else if (input.underlays.get(index) === TRAP_ID) input.underlays.set(index, SEALED_TRAP_ID);
   });
   for (const link of trapLinks) {
     if (link.to === null) continue;

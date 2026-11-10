@@ -75,8 +75,8 @@ describe('epoxy coverage table', () => {
     check('gravel_with_reflector');
     check('orbs_over_cap');
     check('appearing_wall_with_monster');
-    check('appearing_wall_with_slide');
     check('monsters_meet');
+    check('block_slides_into_monster');
     expect(missing).toEqual([]);
   });
 
@@ -94,15 +94,20 @@ describe('epoxy coverage table', () => {
     for (const key of [
       'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
       'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector', 'orbs_over_cap',
-      'appearing_wall_with_monster', 'appearing_wall_with_slide', 'monsters_meet'
+      'appearing_wall_with_monster', 'monsters_meet', 'block_slides_into_monster'
     ]) named.add(key);
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });
 
-  it('loses the four relation keys, each with its own reason', () => {
-    const keys = ['trap_unworked', 'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
+  it('loses the three relation keys the Epoxy tiles cannot express, each with its own reason', () => {
+    const keys = ['clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
     for (const key of keys) expect(EPOXY_COVERAGE[key].level, key).toBe('lost');
     expect(new Set(keys.map((key) => EPOXY_COVERAGE[key].reason)).size).toBe(keys.length);
+  });
+
+  it('plays a trap no control works as the sealed trap: exact, with a reason of its own', () => {
+    expect(EPOXY_COVERAGE.trap_unworked.level).toBe('exact');
+    expect(EPOXY_COVERAGE.trap_unworked.reason).toContain('trap_sealed');
   });
 
   it('gives every entry a level and a reason', () => {
@@ -372,7 +377,18 @@ describe('relation keys', () => {
     const shooter = { kind: 'laser_shooter' as const };
     expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter } })).has('laser_shooter_covered')).toBe(false);
     expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, item: { kind: 'fish' } } })).has('laser_shooter_covered')).toBe(true);
-    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'ice' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'door', color: 'red' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'fire' }] } })).has('laser_shooter_covered')).toBe(true);
+  });
+
+  it('does not flag a shooter standing on ground that does nothing under it: gravel, dirt, ice, sand, water or a laser controller', () => {
+    const shooter = { kind: 'laser_shooter' as const };
+    for (const kind of ['gravel', 'dirt', 'ice', 'sand', 'water', 'laser_controller'] as const) {
+      expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind }] } })).has('laser_shooter_covered'), kind).toBe(false);
+    }
+    // An item on the same cell, a second shooter or a live layer above the ground still count.
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, item: { kind: 'fish' }, stack: [{ kind: 'water' }] } })).has('laser_shooter_covered')).toBe(true);
+    expect(elementKeys(levelOf(['####', '#@Z#', '####'], { Z: { mob: shooter, stack: [{ kind: 'ice' }, { kind: 'door', color: 'red' }] } })).has('laser_shooter_covered')).toBe(true);
   });
 
   it('plays a red socket over a socket as a flattened stack, still exact', () => {

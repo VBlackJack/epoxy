@@ -42,6 +42,7 @@ export const CONNECTIONS_KEYS = {
   epoxyOnly: `${KEY_PREFIX}epoxy_only`,
   fallbackTrapButton: `${KEY_PREFIX}fallback.trap_button`,
   fallbackTrapUnlinked: `${KEY_PREFIX}fallback.trap_unlinked`,
+  fallbackTrapSealed: `${KEY_PREFIX}fallback.trap_sealed`,
   fallbackTrapLinked: `${KEY_PREFIX}fallback.trap_linked`,
   fallbackCloneAny: `${KEY_PREFIX}fallback.clone_any`,
   fallbackCloneNone: `${KEY_PREFIX}fallback.clone_none`,
@@ -492,6 +493,7 @@ function noteFor(role: DeviceRole | null, rel: DeviceRelations, tile: TileDefini
     case 'trap_button':
       return hasFallback(rel.controls, 'trap') ? { key: CONNECTIONS_KEYS.fallbackTrapButton } : null;
     case 'trap':
+      if (tile?.sealedTrap === true) return { key: CONNECTIONS_KEYS.fallbackTrapSealed };
       return { key: hasLink(rel.controlledBy, 'trap') ? CONNECTIONS_KEYS.fallbackTrapLinked : CONNECTIONS_KEYS.fallbackTrapUnlinked };
     case 'clone_button':
       if (hasLink(rel.controls, 'clone')) return null;

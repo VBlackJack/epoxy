@@ -2267,6 +2267,10 @@ export function findFormat15ConfigErrors(
       if (entity.chainPushesTransitive !== true) errors.push(`${entity.id}.chainPushesTransitive: expected true`);
       if (entity.chainPushes === undefined) errors.push(`${entity.id}.chainPushesTransitive: needs a chainPushes list`);
     }
+    if (entity.stopsAtWall !== undefined) {
+      if (entity.stopsAtWall !== true) errors.push(`${entity.id}.stopsAtWall: expected true`);
+      if (entity.slidesOnIce !== true) errors.push(`${entity.id}.stopsAtWall: only a block that slides on ice stops at a wall`);
+    }
     if (entity.slidesOverTiles === undefined) continue;
     const { id } = entity;
     if (entity.kind !== 'block') errors.push(`${id}.slidesOverTiles: only a block slides over tiles`);
@@ -2298,6 +2302,23 @@ export function findFormat16ConfigErrors(tiles: Record<string, TileDefinition>):
       if (tile.poweredTwin === undefined) errors.push(`${id}.teleportsToSelf: needs a poweredTwin`);
       if (tile.isTeleporter === true) errors.push(`${id}.teleportsToSelf: a teleporter has a destination of its own`);
     }
+  }
+  return errors;
+}
+
+/**
+ * Problems of the field format 17 added: `sealedTrap` is true on a trap that is not an open trap (`closesTo`) and not a
+ * wired trap (`wiredTrap`), since no control ever works a sealed trap.
+ */
+export function findFormat17ConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.sealedTrap === undefined) continue;
+    if (tile.sealedTrap !== true) errors.push(`${id}.sealedTrap: expected true`);
+    if (tile.isTrap !== true) errors.push(`${id}.sealedTrap: only a trap is sealed`);
+    if (tile.closesTo !== undefined) errors.push(`${id}.sealedTrap: an open trap closes, a sealed trap never opens`);
+    if (tile.wiredTrap !== undefined) errors.push(`${id}.sealedTrap: a wired trap answers to its wire, a sealed trap to nothing`);
   }
   return errors;
 }
