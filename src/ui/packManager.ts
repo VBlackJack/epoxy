@@ -475,6 +475,7 @@ export class PackManager {
       badges.innerHTML = '';
       badges.appendChild(this.badgesElement(selectedRow.badges));
     }
+    byId('packs-lynx-notice')?.classList.toggle(HIDDEN_CLASS, pack.userCreated === true || !pack.levels.some((level) => level.ruleset === 'lynx'));
     this.renderCc2SourceOption(pack);
 
     const actions = buildPackActions(pack.levels, (level) => datRefusalReason(level) === null);

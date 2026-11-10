@@ -618,16 +618,14 @@
       "name": "Tile World Intro",
       "i18nKey": "app.packs.ccup_tw_intro.label",
       "url": "./packs/TW_INTRO.DAT",
-      "prefix": "tw_intro",
-      "ruleset": "lynx"
+      "prefix": "tw_intro"
     },
     {
       "id": "ccup_cclp1",
       "name": "CCLP 1",
       "i18nKey": "app.packs.ccup_cclp1.label",
       "url": "./packs/CCLP1.DAT",
-      "prefix": "cclp1",
-      "ruleset": "lynx"
+      "prefix": "cclp1"
     },
     {
       "id": "ccup_cclp2",
@@ -641,24 +639,21 @@
       "name": "CCLP 3",
       "i18nKey": "app.packs.ccup_cclp3.label",
       "url": "./packs/CCLP3.DAT",
-      "prefix": "cclp3",
-      "ruleset": "lynx"
+      "prefix": "cclp3"
     },
     {
       "id": "ccup_cclp4",
       "name": "CCLP 4",
       "i18nKey": "app.packs.ccup_cclp4.label",
       "url": "./packs/CCLP4.DAT",
-      "prefix": "cclp4",
-      "ruleset": "lynx"
+      "prefix": "cclp4"
     },
     {
       "id": "ccup_cclp5",
       "name": "CCLP 5",
       "i18nKey": "app.packs.ccup_cclp5.label",
       "url": "./packs/CCLP5.DAT",
-      "prefix": "cclp5",
-      "ruleset": "lynx"
+      "prefix": "cclp5"
     }
   ],
   "blockPuzzle": {

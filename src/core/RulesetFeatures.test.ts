@@ -43,6 +43,21 @@ import {
 } from './RulesetFeatures';
 import { CompiledLevel } from './types';
 
+describe('featuresFor item drop on classic levels', () => {
+  it('has no item drop on a classic level without CC2 data, and keeps the other aids', () => {
+    const f = featuresFor({ ruleset: 'epoxy', rulesFlavor: 'cc' });
+    expect(f.itemDrop).toBe(false);
+    expect(f.tapToPath).toBe(true);
+    expect(f.solutionReplay).toBe(true);
+    expect(featuresFor({ ruleset: 'epoxy', rulesFlavor: 'cc' })).toBe(f);
+  });
+
+  it('keeps item drop on a CC2 import and on a level without the classic flavor', () => {
+    expect(featuresFor({ ruleset: 'epoxy', rulesFlavor: 'cc', cc2: {} as never }).itemDrop).toBe(true);
+    expect(featuresFor({ ruleset: 'epoxy' }).itemDrop).toBe(true);
+  });
+});
+
 describe('featuresFor rulesets', () => {
   it('turns every Epoxy play aid off for a cc3d level, even with a win rule', () => {
     for (const level of [{ ruleset: 'cc3d' as const }, { ruleset: 'cc3d' as const, winRule: 'receivers' as const }]) {
