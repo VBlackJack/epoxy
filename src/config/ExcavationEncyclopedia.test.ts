@@ -164,9 +164,11 @@ describe('excavation-encyclopedia.json', () => {
     }
   );
 
-  it('proves every archetype requires every puzzle entity, link, and puzzle item when present', () => {
-    for (const [idx, archetype] of encyclopedia.archetypes.entries()) {
-      const level = compileArchetypeBlueprint(archetype, idx + 1);
+  // One test per archetype: each exhaustive search stays small, so a loaded machine cannot push one test past the timeout.
+  it.each(encyclopedia.archetypes.map((a, idx) => [a.id, a, idx + 1] as const))(
+    'proves archetype %s requires every puzzle entity, link, and puzzle item when present',
+    (_id, archetype: EncyclopediaArchetype, index: number) => {
+      const level = compileArchetypeBlueprint(archetype, index);
       for (let entIdx = 0; entIdx < level.entities.length; entIdx++) {
         const ent = level.entities[entIdx];
         if (level.terrain[ent.y]?.[ent.x] === 'clone_machine') continue;
@@ -233,7 +235,7 @@ describe('excavation-encyclopedia.json', () => {
         ).toBeNull();
       }
     }
-  });
+  );
 
   it('keeps bilingual Markdown encyclopedia docs synchronized and enforces recursive docs typography guard', () => {
     const docsRoot = path.resolve(__dirname, '../../docs');
