@@ -387,6 +387,13 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
 
+  // A sliding block of the CC3D kind is refused by the player in its way, as by any other obstacle, and stops in front of him
+  // (the native blocks keep crushing him). Cc3dSimulation.forceStep: a refused slide on ice ends (no bounce); on a force floor the block keeps its drift and tries again each tick, in the direction it took on arrival (as the CC3D drift).
+  if (ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall === true && playerAtCell(w, nx, ny) !== undefined) {
+    if (tile.slideType !== 'force') entity.isSliding = false;
+    return;
+  }
+
   if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
     // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
     if (!w.player.alive) return;
@@ -428,6 +435,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
     } else {
       entity.isSliding = false;
     }
+  } else if (tile.slideType === 'force' && ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall === true) {
+    // Cc3dSimulation.forceStep: a refused step on a force floor keeps the drift, so the block tries again next tick.
   } else {
     entity.isSliding = false;
   }
