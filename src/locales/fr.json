@@ -3935,6 +3935,10 @@
         "name": "Gravier dans un niveau avec un réflecteur",
         "label": "Le gravier d'Epoxy admet les miroirs, là où celui de CC3D refuse les réflecteurs."
       },
+      "bomb_buried": {
+        "name": "Bombe enfouie sous une couche franchissable",
+        "label": "Une couche bombe se trouve sous une porte, une prise, un faux mur, de la terre ou une autre bombe : inerte dans CC3D tant que cette couche n'est pas retirée, puis active. Epoxy tient la bombe comme un objet de la case dès le départ : elle est donc active sous la couche. Une bombe sous une couche jamais retirée (un mur, une plaque, un appareil) est inerte dans CC3D et abandonnée sans perte."
+      },
       "socket_red_stacked": {
         "name": "Prise rouge sur une autre couche",
         "label": "CC3D planifie une prise rouge selon la couche située dessous, ce qu'Epoxy ne fait pas."

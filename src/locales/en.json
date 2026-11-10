@@ -3935,6 +3935,10 @@
         "name": "Gravel in a level with a reflector",
         "label": "Epoxy gravel admits mirrors, where CC3D gravel refuses reflectors."
       },
+      "bomb_buried": {
+        "name": "Bomb buried under a clearable layer",
+        "label": "A bomb layer lies under a door, a socket, a false wall, dirt or another bomb: inert in CC3D until that layer is cleared, then live. Epoxy holds the bomb as an item of the cell from the start, so it is live under the cover. A bomb under a layer that is never cleared (a wall, a plate, a device) is inert in CC3D and is dropped without a loss."
+      },
       "socket_red_stacked": {
         "name": "Red socket over another layer",
         "label": "CC3D plans a red socket against the layer below it, which Epoxy does not do."
