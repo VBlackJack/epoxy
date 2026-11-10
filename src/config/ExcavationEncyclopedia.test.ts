@@ -164,76 +164,78 @@ describe('excavation-encyclopedia.json', () => {
     }
   );
 
-  it('proves every archetype requires every puzzle entity, link, and puzzle item when present', () => {
-    for (const [idx, archetype] of encyclopedia.archetypes.entries()) {
-      const level = compileArchetypeBlueprint(archetype, idx + 1);
-      for (let entIdx = 0; entIdx < level.entities.length; entIdx++) {
-        const ent = level.entities[entIdx];
-        if (level.terrain[ent.y]?.[ent.x] === 'clone_machine') continue;
-        const withoutOneEntity = structuredClone(level);
-        withoutOneEntity.solution = undefined;
-        withoutOneEntity.entities = level.entities.filter((_, i) => i !== entIdx);
-        expect(
-          solveLevelBfs(withoutOneEntity),
-          `${archetype.id} should not be solvable without entity #${entIdx} (${ent.type})`
-        ).toBeNull();
-      }
+  // One test per archetype: each exhaustive search stays small, so a loaded machine cannot push one test past the timeout.
+  it.each(encyclopedia.archetypes.map((a, idx) => [a.id, a, idx + 1] as const))(
+    'proves archetype %s requires every puzzle entity, link, and puzzle item when present',
+    (_id, archetype: EncyclopediaArchetype, index: number) => {
+      const level = compileArchetypeBlueprint(archetype, index);
+    for (let entIdx = 0; entIdx < level.entities.length; entIdx++) {
+      const ent = level.entities[entIdx];
+      if (level.terrain[ent.y]?.[ent.x] === 'clone_machine') continue;
+      const withoutOneEntity = structuredClone(level);
+      withoutOneEntity.solution = undefined;
+      withoutOneEntity.entities = level.entities.filter((_, i) => i !== entIdx);
+      expect(
+        solveLevelBfs(withoutOneEntity),
+        `${archetype.id} should not be solvable without entity #${entIdx} (${ent.type})`
+      ).toBeNull();
+    }
 
-      if (level.trapLinks && level.trapLinks.length > 0) {
-        const withoutTrapLinks = structuredClone(level);
-        withoutTrapLinks.solution = undefined;
-        for (const link of withoutTrapLinks.trapLinks) {
-          withoutTrapLinks.terrain[link.buttonY][link.buttonX] = 'floor';
-        }
-        withoutTrapLinks.trapLinks = [];
-        expect(
-          solveLevelBfs(withoutTrapLinks),
-          `${archetype.id} should not be solvable without trapLinks`
-        ).toBeNull();
+    if (level.trapLinks && level.trapLinks.length > 0) {
+      const withoutTrapLinks = structuredClone(level);
+      withoutTrapLinks.solution = undefined;
+      for (const link of withoutTrapLinks.trapLinks) {
+        withoutTrapLinks.terrain[link.buttonY][link.buttonX] = 'floor';
       }
+      withoutTrapLinks.trapLinks = [];
+      expect(
+        solveLevelBfs(withoutTrapLinks),
+        `${archetype.id} should not be solvable without trapLinks`
+      ).toBeNull();
+    }
 
-      if (level.cloneLinks && level.cloneLinks.length > 0) {
-        const withoutClones = structuredClone(level);
-        withoutClones.solution = undefined;
-        withoutClones.cloneLinks = [];
-        withoutClones.entities = withoutClones.entities.filter(
-          (ent) => withoutClones.terrain[ent.y]?.[ent.x] !== 'clone_machine'
-        );
-        expect(
-          solveLevelBfs(withoutClones),
-          `${archetype.id} should not be solvable without cloneLinks`
-        ).toBeNull();
-      }
+    if (level.cloneLinks && level.cloneLinks.length > 0) {
+      const withoutClones = structuredClone(level);
+      withoutClones.solution = undefined;
+      withoutClones.cloneLinks = [];
+      withoutClones.entities = withoutClones.entities.filter(
+        (ent) => withoutClones.terrain[ent.y]?.[ent.x] !== 'clone_machine'
+      );
+      expect(
+        solveLevelBfs(withoutClones),
+        `${archetype.id} should not be solvable without cloneLinks`
+      ).toBeNull();
+    }
 
-      if (level.signalLinks && level.signalLinks.length > 0) {
-        const withoutSignalLinks = structuredClone(level);
-        withoutSignalLinks.solution = undefined;
-        withoutSignalLinks.signalLinks = [];
-        expect(
-          solveLevelBfs(withoutSignalLinks),
-          `${archetype.id} should not be solvable without signalLinks`
-        ).toBeNull();
-      }
+    if (level.signalLinks && level.signalLinks.length > 0) {
+      const withoutSignalLinks = structuredClone(level);
+      withoutSignalLinks.solution = undefined;
+      withoutSignalLinks.signalLinks = [];
+      expect(
+        solveLevelBfs(withoutSignalLinks),
+        `${archetype.id} should not be solvable without signalLinks`
+      ).toBeNull();
+    }
 
-      for (const itemId of PUZZLE_ITEMS) {
-        const hasItem = level.items.some((row) => row.includes(itemId));
-        if (!hasItem) continue;
-        const withoutItem = structuredClone(level);
-        withoutItem.solution = undefined;
-        for (let y = 0; y < withoutItem.items.length; y++) {
-          for (let x = 0; x < withoutItem.items[y].length; x++) {
-            if (withoutItem.items[y][x] === itemId) {
-              withoutItem.items[y][x] = null;
-            }
+    for (const itemId of PUZZLE_ITEMS) {
+      const hasItem = level.items.some((row) => row.includes(itemId));
+      if (!hasItem) continue;
+      const withoutItem = structuredClone(level);
+      withoutItem.solution = undefined;
+      for (let y = 0; y < withoutItem.items.length; y++) {
+        for (let x = 0; x < withoutItem.items[y].length; x++) {
+          if (withoutItem.items[y][x] === itemId) {
+            withoutItem.items[y][x] = null;
           }
         }
-        expect(
-          solveLevelBfs(withoutItem),
-          `${archetype.id} should not be solvable without ${itemId}`
-        ).toBeNull();
       }
+      expect(
+        solveLevelBfs(withoutItem),
+        `${archetype.id} should not be solvable without ${itemId}`
+      ).toBeNull();
     }
-  });
+    }
+  );
 
   it('keeps bilingual Markdown encyclopedia docs synchronized and enforces recursive docs typography guard', () => {
     const docsRoot = path.resolve(__dirname, '../../docs');
