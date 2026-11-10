@@ -123,37 +123,34 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
 }
 
 /**
- * Classic rules, blue button: every tank off a clone machine and off the ice is marked to turn around a few entity
- * passes later (a second press for the same pass takes the mark off again). Epoxy's own levels turn every tank at once.
+ * Classic rules, blue button: every tank off a clone machine and off the ice carries one toggled mark, due a few entity
+ * passes later; a second press before the tank acts takes the mark off again (one flag, as in the reference engine).
+ * Epoxy's own levels turn every tank at once.
  */
 function markTanksToTurn(w: EpoxyWorld): void {
-  // Inside a tick the clock already counts the pass of the tick; outside it the next pass is still to come.
-  const due = w.ccMonsterClock + (w.inTick ? CC_TANK_TURN_DELAY_PASSES - 1 : CC_TANK_TURN_DELAY_PASSES);
+  // The clock counts the pass of the current tick as soon as it starts: count from the passes begun before this tick,
+  // whatever the source of the press (the player, a slide, a monster stepping on the button).
+  const begun = w.ccPassOpen ? w.ccMonsterClock - 1 : w.ccMonsterClock;
+  const due = begun + CC_TANK_TURN_DELAY_PASSES;
   for (const ent of w.entities) {
     if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
     const tile = ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]);
     if (tile.isCloneMachine || tile.slideType === 'ice') continue;
-    const turns = ent.tankTurns ?? [];
-    const next = turns.includes(due) ? turns.filter((d) => d !== due) : [...turns, due];
-    if (next.length > 0) ent.tankTurns = next;
-    else delete ent.tankTurns;
+    if (ent.tankTurn !== undefined) delete ent.tankTurn;
+    else ent.tankTurn = due;
   }
 }
 
 /**
- * Start of an entity pass of a classic-rules level: the tanks whose marked pass has come turn around, and only those
- * at rest; a tank in the middle of a step ignores the press. Every due mark is spent either way.
+ * Start of an entity pass of a classic-rules level: a marked tank whose pass has come turns around if it is at rest;
+ * a tank in the middle of a step ignores the press. The mark is spent either way.
  */
 export function turnMarkedTanks(w: EpoxyWorld): void {
   const pass = w.ccMonsterClock;
   for (const ent of w.entities) {
-    if (ent.tankTurns === undefined) continue;
-    const due = ent.tankTurns.filter((d) => d <= pass).length;
-    if (due === 0) continue;
-    const rest = ent.tankTurns.filter((d) => d > pass);
-    if (rest.length > 0) ent.tankTurns = rest;
-    else delete ent.tankTurns;
-    if (ent.cooldownTicks === 0 && due % 2 === 1) ent.dir = OPPOSITE_DIRECTION[ent.dir];
+    if (ent.tankTurn === undefined || ent.tankTurn > pass) continue;
+    delete ent.tankTurn;
+    if (ent.cooldownTicks === 0) ent.dir = OPPOSITE_DIRECTION[ent.dir];
   }
 }
 

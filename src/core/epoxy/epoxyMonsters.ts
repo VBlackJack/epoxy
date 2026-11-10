@@ -74,8 +74,18 @@ import { turnMarkedTanks } from './epoxyDevices';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
-  w.removedUids.clear();
   if (w.ccRules) turnMarkedTanks(w);
+  w.ccPassOpen = w.ccRules;
+  try {
+    runEntityPass(ctx);
+  } finally {
+    w.ccPassOpen = false;
+  }
+}
+
+function runEntityPass(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  w.removedUids.clear();
   const clock = w.ccMonsterClock;
   if (w.ccRules) w.ccMonsterClock++;
   const snapshotEntities = [...w.entities];

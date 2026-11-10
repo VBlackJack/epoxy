@@ -27,9 +27,10 @@ beforeEach(() => {
 });
 
 interface TestWorld {
-  entities: { uid: number; type: string; x: number; y: number; dir: Direction; cooldownTicks: number; tankTurns?: number[] }[];
+  entities: { uid: number; type: string; x: number; y: number; dir: Direction; cooldownTicks: number; tankTurn?: number }[];
   terrain: string[][];
   ccMonsterClock: number;
+  ccPassOpen: boolean;
 }
 
 const CORRIDOR = ['######################', '#....................#', '#.@..................#', '######################'];
@@ -66,14 +67,16 @@ function trace(presses: number[], ticks: number, floor?: string, flavor = true):
 
 describe('classic tank reversal', () => {
   it('marks the tank at the press and turns it on a later tick', () => {
-    const { w, press, tank } = setup(true);
+    const { press, tank } = setup(true);
     press();
     expect(tank().dir).toBe('E');
-    expect(tank().tankTurns).toEqual([w.ccMonsterClock + 4]);
-    const dirs = trace([1], 12);
-    const turned = dirs.indexOf('W');
-    expect(turned).toBeGreaterThan(0);
-    expect(dirs.slice(0, turned).every((d) => d === 'E')).toBe(true);
+    expect(tank().tankTurn).toBe(4);
+  });
+
+  it('turns a tank at rest on the fifth tick after a press made before the first tick', () => {
+    const dirs = trace([1], 8);
+    expect(dirs.indexOf('W') + 1).toBe(5);
+    expect(dirs.slice(0, 4).every((d) => d === 'E')).toBe(true);
   });
 
   it('does not turn a tank that is in the middle of a step', () => {
@@ -82,41 +85,54 @@ describe('classic tank reversal', () => {
     expect(tank().cooldownTicks).toBeGreaterThan(0);
     press();
     // Make the mark fall due on the next pass while the step still runs.
-    tank().tankTurns = [w.ccMonsterClock];
+    tank().tankTurn = w.ccMonsterClock;
     tank().cooldownTicks = 2;
     engine.tick();
     expect(tank().dir).toBe('E');
-    expect(tank().tankTurns).toBeUndefined();
+    expect(tank().tankTurn).toBeUndefined();
   });
 
-  it('cancels with a second press made for the same pass', () => {
-    const { w, press, tank } = setup(true);
-    press();
-    press();
-    expect(tank().tankTurns).toBeUndefined();
-    expect(w.ccMonsterClock).toBe(0);
-    expect(trace([1, 1], 16).every((d) => d === 'E')).toBe(true);
-  });
-
-  it('holds one mark per press made for different passes', () => {
+  it('cancels with a second press before the tank acts', () => {
     const { engine, press, tank } = setup(true);
     press();
     engine.tick();
     press();
-    expect(tank().tankTurns).toHaveLength(2);
+    expect(tank().tankTurn).toBeUndefined();
+    for (let i = 0; i < 12; i++) engine.tick();
+    expect(tank().dir).toBe('E');
+    expect(trace([1, 1], 16).every((d) => d === 'E')).toBe(true);
+  });
+
+  it('cancels when a slide and a monster press in the same tick', () => {
+    const { w, press, tank } = setup(true);
+    // First source: before the entity pass of the tick (the clock does not count the pass yet).
+    press();
+    const marked = tank().tankTurn;
+    expect(marked).toBeDefined();
+    // Second source: inside the entity pass of the same tick (the clock already counts it).
+    w.ccMonsterClock += 1;
+    w.ccPassOpen = true;
+    press();
+    expect(tank().tankTurn).toBeUndefined();
+    // And a lone press from inside the pass gives the same due pass as one made before it.
+    const lone = setup(true);
+    lone.w.ccMonsterClock += 1;
+    lone.w.ccPassOpen = true;
+    lone.press();
+    expect(lone.tank().tankTurn).toBe(marked);
   });
 
   it('skips a tank on a clone machine', () => {
     const { press, tank } = setup(true, 'clone_machine');
     press();
-    expect(tank().tankTurns).toBeUndefined();
+    expect(tank().tankTurn).toBeUndefined();
     expect(tank().dir).toBe('E');
   });
 
   it('skips a tank on ice', () => {
     const { press, tank } = setup(true, 'ice');
     press();
-    expect(tank().tankTurns).toBeUndefined();
+    expect(tank().tankTurn).toBeUndefined();
     expect(tank().dir).toBe('E');
   });
 
@@ -124,22 +140,27 @@ describe('classic tank reversal', () => {
     const { press, tank } = setup(false);
     press();
     expect(tank().dir).toBe('W');
-    expect(tank().tankTurns).toBeUndefined();
+    expect(tank().tankTurn).toBeUndefined();
   });
 
-  it('puts the mark back with undo and replays the same', () => {
+  it('undo puts the pending mark back and the replay turns the tank on the same tick', () => {
+    const expected = trace([1], 8);
+
     const { engine, press, tank } = setup(true);
-    engine.saveUndoSnapshot();
     press();
-    const marked = [...(tank().tankTurns ?? [])];
-    expect(marked).toHaveLength(1);
+    engine.tick();
     engine.saveUndoSnapshot();
-    press();
-    expect(tank().tankTurns).toBeUndefined();
+    engine.tick();
+    engine.tick();
+    expect(tank().tankTurn).toBe(4);
     expect(engine.undo()).toBe(true);
-    expect(tank().tankTurns).toEqual(marked);
-    expect(engine.undo()).toBe(true);
-    expect(tank().tankTurns).toBeUndefined();
-    expect(trace([2], 14)).toEqual(trace([2], 14));
+    expect(tank().tankTurn).toBe(4);
+    const dirs: Direction[] = [expected[0]];
+    for (let t = 2; t <= 8; t++) {
+      engine.tick();
+      dirs.push(tank().dir);
+    }
+    expect(dirs).toEqual(expected);
+    expect(dirs.indexOf('W') + 1).toBe(5);
   });
 });

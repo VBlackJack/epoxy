@@ -297,8 +297,8 @@ export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
 export const CC_MONSTER_STEP_TICKS = 4;
 
 /**
- * Entity passes between the blue button press and the tank turning around, on a classic-rules level (a press made
- * inside a tick, before the entity pass of that tick, counts one pass less). Measured against the reference engine
+ * Entity passes between the blue button press and the tank turning around, on a classic-rules level counted from the passes
+ * begun before the press, whoever pressed. Measured against the reference engine
  * on the official levels: tanks of the classic ruleset turn four passes after the press.
  */
 export const CC_TANK_TURN_DELAY_PASSES = 4;
