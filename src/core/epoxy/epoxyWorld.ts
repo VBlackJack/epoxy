@@ -155,6 +155,14 @@ export interface EpoxyWorld {
    * rules): the player and the blocks it pushes keep the CC3D pace on ice and force floors; fixed for the level.
    */
   cc3dPace: boolean;
+  /**
+   * A converted CC3D level recomputes its traps once, at the end of each tick: the closed state each trap cell (by cell
+   * index) held then, which every reader keeps until the next tick ends. Null off those levels and before the first
+   * computation; derived from the world, so never saved.
+   */
+  trapLatch: Map<number, boolean> | null;
+  /** The cells that held a trap tile when the level started (read to fill the latch of a converted CC3D level). */
+  trapCells: number[];
   /** Uids of the entities the running entity pass has already visited (empty outside a pass); read to count a deferred arrival down in the tick of its push. */
   entityPassSeen: Set<number>;
   /** Entity-update passes run since the level started (the teeth cycle of a classic-rules level and the press queue of a converted CC3D level read it); counts only while ccRules or cc3dPace. */
@@ -275,6 +283,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     ccRules: false,
     cc3dPace: false,
     entityPassSeen: new Set(),
+    trapLatch: null,
+    trapCells: [],
     ccMonsterClock: 0,
     ccGenerators: null,
     ccSlots: [],
@@ -326,12 +336,23 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasShots = false;
   w.ccRules = usesCcRules(w.level);
   w.cc3dPace = !w.ccRules && isConvertedCc3dLevel(w.level);
+  w.trapLatch = null;
   w.shotStepTicks = 0;
   w.shots = [];
   w.firedLaunchers.clear();
   w.inTick = false;
   w.turretBeamCells = [];
   w.underlays = underlayMap(w.level);
+  // The cells that hold a trap, or hide one under a removable top that may be gone later (read to fill the latch).
+  w.trapCells = [];
+  if (w.cc3dPace) {
+    w.level.terrain.forEach((row, y) =>
+      row.forEach((id, x) => {
+        const hidden = underlayAt(w.underlays, row.length, x, y);
+        if (ConfigRegistry.getTile(id).isTrap || (hidden !== undefined && ConfigRegistry.getTile(hidden).isTrap)) w.trapCells.push(y * row.length + x);
+      })
+    );
+  }
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.toggleParity = 0;
@@ -842,7 +863,24 @@ function isWiredTrapPowered(w: EpoxyWorld, tx: number, ty: number): boolean {
   return index !== undefined && runtime.defs.get(index)?.powers === true && signalSinkOn(w, index);
 }
 
+/** Computes the latch of a converted CC3D level from the world as it stands (at level start, at the end of each tick, after an undo). */
+export function refreshTrapLatch(w: EpoxyWorld): void {
+  if (!w.cc3dPace || w.trapCells.length === 0) {
+    w.trapLatch = null;
+    return;
+  }
+  w.trapLatch = null;
+  const latch = new Map<number, boolean>();
+  const width = mapWidth(w);
+  for (const index of w.trapCells) latch.set(index, isCellClosedTrap(w, index % width, Math.floor(index / width)));
+  w.trapLatch = latch;
+}
+
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
+  if (w.trapLatch !== null) {
+    const latched = w.trapLatch.get(ty * mapWidth(w) + tx);
+    if (latched !== undefined) return latched;
+  }
   const tile = ConfigRegistry.getTile(w.terrain[ty]?.[tx]);
   if (!tile.isTrap) return false;
   // A sealed trap holds for good: no button, wire or link works it.
@@ -865,10 +903,12 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
-  if (w.player.x === bx && w.player.y === by) return true;
+  // On a converted CC3D level the player works a brown button only at rest, like everything else.
+  if (w.player.x === bx && w.player.y === by && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
   if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
-  return w.entities.some((e) => e.x === bx && e.y === by && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
+  // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.
+  return w.entities.some((e) => e.x === bx && e.y === by && restsOnButton(w, e) && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
 }
 
 /** On a converted CC3D level a monster presses a plate only once it rests (its step has ended). */
@@ -876,10 +916,15 @@ function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
   return !(w.cc3dPace && e.kind === 'monster' && e.cooldownTicks > 0);
 }
 
+/** A converted CC3D level counts a brown button's occupant only at rest: a monster after its step, a block neither sliding nor arriving. */
+function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
+}
+
 /**
  * Whether something presses the plate at a cell: the live player, a block at rest, its step ended (a colour block only
  * on a plate of its own colour) or a monster that presses plates. A sliding entity is passing, not
- * pressing. Brown buttons keep their own rule (`isButtonPressed`), which every occupant satisfies.
+ * pressing. Brown buttons keep their own rule (`isButtonPressed`), which the player and a block satisfy while moving too.
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
   if (playerAtCell(w, x, y) !== undefined) return true;

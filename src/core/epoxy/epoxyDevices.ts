@@ -42,7 +42,7 @@ import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
-import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
+import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
 import {
@@ -509,6 +509,24 @@ export function spawnFromCloner(
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  // CC3D lets the template itself out (a pushed step at the normal pace, keeping its place in the list) and puts a new
+  // template on the machine, at the end of the list, which does not act in this tick.
+  if (w.cc3dPace && kind === 'monster' && template !== undefined) {
+    const seen = w.entityPassSeen.has(template.uid);
+    const fresh: RuntimeEntity = { uid: w.nextEntityUid++, type: template.type, kind, x: clonerX, y: clonerY, dir: templateDir, cooldownTicks: 0, isSliding: false, ...(template.facing !== undefined ? { facing: template.facing } : {}), ...initialEmulationState(def) };
+    template.x = spawnX;
+    template.y = spawnY;
+    template.dir = templateDir;
+    delete template.restTicks;
+    // The step starts now, so what it queues is timed from now; a template that has not had its turn yet in this pass
+    // then counts that turn down, which the extra tick makes up for.
+    template.cooldownTicks = cc3dReleaseCooldown(w, template);
+    addClonedEntity(w, fresh);
+    w.entityPassSeen.add(fresh.uid);
+    const alive = resolveMonsterArrival(ctx, template, true);
+    if (alive && !seen && w.entities.includes(template) && template.cooldownTicks > 0) template.cooldownTicks += 1;
+    return alive;
+  }
   const spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
     type: templateType,

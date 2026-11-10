@@ -85,7 +85,8 @@ import {
   killPlayer,
   mapHeight,
   mapWidth,
-  rebuildDeviceLookups
+  rebuildDeviceLookups,
+  refreshTrapLatch
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
@@ -837,6 +838,8 @@ export class GameEngine {
     // The launchers fired in the undone moment may fire again.
     this.w.firedLaunchers.clear();
     this.w.inTick = false;
+    // The traps are read from the world as put back, signals included.
+    refreshTrapLatch(this.w);
     this.w.levelCompleted = false;
     this.w.statusBannerKey = null;
     this.w.beamDirty = true;
@@ -900,6 +903,8 @@ export class GameEngine {
     this.w.firedLaunchers.clear();
     turnTurrets(this.w, this.ticksElapsed);
     resolveLasers(this.ctx);
+    // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
+    refreshTrapLatch(this.w);
     this.checkTargetsWin();
   }
 
