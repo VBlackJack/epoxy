@@ -3517,13 +3517,15 @@ export class LevelEditor {
     const foreign = isForeignAuthoringEnabled();
     for (const option of Array.from(rulesetEl.options)) {
       // Without foreign authoring only the engine the level already has is listed besides Epoxy.
-      option.hidden = !foreign && option.value !== DEFAULT_RULESET && option.value !== (this.doc.ruleset ?? DEFAULT_RULESET);
+      // `hidden` alone leaves the option pickable in native pickers and by typing, so it is disabled too.
+      const withheld = !foreign && option.value !== DEFAULT_RULESET && option.value !== (this.doc.ruleset ?? DEFAULT_RULESET);
+      option.hidden = withheld;
       if (option.value === CC3D_RULESET) {
-        option.disabled = !cc3d;
+        option.disabled = !cc3d || withheld;
         option.title = cc3d ? '' : t('editor.metadata.ruleset_cc3d_unavailable.label');
         continue;
       }
-      option.disabled = cc3d || (option.value === LYNX_RULESET && lynxLocked);
+      option.disabled = cc3d || (option.value === LYNX_RULESET && lynxLocked) || withheld;
       option.title = cc3d
         ? t('editor.metadata.ruleset_cc3d_locked.label')
         : option.value === LYNX_RULESET && lynxLocked

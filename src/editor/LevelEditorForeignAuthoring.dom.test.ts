@@ -23,6 +23,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FEATURE_FLAGS } from '../config/constants';
 import { setForeignAuthoringOverride } from '../config/featureFlags';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { mountModals } from '../test/domFixture';
@@ -80,13 +81,24 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  setForeignAuthoringOverride(true);
+  // Back to the configured value; the setup file turns the flag on before the next test.
+  setForeignAuthoringOverride(null);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   await LevelPackStorage.closeConnection();
 });
 
 describe('foreign authoring off', () => {
+  it('is off in the production configuration', () => {
+    expect(FEATURE_FLAGS.foreignAuthoring).toBe(false);
+  });
+
+  it('disables the withheld options as well, so a native picker cannot choose them', () => {
+    editor.initBlankMap();
+    const options = Object.fromEntries(Array.from(byId<HTMLSelectElement>('editor-meta-ruleset').options).map((option) => [option.value, option.disabled]));
+    expect(options).toEqual({ epoxy: false, lynx: true, cc3d: true });
+  });
+
   it('offers an Epoxy level the Epoxy rules only, and hides both exports', () => {
     editor.initBlankMap();
     expect(hiddenOptions()).toEqual({ epoxy: false, lynx: true, cc3d: true });
