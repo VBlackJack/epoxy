@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
+import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
@@ -196,6 +196,11 @@ export function attemptPushBlock(
       if (turret && turnsOnPush(turret)) member.facing = dir;
     }
     moveBlockTo(ctx, member, destX, destY, dir, true, pushedStep && defersArrival(w, member, destX, destY));
+    // A converted CC3D level: a block the player pushed onto ice or a force floor takes a pushed step (two ticks) before
+    // its first slide step; the slide goes on at one tick per wait.
+    if (w.cc3dPace && byPlayer && member.isSliding && member.arrivalTicks === undefined) {
+      member.cooldownTicks = Math.max(member.cooldownTicks, CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS);
+    }
     movedCount++;
     if (i === 0) directMoved = true;
   }

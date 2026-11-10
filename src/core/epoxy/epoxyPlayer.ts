@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock, isCc3dPush } from './epoxyBlocks';
@@ -94,6 +94,14 @@ export function resumeForceCarry(w: EpoxyWorld): void {
   if (w.player.isSliding || !w.player.alive) return;
   const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
   if (!isCarriedByForceFloor(w, tile)) return;
+  if (w.cc3dPace && (tile.forceDirection === 'RANDOM' || tile.forceCycle === true)) {
+    // A converted CC3D level: the drift is drawn on arrival and kept, and the forced step is tried again every tick.
+    if (w.player.slideDir === null) return;
+    w.player.isSliding = true;
+    w.player.dir = w.player.slideDir;
+    w.player.slideCooldown = 0;
+    return;
+  }
   if (tile.forceDirection === 'RANDOM' || tile.forceCycle === true) {
     evaluatePlayerSliding(w, tile, w.player.dir);
     w.player.slideCooldown = 0;
@@ -526,7 +534,11 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     w.player.isSliding = true;
     w.player.slideDir = nextDir;
     w.player.dir = nextDir;
-    w.player.slideCooldown = w.ccRules ? CC_ICE_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
+    w.player.slideCooldown = w.ccRules
+      ? CC_ICE_SLIDE_COOLDOWN_TICKS
+      : w.cc3dPace
+        ? CC3D_SLIDE_ENTRY_COOLDOWN_TICKS
+        : ConfigRegistry.getGame().timing.slideCooldownTicks;
     return;
   }
 
@@ -551,7 +563,9 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     w.player.dir = forceDir;
     w.player.slideCooldown = w.ccRules
       ? CC_FORCE_SLIDE_COOLDOWN_TICKS
-      : ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
+      : w.cc3dPace
+        ? CC3D_SLIDE_ENTRY_COOLDOWN_TICKS
+        : ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
     return;
   }
 
@@ -618,10 +632,21 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
         w.player.isSliding = false;
         w.player.slideDir = null;
       }
+    } else if (w.cc3dPace && isCarriedByForceFloor(w, currentTile)) {
+      // Cc3dSimulation.forceStep: a refused forced step on a force floor keeps the drift (the drawn direction of a
+      // random or cycling floor). The player stays on the cell with it, and his input along its axis is refused (see
+      // attemptPlayerMove).
+      w.player.isSliding = false;
     } else {
       w.player.isSliding = false;
       w.player.slideDir = null;
     }
+  }
+  // A converted CC3D level: a slide goes on at the fast pace once its first step is made, and the step that ends it
+  // leaves the player busy one more tick.
+  if (w.cc3dPace && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true) {
+    if (w.player.isSliding) w.player.slideCooldown = CC3D_SLIDE_STEP_COOLDOWN_TICKS;
+    else w.player.moveCooldown = Math.max(w.player.moveCooldown, CC3D_SLIDE_END_WAIT_TICKS);
   }
   // Classic rules: a move takes the time of the tile it enters, so the step that leaves a slide onto plain floor is
   // followed by a full walking wait (ice and force floor alike).

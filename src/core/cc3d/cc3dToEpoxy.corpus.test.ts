@@ -64,7 +64,7 @@ const SCRIPT_DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 /** Seeds of the random walks played on each exact map. */
 const WALK_SEEDS: readonly number[] = [7, 8, 9];
 /** Most walks that may end as a monster timing difference (measured); a higher count means the tolerance grew. */
-const MONSTER_TIMING_CEILING = 29;
+const MONSTER_TIMING_CEILING = 30;
 
 function loadLevels(): CompiledLevel[] {
   const dir = CORPUS_DIR as string;

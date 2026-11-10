@@ -471,6 +471,12 @@ export const LYNX_RULES_VERSION = 1;
 export const CC3D_RULES_VERSION = 1;
 
 /**
+ * Pace version of a CC3D level converted to Epoxy, for replays recorded on those levels (they sign as
+ * "epoxy-3d:<version>"); bump it when a change alters how recorded moves play out on them.
+ */
+export const CC3D_PACE_VERSION = 1;
+
+/**
  * Feature switches. `foreignAuthoring` brings back the editing and export
  * paths for other games' formats: the Lynx and CC3D rule sets for new levels,
  * the CC3D room template, and the .DAT and CC3D XML exports. Off by default:

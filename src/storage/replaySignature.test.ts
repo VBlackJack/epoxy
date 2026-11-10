@@ -23,13 +23,16 @@ import {
   type SignatureLevel
 } from './replaySignature';
 import { sanitizeHighScores } from './persistedState';
-import { CC_RULES_VERSION } from '../config/constants';
+import { CC3D_PACE_VERSION, CC_RULES_VERSION } from '../config/constants';
 
 const NATIVE: SignatureLevel = {};
 const CC_FLAVOR: SignatureLevel = { rulesFlavor: 'cc' };
 const CC2_IMPORT = { cc2: {} } as unknown as SignatureLevel;
 const LYNX: SignatureLevel = { ruleset: 'lynx' };
 const CC3D: SignatureLevel = { ruleset: 'cc3d' };
+const CONVERTED_BY_ID: SignatureLevel = { id: 'cc3d_p1_001~epoxy' };
+const CONVERTED_BY_SOURCE = { id: 'renamed', cc3dSource: {} } as unknown as SignatureLevel;
+const CONVERTED_CLASSIC: SignatureLevel = { id: 'cc3d_p1_001~epoxy', rulesFlavor: 'cc' };
 
 describe('replaySignature', () => {
   it('names the engine and rules version of each kind of level', () => {
@@ -40,6 +43,16 @@ describe('replaySignature', () => {
     expect(replaySignature(LYNX)).toBe('lynx:1');
     expect(replaySignature(CC3D)).toBe('cc3d:1');
   });
+
+  it('signs a CC3D level converted to Epoxy with the pace version, found by its id or its CC3D source', () => {
+    expect(replaySignature(CONVERTED_BY_ID)).toBe(`epoxy-3d:${CC3D_PACE_VERSION}`);
+    expect(replaySignature(CONVERTED_BY_SOURCE)).toBe(`epoxy-3d:${CC3D_PACE_VERSION}`);
+  });
+
+  it('keeps the classic signature on a converted level of the classic rules, and the native one on a native id', () => {
+    expect(replaySignature(CONVERTED_CLASSIC)).toBe(`epoxy-cc:${CC_RULES_VERSION}`);
+    expect(replaySignature({ id: 'custom_level' })).toBe('epoxy:1');
+  });
 });
 
 describe('isReplayPlayable', () => {
@@ -47,6 +60,13 @@ describe('isReplayPlayable', () => {
     for (const level of [NATIVE, CC_FLAVOR, LYNX, CC3D]) {
       expect(isReplayPlayable(level, replaySignature(level))).toBe(true);
     }
+  });
+
+  it('stops playing the replay of a converted level recorded before the pace, scores kept apart', () => {
+    expect(isReplayPlayable(CONVERTED_BY_ID, 'epoxy:1')).toBe(false);
+    expect(isReplayPlayable(CONVERTED_BY_ID, undefined)).toBe(false);
+    expect(isReplayPlayable(CONVERTED_BY_ID, replaySignature(CONVERTED_BY_ID))).toBe(true);
+    expect(isReplayPlayable(NATIVE, replaySignature(CONVERTED_BY_ID))).toBe(false);
   });
 
   it('refuses a replay recorded on another engine', () => {

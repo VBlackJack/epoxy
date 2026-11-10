@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-import { CC3D_RULES_VERSION, CC_RULES_VERSION, LYNX_RULES_VERSION, NATIVE_RULES_VERSION } from '../config/constants';
+import { CC3D_PACE_VERSION, CC3D_RULES_VERSION, CC_RULES_VERSION, LYNX_RULES_VERSION, NATIVE_RULES_VERSION } from '../config/constants';
+import { isConvertedCc3dLevel } from '../core/cc3d/cc3dConstants';
 import { usesCcRules } from '../core/epoxy/ccRules';
 import type { CompiledLevel } from '../core/types';
 
 /** Level fields the signature reads. */
-export type SignatureLevel = Pick<CompiledLevel, 'ruleset' | 'rulesFlavor' | 'cc2'>;
+export type SignatureLevel = Pick<CompiledLevel, 'ruleset' | 'rulesFlavor' | 'cc2' | 'cc3dSource'> & { id?: string };
 
 /**
- * Names the engine and rules version a replay was recorded on, such as "epoxy:1" or "epoxy-cc:1".
+ * Names the engine and rules version a replay was recorded on, such as "epoxy:1", "epoxy-cc:1" or "epoxy-3d:1".
  * A replay plays back faithfully only on the same signature.
  */
 export function replaySignature(level: SignatureLevel): string {
   if (level.ruleset === 'lynx') return `lynx:${LYNX_RULES_VERSION}`;
   if (level.ruleset === 'cc3d') return `cc3d:${CC3D_RULES_VERSION}`;
-  return usesCcRules(level) ? `epoxy-cc:${CC_RULES_VERSION}` : `epoxy:${NATIVE_RULES_VERSION}`;
+  if (usesCcRules(level)) return `epoxy-cc:${CC_RULES_VERSION}`;
+  // A CC3D level converted to Epoxy plays at the CC3D pace; a replay of it from before the pace never plays again.
+  return isConvertedCc3dLevel({ id: level.id ?? '', cc3dSource: level.cc3dSource }) ? `epoxy-3d:${CC3D_PACE_VERSION}` : `epoxy:${NATIVE_RULES_VERSION}`;
 }
 
 /**
