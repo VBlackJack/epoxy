@@ -83,13 +83,19 @@ function updateForcePermission(w: EpoxyWorld, fromSlide: boolean): void {
 /**
  * Classic rules: a player resting on a force floor that carries him (his push blocked, or the level started there) is
  * set sliding again, so the floor makes its carried attempt this tick, as it does every tick in the original game.
- * That attempt grants him the choice of direction even when the push is blocked. The random and the cycling floors
- * have no fixed push and are left alone.
+ * That attempt grants him the choice of direction even when the push is blocked. The random floor draws its direction
+ * from the world generator and the cycling floor takes the next turn of the shared cycle, as a slide arrival does.
  */
 export function resumeForceCarry(w: EpoxyWorld): void {
   if (w.player.isSliding || !w.player.alive) return;
   const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
-  if (!isCarriedByForceFloor(w, tile) || !tile.forceDirection || tile.forceDirection === 'RANDOM') return;
+  if (!isCarriedByForceFloor(w, tile)) return;
+  if (tile.forceDirection === 'RANDOM' || tile.forceCycle === true) {
+    evaluatePlayerSliding(w, tile, w.player.dir);
+    w.player.slideCooldown = 0;
+    return;
+  }
+  if (!tile.forceDirection) return;
   w.player.isSliding = true;
   w.player.slideDir = tile.forceDirection;
   w.player.dir = tile.forceDirection;

@@ -229,4 +229,20 @@ describe('classic force floor softlock', () => {
     // The blocked press at tick 20 is in the history, so the replay replays it.
     expect(history.some((m) => m.tick === 20 && m.dir === 'E')).toBe(true);
   });
+
+  it('lets a player blocked on a random or cycling force floor choose', () => {
+    for (const floor of ['force_random', 'force_cycle']) {
+      const built = level(['#####', '#.>##', '#...#', '#####'], true);
+      const engine = new GameEngine();
+      engine.loadLevel({ ...built, playerStart: { x: 2, y: 1, dir: 'S' } });
+      const w = (engine as unknown as { w: TestWorld & { terrain: string[][] } }).w;
+      w.terrain[1][2] = floor;
+      let chose = false;
+      for (let i = 0; i < 20 && !chose; i++) {
+        engine.tick();
+        chose = w.player.forcePermission === true;
+      }
+      expect(chose, floor).toBe(true);
+    }
+  });
 });
