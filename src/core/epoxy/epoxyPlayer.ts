@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -49,6 +49,7 @@ import {
   playerAtCell,
   playerCharacterOf,
   playerGripsTile,
+  playerHaste,
   shotAt,
   takeRevealedTerrain,
   withPlayer
@@ -58,6 +59,9 @@ import {
 export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 /** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
+
+/** Shortest wait between two voluntary moves, whatever the haste. */
+const MIN_WALK_COOLDOWN_TICKS = 1;
 
 /** Whether the tile is a force floor that pushes the player, i.e. one the held boots do not cancel. */
 export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition, player: PlayerState = w.player): boolean {
@@ -496,6 +500,11 @@ function collectBonus(w: EpoxyWorld, itemDef: TileDefinition): void {
   }
 }
 
+/** Ticks a player waits after a plain walking step: the base cadence shortened by speed boots. */
+export function playerWalkCooldown(w: EpoxyWorld): number {
+  return Math.max(MIN_WALK_COOLDOWN_TICKS, Math.ceil(ConfigRegistry.getGame().timing.playerMoveCooldownTicks / playerHaste(w)));
+}
+
 function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
   if (tile.slideType === 'ice') {
     if (playerGripsTile(w, tile)) {
@@ -507,7 +516,7 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     w.player.isSliding = true;
     w.player.slideDir = nextDir;
     w.player.dir = nextDir;
-    w.player.slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks;
+    w.player.slideCooldown = w.ccRules ? CC_ICE_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
     return;
   }
 
@@ -563,7 +572,10 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   const dir = w.player.slideDir || w.player.dir;
   const currentTile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
 
+  // The mover may leave through an exit during the step, which hands control to the next player.
+  const mover = w.player;
   const moved = executePlayerMove(ctx, dir, true);
+  let steppedOff = moved;
   if (!moved) {
     if (currentTile.slideType === 'ice') {
       const bounceDir = OPPOSITE_DIRECTION[dir];
@@ -571,6 +583,7 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
       w.player.slideDir = deflectedBounce;
       w.player.dir = deflectedBounce;
       const bouncedMoved = executePlayerMove(ctx, deflectedBounce, true);
+      steppedOff = bouncedMoved;
       if (!bouncedMoved) {
         w.player.isSliding = false;
         w.player.slideDir = null;
@@ -579,6 +592,11 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
       w.player.isSliding = false;
       w.player.slideDir = null;
     }
+  }
+  // Classic rules: a move takes the time of the tile it enters, so the step that leaves a slide onto plain floor is
+  // followed by a full walking wait (ice and force floor alike).
+  if (w.ccRules && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
   }
   ctx.checkTargetsWin();
 }
