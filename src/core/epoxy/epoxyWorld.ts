@@ -23,6 +23,7 @@ import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
+import type { CcArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -152,6 +153,12 @@ export interface EpoxyWorld {
   ccMonsterClock: number;
   /** The walker and blob generators of a level made for the classic game (a .DAT import); null on every other level. */
   ccGenerators: CcGenerators | null;
+  /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */
+  ccPlans: Map<number, Direction | null>;
+  /** Monster button presses waiting to take effect on a classic-rules level, oldest first; saved with the undo snapshot. */
+  ccArrivals: CcArrival[];
+  /** True while the queued arrivals of a classic-rules level are applied (the press then counts from the current pass); transient. */
+  ccArrivalsRunning: boolean;
   /** True while an entity pass of a classic-rules level runs (the clock already counts it); transient, never saved. */
   ccPassOpen: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
@@ -258,6 +265,9 @@ export function createEpoxyWorld(): EpoxyWorld {
     ccRules: false,
     ccMonsterClock: 0,
     ccGenerators: null,
+    ccPlans: new Map<number, Direction | null>(),
+    ccArrivals: [],
+    ccArrivalsRunning: false,
     ccPassOpen: false,
     shotStepTicks: 0,
     launcherLinks: [],

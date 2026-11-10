@@ -18,7 +18,9 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
+  CC_BLOB_BUTTON_DELAY_PASSES,
   CC_BLOB_TYPE,
+  CC_MONSTER_BUTTON_DELAY_PASSES,
   CC_WALKER_TYPE,
   CC_CADENCE_TYPES,
   CC_TEETH_ACTIVE_TICKS,
@@ -40,7 +42,7 @@ import {
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
+import { ButtonAction, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
@@ -77,12 +79,66 @@ import { turnMarkedTanks } from './epoxyDevices';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
-  if (w.ccRules) turnMarkedTanks(w);
+  if (w.ccRules) {
+    turnMarkedTanks(w);
+    if (!applyQueuedArrivals(ctx)) return;
+  }
   w.ccPassOpen = w.ccRules;
   try {
+    if (w.ccRules) planClassicDecisions(ctx);
     runEntityPass(ctx);
   } finally {
     w.ccPassOpen = false;
+    w.ccPlans.clear();
+  }
+}
+
+/**
+ * Classic rules, start of an entity pass: applies the monster button presses whose time has come, in the order they
+ * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
+ * the player (the pass then stops).
+ */
+function applyQueuedArrivals(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  if (w.ccArrivals.length === 0) return true;
+  const pass = w.ccMonsterClock;
+  const due = w.ccArrivals.filter((a) => a.due <= pass);
+  if (due.length === 0) return true;
+  w.ccArrivals = w.ccArrivals.filter((a) => a.due > pass);
+  w.ccArrivalsRunning = true;
+  try {
+    for (const arrival of due) {
+      const monster = w.entities.find((e) => e.uid === arrival.uid);
+      if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
+      if (!ctx.triggerButton(arrival.x, arrival.y, arrival.action)) return false;
+    }
+  } finally {
+    w.ccArrivalsRunning = false;
+  }
+  return true;
+}
+
+/**
+ * Classic rules, decision pass: every classic monster that is ready decides its way now, the entities taken in reverse
+ * list order; the movement pass (also in reverse order) then tries each decided step once. A monster boxed in plans the
+ * way it was turned to face, and tries it when its turn to move comes.
+ */
+function planClassicDecisions(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  w.ccPlans.clear();
+  const clock = w.ccMonsterClock;
+  for (let i = w.entities.length - 1; i >= 0; i--) {
+    const entity = w.entities[i];
+    if (entity.kind === 'block' || !CC_CADENCE_TYPES.includes(entity.type) || entity.cooldownTicks !== 0) continue;
+    if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
+    if (entity.type === CC_TEETH_TYPE && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
+    if (isCellClosedTrap(w, entity.x, entity.y)) continue;
+    const def = ConfigRegistry.getEntityDef(entity.type);
+    let plan = chooseMonsterDirection(w, entity, def);
+    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(entity.type === CC_TEETH_TYPE && entity.x === w.player.x && entity.y === w.player.y)) {
+      plan = entity.dir;
+    }
+    w.ccPlans.set(entity.uid, plan);
   }
 }
 
@@ -92,6 +148,8 @@ function runEntityPass(ctx: EpoxyContext): void {
   const clock = w.ccMonsterClock;
   if (w.ccRules) w.ccMonsterClock++;
   const snapshotEntities = [...w.entities];
+  // The classic game moves its creatures from the end of the list to the start.
+  if (w.ccRules) snapshotEntities.reverse();
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
 
@@ -161,7 +219,20 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // except while it slides (Lexy decides nothing then).
   const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
   const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
-  const chosenDir = chooseMonsterDirection(w, entity, behaviour);
+  let chosenDir: Direction | null;
+  if (w.ccPlans.has(entity.uid)) {
+    // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
+    const plan = w.ccPlans.get(entity.uid) ?? null;
+    w.ccPlans.delete(entity.uid);
+    if (plan !== null && canStep(w, entity, plan)) {
+      chosenDir = plan;
+    } else {
+      chosenDir = null;
+      if (plan !== null) entity.dir = plan;
+    }
+  } else {
+    chosenDir = chooseMonsterDirection(w, entity, behaviour);
+  }
   if (!chosenDir) {
     // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
     // A monster that draws its way at random (the CC3D omni) draws again next tick when the draw is blocked.
@@ -349,18 +420,29 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
-  if (
-    destTile.buttonAction &&
-    destTile.buttonWorkedBy !== 'player' &&
-    def?.pressesPlates !== false &&
-    !ctx.triggerButton(nx, ny, destTile.buttonAction)) {
-    return false;
+  if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
+    if (queuesButtonPress(w, entity, destTile.buttonAction)) {
+      const delay = entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
+      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: w.ccMonsterClock + delay });
+    } else if (!ctx.triggerButton(nx, ny, destTile.buttonAction)) {
+      return false;
+    }
   }
 
   if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport) {
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
   return true;
+}
+
+/**
+ * Classic rules: a classic monster's button press takes effect a few passes after the step (see
+ * CC_MONSTER_BUTTON_DELAY_PASSES). The green button (toggle walls) is not delayed on a level imported from Chip's
+ * Challenge 2, whose engine toggles the walls at once.
+ */
+function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
+  if (!w.ccRules || !w.inTick || !CC_CADENCE_TYPES.includes(entity.type)) return false;
+  return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }
 
 /**

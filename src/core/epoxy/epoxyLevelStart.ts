@@ -48,10 +48,13 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
   w.nextEntityUid = 1;
   w.ccMonsterClock = 0;
+  w.ccArrivals = [];
+  w.ccArrivalsRunning = false;
   const ccCadence = usesCcRules(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);
   w.rng = new SeededRandom(levelSeed);
-  // A level made for the classic game keeps that game's own generators; a CC2 import keeps the seeded one.
+  // Every classic-rules level (a .DAT import and a CC2 import alike) draws walker and blob turns from the classic
+  // generators. Calibrated against Chip's Challenge 1 and the official Chip's Challenge 2 levels.
   w.ccGenerators = ccCadence && level.cc2 === undefined ? newCcGenerators(levelSeed) : null;
 
   w.entities = level.entities.map((e) => {

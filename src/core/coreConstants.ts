@@ -316,6 +316,28 @@ export const CC_ICE_SLIDE_COOLDOWN_TICKS = 1;
 /** Slide delay of a block on ice or a force floor on a classic-rules level: one cell every two ticks, like the player. */
 export const CC_BLOCK_SLIDE_COOLDOWN_TICKS = 1;
 
+/**
+ * Entity passes a monster's button press waits before it takes effect on a classic-rules level (a blob waits
+ * CC_BLOB_BUTTON_DELAY_PASSES). Calibrated against Chip's Challenge 1 (Steam and the original .DAT levels) and the
+ * official Chip's Challenge 2 levels.
+ */
+export const CC_MONSTER_BUTTON_DELAY_PASSES = 2;
+
+/** Entity passes a blob's button press waits (see CC_MONSTER_BUTTON_DELAY_PASSES). */
+export const CC_BLOB_BUTTON_DELAY_PASSES = 6;
+
+/**
+ * Entity passes between a queued monster press that reverses the tanks and the tanks turning, counted from the pass
+ * that applies the press (a player's own press keeps CC_TANK_TURN_DELAY_PASSES). Same calibration as the button delay.
+ */
+export const CC_QUEUED_TANK_TURN_DELAY_PASSES = 1;
+
+/**
+ * Ticks a player who slid onto a teleporter waits before the forced exit step: the time of a slide step, not the
+ * walking wait. Same calibration as the button delay.
+ */
+export const CC_TELEPORT_SLIDE_WAIT_TICKS = 2;
+
 /** Ticks a classic blob step lasts (a blob covers a cell at half the speed of the other monsters). */
 export const CC_BLOB_STEP_TICKS = 8;
 
