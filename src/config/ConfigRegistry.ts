@@ -1063,9 +1063,9 @@ class ConfigRegistryService {
       const migration = migrateCc3dPack(pack);
       kept += migration.kept;
       if (migration.converted === 0) continue;
-      converted += migration.converted;
       this.upsertStoredPack(migration.pack);
-      await this.persistPack(migration.pack);
+      // Only a written pack is reported: after a refused write the next start converts again, and would announce again.
+      if (await this.persistPack(migration.pack)) converted += migration.converted;
     }
     this.cc3dMigrationReport = converted > 0 ? { converted, kept } : null;
   }

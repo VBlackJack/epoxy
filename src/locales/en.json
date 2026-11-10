@@ -3768,7 +3768,7 @@
       },
       "migration": {
         "converted": {
-          "label": "{count, plural, one {# CC3D level was converted to an Epoxy level} other {# CC3D levels were converted to Epoxy levels}}. Your scores and progress are kept."
+          "label": "{count, plural, one {# CC3D level was converted to an Epoxy level} other {# CC3D levels were converted to Epoxy levels}}. Your scores and completion are kept; older replays of these levels are no longer offered."
         },
         "kept": {
           "label": "{kept, plural, one {# level could not be converted and stays on the CC3D engine.} other {# levels could not be converted and stay on the CC3D engine.}}"

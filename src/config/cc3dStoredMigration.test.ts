@@ -155,7 +155,25 @@ describe('migration of stored CC3D levels', () => {
 
     expect(loaded().levels.every((l) => l.cc3dSource !== undefined && l.cc3d === undefined)).toBe(true);
     expect(stored().levels.every((l) => l.ruleset === 'cc3d' && l.cc3d !== undefined)).toBe(true);
-    expect(ConfigRegistry.takeCc3dMigrationReport()).toEqual({ converted: 3, kept: 0 });
+    // Nothing was written, so nothing is announced: the next start converts again and would repeat the notice.
+    expect(ConfigRegistry.takeCc3dMigrationReport()).toBeNull();
+  });
+
+  it('keeps a level the converter reports as lost on the CC3D engine and counts it', async () => {
+    const old = oldCc3dLevels();
+    storePack(old);
+    const real = Converter.convertCc3dLevel;
+    vi.spyOn(Converter, 'convertCc3dLevel').mockImplementation((source) => {
+      const result = real(source);
+      if (source.number !== 3) return result;
+      return { ...result, report: { ...result.report, lost: [{ key: 'trap_unworked', reason: 'test' }] } };
+    });
+    await ConfigRegistry.loadStoredPacks();
+
+    const levels = loaded().levels;
+    expect(levels.map((l) => l.ruleset ?? 'epoxy')).toEqual(['epoxy', 'epoxy', 'cc3d']);
+    expect(levels[2].cc3d).toBeDefined();
+    expect(ConfigRegistry.takeCc3dMigrationReport()).toEqual({ converted: 2, kept: 1 });
   });
 
   it('leaves a pack with no CC3D level and reports nothing', async () => {
