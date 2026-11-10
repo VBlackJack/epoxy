@@ -128,6 +128,26 @@ describe('classic two-phase monster turn', () => {
   });
 });
 
+describe('classic held monster', () => {
+  it('keeps its facing when the trap opens during the movement pass, deciding nothing', () => {
+    // The trapped bug has an open cell on its left; the later-listed bug moves first onto the brown button and frees it.
+    const rows = ['#####.###########', '#.............@.#', '#################'];
+    const base = level(rows, [
+      { type: 'bug', x: 5, y: 1, dir: 'E' },
+      { type: 'bug', x: 8, y: 1, dir: 'W' }
+    ]);
+    const terrain = base.terrain.map((row) => [...row]);
+    terrain[1][5] = 'trap';
+    terrain[1][7] = 'button_brown';
+    const { engine, w } = start({ ...base, terrain, trapLinks: [{ buttonX: 7, buttonY: 1, trapX: 5, trapY: 1 }] });
+    engine.tick();
+    const [held, presser] = monsters(w);
+    expect(presser.x).toBe(7);
+    expect(held.x).toBe(6);
+    expect(held.dir).toBe('E');
+  });
+});
+
 describe('classic queued monster button arrivals', () => {
   const GREEN_CELL = { x: 4, y: 1 };
   const WALL_CELL = { x: 10, y: 1 };

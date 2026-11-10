@@ -132,7 +132,12 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     if (entity.kind === 'block' || !CC_CADENCE_TYPES.includes(entity.type) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     if (entity.type === CC_TEETH_TYPE && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
-    if (isCellClosedTrap(w, entity.x, entity.y)) continue;
+    if (isCellClosedTrap(w, entity.x, entity.y)) {
+      // A held monster keeps its facing and decides nothing; if the trap opens during the movement pass it is
+      // released in that facing.
+      w.ccPlans.set(entity.uid, entity.dir);
+      continue;
+    }
     const def = ConfigRegistry.getEntityDef(entity.type);
     let plan = chooseMonsterDirection(w, entity, def);
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(entity.type === CC_TEETH_TYPE && entity.x === w.player.x && entity.y === w.player.y)) {
