@@ -206,7 +206,7 @@ const TRAP_UNWORKED_REASON =
 const CLONE_SWITCH_EMPTY_REASON =
   'The nearest clone machine of this switch holds no template Epoxy can clone (none, or a laser shooter): CC3D does nothing, and a switch left unlinked would fire every machine in Epoxy, so the converter drops the switch link.';
 const BOMB_BURIED_REASON =
-  'A bomb layer lies under a door, a socket, a false wall, dirt or another bomb: inert in CC3D until that layer is cleared, then live. Epoxy holds the bomb as an item of the cell from the start, so it is live under the cover. A bomb under a layer that is never cleared (a wall, a plate, a device) is inert in CC3D and is dropped without a loss.';
+  'A bomb layer lies under a door, a socket or a false wall: inert in CC3D until that layer is cleared, then live. Epoxy holds the bomb as an item of the cell from the start, so it is live under the cover (when the cell also holds an item, only the item stays, see bomb_with_item). A bomb under a layer that is never cleared (a wall, a plate, a device) is inert in CC3D and is dropped without a loss.';
 const BOMB_WITH_ITEM_REASON =
   'A bomb layer shares its cell with an item: Epoxy holds one item per cell, so the bomb is dropped and the item stays.';
 const LASER_SHOOTER_COVERED_REASON =
@@ -419,13 +419,13 @@ const SOCKET_KINDS: readonly Cc3dTerrainKind[] = ['socket', 'socket_red'];
 
 /**
  * Layers that can be cleared off the top of a stack in CC3D (a key opens a door, the chips a socket, the player or a
- * block a false wall or dirt, a mob that detonates a bomb): what lies under them can become the acting layer later.
+ * block a false wall, a mob or a shot that detonates a bomb): what lies under them can become the acting layer later.
  */
-const BOMB_EXPOSING_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket', 'socket_red', 'false_wall', 'dirt', 'bomb'];
+const BOMB_EXPOSING_KINDS: readonly Cc3dTerrainKind[] = ['door', 'socket', 'socket_red', 'false_wall', 'bomb'];
 
 /**
  * Settles the bombs of a terrain stack. Only the top layer of a CC3D cell acts, so a bomb is live when it is the top
- * layer, and inert when a layer that is never cleared lies above it (a plate, a wall, plain floor, a device...): that
+ * layer, and inert when a layer that is never cleared lies above it (a plate, a wall, a device...): that
  * bomb is dropped. A bomb under clearable layers only is kept (buried: it can become the top later).
  */
 export function settleBombs(terrain: readonly Cc3dTerrain[]): { layers: Cc3dTerrain[]; buried: boolean; dropped: boolean } {
