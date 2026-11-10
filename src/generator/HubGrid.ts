@@ -25,6 +25,11 @@ import { orientTileId } from './PieceCompiler';
 import { CompiledPiece } from './PieceTypes';
 
 const QUARTER_TURNS = [0, 1, 2, 3] as const;
+/** The steps to the four neighbours, as numbers, in `ORDERED_DIRECTIONS` order: read in the hottest loop. */
+const NEIGHBOUR_DX = ORDERED_DIRECTIONS.map((d) => DIRECTION_VECTORS[d].dx);
+const NEIGHBOUR_DY = ORDERED_DIRECTIONS.map((d) => DIRECTION_VECTORS[d].dy);
+/** Past this the claim stamps are cleared and counted again from one. */
+const MAX_CLAIM_GENERATION = 0x7fffffff;
 
 /** Claimed cells of a wing under construction, laid out for repeated box tests. */
 export interface ClaimedCells {
@@ -54,6 +59,12 @@ export interface AssemblySnapshot {
  */
 export class HubGrid {
   public readonly width: number;
+  /** First column and row past the playable map: the margin is a wall on every side. */
+  private readonly mapLimitX: number;
+  private readonly mapLimitY: number;
+  private claimStamp: Int32Array = new Int32Array(0);
+  private claimSeg: Int16Array = new Int16Array(0);
+  private claimGeneration = 0;
   public readonly height: number;
   public readonly terrain: string[][];
   public readonly items: (string | null)[][];
@@ -77,6 +88,8 @@ export class HubGrid {
     const grid = ConfigRegistry.getGame().grid;
     this.width = grid.mapWidth;
     this.height = grid.mapHeight;
+    this.mapLimitX = this.width - MAP_MARGIN;
+    this.mapLimitY = this.height - MAP_MARGIN;
     this.terrain = Array.from({ length: this.height }, () => new Array<string>(this.width).fill(WALL_TILE_ID));
     this.items = Array.from({ length: this.height }, () => new Array<string | null>(this.width).fill(null));
     this.segment = new Int16Array(this.width * this.height).fill(NO_SEGMENT);
@@ -151,16 +164,77 @@ export class HubGrid {
 
   /** Whether a corridor cell of segment `seg` can be opened here: free ground that touches nothing of another segment. */
   public corridorFits(p: GridPoint, seg: number, boxes: Box[], claims: Map<number, number>, touching = -1): boolean {
-    if (!this.inMap(p)) return false;
-    const k = this.key(p);
-    if (this.taken[k] || claims.has(k) || boxes.some((b) => this.inBox(p, b))) return false;
+    const px = p.x;
+    const py = p.y;
+    if (!this.inMapAt(px, py)) return false;
+    const width = this.width;
+    const k = py * width + px;
+    if (this.taken[k] || claims.has(k)) return false;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (px >= b.x0 && px <= b.x1 && py >= b.y0 && py <= b.y1) return false;
+    }
     // The hottest loop of the layout: neighbours are addressed by arithmetic, not by points.
-    for (const dir of ORDERED_DIRECTIONS) {
-      const nx = p.x + DIRECTION_VECTORS[dir].dx;
-      const ny = p.y + DIRECTION_VECTORS[dir].dy;
-      const nk = ny * this.width + nx;
+    for (let d = 0; d < ORDERED_DIRECTIONS.length; d++) {
+      const vector = DIRECTION_VECTORS[ORDERED_DIRECTIONS[d]];
+      const nx = px + vector.dx;
+      const ny = py + vector.dy;
+      const nk = ny * width + nx;
       if (nk === touching) continue;
       const neighbourSeg = claims.get(nk) ?? (this.inMapAt(nx, ny) ? this.segment[nk] : NO_SEGMENT);
+      if (neighbourSeg !== NO_SEGMENT && neighbourSeg !== seg) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Mirrors `claims` into flat arrays, so the corridor search reads a claim by index
+   * instead of hashing a key. Valid until the next call; `fitsIndexed` reads it.
+   */
+  public indexClaims(claims: Map<number, number>): void {
+    if (this.claimStamp.length === 0) {
+      this.claimStamp = new Int32Array(this.width * this.height);
+      this.claimSeg = new Int16Array(this.width * this.height);
+    }
+    if (this.claimGeneration >= MAX_CLAIM_GENERATION) {
+      this.claimGeneration = 0;
+      this.claimStamp.fill(0);
+    }
+    const generation = ++this.claimGeneration;
+    for (const [k, seg] of claims) {
+      this.claimStamp[k] = generation;
+      this.claimSeg[k] = seg;
+    }
+  }
+
+  /** Whether the cell of `key` is claimed in the claims last given to `indexClaims`. */
+  public isClaimed(key: number): boolean {
+    return this.claimStamp[key] === this.claimGeneration;
+  }
+
+  /** `corridorFits` against the claims last given to `indexClaims`, with `extra` as one more box; the same answer, without map lookups or a copied box list. */
+  public fitsIndexed(px: number, py: number, seg: number, boxes: Box[], extra: Box | null = null, touching = -1): boolean {
+    if (!this.inMapAt(px, py)) return false;
+    const width = this.width;
+    const k = py * width + px;
+    const stamp = this.claimStamp;
+    const generation = this.claimGeneration;
+    if (this.taken[k] || stamp[k] === generation) return false;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (px >= b.x0 && px <= b.x1 && py >= b.y0 && py <= b.y1) return false;
+    }
+    if (extra !== null && px >= extra.x0 && px <= extra.x1 && py >= extra.y0 && py <= extra.y1) return false;
+    // A cell with a whole ring of map around it has no neighbour to test against the map edge.
+    const interior = px > MAP_MARGIN && py > MAP_MARGIN && px < this.mapLimitX - 1 && py < this.mapLimitY - 1;
+    for (let d = 0; d < NEIGHBOUR_DX.length; d++) {
+      const nx = px + NEIGHBOUR_DX[d];
+      const ny = py + NEIGHBOUR_DY[d];
+      const nk = ny * width + nx;
+      if (nk === touching) continue;
+      let neighbourSeg: number;
+      if (stamp[nk] === generation) neighbourSeg = this.claimSeg[nk];
+      else neighbourSeg = interior || this.inMapAt(nx, ny) ? this.segment[nk] : NO_SEGMENT;
       if (neighbourSeg !== NO_SEGMENT && neighbourSeg !== seg) return false;
     }
     return true;
@@ -281,6 +355,12 @@ export class HubGrid {
     return sum === 0;
   }
 
+  /** The prefix sums of the taken cells, rebuilt first when a cell was taken since: for callers that test many boxes. */
+  public freshTakenSum(): Int32Array {
+    if (this.takenSumDirty) this.rebuildTakenSum();
+    return this.takenSum;
+  }
+
   /** Prefix sums of the taken cells, so that a box is checked free in constant time. */
   public rebuildTakenSum(): void {
     const stride = this.width + 1;
@@ -314,7 +394,16 @@ export class HubGrid {
   }
 
   public cellsBox(cells: GridPoint[]): Box {
-    return cells.map((c) => this.cellBox(c)).reduce((a, b) => this.union(a, b));
+    const first = cells[0];
+    const box: Box = { x0: first.x, y0: first.y, x1: first.x, y1: first.y };
+    for (let i = 1; i < cells.length; i++) {
+      const c = cells[i];
+      if (c.x < box.x0) box.x0 = c.x;
+      if (c.y < box.y0) box.y0 = c.y;
+      if (c.x > box.x1) box.x1 = c.x;
+      if (c.y > box.y1) box.y1 = c.y;
+    }
+    return box;
   }
 
   public union(a: Box, b: Box): Box {
@@ -343,7 +432,7 @@ export class HubGrid {
   }
 
   public inMapAt(x: number, y: number): boolean {
-    return x >= MAP_MARGIN && y >= MAP_MARGIN && x < this.width - MAP_MARGIN && y < this.height - MAP_MARGIN;
+    return x >= MAP_MARGIN && y >= MAP_MARGIN && x < this.mapLimitX && y < this.mapLimitY;
   }
 
   public step(p: GridPoint, dir: Direction): GridPoint {
