@@ -19,6 +19,8 @@ import { GameEngine } from '../GameEngine';
 import type { CompiledLevel, Direction } from '../types';
 import { displayTerrainId } from './display';
 import type { Cc3dCell } from './model';
+import { cellAt } from './cc3dWorld';
+import type { World } from './cc3dWorld';
 import { Cc3dRig } from './cc3dTestRig';
 
 /**
@@ -123,7 +125,7 @@ const BOMB_KIND = 'bomb';
 const FLOOR_ID = 'floor';
 /** The death message both engines give a player killed by a monster. */
 export const MONSTER_DEATH_KEY = 'hud.messages.death_monster';
-/** Cells (Chebyshev distance) within which two dead players, or a dead player and a living monster, count as one cell apart. */
+/** Cells (Manhattan distance) within which two dead players, or a dead player and the survivor, count as one step apart. */
 const NEAR_CELLS = 1;
 const MONSTER_KIND = 'monster';
 
@@ -138,14 +140,35 @@ export function displayTerrainWithoutBomb(cell: Cc3dCell): string {
   return displayTerrainId({ ...cell, terrain });
 }
 
-/** True when two cells are the same or neighbours (Chebyshev distance of at most one). */
+/** True when two cells are the same or orthogonal neighbours (Manhattan distance of at most one). */
 export function isWithinOneCell(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
-  return Math.abs(a.x - b.x) <= NEAR_CELLS && Math.abs(a.y - b.y) <= NEAR_CELLS;
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) <= NEAR_CELLS;
 }
 
-/** True when one of the cells holds a monster within one cell of the player. */
-export function monsterWithinOneCell(player: { x: number; y: number }, monsters: ReadonlyArray<{ x: number; y: number }>): boolean {
-  return monsters.some((monster) => isWithinOneCell(player, monster));
+/** A monster by Epoxy type and cell. */
+export interface MonsterAt {
+  type: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * True when a monster death against a living survivor may be read as a one-tick timing difference: the dead player
+ * stands within one step of the survivor; no monster shares the survivor's cell (that would mean shielding differs);
+ * and a monster of the same type stands one step from the survivor in both engines. Returns the type, or null.
+ */
+export function monsterTimingKind(
+  survivor: { x: number; y: number },
+  dead: { x: number; y: number },
+  survivorSide: ReadonlyArray<MonsterAt>,
+  deadSide: ReadonlyArray<MonsterAt>
+): string | null {
+  if (!isWithinOneCell(survivor, dead)) return null;
+  if (survivorSide.some((m) => m.x === survivor.x && m.y === survivor.y)) return null;
+  const adjacent = (m: MonsterAt): boolean => isWithinOneCell(survivor, m);
+  const near = survivorSide.filter(adjacent);
+  const match = near.find((m) => deadSide.some((o) => o.type === m.type && adjacent(o)));
+  return match ? match.type : null;
 }
 
 /** The CC3D display id both snappy and nibble are drawn with, and the Epoxy monster of each. */
@@ -191,6 +214,8 @@ export class DifferentialPair {
    * same encounter a tick apart. Reported as a timing difference, not a failure; the walk ends there.
    */
   public monsterTiming = false;
+  /** The Epoxy type of the monster behind the last monster timing difference, or null. */
+  public monsterTimingType: string | null = null;
   private cc3dSettled = true;
   private epoxySettled = true;
   /** The converted level holds a socket, so chips matter; without one it asks for none. */
@@ -261,15 +286,17 @@ export class DifferentialPair {
   }
 
   /** The monsters of an engine's entity list, by cell (CC3D types read through their Epoxy twin). */
-  private monstersOf(entities: ReadonlyArray<{ type: string; x: number; y: number }>, cc3d: boolean): Array<{ x: number; y: number }> {
+  private monstersOf(entities: ReadonlyArray<{ type: string; x: number; y: number }>, cc3d: boolean): MonsterAt[] {
     const kinds = cc3d ? this.mobKinds() : new Map<string, string>();
-    return entities.filter((e) => ConfigRegistry.getEntityDef(cc3d ? this.epoxyTypeOf(e, kinds) : e.type)?.kind === MONSTER_KIND);
+    return entities
+      .map((e) => ({ type: cc3d ? this.epoxyTypeOf(e, kinds) : e.type, x: e.x, y: e.y }))
+      .filter((m) => ConfigRegistry.getEntityDef(m.type)?.kind === MONSTER_KIND);
   }
 
-  /** The CC3D cells of the simulation (private to the engine), row-major. */
-  private cc3dCells(): ReadonlyArray<Cc3dCell> {
-    const sim = (this.rig.engine as unknown as { sim: { world: { cells: Cc3dCell[] } } | null }).sim;
-    return sim?.world.cells ?? [];
+  /** The CC3D cell at a position (read from the simulation, which the engine keeps private). */
+  private cc3dCellAt(x: number, y: number): Cc3dCell | undefined {
+    const sim = (this.rig.engine as unknown as { sim: { world: World } | null }).sim;
+    return sim ? cellAt(sim.world, x, y) : undefined;
   }
 
   /** The CC3D colour blocks that float on water now, by cell (read from the simulation, which the engine keeps private). */
@@ -293,21 +320,23 @@ export class DifferentialPair {
     if (this.cc3dSettled !== this.epoxySettled) return at('settle', `cc3d settles ${this.cc3dSettled} epoxy settles ${this.epoxySettled}`);
     const a = this.rig.player;
     const b = this.epoxy.getPlayer();
+    let timing = false;
     if (a.alive !== b.alive) {
       const deadIsCc3d = !a.alive;
       const dead = deadIsCc3d ? a : b;
       const survivor = deadIsCc3d ? b : a;
-      const survivorMonsters = deadIsCc3d ? this.monstersOf(this.epoxy.getEntities(), false) : this.monstersOf(this.rig.entities, true);
-      if (dead.deathReasonKey === MONSTER_DEATH_KEY && monsterWithinOneCell(survivor, survivorMonsters)) {
-        this.monsterTiming = true;
-        return null;
-      }
-      return at('alive', `cc3d ${a.alive} epoxy ${b.alive}`);
+      const survivorSide = deadIsCc3d ? this.monstersOf(this.epoxy.getEntities(), false) : this.monstersOf(this.rig.entities, true);
+      const deadSide = deadIsCc3d ? this.monstersOf(this.rig.entities, true) : this.monstersOf(this.epoxy.getEntities(), false);
+      const kind = dead.deathReasonKey === MONSTER_DEATH_KEY ? monsterTimingKind(survivor, dead, survivorSide, deadSide) : null;
+      if (kind === null) return at('alive', `cc3d ${a.alive} epoxy ${b.alive}`);
+      timing = true;
+      this.monsterTimingType = kind;
+    } else {
+      const bothKilledByMonster = !a.alive && a.deathReasonKey === MONSTER_DEATH_KEY && b.deathReasonKey === MONSTER_DEATH_KEY;
+      // Documented gap: two players killed by a monster may stand one step apart, the engines resolve the strike a tick apart.
+      const samePlace = a.x === b.x && a.y === b.y;
+      if (!samePlace && !(bothKilledByMonster && isWithinOneCell(a, b))) return at('player', `cc3d ${a.x},${a.y} epoxy ${b.x},${b.y}`);
     }
-    const bothKilledByMonster = !a.alive && a.deathReasonKey === MONSTER_DEATH_KEY && b.deathReasonKey === MONSTER_DEATH_KEY;
-    // Documented gap: two players killed by a monster may stand one cell apart, the engines resolve the strike a tick apart.
-    const samePlace = a.x === b.x && a.y === b.y;
-    if (!samePlace && !(bothKilledByMonster && isWithinOneCell(a, b))) return at('player', `cc3d ${a.x},${a.y} epoxy ${b.x},${b.y}`);
     const doneA = this.rig.engine.isLevelCompleted();
     const doneB = this.epoxy.isLevelCompleted();
     if (doneA !== doneB) return at('complete', `cc3d ${doneA} epoxy ${doneB}`);
@@ -321,19 +350,28 @@ export class DifferentialPair {
     const terrainA = this.rig.engine.getTerrain();
     const terrainB = this.epoxy.getTerrain();
     const floating = this.floatingBlocks();
-    const cc3dCells = this.cc3dCells();
     for (let y = 0; y < terrainA.length; y++) {
       for (let x = 0; x < terrainA[y].length; x++) {
         const floatingColor = floating.get(`${x},${y}`);
         // A top bomb is compared apart (see `items`): its ground is the cell without the bomb layer.
-        const ground = terrainA[y][x] === BOMB_ID && cc3dCells.length > 0 ? displayTerrainWithoutBomb(cc3dCells[y * terrainA[y].length + x]) : terrainA[y][x];
+        const cell = terrainA[y][x] === BOMB_ID ? this.cc3dCellAt(x, y) : undefined;
+        const ground = cell ? displayTerrainWithoutBomb(cell) : terrainA[y][x];
         const mapped = floatingColor === undefined ? epoxyIdOf(ground) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
         if (mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
     }
+    // Bombs are always compared, one by one: a bomb layer is the item `bomb` of the converted level.
+    const itemsB = this.epoxy.getItems();
+    if (!options.items) {
+      for (let y = 0; y < terrainA.length; y++) {
+        for (let x = 0; x < terrainA[y].length; x++) {
+          const bombA = terrainA[y][x] === BOMB_ID;
+          if (bombA !== (itemsB[y][x] === BOMB_ID)) return at('items', `${x},${y} cc3d bomb ${bombA} epoxy ${String(itemsB[y][x])}`);
+        }
+      }
+    }
     if (options.items) {
       const itemsA = this.rig.engine.getItems();
-      const itemsB = this.epoxy.getItems();
       for (let y = 0; y < itemsA.length; y++) {
         for (let x = 0; x < itemsA[y].length; x++) {
           const raw = itemsA[y][x];
@@ -349,6 +387,7 @@ export class DifferentialPair {
       const linesB = entityLines(this.epoxy.getEntities(), (type) => type);
       if (linesA.join(';') !== linesB.join(';')) return at('entities', `cc3d ${linesA.join(' ')} epoxy ${linesB.join(' ')}`);
     }
+    if (timing) this.monsterTiming = true;
     return null;
   }
 }
@@ -373,6 +412,8 @@ export interface WalkResult {
   looping: boolean;
   /** The walk ended on a monster timing difference (see DifferentialPair.monsterTiming): not a failure. */
   monsterTiming?: boolean;
+  /** With monsterTiming: the Epoxy type of the monster involved. */
+  monsterType?: string;
   mismatch: DiffMismatch | null;
 }
 
@@ -390,7 +431,7 @@ export function differentialWalk(source: CompiledLevel, converted: CompiledLevel
     pair.step(WALK_DIRECTIONS[Math.floor(next() * WALK_DIRECTIONS.length)]);
     const mismatch = pair.compare();
     if (mismatch) return { touched, moves: pair.moves, looping: false, mismatch };
-    if (pair.monsterTiming) return { touched, moves: pair.moves, looping: false, monsterTiming: true, mismatch: null };
+    if (pair.monsterTiming) return { touched, moves: pair.moves, looping: false, monsterTiming: true, monsterType: pair.monsterTimingType ?? undefined, mismatch: null };
     if (!touched) {
       touched =
         pair.epoxy.getChipsRemaining() !== startChips ||

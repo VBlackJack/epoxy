@@ -63,6 +63,8 @@ const SCRIPT_SEED = 1;
 const SCRIPT_DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 /** Seeds of the random walks played on each exact map. */
 const WALK_SEEDS: readonly number[] = [7, 8, 9];
+/** Most walks that may end as a monster timing difference (measured); a higher count means the tolerance grew. */
+const MONSTER_TIMING_CEILING = 29;
 
 function loadLevels(): CompiledLevel[] {
   const dir = CORPUS_DIR as string;
@@ -226,7 +228,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     let exactMaps = 0;
     let walks = 0;
     let touchedWalks = 0;
-    let monsterTimingWalks = 0;
+    const monsterTimingWalks: string[] = [];
     let moves = 0;
     for (const source of levels) {
       const cc3d = source.cc3d;
@@ -238,7 +240,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
         walks += 1;
         moves += walk.moves;
         if (walk.touched) touchedWalks += 1;
-        if (walk.monsterTiming) monsterTimingWalks += 1;
+        if (walk.monsterTiming) monsterTimingWalks.push(`${source.id}/${seed}@${walk.moves}:${walk.monsterType ?? '?'}`);
         if (walk.looping) loops.push(`${source.id}/${seed}@${walk.moves}`);
         if (walk.mismatch) {
           bump(byField, walk.mismatch.field);
@@ -248,9 +250,11 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     }
     console.info(
       `differential: ${exactMaps} exact maps, ${walks} walks, ${moves} moves, ${touchedWalks} walks changed chips, keys or cells, ` +
-        `${mismatches.length} mismatches ${JSON.stringify(byField)}, ${monsterTimingWalks} walks ended as monster_timing (reported, not failures); walks ended in a perpetual slide: ${loops.join(' ')}`
+        `${mismatches.length} mismatches ${JSON.stringify(byField)}, ${monsterTimingWalks.length} walks ended as monster_timing (reported, not failures); walks ended in a perpetual slide: ${loops.join(' ')}`
     );
+    console.info(`monster_timing walks (map/seed@step:monster): ${monsterTimingWalks.join(' ')}`);
     for (const line of mismatches) console.info(`  mismatch ${line}`);
+    expect(monsterTimingWalks.length).toBeLessThanOrEqual(MONSTER_TIMING_CEILING);
     expect(exactMaps).toBeGreaterThan(0);
     expect(mismatches).toEqual([]);
   });
