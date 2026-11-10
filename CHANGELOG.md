@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Generated levels with many puzzle wings are built about a third faster, with exactly the same levels for the same seed.
+
 ## [2.29.0] - 2026-11-10
 
 ### Added
