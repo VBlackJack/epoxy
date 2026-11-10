@@ -78,20 +78,19 @@ const RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, obje
 
 /**
  * The aids that stay off on a level with colour channels (plates, hold doors, colour walls and blocks):
- * the hint and the watch model pushes onto buttons and targets, not plates, and a tapped path does not
- * press a plate to hold a door open.
+ * the hint and the watch model pushes onto buttons and targets, not plates. A tapped path stays on: the
+ * Pathfinder never walks through a channel button and only crosses a hold door that blocks hold open.
  */
 const COLOR_LEVEL_FEATURES: RulesetFeatures = {
   ...EPOXY_FEATURES,
-  tapToPath: false,
   blockHint: false,
   deadEndWatch: false
 };
 
-/** Laser aids win for what a laser level already loses; the colour aids are turned off too. */
+/** Laser aids win for what a laser level already loses; the colour level adds nothing more. */
 const LASER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToPath: COLOR_LEVEL_FEATURES.tapToPath };
 
-/** A receivers level with colour content: the receivers aids and the colour aids are both off. */
+/** A receivers level with colour content: the receivers aids and the colour aids are both applied. */
 const RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = {
   ...RECEIVER_LEVEL_FEATURES,
   tapToPath: COLOR_LEVEL_FEATURES.tapToPath
@@ -542,6 +541,10 @@ const TURRET_LEVEL_FEATURES: RulesetFeatures = { ...LASER_LEVEL_FEATURES, tapToP
 /** A receivers level with turrets: the receivers aids and no tapped path. */
 const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEATURES, tapToPath: false };
 
+/** A turret level with colour content: the turrets still fire at a walker, so no tapped path. */
+const TURRET_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...LASER_COLOR_LEVEL_FEATURES, tapToPath: false };
+const TURRET_RECEIVER_LEVEL_FEATURES_COLOR: RulesetFeatures = { ...RECEIVER_COLOR_LEVEL_FEATURES, tapToPath: false };
+
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
   Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
@@ -771,12 +774,13 @@ function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
     turretContentCache.set(level, turret);
   }
   if (receivers) {
-    if (color) return RECEIVER_COLOR_LEVEL_FEATURES;
+    if (color) return turret ? TURRET_RECEIVER_LEVEL_FEATURES_COLOR : RECEIVER_COLOR_LEVEL_FEATURES;
     return turret ? TURRET_RECEIVER_LEVEL_FEATURES : RECEIVER_LEVEL_FEATURES;
   }
   if (!color) {
     if (turret) return TURRET_LEVEL_FEATURES;
     return laser ? LASER_LEVEL_FEATURES : EPOXY_FEATURES;
   }
+  if (turret) return TURRET_COLOR_LEVEL_FEATURES;
   return laser ? LASER_COLOR_LEVEL_FEATURES : COLOR_LEVEL_FEATURES;
 }
