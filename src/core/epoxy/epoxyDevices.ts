@@ -20,6 +20,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
   CC_CADENCE_TYPES,
+  CC_QUEUED_TANK_TURN_DELAY_PASSES,
   CC_TANK_TURN_DELAY_PASSES,
   CHIP_ITEM_ID,
   ccStepTicks,
@@ -53,6 +54,7 @@ import {
   killPlayer,
   mapWidth,
   monsterSlowdown,
+  addClonedEntity,
   removeEntity,
   signalSinkOn,
   killPlayerAt,
@@ -131,7 +133,8 @@ function markTanksToTurn(w: EpoxyWorld): void {
   // The clock counts the pass of the current tick as soon as it starts: count from the passes begun before this tick,
   // whatever the source of the press (the player, a slide, a monster stepping on the button).
   const begun = w.ccPassOpen ? w.ccMonsterClock - 1 : w.ccMonsterClock;
-  const due = begun + CC_TANK_TURN_DELAY_PASSES;
+  // A press taken from the monster queue turns the tanks one pass after it is applied.
+  const due = w.ccArrivalsRunning ? w.ccMonsterClock + CC_QUEUED_TANK_TURN_DELAY_PASSES : begun + CC_TANK_TURN_DELAY_PASSES;
   for (const ent of w.entities) {
     if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
     const tile = ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]);
@@ -521,7 +524,7 @@ export function spawnFromCloner(
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
     ...initialEmulationState(def)
   };
-  w.entities.push(spawned);
+  addClonedEntity(w, spawned);
   if (spawned.kind === 'block') {
     moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir);
   } else {

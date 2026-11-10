@@ -146,16 +146,17 @@ describe('classic generators', () => {
     }
   });
 
-  it('leaves a CC2 import and a native level on the seeded generator', () => {
+  it('gives a CC2 import the classic generators and leaves a native level on the seeded one', () => {
     const cc2 = start(levelWith(ROOM, 'blob', 'S', 'cc2'));
     const native = start(levelWith(ROOM, 'blob', 'S', 'native'));
     for (let i = 0; i < 20; i++) {
       cc2.engine.tick();
       native.engine.tick();
     }
-    expect(cc2.w.ccGenerators).toBeNull();
+    expect(cc2.w.ccGenerators).not.toBeNull();
     expect(native.w.ccGenerators).toBeNull();
-    expect(cc2.engine.captureState().ccGenerators).toBeUndefined();
+    expect(cc2.engine.captureState().ccGenerators).toBeDefined();
+    expect(native.engine.captureState().ccGenerators).toBeUndefined();
   });
 
   it('reproduces the same walk for the same seed and another for a different one', () => {

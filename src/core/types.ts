@@ -2108,6 +2108,17 @@ export interface Cc2LevelData {
   coverage: Cc2Coverage;
 }
 
+/** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */
+export interface CcArrival {
+  /** The monster that stepped on the button; the press is void when it is gone or has left the cell. */
+  uid: number;
+  x: number;
+  y: number;
+  action: ButtonAction;
+  /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
+  due: number;
+}
+
 /** The start of a player beyond the first on a level with several. */
 export interface ExtraPlayerStart {
   x: number;
@@ -2353,6 +2364,10 @@ export interface UndoSnapshot {
   ccMonsterClock?: number;
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
   ccGenerators?: [number, number, number];
+  /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
+  ccArrivals?: CcArrival[];
+  /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */
+  ccSlots?: (number | null)[];
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
   /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */

@@ -725,6 +725,8 @@ export class GameEngine {
       // Only a classic-rules level reads the entity-pass clock (the teeth cycle).
       ...(this.w.ccRules ? { ccMonsterClock: this.w.ccMonsterClock } : {}),
       ...(this.w.ccGenerators !== null ? { ccGenerators: [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] as [number, number, number] } : {}),
+      ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
+      ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
       ...(this.w.litCharges.length > 0 ? { litCharges: copyLitCharges(this.w) } : {}),
       // Only a level that revealed something has revealed cells to put back.
@@ -819,6 +821,9 @@ export class GameEngine {
     if (this.w.ccGenerators !== null && snap.ccGenerators !== undefined) {
       [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] = snap.ccGenerators;
     }
+    this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
+    this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
+    this.w.ccArrivalsRunning = false;
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     // A blast may have turned a device into floor: the devices are listed from the terrain put back.
     if (this.w.hasDynamite) rebuildDeviceLookups(this.w);
