@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -615,7 +615,9 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   // Classic rules: a move takes the time of the tile it enters, so the step that leaves a slide onto plain floor is
   // followed by a full walking wait (ice and force floor alike).
   if (w.ccRules && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
+    // A player who slid onto a teleporter waits the time of a slide step before the forced exit.
+    const wait = w.player.teleportExit !== undefined ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, wait);
   }
   ctx.checkTargetsWin();
 }
