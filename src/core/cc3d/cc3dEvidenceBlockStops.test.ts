@@ -62,20 +62,38 @@ const OBSTACLES: Array<[string, string]> = [
   ['an ice corner open on its east side', '@xIIIe.']
 ];
 
+const MONSTER_KINDS = [
+  'walker', 'limpa', 'limpy', 'bouncer', 'golem_blue', 'golem_yellow', 'blinky', 'baby_blinky', 'screamer', 'baby_screamer',
+  'snappy', 'nibble', 'legs_green', 'legs_red', 'omni'
+] as const;
+
 describe('a CC3D block that slides into a monster', () => {
-  it('kills it when the block is a dirt or colour block, which Epoxy does not; the ice block agrees', () => {
-    for (const [blockName, glyph] of BLOCKS) {
-      for (const floor of ['III', '>>>']) {
-        const t = playTimeline({ rows: room(`@${glyph}${floor}M.`), moves: '', glyphs: GLYPHS }, 'E');
-        expect(t.sameSequence, `${blockName} on ${floor}`).toBe(glyph === 'Z');
+  for (const [blockName, glyph] of BLOCKS) {
+    for (const floor of ['III', '>>>']) {
+      for (const kind of MONSTER_KINDS) {
+        // The ice block is refused by the screamers in both engines for another reason: they melt it (their own key).
+        if (glyph === 'Z' && (kind === 'screamer' || kind === 'baby_screamer')) continue;
+        it(`${blockName} on ${floor} crushes a ${kind}, as in CC3D`, () => {
+          const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, M: withMob(device('trap'), { kind, dir: 'W' }) };
+          const t = playTimeline({ rows: room(`@${glyph}${floor}M.`), moves: '', glyphs }, 'E');
+          expect(t.sameSequence, `${blockName} on ${floor} into ${kind}`).toBe(true);
+          expect(t.sameFinal).toBe(true);
+        });
       }
     }
-    // The coverage names it: a slide terrain, a dirt or colour block and a walking monster on one map.
+  }
+
+  it('a block pushed straight into a monster is refused by both engines', () => {
+    for (const [blockName, glyph] of BLOCKS) {
+      const t = playTimeline({ rows: room(`@${glyph}M..`), moves: '', glyphs: GLYPHS }, 'E');
+      expect(t.sameSequence, blockName).toBe(true);
+    }
+  });
+
+  it('the coverage no longer names the case', () => {
+    expect(EPOXY_COVERAGE).not.toHaveProperty('block_slides_into_monster');
     const level = cc3dModel(room('@KIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } });
-    expect(classifyLevel(level).approx).toContain('block_slides_into_monster');
-    expect(classifyLevel(cc3dModel(room('@ZIIIb.'), { b: { mob: { kind: 'bouncer', dir: 'W' } } })).approx).not.toContain('block_slides_into_monster');
-    expect(EPOXY_COVERAGE.block_slides_into_monster.level).toBe('approx');
-    expect(EPOXY_COVERAGE.block_slides_into_monster.reason).toContain('cc3dEvidenceBlockStops.test.ts');
+    expect(classifyLevel(level).approx).not.toContain('block_slides_into_monster');
   });
 });
 

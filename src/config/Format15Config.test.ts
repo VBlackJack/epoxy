@@ -280,6 +280,16 @@ describe('findFormat15ConfigErrors', () => {
     expect(errors({ stopsAtWall: false })).toEqual(['ice_block_3d.stopsAtWall: expected true']);
     expect(errors({ slidesOnIce: false })).toEqual(['ice_block_3d.stopsAtWall: only a block that slides on ice stops at a wall']);
   });
+
+  it('crushes monsters only with the CC3D dirt block, and refuses crushesMonsters on a block that does not slide, or that is not true', () => {
+    const { tiles, entities } = clones();
+    expect(entities.dirt_block_3d.crushesMonsters).toBe(true);
+    for (const id of ['dirt_block', 'ice_block', 'ice_block_3d', 'color_block_red']) expect(entities[id].crushesMonsters, id).toBeUndefined();
+    const errors = (patch: Record<string, unknown>) => findFormat15ConfigErrors(tiles, { ...entities, dirt_block_3d: { ...entities.dirt_block_3d, ...patch } }).monsters;
+    expect(errors({ crushesMonsters: false })).toEqual(['dirt_block_3d.crushesMonsters: expected true']);
+    expect(errors({ slidesOnIce: false, slidesOnForce: false, stopsAtWall: undefined })).toEqual(['dirt_block_3d.crushesMonsters: only a block that slides crushes a monster']);
+    expect(errors({ kind: 'monster' })).toEqual(['dirt_block_3d.crushesMonsters: only a block crushes a monster']);
+  });
 });
 
 describe('findFormat15ConfigErrors: settled semantics', () => {

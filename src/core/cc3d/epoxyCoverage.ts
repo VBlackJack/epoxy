@@ -57,7 +57,6 @@ export const KEY_APPEARING_WALL_WITH_MONSTER = 'appearing_wall_with_monster';
 /** Two or more walking monsters on a map, one of a kind whose head-on meeting differs between the engines. */
 export const KEY_MONSTERS_MEET = 'monsters_meet';
 /** A dirt or colour block, a slide terrain (ice or force floor) and a walking monster on one map: the CC3D block kills a monster it slides into. */
-export const KEY_BLOCK_SLIDES_INTO_MONSTER = 'block_slides_into_monster';
 /** A clone switch whose nearest machine holds no template Epoxy can clone. */
 export const KEY_CLONE_SWITCH_EMPTY = 'clone_switch_empty';
 /** A bomb layer in a cell whose item slot is already taken. */
@@ -118,8 +117,6 @@ const SLIME_REASON =
   'Epoxy plays CC3D slime as slime_3d: it kills the player and is cleaned away with any block that enters it, and a player holding the fire and the water orb together survives it and cleans it, as in CC3D (cc3dEvidenceTerrain.test.ts). The Epoxy walker and the blue golem refuse slime, as the CC3D ones do (cc3dEvidenceMonsters.test.ts, cc3dEvidenceDevices.test.ts). The trail an omni leaves is slime_3d too.';
 const APPEARING_WALL_REASON =
   'Epoxy plays CC3D appearing wall as appearing_wall_any: the player bumping it, the player sliding into it and a block pushed into it turn it into a wall, from any side, as in CC3D (cc3dEvidenceTerrain.test.ts). A block sliding into it over ice or a force floor turns it into a wall too (dirt and ice blocks: cc3dEvidenceTerrain.test.ts; colour blocks too). One case differs and is a key of its own: a walking monster on the map (appearing_wall_with_monster).';
-const BLOCK_SLIDES_INTO_MONSTER_REASON =
-  'The map has a dirt or colour block, ice or a force floor and a walking monster: a CC3D dirt or colour block that slides into a monster kills it and goes on into its cell, where the Epoxy block stops against the monster and leaves it alive. A block pushed straight into a monster is refused in both engines, and the ice block agrees (cc3dEvidenceBlockStops.test.ts).';
 const APPEARING_WALL_WITH_MONSTER_REASON =
   'Epoxy plays CC3D appearing wall as appearing_wall_any (cc3dEvidenceTerrain.test.ts), but the map has a walking monster: the monster that reveals it turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers rather than lets walk, leaves the wall as it is where the CC3D golem makes it a wall (cc3dEvidenceYellowGolem.test.ts).';
 const GATE_TOOLS_REASON =
@@ -303,7 +300,6 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
   [KEY_APPEARING_WALL_WITH_MONSTER]: APPEARING_WALL_WITH_MONSTER_REASON,
   [KEY_MONSTERS_MEET]: MONSTERS_MEET_REASON,
-  [KEY_BLOCK_SLIDES_INTO_MONSTER]: BLOCK_SLIDES_INTO_MONSTER_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: WALKER_REASON,
@@ -332,8 +328,6 @@ const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3
 ];
 
 /** Monsters whose head-on meeting with another walking monster differs between the engines (measured per kind pair). */
-const SLIDE_TERRAIN_KINDS: readonly Cc3dTerrainKind[] = ['ice', 'ice_corner', 'force', 'force_random'];
-const KILLING_BLOCK_KINDS: readonly Cc3dMobKind[] = ['block_dirt', 'block_color'];
 const MEETING_DIFFERS_KINDS: readonly Cc3dMobKind[] = [
   'walker', 'omni', 'limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'
 ];
@@ -514,13 +508,6 @@ function relationKeys(level: Cc3dLevel): string[] {
     level.mobs.some((mob) => isSupportedMonster(mob.kind))
   ) {
     keys.push(KEY_APPEARING_WALL_WITH_MONSTER);
-  }
-  if (
-    level.mobs.some((mob) => KILLING_BLOCK_KINDS.includes(mob.kind)) &&
-    level.cells.some((cell) => cell.terrain.some((layer) => SLIDE_TERRAIN_KINDS.includes(layer.kind))) &&
-    level.mobs.some((mob) => isSupportedMonster(mob.kind))
-  ) {
-    keys.push(KEY_BLOCK_SLIDES_INTO_MONSTER);
   }
   if (meetingMonstersDiffer(level, links.cloneMachines)) keys.push(KEY_MONSTERS_MEET);
   return keys;

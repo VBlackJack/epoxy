@@ -2271,6 +2271,13 @@ export function findFormat15ConfigErrors(
       if (entity.stopsAtWall !== true) errors.push(`${entity.id}.stopsAtWall: expected true`);
       if (entity.slidesOnIce !== true) errors.push(`${entity.id}.stopsAtWall: only a block that slides on ice stops at a wall`);
     }
+    if (entity.crushesMonsters !== undefined) {
+      if (entity.crushesMonsters !== true) errors.push(`${entity.id}.crushesMonsters: expected true`);
+      if (entity.kind !== 'block') errors.push(`${entity.id}.crushesMonsters: only a block crushes a monster`);
+      if (entity.slidesOnIce !== true && entity.slidesOnForce !== true) {
+        errors.push(`${entity.id}.crushesMonsters: only a block that slides crushes a monster`);
+      }
+    }
     if (entity.slidesOverTiles === undefined) continue;
     const { id } = entity;
     if (entity.kind !== 'block') errors.push(`${id}.slidesOverTiles: only a block slides over tiles`);

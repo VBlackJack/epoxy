@@ -98,10 +98,10 @@ describe('shipped format 17 fields', () => {
 describe('shipped CC3D colour blocks', () => {
   beforeEach(() => loadTestConfigs());
 
-  it('are the native colour blocks that also stop against a wall on ice', () => {
+  it('are the native colour blocks that also stop against a wall on ice and crush a monster they slide into', () => {
     const entities = ConfigRegistry.getMonsters().entities;
     for (const c of ['red', 'green', 'blue', 'yellow']) {
-      const { stopsAtWall, id, i18nKey, ...rest } = entities[`color_block_3d_${c}`];
+      const { stopsAtWall, crushesMonsters, id, i18nKey, ...rest } = entities[`color_block_3d_${c}`];
       const { id: nativeId, i18nKey: nativeKey, ...native } = entities[`color_block_${c}`];
       expect(stopsAtWall, id).toBe(true);
       expect(i18nKey).toBe(`entities.color_block_3d_${c}.name`);
