@@ -217,6 +217,12 @@ describe('DifferentialPair.compare', () => {
       expect(notFloor.compare()?.field).toBe('cells');
     });
 
+    it('refuses a panel lost by CC3D: floor on both sides of an edge cell', () => {
+      const pair = edgeRoom();
+      show(pair, 'floor', 'floor');
+      expect(pair.compare()?.field).toBe('cells');
+    });
+
     it('does not excuse a thin wall on a cell that has no stored edge', () => {
       const pair = edgeRoom();
       const put = (rows: string[][], id: string): string[][] => rows.map((row, y) => row.map((value, x) => (x === 5 && y === 1 ? id : value)));
@@ -232,11 +238,9 @@ describe('DifferentialPair.compare', () => {
       vi.spyOn(pair.epoxy, 'getTerrain').mockReturnValue(real.map((row, y) => row.map((id, x) => (x === 5 && y === 1 ? 'water' : id))));
     }
 
-    function finish(pair: DifferentialPair, done: { cc3d: boolean; epoxy: boolean }, time: { cc3d: number; epoxy: number }): void {
+    function finish(pair: DifferentialPair, done: { cc3d: boolean; epoxy: boolean }): void {
       vi.spyOn(pair.rig.engine, 'isLevelCompleted').mockReturnValue(done.cc3d);
       vi.spyOn(pair.epoxy, 'isLevelCompleted').mockReturnValue(done.epoxy);
-      vi.spyOn(pair.rig.engine, 'getTimeRemainingSeconds').mockReturnValue(time.cc3d);
-      vi.spyOn(pair.epoxy, 'getTimeRemainingSeconds').mockReturnValue(time.epoxy);
     }
 
     it('stops comparing once both players are dead', () => {
@@ -252,25 +256,23 @@ describe('DifferentialPair.compare', () => {
       expect(pair.compare()?.field).toBe('cells');
     });
 
-    it('stops comparing once both levels are done with the same time left', () => {
+    it('stops comparing once both levels are done', () => {
       const pair = room();
-      finish(pair, { cc3d: true, epoxy: true }, { cc3d: 30, epoxy: 30 });
+      finish(pair, { cc3d: true, epoxy: true });
       differAtCell(pair);
       expect(pair.compare()).toBeNull();
     });
 
-    it('reports a different time left when both levels are done', () => {
+    it('reports two players dead of different causes', () => {
       const pair = room();
-      finish(pair, { cc3d: true, epoxy: true }, { cc3d: 30, epoxy: 29 });
+      stage(pair, { x: 2, y: 1, alive: false, death: OTHER_DEATH }, { x: 2, y: 1, alive: false, death: MONSTER_DEATH });
       differAtCell(pair);
-      const mismatch = pair.compare();
-      expect(mismatch?.field).toBe('complete');
-      expect(mismatch?.detail).toContain('time left');
+      expect(pair.compare()?.field).toBe('alive');
     });
 
     it('reports one level done and the other not', () => {
       const pair = room();
-      finish(pair, { cc3d: true, epoxy: false }, { cc3d: 30, epoxy: 30 });
+      finish(pair, { cc3d: true, epoxy: false });
       expect(pair.compare()?.field).toBe('complete');
     });
   });
