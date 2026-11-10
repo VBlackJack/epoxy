@@ -27,6 +27,8 @@ beforeEach(() => {
 /** A force floor lane going east with open floor on both sides, the player on the floor west of it. */
 const FORCE_LANE = ['###############', '#.............#', '#.@>>>>>>>>>..#', '#.............#', '###############'];
 const BLOCK_LANE = ['###############', '#.............#', '#.@.IIIIIIII..#', '#.............#', '###############'];
+/** Ticks per cell of a slide over ice on a level without the classic rules. */
+const NATIVE_ICE_GAP = 3;
 const ICE_LANE = ['###############', '#.............#', '#.@IIIIIIII...#', '#.............#', '###############'];
 
 function level(rows: string[], flavor: boolean, extra: Parameters<typeof buildTestLevel>[1] = {}): CompiledLevel {
@@ -147,7 +149,7 @@ describe('classic slide speed', () => {
     expect(fast.every((g) => g === 2)).toBe(true);
     const slow = cellGaps(native.engine, native.w, 40).slice(1, 5);
     expect(slow.length).toBeGreaterThanOrEqual(3);
-    expect(slow.every((g) => g > 2)).toBe(true);
+    expect(slow.every((g) => g === NATIVE_ICE_GAP)).toBe(true);
   });
 
   it('slides a block over ice one cell every two ticks, and at the native pace without the classic rules', () => {
@@ -289,6 +291,31 @@ describe('classic walk wait after a slide', () => {
 
   it('adds no wait on a level without the classic rules', () => {
     const { engine } = leaveIce(false);
+    expect(engine.getPlayer().moveCooldown).toBe(0);
+  });
+
+  it('gives the walk wait to a force slide that ends on plain floor too', () => {
+    const rows = ['###############', '#.............#', '#.@>>>>>>>>>..#', '#.............#', '###############'];
+    const { engine, w } = start(rows, true);
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < 60 && w.player.x < 12; i++) engine.tick();
+    expect(w.player.x).toBe(12);
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThanOrEqual(3);
+  });
+
+  it('leaves the next player free to move when the sliding one leaves through an exit', () => {
+    const built = buildTestLevel(['###############', '#.@>>E........#', '#.............#', '#.............#', '###############']);
+    const level: CompiledLevel = {
+      ...built,
+      rulesFlavor: 'cc',
+      extraPlayers: [{ x: 8, y: 3, dir: 'E', character: 'melinda' }]
+    };
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < 40 && (engine.getExitedPlayers() ?? 0) < 1; i++) engine.tick();
+    expect(engine.getExitedPlayers()).toBe(1);
+    expect(engine.getPlayerCharacter()).toBe('melinda');
     expect(engine.getPlayer().moveCooldown).toBe(0);
   });
 });
