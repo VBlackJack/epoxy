@@ -524,6 +524,9 @@ tile trap closed=true shadowMask=128 hash=1 4433a645a3de9924
 tile trap closed=false isolated 7c132fdfc30ecd98
 tile trap closed=false shadowMask=65 hash=1 e9b9b8238ba183f0
 tile trap closed=false shadowMask=128 hash=1 da924c06c8ee72b4
+tile trap_sealed closed=true isolated fedd3258948bdda9
+tile trap_sealed closed=true shadowMask=65 hash=1 6e36897c76fe815c
+tile trap_sealed closed=true shadowMask=128 hash=1 b0d0b9bacd906cc0
 tile clone_machine closed=true isolated dc71e339a8b4e47c
 tile clone_machine closed=true shadowMask=65 hash=1 325f101373be7791
 tile clone_machine closed=true shadowMask=128 hash=1 3d4b65d663c6cf81

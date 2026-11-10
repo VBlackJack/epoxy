@@ -366,7 +366,7 @@ function buildEdges(level: DeviceLevel): Edge[] {
   for (const a of facets) {
     const action = a.tile.buttonAction;
     if (action === 'hold_trap') {
-      for (const b of facets) if (b.tile.isTrap && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level', 'trap', undefined, true);
+      for (const b of facets) if (b.tile.isTrap && b.tile.sealedTrap !== true && !linkedTraps.has(`${b.x},${b.y}`)) add(a, b, 'level', 'trap', undefined, true);
     } else if (action === 'trigger_cloner' && !buttonsWithCloneLinks.has(`${a.x},${a.y}`)) {
       for (const b of facets) if (b.tile.isCloneMachine && entityCells.has(`${b.x},${b.y}`)) add(a, b, 'level', 'clone', undefined, true);
     } else if (action === 'reverse_tanks' || action === STEER_MONSTERS_ACTION) {

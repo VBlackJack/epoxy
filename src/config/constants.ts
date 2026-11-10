@@ -380,6 +380,16 @@ export const PACK_JSON_VERSION_V16 = 16;
 export const PACK_JSON_VERSION_V16_IDS: ReadonlySet<string> = new Set(['button_orange_cc2', 'dirt_block_3d']);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 17 (see
+ * PACK_JSON_VERSION_V17_IDS): the sealed trap, which no button ever opens. An older build would play it as an ordinary
+ * trap that a brown button releases, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V17 = 17;
+
+/** Ids that only exist from pack format 17; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V17_IDS: ReadonlySet<string> = new Set(['trap_sealed']);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -393,14 +403,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V13, ids: PACK_JSON_VERSION_V13_IDS },
   { version: PACK_JSON_VERSION_V14, ids: PACK_JSON_VERSION_V14_IDS },
   { version: PACK_JSON_VERSION_V15, ids: PACK_JSON_VERSION_V15_IDS },
-  { version: PACK_JSON_VERSION_V16, ids: PACK_JSON_VERSION_V16_IDS }
+  { version: PACK_JSON_VERSION_V16, ids: PACK_JSON_VERSION_V16_IDS },
+  { version: PACK_JSON_VERSION_V17, ids: PACK_JSON_VERSION_V17_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 16.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 17.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V16;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V17;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';

@@ -46,7 +46,7 @@ export const KEY_PANELS_ON_NONFLOOR = 'panels_on_nonfloor';
 /** The red socket, as the key of one whose layer below is not plain floor (the plain one keeps its kind as key). */
 export const KEY_SOCKET_RED = 'socket_red';
 export const KEY_SOCKET_RED_STACKED = 'socket_red_stacked';
-/** A trap no trap control works, on a map that has trap controls: CC3D keeps it shut, Epoxy opens an unlinked trap with any brown button. */
+/** A trap no trap control works, on a map that has trap controls: CC3D keeps it shut for good, and Epoxy plays it as the sealed trap (format 17). */
 export const KEY_TRAP_UNWORKED = 'trap_unworked';
 /** A level with plain gravel and a reflector: CC3D gravel refuses reflectors, the Epoxy one admits mirrors. */
 export const KEY_GRAVEL_WITH_REFLECTOR = 'gravel_with_reflector';
@@ -204,7 +204,7 @@ const WALKER_REASON =
 const OMNI_REASON =
   'Epoxy plays the omni as a monster of its own: it draws one direction at random, waits when the draw is blocked, steps in eight ticks, refuses water and fire, is not hurt by slime and leaves slime on the bare floor it steps out of once it has stood on slime (cc3dEvidenceMonsters.test.ts agrees on a corridor it cannot leave, the trail included). The trail is slime_3d, so a player holding the fire and the water orb together survives it as in CC3D. The draws of the two engines come from different random sequences, so a roaming omni cannot be matched step by step [unverified].';
 const TRAP_UNWORKED_REASON =
-  'No trap control works this trap, on a map that has trap controls: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button (cc3dEvidenceDevices.test.ts). An Epoxy trap link has no empty form, so the converter cannot say "worked by nothing". A map without any trap control has no brown button either, and the trap stays shut in both engines (cc3dEvidenceDevices.test.ts).';
+  'Epoxy plays a trap no control works, on a map that has trap controls, as the sealed trap (trap_sealed, pack format 17): no button ever opens it, and the player, a block or a monster that enters it stays held for good, as in CC3D (cc3dEvidenceDevices.test.ts). A map without any trap control has no brown button either, and the plain trap stays shut in both engines (cc3dEvidenceDevices.test.ts).';
 const CLONE_SWITCH_EMPTY_REASON =
   'The nearest clone machine of this switch holds no template Epoxy can clone (none, or a laser shooter): CC3D does nothing, and a switch left unlinked would fire every machine in Epoxy, so the converter drops the switch link.';
 const BOMB_WITH_ITEM_REASON =
@@ -232,7 +232,7 @@ const EXACT_KEYS: readonly string[] = [
   'fish', 'key', 'plate_red', 'plate_green', 'plate_blue', 'plate_yellow', 'appearing_wall', 'orb_ice', 'orb_force', 'orb_fire', 'orb_water', 'toggle_door_green', 'toggle_control_green', 'toggle_door_red', 'toggle_door_blue',
   'toggle_door_yellow', 'toggle_control_red', 'toggle_control_blue', 'toggle_control_yellow',
   // Measured against the CC3D engine by the coverage evidence tests (src/core/cc3d/cc3dEvidence*.test.ts).
-  'gravel', 'bomb', 'trap', 'trap_control', 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
+  'gravel', 'bomb', 'trap', 'trap_control', KEY_TRAP_UNWORKED, 'clone_machine', 'clone_switch', 'golem_control_blue', 'golem_control_yellow', 'teleport_blue', 'teleport_red',
   // Cell edges carry the panels of any terrain, read from both sides as CC3D does.
   KEY_PANELS_ON_NONFLOOR,
   // A stack Epoxy holds exactly: see classifyStack.
@@ -267,6 +267,7 @@ const EXACT_REASONS: Readonly<Record<string, string>> = {
   bomb: BOMB_REASON,
   trap: TRAP_REASON,
   trap_control: TRAP_CONTROL_REASON,
+  [KEY_TRAP_UNWORKED]: TRAP_UNWORKED_REASON,
   clone_machine: CLONE_MACHINE_REASON,
   clone_switch: CLONE_SWITCH_REASON,
   golem_control_blue: GOLEM_CONTROL_BLUE_REASON,
@@ -318,7 +319,6 @@ const APPROX_ENTRIES: Record<string, string> = {
 };
 
 const LOST_ENTRIES: Record<string, string> = {
-  [KEY_TRAP_UNWORKED]: TRAP_UNWORKED_REASON,
   [KEY_CLONE_SWITCH_EMPTY]: CLONE_SWITCH_EMPTY_REASON,
   [KEY_BOMB_WITH_ITEM]: BOMB_WITH_ITEM_REASON,
   [KEY_LASER_SHOOTER_COVERED]: LASER_SHOOTER_COVERED_REASON,
@@ -464,7 +464,8 @@ function isShooterCovered(cell: Cc3dCell | undefined): boolean {
 }
 
 /**
- * The keys that come from how elements relate to one another rather than from one element: a trap nobody works,
+ * The keys that come from how elements relate to one another rather than from one element: a trap nobody works (played
+ * as the sealed trap),
  * a clone switch with nothing to clone, a bomb sharing its cell with an item, a covered shooter, gravel in a level
  * with a reflector.
  */

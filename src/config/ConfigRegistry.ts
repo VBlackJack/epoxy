@@ -47,6 +47,7 @@ import {
   findFormat14ConfigErrors,
   findFormat15ConfigErrors,
   findFormat16ConfigErrors,
+  findFormat17ConfigErrors,
   findRelayPadConfigErrors,
   findWiredDeviceConfigErrors,
   findPullBootsConfigErrors,
@@ -459,6 +460,10 @@ class ConfigRegistryService {
     const format16Errors = findFormat16ConfigErrors(bundle.tiles.tiles);
     if (format16Errors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, format16Errors.join('; '));
+    }
+    const format17Errors = findFormat17ConfigErrors(bundle.tiles.tiles);
+    if (format17Errors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.TILES, format17Errors.join('; '));
     }
     const relayErrors = findRelayPadConfigErrors(bundle.tiles.tiles);
     if (relayErrors.length > 0) {

@@ -99,10 +99,15 @@ describe('epoxy coverage table', () => {
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });
 
-  it('loses the four relation keys, each with its own reason', () => {
-    const keys = ['trap_unworked', 'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
+  it('loses the three relation keys the Epoxy tiles cannot express, each with its own reason', () => {
+    const keys = ['clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered'];
     for (const key of keys) expect(EPOXY_COVERAGE[key].level, key).toBe('lost');
     expect(new Set(keys.map((key) => EPOXY_COVERAGE[key].reason)).size).toBe(keys.length);
+  });
+
+  it('plays a trap no control works as the sealed trap: exact, with a reason of its own', () => {
+    expect(EPOXY_COVERAGE.trap_unworked.level).toBe('exact');
+    expect(EPOXY_COVERAGE.trap_unworked.reason).toContain('trap_sealed');
   });
 
   it('gives every entry a level and a reason', () => {

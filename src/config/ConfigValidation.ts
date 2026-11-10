@@ -2303,6 +2303,23 @@ export function findFormat16ConfigErrors(tiles: Record<string, TileDefinition>):
 }
 
 /**
+ * Problems of the field format 17 added: `sealedTrap` is true on a trap that is not an open trap (`closesTo`) and not a
+ * wired trap (`wiredTrap`), since no control ever works a sealed trap.
+ */
+export function findFormat17ConfigErrors(tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    const { id } = tile;
+    if (tile.sealedTrap === undefined) continue;
+    if (tile.sealedTrap !== true) errors.push(`${id}.sealedTrap: expected true`);
+    if (tile.isTrap !== true) errors.push(`${id}.sealedTrap: only a trap is sealed`);
+    if (tile.closesTo !== undefined) errors.push(`${id}.sealedTrap: an open trap closes, a sealed trap never opens`);
+    if (tile.wiredTrap !== undefined) errors.push(`${id}.sealedTrap: a wired trap answers to its wire, a sealed trap to nothing`);
+  }
+  return errors;
+}
+
+/**
  * Problems of the relay pad fields: a pad is `dark` or `lit` and names its other form, which must be a relay pad of the
  * opposite form that names it back. The lit form is a teleporter of the group "relay" and the dark form is not one;
  * both are plain terrain that every mover can enter. Each entry names the tile.

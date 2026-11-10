@@ -4170,7 +4170,7 @@
       },
       "trap_unworked": {
         "name": "Piège sans commande",
-        "label": "Dans un niveau qui a des commandes de piège, aucune n'actionne ce piège : CC3D le garde fermé, là où Epoxy ouvre un piège non relié avec n'importe quel bouton brun. Un lien de piège d'Epoxy n'a pas de forme vide, le convertisseur ne peut donc pas le garder fermé."
+        "label": "Dans un niveau qui a des commandes de piège, aucune n'actionne ce piège : CC3D le garde fermé pour de bon, et Epoxy le joue comme un piège scellé, qu'aucun bouton n'ouvre."
       },
       "clone_switch_empty": {
         "name": "Interrupteur de clonage sans modèle",
@@ -5150,6 +5150,12 @@
       "name": "Piège ouvert (CC2)",
       "desc": {
         "label": "Un piège qui commence ouvert et ne retient rien. La première fois qu'un bouton ou un fil relié le relâche ou perd son courant, il devient un piège ordinaire. Nécessite : un lien depuis un bouton ou une source de signal."
+      }
+    },
+    "trap_sealed": {
+      "name": "Piège scellé (CC3D)",
+      "desc": {
+        "label": "Un piège qu'aucun bouton n'ouvre jamais : ce qui y entre, joueur, monstre ou bloc, y reste retenu pour de bon. Un bouton marron ou un fil relié à lui ne change rien."
       }
     },
     "appearing_wall_any": {

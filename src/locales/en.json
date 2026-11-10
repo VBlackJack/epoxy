@@ -4170,7 +4170,7 @@
       },
       "trap_unworked": {
         "name": "Trap without a control",
-        "label": "In a level that has trap controls, none works this trap: CC3D keeps it shut, where Epoxy opens an unlinked trap with any brown button. An Epoxy trap link has no empty form, so the converter cannot keep it shut."
+        "label": "In a level that has trap controls, none works this trap: CC3D keeps it shut for good, and Epoxy plays it as a sealed trap, which no button opens."
       },
       "clone_switch_empty": {
         "name": "Clone switch with nothing to clone",
@@ -5150,6 +5150,12 @@
       "name": "Open Trap (CC2)",
       "desc": {
         "label": "A trap that starts open and holds nothing. The first time a linked button or wire releases or loses power, it becomes an ordinary trap. Needs: a link from a button or a signal source."
+      }
+    },
+    "trap_sealed": {
+      "name": "Sealed Trap (CC3D)",
+      "desc": {
+        "label": "A trap that no button ever opens: whatever enters it, a player, a monster or a block, stays held for good. A brown button or a wire linked to it changes nothing."
       }
     },
     "appearing_wall_any": {

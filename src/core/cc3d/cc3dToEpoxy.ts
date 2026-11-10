@@ -79,6 +79,8 @@ const TELEPORT_TURNING_TILE_ID = 'teleport_turning';
 const SOCKET_TILE_IDS: ReadonlySet<string> = new Set([SOCKET_TILE_ID, FISH_GATE_TILE_ID]);
 const BUTTON_BROWN_ID = 'button_brown';
 const TRAP_ID = 'trap';
+/** The Epoxy trap no button opens (pack format 17), for a CC3D trap that no trap control works. */
+const SEALED_TRAP_ID = 'trap_sealed';
 const BUTTON_RED_ID = 'button_red';
 const CLONE_MACHINE_ID = 'clone_machine';
 const SHOT_TRIGGER_ID = 'shot_trigger';
@@ -431,7 +433,7 @@ function convertCell(
 interface LinkInput {
   level: Cc3dLevel;
   terrain: string[][];
-  underlays: ReadonlyMap<number, string>;
+  underlays: Map<number, string>;
   /** Mob index -> true when the mob became a launcher. */
   launchers: ReadonlySet<number>;
   drop: (key: string, x: number, y: number) => void;
@@ -456,10 +458,12 @@ function buildTrapLinks(input: LinkInput): TrapLink[] {
   const trapLinks = cc3dLinks(input.level).trapControls;
   for (const link of trapLinks) if (link.to !== null) worked.add(link.to);
   input.level.cells.forEach((cell, index) => {
-    // A map without any trap control is no loss: the trap stays shut in both engines (cc3dEvidenceDevices.test.ts).
+    // A map without any trap control keeps the plain trap: it stays shut in both engines (cc3dEvidenceDevices.test.ts).
+    // On a map that has controls, a trap none of them works is sealed: Epoxy would open an unlinked trap with any brown button.
     if (trapLinks.length === 0 || !cell.terrain.some((layer) => layer.kind === 'trap') || worked.has(index)) return;
-    const trap = pointOf(input, index);
-    input.drop(KEY_TRAP_UNWORKED, trap.x, trap.y);
+    const { x, y } = pointOf(input, index);
+    if (input.terrain[y][x] === TRAP_ID) input.terrain[y][x] = SEALED_TRAP_ID;
+    else if (input.underlays.get(index) === TRAP_ID) input.underlays.set(index, SEALED_TRAP_ID);
   });
   for (const link of trapLinks) {
     if (link.to === null) continue;

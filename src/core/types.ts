@@ -1322,6 +1322,12 @@ export interface TileDefinition {
   /** A relay pad: the id of its other form, which the pad swaps to when its input changes. */
   relayTwin?: string;
   isTrap?: boolean;
+  /**
+   * Format 17, the sealed trap: a trap that no button ever opens. Whatever enters it stays held for good, whether or not a
+   * brown button is pressed or a wire is powered, and a trap link or a signal link ending on it changes nothing. Needs
+   * `isTrap` and neither `closesTo` nor `wiredTrap`.
+   */
+  sealedTrap?: boolean;
   isCloneMachine?: boolean;
   /** Whether a laser beam passes through the cell; every tile declares it. */
   laserTransparent?: boolean;

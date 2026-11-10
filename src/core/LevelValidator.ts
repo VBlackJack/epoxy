@@ -2105,7 +2105,7 @@ export class LevelValidator {
     level.terrain.forEach((row, y) =>
       row.forEach((_id, x) => {
         for (const tile of tilesAt(x, y)) {
-          if (tile.isTrap) trapExists = true;
+          if (tile.isTrap && tile.sealedTrap !== true) trapExists = true;
           if (tile.buttonAction === 'hold_trap') brownButtons.push({ x, y });
           if (tile.buttonAction === 'trigger_cloner') redButtons.push({ x, y });
           if (tile.isCloneMachine) machineCells.push({ x, y });
@@ -2189,7 +2189,7 @@ export class LevelValidator {
         for (const id of ids) {
           const tile = ConfigRegistry.getTile(id);
           // A wired trap that a signal link ends on has its own control.
-          if (tile.isTrap && !(tile.wiredTrap === true && (level.signalLinks ?? []).some((l) => l.toX === x && l.toY === y))) trapCells.push({ x, y });
+          if (tile.isTrap && tile.sealedTrap !== true && !(tile.wiredTrap === true && (level.signalLinks ?? []).some((l) => l.toX === x && l.toY === y))) trapCells.push({ x, y });
           if (tile.buttonAction === 'hold_trap') brownButtons++;
           if (tile.buttonAction === 'toggle_flames') orangeButtons++;
           if (tile.flameTogglesTo !== undefined) jetCells.push({ x, y });

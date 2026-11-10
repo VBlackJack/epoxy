@@ -268,7 +268,7 @@ const STRUCTURAL_CASES: StructuralCase[] = [
   },
   {
     key: 'trap_unworked',
-    // A control works the next trap only: the second trap is worked by nothing (a map with no control at all is no loss).
+    // A control works the next trap only: the second trap is worked by nothing and is sealed (a map with no control at all keeps the plain trap).
     build: () =>
       convertRows(['#######', '#@bTU.#', '#######'], {
         b: stackOf({ kind: 'trap_control' }),
@@ -277,7 +277,9 @@ const STRUCTURAL_CASES: StructuralCase[] = [
       }),
     check: (result) => {
       expect(result.level.trapLinks).toHaveLength(1);
-      expect(lostKeys(result)).toContain('trap_unworked');
+      expect(result.level.terrain[1][4]).toBe('trap_sealed');
+      expect(lostKeys(result)).not.toContain('trap_unworked');
+      expect(result.report.exact).toContain('trap_unworked');
     }
   },
   {
@@ -418,15 +420,18 @@ describe('mapping rows', () => {
 // ------------------------------------------------------------ arbitration rules
 
 describe('arbitration rules', () => {
-  it('records a trap no control works as lost, and links the one a control works', () => {
+  it('seals a trap no control works, and links the one a control works', () => {
     const { source, result } = convertRows(['#######', '#@bT.U#', '#######'], {
       b: stackOf({ kind: 'trap_control' }),
       T: stackOf({ kind: 'trap' }),
       U: stackOf({ kind: 'trap' })
     });
     expect(result.level.trapLinks).toEqual([{ buttonX: 2, buttonY: 1, trapX: 3, trapY: 1 }]);
-    expect(lostKeys(result)).toContain('trap_unworked');
-    expect(classifyLevel(source.cc3d as never).lost).toContain('trap_unworked');
+    expect(result.level.terrain[1].filter((id) => id === 'trap_sealed')).toHaveLength(1);
+    expect(result.level.terrain[1][5]).toBe('trap_sealed');
+    expect(result.level.terrain[1][3]).toBe('trap');
+    expect(lostKeys(result)).not.toContain('trap_unworked');
+    expect(classifyLevel(source.cc3d as never).lost).not.toContain('trap_unworked');
   });
 
   it('records a clone switch with an empty machine as lost and emits no link for it', () => {
@@ -802,8 +807,8 @@ describe('relation keys agree between the table and the converter', () => {
       const converter = result.report.lost.map((e) => e.key).filter((key) => RELATION.includes(key)).sort();
       expect(converter).toEqual(table);
       if (name === 'unworked trap') {
-        expect(result.report.drops).toContainEqual({ key: 'trap_unworked', x: 5, y: 1 });
-        expect(result.report.drops).not.toContainEqual({ key: 'trap_unworked', x: 3, y: 1 });
+        expect(result.level.terrain[1][5]).toBe('trap_sealed');
+        expect(result.report.drops.filter((drop) => drop.key === 'trap_unworked')).toEqual([]);
       }
     });
   }

@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
+import { expectAgree } from './cc3dEvidenceAsserts';
 import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
 import { device, holdDoor, plate, playSettled, playTimeline, room, withMob } from './cc3dEvidenceRig';
 import { cc3dLevel, cc3dModel } from './cc3dTestMaps';
@@ -130,10 +130,15 @@ describe('trap and trap control', () => {
     expect(classifyLevel(cc3dModel(room('@p..'), GLYPHS))).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
-  it('differs for a trap no control works: CC3D keeps it shut, Epoxy opens it with any brown button held', () => {
-    expectDisagree({ rows: room('@Kq....', '..p.p..'), moves: 'ESEEEE', glyphs: GLYPHS }, 'player', (pair) => {
+  it('keeps a trap no control works shut in both engines, since the conversion seals it (trap_sealed)', () => {
+    // A block rests on the control while the player walks over the worked trap and then into the one at x = 5: the
+    // first is worked, the second is worked by nothing and holds the player in CC3D as in the conversion.
+    expectAgree({ rows: room('@Kq....', '..p.p..'), moves: 'ESEEEE', glyphs: GLYPHS }, (pair) => {
       expect(pair.rig.player).toMatchObject({ x: 5, y: 2 });
     });
+    const converted = convertCc3dLevel(cc3dLevel(room('@Kq....', '..p.p..'), { glyphs: GLYPHS }));
+    expect(converted.level.terrain[2].filter((id) => id === 'trap_sealed')).toHaveLength(1);
+    expect(converted.level.terrain[2].filter((id) => id === 'trap')).toHaveLength(1);
   });
 });
 
@@ -562,6 +567,15 @@ describe('two walking monsters meeting head-on', () => {
     }
   });
 
+  it('keeps a trap no control works shut for a monster too, on a map that has trap controls', () => {
+    const kinds: Cc3dMobKind[] = ['limpa', 'bouncer', 'golem_blue', 'snappy', 'baby_blinky'];
+    for (const kind of kinds) {
+      const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, M: withMob(device('floor'), { kind, dir: 'E' }) };
+      const t = playTimeline({ rows: corridor('M.pq.p.'), moves: '', glyphs });
+      expect(t.sameSequence, kind).toBe(true);
+    }
+  });
+
   it('lists the monsters_meet key for the pairs above, and not for the ones that agree', () => {
     const glyphs = (a: Cc3dMobKind, b: Cc3dMobKind): Record<string, GlyphMeaning> => ({
       M: withMob(device('floor'), { kind: a, dir: 'E' }),
@@ -591,9 +605,10 @@ describe('coverage verdicts that rest on this evidence', () => {
     }
   });
 
-  it('keeps a trap no control works lost on a map that has trap controls, since an Epoxy trap link has no empty form', () => {
-    expect(EPOXY_COVERAGE.trap_unworked.level).toBe('lost');
+  it('plays a trap no control works as CC3D does, as the sealed trap, on a map that has trap controls', () => {
+    expect(EPOXY_COVERAGE.trap_unworked.level).toBe('exact');
     expect(EPOXY_COVERAGE.trap_unworked.reason).toContain('cc3dEvidenceDevices.test.ts');
-    expect(classifyLevel(cc3dModel(room('@Kq....', '..p.p..'), GLYPHS)).lost).toEqual(['trap_unworked']);
+    expect(EPOXY_COVERAGE.trap_unworked.reason).toContain('trap_sealed');
+    expect(classifyLevel(cc3dModel(room('@Kq....', '..p.p..'), GLYPHS))).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 });

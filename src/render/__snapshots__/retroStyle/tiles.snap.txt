@@ -653,6 +653,11 @@ tile theme=cyber_neon id=trap 2548589391682a76
 tile theme=arctic_lab id=trap c9d8a9ac04ecc562
 tile theme=magma_core id=trap 95570b8422132861
 tile theme=lynx_lcd id=trap 2d52d1753e43a6ce
+tile theme=default id=trap_sealed 33dffb239572d984
+tile theme=cyber_neon id=trap_sealed 0d171d4fa1c05a11
+tile theme=arctic_lab id=trap_sealed 05956e24ef8d9dee
+tile theme=magma_core id=trap_sealed 45f9bd7dbe0c3fbb
+tile theme=lynx_lcd id=trap_sealed 55dd032b39331f89
 tile theme=default id=clone_machine 386f594363a40de6
 tile theme=cyber_neon id=clone_machine 61a876cd285b85c7
 tile theme=arctic_lab id=clone_machine 883d6fee1191f6a5

@@ -69,6 +69,7 @@ import {
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
   drawsMark,
+  SEALED_TRAP_TILE,
   isImportedLevel,
   paintCc2Mark,
   paletteMarkColours,
@@ -2184,7 +2185,7 @@ export class PixelRenderer {
             continue;
           }
         }
-        const isClosedTrap = tileId === 'trap' || tileId === WIRED_TRAP_TILE ? engine.isCellClosedTrap(mx, my) : false;
+        const isClosedTrap = tileId === 'trap' || tileId === WIRED_TRAP_TILE || tileId === SEALED_TRAP_TILE ? engine.isCellClosedTrap(mx, my) : false;
         const neighbours = tileNeighbours(terrain, mx, my, this.wallJoinTiles, this.shadowCasterTiles);
         this.drawTile(cacheCtx, tileId, px, py, drawSize, false, isClosedTrap, 'static', neighbours);
       }
