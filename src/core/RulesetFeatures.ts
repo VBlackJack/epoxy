@@ -544,7 +544,7 @@ const TURRET_RECEIVER_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_LEVEL_FEAT
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks'>>;
+  Partial<Pick<CompiledLevel, 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
@@ -657,8 +657,25 @@ function withoutSignalAids(base: RulesetFeatures): RulesetFeatures {
   return overlaid;
 }
 
-/** The aids available on a level, by the ruleset it is played under and the mechanics it uses. */
+/** The aid sets without item drop, kept per source set so a level of one kind always gets the same object. */
+const noDropFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/**
+ * The aids available on a level, by the ruleset it is played under and the mechanics it uses. A classic (rules flavor 'cc') level that did not come from a CC2 file follows the
+ * original Chip's Challenge 1, which has no item drop; CC2 imports keep it.
+ */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
+  const features = contentFeaturesFor(level);
+  if (!features.itemDrop || level?.rulesFlavor !== 'cc' || level.cc2 !== undefined) return features;
+  let noDrop = noDropFeaturesCache.get(features);
+  if (noDrop === undefined) {
+    noDrop = { ...features, itemDrop: false };
+    noDropFeaturesCache.set(features, noDrop);
+  }
+  return noDrop;
+}
+
+function contentFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
   const base = baseFeaturesFor(level);
   // Lynx and CC3D levels already have these aids off; a level without a grid has no content to read.
   if (!level?.terrain || level.ruleset === 'lynx' || level.ruleset === 'cc3d') return base;

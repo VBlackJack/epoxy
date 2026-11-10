@@ -29,7 +29,7 @@ const PACKS_DIR = resolve(__dirname, '..', '..', 'public', 'packs');
 const SAME_MAP_PACKS = ['TW_INTRO', 'CCLP1', 'CCLP3', 'CCLP4', 'CCLP5'] as const;
 
 /** The compared fields of a level, each reduced to a short digest so a failure never prints map content. */
-function digests(level: CompiledLevel): Record<'terrain' | 'items' | 'entities' | 'start', string> {
+function digests(level: CompiledLevel): Record<'terrain' | 'items' | 'entities' | 'start' | 'trapLinks' | 'cloneLinks' | 'meta', string> {
   const digest = (value: unknown): string => createHash('sha1').update(JSON.stringify(value)).digest('hex');
   // Monster order and the idle facing of a block are the only things the two readings may differ on.
   const entities = level.entities
@@ -39,7 +39,19 @@ function digests(level: CompiledLevel): Record<'terrain' | 'items' | 'entities' 
     terrain: digest(level.terrain),
     items: digest(level.items),
     entities: digest(entities),
-    start: digest(level.playerStart)
+    start: digest(level.playerStart),
+    trapLinks: digest(level.trapLinks),
+    cloneLinks: digest(level.cloneLinks),
+    meta: digest([
+      level.chipsRequired,
+      level.timeLimitSeconds,
+      level.password,
+      level.titleKey,
+      level.customTitle,
+      level.hintKey,
+      level.customHint,
+      level.author
+    ])
   };
 }
 
