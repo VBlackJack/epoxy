@@ -861,13 +861,13 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
 }
 
 /**
- * Whether something presses the plate at a cell: the live player, a block at rest (a colour block only
+ * Whether something presses the plate at a cell: the live player, a block at rest, its step ended (a colour block only
  * on a plate of its own colour) or a monster that presses plates. A sliding entity is passing, not
  * pressing. Brown buttons keep their own rule (`isButtonPressed`), which every occupant satisfies.
  */
 export function pressesPlate(w: EpoxyWorld, x: number, y: number, color: ChannelColor): boolean {
   if (playerAtCell(w, x, y) !== undefined) return true;
-  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && entityPressesPlate(e.type, e.kind, color));
+  return w.entities.some((e) => e.x === x && e.y === y && !e.isSliding && e.arrivalTicks === undefined && entityPressesPlate(e.type, e.kind, color));
 }
 
 /**

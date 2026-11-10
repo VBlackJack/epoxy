@@ -265,11 +265,16 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       }
       // The push may have pressed a button that changed the cell (a toggle wall closing): judge the cell again, and stay
       // put when it no longer lets the player in. The block stays where the push left it, so the bump keeps its undo step.
-      // The exception is a CC3D block: the player's step was planned before the push, and the cell the block leaves acts
-      // on its own as the step goes on (Cc3dSimulation.tryStep), so he enters whatever that cell has become.
+      // A CC3D block is the exception: the player's step was planned before the push, and the cell the block leaves acts
+      // on its own as the step goes on (Cc3dSimulation.tryStep), so he is judged on the cell as it stood when the step
+      // began (the character signs, boots and no-signs that bar him still do) and enters whatever it has become.
+      const cc3dStep = isCc3dPush(entityAtTarget);
       if (
-        !isCc3dPush(entityAtTarget) &&
-        !canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.items[targetY][targetX])
+        !canPlayerEnter(
+          w,
+          cc3dStep ? updatedTargetTile : ConfigRegistry.getTile(w.terrain[targetY][targetX]),
+          cc3dStep ? itemOnTarget : w.items[targetY][targetX]
+        )
       ) {
         w.rejectedPushMovedBlocks = true;
         if (!fromSlide) AudioManager.playSfx('blocked');

@@ -19,6 +19,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { GameEngine } from '../GameEngine';
+import type { CompiledLevel } from '../types';
 import { device, playSettled, playTimeline, room, stack, withMob } from './cc3dEvidenceRig';
 import type { GlyphMeaning } from './cc3dTestMaps';
 
@@ -82,4 +84,77 @@ describe('a pushed block acts on its cells as CC3D does, in the order CC3D does'
       expect(t.sameFinal).toBe(true);
     });
   }
+});
+
+/** A walled room: the player at (2,4), a CC3D dirt block at (3,4) standing on `under`, floor beyond. */
+function roomWith(under: string, character?: 'chip' | 'melinda', underItem: string | null = null): CompiledLevel {
+  const size = 9;
+  const terrain: string[][] = Array.from({ length: size }, (_, y) =>
+    Array.from({ length: size }, (_, x) => (x === 0 || y === 0 || x === size - 1 || y === size - 1 ? 'wall' : 'floor'))
+  );
+  terrain[4][3] = under;
+  const items: Array<Array<string | null>> = Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+  items[4][3] = underItem;
+  return {
+    id: 'push_bar',
+    number: 1,
+    password: 'TEST',
+    timeLimitSeconds: 0,
+    chipsRequired: 0,
+    playerStart: { x: 2, y: 4, dir: 'E' },
+    terrain,
+    items,
+    entities: [{ x: 3, y: 4, type: 'dirt_block_3d', dir: 'E' }],
+    trapLinks: [],
+    cloneLinks: [],
+    ...(character ? { character } : {})
+  } as CompiledLevel;
+}
+
+describe('a CC3D block pushed off a cell that bars the player does not let him in', () => {
+  const cases: Array<[string, string, 'chip' | 'melinda' | undefined, string | null, string | null]> = [
+    ['Melinda on gravel without hiking boots', 'gravel', 'melinda', null, null],
+    ['Chip on a Melinda-only sign', 'sign_melinda_only', 'chip', null, null],
+    ['a red key on forbid_key_red', 'forbid_key_red', undefined, null, 'key_red']
+  ];
+  for (const [name, under, character, , carried] of cases) {
+    it(`${name}: the push is refused and the player stays`, () => {
+      const engine = new GameEngine();
+      engine.loadLevel(roomWith(under, character));
+      if (carried) engine.getPlayer().keys[carried] = 1;
+      for (let i = 0; i < 12; i++) engine.tick();
+      engine.attemptPlayerMove('E');
+      for (let i = 0; i < 12; i++) engine.tick();
+      expect(engine.getPlayer().x).toBe(2);
+      expect(engine.getEntities().find((e) => e.type === 'dirt_block_3d')?.x).toBe(3);
+    });
+  }
+
+  it('the same cell lets him in when he is not barred (gravel with hiking boots)', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(roomWith('gravel', 'melinda'));
+    engine.getPlayer().boots.add('hiking_boots');
+    for (let i = 0; i < 12; i++) engine.tick();
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < 12; i++) engine.tick();
+    expect(engine.getPlayer().x).toBe(3);
+  });
+});
+
+describe('a CC3D block still taking its step is no resting block', () => {
+  it('holds a plate only once its step has ended', () => {
+    const engine = new GameEngine();
+    const level = roomWith('floor');
+    level.terrain[4][4] = 'pressure_plate_red';
+    level.terrain[4][5] = 'hold_door_red_closed';
+    engine.loadLevel(level);
+    for (let i = 0; i < 12; i++) engine.tick();
+    engine.attemptPlayerMove('E');
+    const block = (): { arrivalTicks?: number } | undefined => engine.getEntities().find((e) => e.type === 'dirt_block_3d');
+    expect(block()?.arrivalTicks).toBeGreaterThan(0);
+    expect(engine.getTerrain()[4][5]).toBe('hold_door_red_closed');
+    for (let i = 0; i < 12; i++) engine.tick();
+    expect(block()?.arrivalTicks).toBeUndefined();
+    expect(engine.getTerrain()[4][5]).toBe('hold_door_red_open');
+  });
 });

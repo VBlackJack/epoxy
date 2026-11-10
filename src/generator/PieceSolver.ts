@@ -679,7 +679,7 @@ export class PieceSolver {
       const moving =
         player.isSliding ||
         player.moveCooldown > 0 ||
-        engine.getEntities().some((e) => e.isSliding);
+        engine.getEntities().some((e) => e.isSliding || e.arrivalTicks !== undefined);
       if (!moving) return true;
       engine.tick();
     }
@@ -705,7 +705,7 @@ export class PieceSolver {
         .map((e) =>
           e.kind === 'monster'
             ? `${e.type}@${e.x},${e.y},${e.dir},${e.cooldownTicks}`
-            : `${e.type}@${e.x},${e.y}${e.facing === undefined ? '' : `,${e.facing}`}`
+            : `${e.type}@${e.x},${e.y}${e.facing === undefined ? '' : `,${e.facing}`}${e.arrivalTicks === undefined ? '' : `,a${e.arrivalTicks}`}`
         )
         .sort()
         .join(';')

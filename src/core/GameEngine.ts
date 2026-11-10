@@ -1072,7 +1072,7 @@ export class GameEngine {
   /** True when a block at rest holds the target cell. */
   private isTargetCovered({ x, y }: GridPoint): boolean {
     const occupant = getEntityAt(this.w, x, y);
-    return occupant !== undefined && occupant.kind === 'block' && !occupant.isSliding;
+    return occupant !== undefined && occupant.kind === 'block' && !occupant.isSliding && occupant.arrivalTicks === undefined;
   }
 
   /** How many targets of a 'targets' level hold a block at rest, out of how many there are. */
