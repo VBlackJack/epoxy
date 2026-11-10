@@ -81,8 +81,13 @@ function revealBump(w: EpoxyWorld, refusal: PushRefusal): void {
   w.gridMutatedByMove = true;
 }
 
+/** Ticks a CC3D block the player pushes takes to finish its step before its cell acts on it (Cc3d STEP_TICKS.normal). */
+const CC3D_PUSH_STEP_TICKS = 4;
+
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
 function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
+  // A CC3D block still finishing its step is refused (Cc3dSimulation planPush: a block in motion cannot be pushed).
+  if (block.arrivalTicks !== undefined) return false;
   return !isCellClosedTrap(w, block.x, block.y) && isPushAllowed(block, dir);
 }
 
@@ -152,7 +157,8 @@ export function attemptPushBlock(
   requestedDir: Direction,
   allowChain = true,
   guardPlayerCell = false,
-  slider?: RuntimeEntity
+  slider?: RuntimeEntity,
+  byPlayer = false
 ): boolean {
   const w = ctx.world;
   // A block on a Chip's Challenge 2 track cell is turned onto the track when the push is one the tracks refuse.
@@ -167,6 +173,8 @@ export function attemptPushBlock(
     return false;
   }
   const vec = DIRECTION_VECTORS[dir];
+  // The blocks of a push by the player, or by a block sliding into them, take a pushed step of their own (CC3D).
+  const pushedStep = byPlayer || slider !== undefined;
 
   // Move from the far end. Each move changes the world (leaving a cell, swivels, buttons, teleports), so every
   // block is checked again just before it moves; the first failure stops the chain. Blocks already moved stay moved.
@@ -187,13 +195,29 @@ export function attemptPushBlock(
       const turret = getTurretDef(member.type);
       if (turret && turnsOnPush(turret)) member.facing = dir;
     }
-    moveBlockTo(ctx, member, destX, destY, dir);
+    moveBlockTo(ctx, member, destX, destY, dir, true, pushedStep && defersArrival(w, member, destX, destY));
     movedCount++;
     if (i === 0) directMoved = true;
   }
   if (movedCount > 1 || (movedCount > 0 && !directMoved)) w.chainPushCount++;
   if (movedCount > 0 && !directMoved) w.rejectedPushMovedBlocks = true;
   return directMoved;
+}
+
+/**
+ * Whether the step of a block the player pushes ends later than the push: a CC3D block (Cc3dSimulation.startStep gives it
+ * the player's four ticks) onto a cell that is not ice, a force floor or a teleporter, which it enters at the fast pace
+ * and which act on it at once here.
+ */
+function defersArrival(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number): boolean {
+  if (ConfigRegistry.getEntityDef(block.type)?.stopsAtWall !== true) return false;
+  const tile = ConfigRegistry.getTile(w.terrain[destY][destX]);
+  return tile.slideType === undefined && tile.isTeleporter !== true && tile.teleportsToSelf !== true;
+}
+
+/** Whether a push is one the player's step carries: the block's cell is his to enter when the push is made. */
+export function isCc3dPush(block: RuntimeEntity): boolean {
+  return ConfigRegistry.getEntityDef(block.type)?.stopsAtWall === true;
 }
 
 export function isCanBlockEnter(
@@ -245,7 +269,8 @@ export function moveBlockTo(
   destX: number,
   destY: number,
   dir: Direction,
-  allowTeleport = true
+  allowTeleport = true,
+  deferArrival = false
 ): void {
   const w = ctx.world;
   // A clone spawns in place and leaves no cell behind.
@@ -258,17 +283,41 @@ export function moveBlockTo(
   block.dir = dir;
   enterSwivel(w, destX, destY, dir);
 
-  let blockDef = ConfigRegistry.getEntityDef(block.type);
-  const tileId = w.terrain[destY][destX];
-  const tile = ConfigRegistry.getTile(tileId);
-  const itemId = w.items[destY][destX];
-
   const crushed = playerAtCell(w, destX, destY);
   // A helmet shields from the block (a teleport or clone arrival can still land on the player): the player lives.
   if (crushed !== undefined && !shieldedFromContact(crushed)) {
     killPlayerAt(ctx, crushed, 'hud.messages.death_block', 'death');
     return;
   }
+
+  // A block of the CC3D rules takes its step to finish: it holds its cell now and the cell acts on it when the step ends.
+  if (deferArrival) {
+    block.arrivalTicks = CC3D_PUSH_STEP_TICKS;
+    return;
+  }
+  settleBlockArrival(ctx, block, dir, allowTeleport);
+}
+
+/**
+ * Ticks a block waits between two cells of a slide: a block of the CC3D rules slides at the fast pace (a cell every two
+ * ticks, Cc3dSimulation STEP_TICKS.fast), like one of a classic-rules level.
+ */
+function blockSlideCooldown(w: EpoxyWorld, def: ReturnType<typeof ConfigRegistry.getEntityDef>): number {
+  return w.ccRules || def?.stopsAtWall === true ? CC_BLOCK_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
+}
+
+/**
+ * The cell a block has just reached acts on it: dirt, water, slime, fire, a bomb, a button, a teleporter, ice. Runs at
+ * once for most blocks and, for a CC3D block the player pushed, when its step ends (Cc3dSimulation.onArrival).
+ */
+function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction, allowTeleport: boolean): void {
+  const w = ctx.world;
+  const destX = block.x;
+  const destY = block.y;
+  let blockDef = ConfigRegistry.getEntityDef(block.type);
+  const tileId = w.terrain[destY][destX];
+  const tile = ConfigRegistry.getTile(tileId);
+  const itemId = w.items[destY][destX];
 
   // Format 15, the CC3D dirt: a block it admits clears it and survives, unless the tile keeps it as it is for that block.
   if (tile.blockClearsTo !== undefined && tile.keptBy?.includes(block.type) !== true) {
@@ -343,13 +392,13 @@ export function moveBlockTo(
   if (updatedTile.slideType === 'ice' && blockDef?.slidesOnIce) {
     block.dir = updatedTile.deflectionMap?.[dir] || dir;
     block.isSliding = true;
-    block.cooldownTicks = w.ccRules ? CC_BLOCK_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
+    block.cooldownTicks = blockSlideCooldown(w, blockDef);
   } else if (updatedTile.slideType === 'force' && blockDef?.slidesOnForce) {
     block.dir =
       forceCycleArrival(w, updatedTile) ??
       (updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection ? dir : updatedTile.forceDirection);
     block.isSliding = true;
-    block.cooldownTicks = w.ccRules ? CC_BLOCK_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
+    block.cooldownTicks = blockSlideCooldown(w, blockDef);
   } else {
     block.isSliding = false;
   }
@@ -376,6 +425,15 @@ function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, 
 /** Advances one block of the entity loop by a tick: a block moves only while it slides. */
 export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
+  // A pushed CC3D block finishing its step: the cell acts on it when the step ends.
+  if (entity.arrivalTicks !== undefined) {
+    entity.arrivalTicks--;
+    if (entity.arrivalTicks <= 0) {
+      delete entity.arrivalTicks;
+      settleBlockArrival(ctx, entity, entity.dir, true);
+    }
+    return;
+  }
   if (!entity.isSliding) return;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;

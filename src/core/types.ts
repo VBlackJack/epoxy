@@ -2251,6 +2251,8 @@ export interface RuntimeEntity {
   dir: Direction;
   cooldownTicks: number;
   isSliding: boolean;
+  /** A CC3D block the player pushed, still finishing its step: the ticks left before its cell acts on it. */
+  arrivalTicks?: number;
   /** Turrets only: the way the turret fires; `dir` stays the way it was pushed or slides. */
   facing?: Direction;
   /** Rovers only: index, in the `emulates` list of the definition, of the monster whose behaviour it follows now. */
