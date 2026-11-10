@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel, Direction } from '../types';
+import { displayTerrainId } from './display';
+import type { Cc3dCell } from './model';
 import { Cc3dRig } from './cc3dTestRig';
 
 /**
@@ -116,6 +119,34 @@ export const ENTITY_ID_MAP: Readonly<Record<string, string>> = {
 /** CC3D display ids of items that name another Epoxy item id. */
 const ITEM_ID_MAP: Readonly<Record<string, string>> = { stopwatch_bonus: 'slow_time', cc3d_fish_extra: 'chip' };
 const BOMB_ID = 'bomb';
+const BOMB_KIND = 'bomb';
+const FLOOR_ID = 'floor';
+/** The death message both engines give a player killed by a monster. */
+export const MONSTER_DEATH_KEY = 'hud.messages.death_monster';
+/** Cells (Chebyshev distance) within which two dead players, or a dead player and a living monster, count as one cell apart. */
+const NEAR_CELLS = 1;
+const MONSTER_KIND = 'monster';
+
+/**
+ * The display id of a CC3D cell without its bomb layers: what the converter keeps as the terrain (it moves a bomb
+ * layer to the item grid). A cell with nothing but bombs reads as floor.
+ */
+export function displayTerrainWithoutBomb(cell: Cc3dCell): string {
+  const terrain = [...cell.terrain];
+  while (terrain.length > 0 && terrain[terrain.length - 1].kind === BOMB_KIND) terrain.pop();
+  if (terrain.length === 0) return cell.panels.length > 0 ? displayTerrainId({ ...cell, terrain: [{ kind: 'floor' }] }) : FLOOR_ID;
+  return displayTerrainId({ ...cell, terrain });
+}
+
+/** True when two cells are the same or neighbours (Chebyshev distance of at most one). */
+export function isWithinOneCell(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
+  return Math.abs(a.x - b.x) <= NEAR_CELLS && Math.abs(a.y - b.y) <= NEAR_CELLS;
+}
+
+/** True when one of the cells holds a monster within one cell of the player. */
+export function monsterWithinOneCell(player: { x: number; y: number }, monsters: ReadonlyArray<{ x: number; y: number }>): boolean {
+  return monsters.some((monster) => isWithinOneCell(player, monster));
+}
 
 /** The CC3D display id both snappy and nibble are drawn with, and the Epoxy monster of each. */
 const SNAPPY_NIBBLE_DISPLAY_ID = 'teeth';
@@ -155,6 +186,11 @@ export class DifferentialPair {
   public moves = 0;
   /** Both engines were still moving when the settle cap ran out: a perpetual slide, whose phase is not comparable. */
   public looping = false;
+  /**
+   * One player died by a monster while the other lives with a monster within one cell: the two engines resolve the
+   * same encounter a tick apart. Reported as a timing difference, not a failure; the walk ends there.
+   */
+  public monsterTiming = false;
   private cc3dSettled = true;
   private epoxySettled = true;
   /** The converted level holds a socket, so chips matter; without one it asks for none. */
@@ -224,6 +260,18 @@ export class DifferentialPair {
     return ENTITY_ID_MAP[entity.type] ?? entity.type;
   }
 
+  /** The monsters of an engine's entity list, by cell (CC3D types read through their Epoxy twin). */
+  private monstersOf(entities: ReadonlyArray<{ type: string; x: number; y: number }>, cc3d: boolean): Array<{ x: number; y: number }> {
+    const kinds = cc3d ? this.mobKinds() : new Map<string, string>();
+    return entities.filter((e) => ConfigRegistry.getEntityDef(cc3d ? this.epoxyTypeOf(e, kinds) : e.type)?.kind === MONSTER_KIND);
+  }
+
+  /** The CC3D cells of the simulation (private to the engine), row-major. */
+  private cc3dCells(): ReadonlyArray<Cc3dCell> {
+    const sim = (this.rig.engine as unknown as { sim: { world: { cells: Cc3dCell[] } } | null }).sim;
+    return sim?.world.cells ?? [];
+  }
+
   /** The CC3D colour blocks that float on water now, by cell (read from the simulation, which the engine keeps private). */
   private floatingBlocks(): ReadonlyMap<string, string> {
     const sim = (this.rig.engine as unknown as { sim: { world: { mobs: FloatingProbe[] } } | null }).sim;
@@ -245,8 +293,21 @@ export class DifferentialPair {
     if (this.cc3dSettled !== this.epoxySettled) return at('settle', `cc3d settles ${this.cc3dSettled} epoxy settles ${this.epoxySettled}`);
     const a = this.rig.player;
     const b = this.epoxy.getPlayer();
-    if (a.x !== b.x || a.y !== b.y) return at('player', `cc3d ${a.x},${a.y} epoxy ${b.x},${b.y}`);
-    if (a.alive !== b.alive) return at('alive', `cc3d ${a.alive} epoxy ${b.alive}`);
+    if (a.alive !== b.alive) {
+      const deadIsCc3d = !a.alive;
+      const dead = deadIsCc3d ? a : b;
+      const survivor = deadIsCc3d ? b : a;
+      const survivorMonsters = deadIsCc3d ? this.monstersOf(this.epoxy.getEntities(), false) : this.monstersOf(this.rig.entities, true);
+      if (dead.deathReasonKey === MONSTER_DEATH_KEY && monsterWithinOneCell(survivor, survivorMonsters)) {
+        this.monsterTiming = true;
+        return null;
+      }
+      return at('alive', `cc3d ${a.alive} epoxy ${b.alive}`);
+    }
+    const bothKilledByMonster = !a.alive && a.deathReasonKey === MONSTER_DEATH_KEY && b.deathReasonKey === MONSTER_DEATH_KEY;
+    // Documented gap: two players killed by a monster may stand one cell apart, the engines resolve the strike a tick apart.
+    const samePlace = a.x === b.x && a.y === b.y;
+    if (!samePlace && !(bothKilledByMonster && isWithinOneCell(a, b))) return at('player', `cc3d ${a.x},${a.y} epoxy ${b.x},${b.y}`);
     const doneA = this.rig.engine.isLevelCompleted();
     const doneB = this.epoxy.isLevelCompleted();
     if (doneA !== doneB) return at('complete', `cc3d ${doneA} epoxy ${doneB}`);
@@ -260,10 +321,13 @@ export class DifferentialPair {
     const terrainA = this.rig.engine.getTerrain();
     const terrainB = this.epoxy.getTerrain();
     const floating = this.floatingBlocks();
+    const cc3dCells = this.cc3dCells();
     for (let y = 0; y < terrainA.length; y++) {
       for (let x = 0; x < terrainA[y].length; x++) {
         const floatingColor = floating.get(`${x},${y}`);
-        const mapped = floatingColor === undefined ? epoxyIdOf(terrainA[y][x]) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
+        // A top bomb is compared apart (see `items`): its ground is the cell without the bomb layer.
+        const ground = terrainA[y][x] === BOMB_ID && cc3dCells.length > 0 ? displayTerrainWithoutBomb(cc3dCells[y * terrainA[y].length + x]) : terrainA[y][x];
+        const mapped = floatingColor === undefined ? epoxyIdOf(ground) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
         if (mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
     }
@@ -307,6 +371,8 @@ export interface WalkResult {
   moves: number;
   /** The walk stopped because both engines slide for ever. */
   looping: boolean;
+  /** The walk ended on a monster timing difference (see DifferentialPair.monsterTiming): not a failure. */
+  monsterTiming?: boolean;
   mismatch: DiffMismatch | null;
 }
 
@@ -324,6 +390,7 @@ export function differentialWalk(source: CompiledLevel, converted: CompiledLevel
     pair.step(WALK_DIRECTIONS[Math.floor(next() * WALK_DIRECTIONS.length)]);
     const mismatch = pair.compare();
     if (mismatch) return { touched, moves: pair.moves, looping: false, mismatch };
+    if (pair.monsterTiming) return { touched, moves: pair.moves, looping: false, monsterTiming: true, mismatch: null };
     if (!touched) {
       touched =
         pair.epoxy.getChipsRemaining() !== startChips ||

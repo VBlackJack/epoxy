@@ -226,6 +226,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     let exactMaps = 0;
     let walks = 0;
     let touchedWalks = 0;
+    let monsterTimingWalks = 0;
     let moves = 0;
     for (const source of levels) {
       const cc3d = source.cc3d;
@@ -237,6 +238,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
         walks += 1;
         moves += walk.moves;
         if (walk.touched) touchedWalks += 1;
+        if (walk.monsterTiming) monsterTimingWalks += 1;
         if (walk.looping) loops.push(`${source.id}/${seed}@${walk.moves}`);
         if (walk.mismatch) {
           bump(byField, walk.mismatch.field);
@@ -246,7 +248,7 @@ describe.skipIf(!CORPUS_DIR)('cc3d to epoxy conversion of the corpus', () => {
     }
     console.info(
       `differential: ${exactMaps} exact maps, ${walks} walks, ${moves} moves, ${touchedWalks} walks changed chips, keys or cells, ` +
-        `${mismatches.length} mismatches ${JSON.stringify(byField)}; walks ended in a perpetual slide: ${loops.join(' ')}`
+        `${mismatches.length} mismatches ${JSON.stringify(byField)}, ${monsterTimingWalks} walks ended as monster_timing (reported, not failures); walks ended in a perpetual slide: ${loops.join(' ')}`
     );
     for (const line of mismatches) console.info(`  mismatch ${line}`);
     expect(exactMaps).toBeGreaterThan(0);
