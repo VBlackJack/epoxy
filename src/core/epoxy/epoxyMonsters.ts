@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
+  CC_BLOB_TYPE,
   CC_CADENCE_TYPES,
   CC_TEETH_ACTIVE_TICKS,
   CC_TEETH_CYCLE_TICKS,
@@ -39,6 +40,7 @@ import {
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
+import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
@@ -425,7 +427,14 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     for (const c of candidates) {
       if (canStep(w, monster, c)) return c;
     }
+    // Classic teeth boxed in turn to face their first choice.
+    if (w.ccRules && candidates.length > 0 && CC_CADENCE_TYPES.includes(monster.type)) monster.dir = candidates[0];
     return null;
+  }
+
+  // A classic walker or blob on a level made for the classic game uses that game's own generators.
+  if (w.ccGenerators !== null && (monster.type === 'walker' || monster.type === CC_BLOB_TYPE)) {
+    return chooseClassicRandomDirection(w, monster, w.ccGenerators);
   }
 
   if (def.movementPattern === 'forward_else_random') {
@@ -473,7 +482,26 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     }
   }
 
+  // A classic monster boxed in turns to face its last candidate.
+  if (w.ccRules && CC_CADENCE_TYPES.includes(monster.type) && turnOrder.length > 0) {
+    monster.dir = applyRelativeTurn(monster.dir, turnOrder[turnOrder.length - 1]);
+  }
   return null;
+}
+
+/**
+ * The way of a classic walker or blob. The walker goes straight on while it may and draws only when blocked, one
+ * quarter-turn count from its own generator; the blob makes one draw from the main generator on every decision.
+ * The monster faces the drawn way and, when that way is blocked, waits there.
+ */
+function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators): Direction | null {
+  if (monster.type === 'walker') {
+    if (canStep(w, monster, monster.dir)) return monster.dir;
+    monster.dir = drawWalkerTurn(generators, monster.dir);
+  } else {
+    monster.dir = drawBlobDirection(generators);
+  }
+  return canStep(w, monster, monster.dir) ? monster.dir : null;
 }
 
 /**
