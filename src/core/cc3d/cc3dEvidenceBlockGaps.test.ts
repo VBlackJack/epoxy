@@ -49,7 +49,9 @@ const FORCE_CASES: Array<[string, string, string]> = [
   ['the player stands next to a single force cell', '@x<.', 'E'],
   ['the player steps into the lane first', '@.x<.', 'EE'],
   ['the player walks back out of the lane', '@.x<<.', 'EEW'],
-  ['the player is carried back by the force floor', '@.x<<.', 'EEE']
+  ['the player is carried back by the force floor', '@.x<<.', 'EEE'],
+  ['a block behind the pushed block, the player behind both', '@xK<.', 'E'],
+  ['a cycling force floor under the block', '@.x?.', 'EE']
 ];
 
 describe('a CC3D block that a force floor carries into the player stops in front of him, as in CC3D', () => {
@@ -59,7 +61,9 @@ describe('a CC3D block that a force floor carries into the player stops in front
         const t = playTimeline({ rows: room(pattern.replace('x', glyph)), moves: '', glyphs: GLYPHS }, presses);
         expect(t.sameSequence, `${blockName} ${pattern} ${presses}`).toBe(true);
         expect(t.sameFinal, `${blockName} ${pattern} ${presses}`).toBe(true);
-        expect(t.epoxy.final).not.toMatch(/P\d+,\d+x/);
+        // The player lives: the last state of each engine carries no dead-player mark.
+        expect(t.pair.rig.player.alive).toBe(true);
+        expect(t.pair.epoxy.getPlayer().alive).toBe(true);
       });
     }
   }

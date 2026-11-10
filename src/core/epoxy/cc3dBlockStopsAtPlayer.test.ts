@@ -40,7 +40,7 @@ beforeEach(() => {
   loadTestConfigs();
 });
 
-function level(blockType: string): CompiledLevel {
+function level(blockType: string, playerY = ROW): CompiledLevel {
   const terrain: string[][] = Array.from({ length: SIZE }, (_, y) =>
     Array.from({ length: SIZE }, (_, x) => {
       if (x === 0 || y === 0 || x === SIZE - 1 || y === SIZE - 1) return 'wall';
@@ -53,7 +53,7 @@ function level(blockType: string): CompiledLevel {
     password: 'TEST',
     timeLimitSeconds: 100,
     chipsRequired: 0,
-    playerStart: { x: PLAYER_X, y: ROW, dir: 'E' },
+    playerStart: { x: PLAYER_X, y: playerY, dir: 'E' },
     terrain,
     items: Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => null)),
     entities: [{ type: blockType, x: SLIDER_X, y: ROW, dir: 'W' }],
@@ -62,9 +62,9 @@ function level(blockType: string): CompiledLevel {
   };
 }
 
-function slidingWest(blockType: string): GameEngine {
+function slidingWest(blockType: string, playerY = ROW): GameEngine {
   const engine = new GameEngine();
-  engine.loadLevel(level(blockType));
+  engine.loadLevel(level(blockType, playerY));
   const block = engine.getEntities().find((e) => e.kind === 'block');
   if (!block) throw new Error('no block');
   block.isSliding = true;
@@ -90,12 +90,10 @@ describe('a sliding block against the player', () => {
     });
 
     it(`${type} on ice stops in front of the player who steps into its path`, () => {
-      const engine = slidingWest(type);
-      // The player is out of the lane until the block is near, then steps in front of it.
-      engine.getPlayer().y = ROW - 1;
+      // The player starts beside the lane and steps into it while the block is on its way.
+      const engine = slidingWest(type, ROW - 1);
       engine.tick();
-      engine.tick();
-      engine.getPlayer().y = ROW;
+      expect(engine.attemptPlayerMove('S')).toBe(true);
       for (let i = 0; i < MAX_TICKS; i++) engine.tick();
       expect(engine.getPlayer().alive).toBe(true);
       expect(blockOf(engine).x).toBe(PLAYER_X + 1);

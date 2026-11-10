@@ -388,7 +388,7 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   const ny = entity.y + vec.dy;
 
   // A sliding block of the CC3D kind is refused by the player in its way, as by any other obstacle, and stops in front of him
-  // (the native blocks keep crushing him). A block a force floor carries tries again each tick, as in CC3D; a slide on ice ends.
+  // (the native blocks keep crushing him). Cc3dSimulation.forceStep: a refused slide on ice ends (no bounce); on a force floor the block keeps its drift and tries again each tick, in the direction it took on arrival (as the CC3D drift).
   if (ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall === true && playerAtCell(w, nx, ny) !== undefined) {
     if (tile.slideType !== 'force') entity.isSliding = false;
     return;
@@ -435,6 +435,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
     } else {
       entity.isSliding = false;
     }
+  } else if (tile.slideType === 'force' && ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall === true) {
+    // Cc3dSimulation.forceStep: a refused step on a force floor keeps the drift, so the block tries again next tick.
   } else {
     entity.isSliding = false;
   }
