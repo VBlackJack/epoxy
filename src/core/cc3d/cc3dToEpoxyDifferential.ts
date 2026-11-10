@@ -132,6 +132,15 @@ export const MONSTER_DEATH_KEY = 'hud.messages.death_monster';
 const NEAR_CELLS = 1;
 const MONSTER_KIND = 'monster';
 
+/** Death reason keys that name the same cause in the two engines, to the common key (every other key is its own). */
+const DEATH_KEY_ALIASES: Readonly<Record<string, string>> = {};
+
+/** The common death cause of a death reason key. */
+export function deathKindOf(key: string | null | undefined): string {
+  if (key === null || key === undefined) return '';
+  return DEATH_KEY_ALIASES[key] ?? key;
+}
+
 /**
  * The display id of a CC3D cell without its bomb layers: what the converter keeps as the terrain (it moves a bomb
  * layer to the item grid). A cell with nothing but bombs reads as floor.
@@ -223,12 +232,17 @@ export class DifferentialPair {
   private epoxySettled = true;
   /** The converted level holds a socket, so chips matter; without one it asks for none. */
   private readonly hasSocket: boolean;
+  /** Thin walls the converter kept as cell edges (under a terrain that is not floor), by cell: their CC3D display id. */
+  private readonly edgeIds: ReadonlyMap<string, string>;
 
   constructor(source: CompiledLevel, converted: CompiledLevel, seed: number) {
     this.rig = new Cc3dRig(source, seed);
     this.epoxy = new GameEngine();
     this.epoxy.loadLevel(converted, seed);
     this.hasSocket = converted.terrain.some((row) => row.includes('socket') || row.includes('fish_gate'));
+    this.edgeIds = new Map(
+      (converted.cellEdges ?? []).map((e) => [`${e.x},${e.y}`, displayTerrainId({ terrain: [{ kind: FLOOR_ID }], panels: [...e.sides], item: null })] as const)
+    );
   }
 
   /**
@@ -343,6 +357,18 @@ export class DifferentialPair {
     const doneA = this.rig.engine.isLevelCompleted();
     const doneB = this.epoxy.isLevelCompleted();
     if (doneA !== doneB) return at('complete', `cc3d ${doneA} epoxy ${doneB}`);
+    // The level is over in both engines: Epoxy ends it when the last step starts (water, fire, exit), CC3D when it
+    // ends, so the world ran a different number of ticks afterwards. The outcome is compared (alive, complete, and the
+    // death reason of two dead players); the time left is not, because the converter does not carry the CC3D time
+    // limit yet (the converted level has none). Not compared after this point: chips, keys, terrain cells, items and
+    // entities.
+    if (!a.alive && !b.alive && deathKindOf(a.deathReasonKey) !== deathKindOf(b.deathReasonKey)) {
+      return at('alive', `death cc3d ${String(a.deathReasonKey)} epoxy ${String(b.deathReasonKey)}`);
+    }
+    if ((!a.alive && !b.alive) || (doneA && doneB)) {
+      if (timing) this.monsterTiming = true;
+      return null;
+    }
     const chipsA = this.rig.engine.getChipsRemaining();
     const chipsB = this.epoxy.getChipsRemaining();
     // Without a socket the converted level needs no chips (chipsRequired 0), while CC3D still counts its fish.
@@ -360,7 +386,11 @@ export class DifferentialPair {
         const cell = terrainA[y][x] === BOMB_ID ? this.cc3dCellAt(x, y) : undefined;
         const ground = cell ? displayTerrainWithoutBomb(cell) : terrainA[y][x];
         const mapped = floatingColor === undefined ? epoxyIdOf(ground) : `${FLOATING_BLOCK_PREFIX}${floatingColor}`;
-        if (mapped !== epoxyEngineIdOf(terrainB[y][x])) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
+        // A thin wall kept as a cell edge: once the terrain above it is gone Epoxy shows floor, and the CC3D cell must
+        // then show exactly the thin wall(s) the converter stored, so a panel lost by either engine is a mismatch.
+        const edgeId = this.edgeIds.get(`${x},${y}`);
+        const expected = edgeId !== undefined && terrainB[y][x] === FLOOR_ID ? edgeId : epoxyEngineIdOf(terrainB[y][x]);
+        if (mapped !== expected) return at('cells', `${x},${y} cc3d ${terrainA[y][x]} epoxy ${terrainB[y][x]}`);
       }
     }
     // Bombs are always compared, one by one: a bomb layer is the item `bomb` of the converted level.
