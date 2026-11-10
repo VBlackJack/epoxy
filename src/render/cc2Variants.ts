@@ -100,7 +100,12 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   // The format 16 look-alike: the CC2 orange button, held down by any actor, on the signal plate.
   button_orange_cc2: { base: 'signal_plate', mark: 'cc2' },
   // The format 17 look-alike: the CC3D trap that no button opens, on the trap.
-  [SEALED_TRAP_TILE]: { base: 'trap', mark: '3d' }
+  [SEALED_TRAP_TILE]: { base: 'trap', mark: '3d' },
+  // The format 17 CC3D ice corners, on the native corner of the same sides.
+  ice_corner_3d_nw: { base: 'ice_nw', mark: '3d' },
+  ice_corner_3d_ne: { base: 'ice_ne', mark: '3d' },
+  ice_corner_3d_sw: { base: 'ice_sw', mark: '3d' },
+  ice_corner_3d_se: { base: 'ice_se', mark: '3d' }
 };
 
 /** The letter set on the plate of each gender sign, or on the corner badge of a look-alike: its initial or symbol. */

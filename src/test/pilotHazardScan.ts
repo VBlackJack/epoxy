@@ -125,7 +125,8 @@ function willBounce(engine: GameEngine, block: RuntimeEntity): boolean {
   if (tile.slideType !== 'ice') return false;
   if (blockCanEnter(engine, block, block.dir)) return false;
   const opposite = OPPOSITE_DIRECTION[block.dir];
-  return blockCanEnter(engine, block, tile.deflectionMap?.[opposite] ?? opposite);
+  // A CC3D corner does not turn the bounce, so the block runs into the closed side and stops.
+  return blockCanEnter(engine, block, tile.cc3dCornerBounce === true ? opposite : tile.deflectionMap?.[opposite] ?? opposite);
 }
 
 /**

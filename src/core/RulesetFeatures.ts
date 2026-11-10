@@ -453,13 +453,27 @@ export function isForceCycleTileId(id: string | null | undefined): boolean {
   return !!id && ConfigRegistry.getTile(id).forceCycle === true;
 }
 
-/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate, a turning force floor or a signal tile. */
+/** True when the tile only exists under the Epoxy rules: a laser tile, a colour channel tile, an Epoxy-only item (slow-time, speed or eye boots), a steering pad, a swivel door, a transmogrifier, a turn plate, a turning force floor, a signal tile, the sealed trap or a CC3D ice corner. */
 export function isEpoxyOnlyTileId(id: string | null | undefined): boolean {
   return (
     isLaserTileId(id) || isColorChannelTileId(id) || isEpoxyOnlyItemId(id) ||
     isSteeringTileId(id) || isSwivelTileId(id) || isTransmogrifierTileId(id) || isTurnPlateTileId(id) ||
-    isSignalTileId(id) || isForceCycleTileId(id)
+    isSignalTileId(id) || isForceCycleTileId(id) || isCc3dTwinTileId(id)
   );
+}
+
+/** The terrain ids that only exist for the CC3D rules a native tile does not follow: the CC3D ice corners and the sealed trap (pack format 17). */
+const CC3D_TWIN_TILE_IDS: ReadonlySet<string> = new Set([
+  'trap_sealed',
+  'ice_corner_3d_nw',
+  'ice_corner_3d_ne',
+  'ice_corner_3d_sw',
+  'ice_corner_3d_se'
+]);
+
+/** True for a tile that follows a CC3D rule with no Lynx counterpart (see CC3D_TWIN_TILE_IDS). */
+export function isCc3dTwinTileId(id: string | null | undefined): boolean {
+  return id !== null && id !== undefined && CC3D_TWIN_TILE_IDS.has(id);
 }
 
 /** True when the entity only exists under the Epoxy rules: a laser mirror, a turret, an arrow block, a colour block, a puppet, a skitter, a lurker or a wisp. */

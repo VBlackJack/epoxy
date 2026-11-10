@@ -208,6 +208,19 @@ describe('mirror players: the terrain of their character', () => {
     expect(cellOf(melinda, MIRROR_MELINDA)).toBe(at(4, 3));
   });
 
+  it('stops a Chip mirror on a CC3D ice corner whose exit is blocked, and sends it back on a native corner', () => {
+    // The mirror slides east into the corner (closed south and east), is turned north into the wall, and bounces south.
+    const cornerRun = (corner: string): string => {
+      const terrain: Array<[number, number, string]> = [[4, 3, 'ice'], [5, 3, corner], [5, 2, 'wall']];
+      const engine = load(room({ terrain, player: { x: CENTER, y: 9 }, entities: [mirror(MIRROR_CHIP, 3, 3)] }));
+      walk(engine, 'E');
+      run(engine, SLIDE_TICKS);
+      return cellOf(engine, MIRROR_CHIP);
+    };
+    expect(cornerRun('ice_corner_3d_se')).toBe(at(5, 3));
+    expect(cornerRun('ice_se')).not.toBe(at(5, 3));
+  });
+
   it('stops Melinda mirror at dirt and gravel but lets Chip mirror through', () => {
     const terrain: Array<[number, number, string]> = [
       [4, 3, 'gravel'],

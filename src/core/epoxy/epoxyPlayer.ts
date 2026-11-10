@@ -598,7 +598,8 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   if (!moved) {
     if (currentTile.slideType === 'ice') {
       const bounceDir = OPPOSITE_DIRECTION[dir];
-      const deflectedBounce = currentTile.deflectionMap?.[bounceDir] || bounceDir;
+      // A CC3D corner does not turn the bounce: it runs into the closed side and the slide ends on the corner.
+      const deflectedBounce = currentTile.cc3dCornerBounce === true ? bounceDir : currentTile.deflectionMap?.[bounceDir] || bounceDir;
       w.player.slideDir = deflectedBounce;
       w.player.dir = deflectedBounce;
       const bouncedMoved = executePlayerMove(ctx, deflectedBounce, true);

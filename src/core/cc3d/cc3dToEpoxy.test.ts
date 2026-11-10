@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { isCompiledLevelShape, sanitizeStoredLevels, stripInvalidTextFields } from '../../config/ConfigValidation';
-import { PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V7 } from '../../config/constants';
+import { PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V7 } from '../../config/constants';
 import { parsePackJson, serializePack } from '../../packs/packJson';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -120,10 +120,10 @@ const TERRAIN_CASES: TerrainCase[] = [
   terrainCase('water', 'water'),
   terrainCase('fire', 'fire'),
   terrainCase('ice', 'ice'),
-  terrainCase('ice_corner', 'ice_ne', { kind: 'ice_corner', corner: ['N', 'E'] }),
-  terrainCase('ice_corner', 'ice_nw', { kind: 'ice_corner', corner: ['N', 'W'] }),
-  terrainCase('ice_corner', 'ice_se', { kind: 'ice_corner', corner: ['S', 'E'] }),
-  terrainCase('ice_corner', 'ice_sw', { kind: 'ice_corner', corner: ['S', 'W'] }),
+  terrainCase('ice_corner', 'ice_corner_3d_ne', { kind: 'ice_corner', corner: ['N', 'E'] }),
+  terrainCase('ice_corner', 'ice_corner_3d_nw', { kind: 'ice_corner', corner: ['N', 'W'] }),
+  terrainCase('ice_corner', 'ice_corner_3d_se', { kind: 'ice_corner', corner: ['S', 'E'] }),
+  terrainCase('ice_corner', 'ice_corner_3d_sw', { kind: 'ice_corner', corner: ['S', 'W'] }),
   ...SIDES.map((dir) => terrainCase('force', `force_${dir.toLowerCase()}`, { kind: 'force', dir })),
   terrainCase('force_random', 'force_cycle'),
   terrainCase('exit', 'exit'),
@@ -876,7 +876,7 @@ describe('properties of a conversion', () => {
     const { level } = convertCc3dLevel(richLevel());
     expect(level.launcherLinks?.length).toBeGreaterThan(0);
     const text = serializePack('Pack', [level]);
-    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V16);
+    expect((JSON.parse(text) as { version: number }).version).toBe(PACK_JSON_VERSION_V17);
     const parsed = parsePackJson(text, ConfigRegistry.getLevelSizeBounds(), new Set(), Date.now, undefined, ConfigRegistry.getLevelTextLimits());
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.levels).toEqual([level]);

@@ -61,6 +61,9 @@ export function epoxyIdOf(displayId: string): string {
   if (displayId === 'dirt') return 'dirt_3d';
   if (displayId === 'slime') return 'slime_3d';
   if (displayId === 'appearing_wall') return 'appearing_wall_any';
+  // Format 17: the converter plays the CC3D ice corners as ice_corner_3d_<sides>.
+  const iceCorner = /^ice_([ns][ew])$/.exec(displayId);
+  if (iceCorner) return `ice_corner_3d_${iceCorner[1]}`;
   // The converter moves a bomb layer to the item grid (see compare with `items`), so the terrain below is floor.
   if (displayId === 'bomb') return 'floor';
   const hold = /^cc3d_hold_door_(\w+)$/.exec(displayId);

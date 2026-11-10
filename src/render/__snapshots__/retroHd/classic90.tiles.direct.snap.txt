@@ -401,6 +401,18 @@ tile ice_sw closed=true shadowMask=128 hash=1 b94b4ffbc78b8dee
 tile ice_se closed=true isolated 2ac8fcc31b192f4f
 tile ice_se closed=true shadowMask=65 hash=1 abba0ced9f61caa2
 tile ice_se closed=true shadowMask=128 hash=1 8c0be53fc99692b3
+tile ice_corner_3d_nw closed=true isolated 909bd94f89cc2c80
+tile ice_corner_3d_nw closed=true shadowMask=65 hash=1 55bcc1a9cb069f0d
+tile ice_corner_3d_nw closed=true shadowMask=128 hash=1 51a1ac1359a3b556
+tile ice_corner_3d_ne closed=true isolated ee64f7ce6f3042a9
+tile ice_corner_3d_ne closed=true shadowMask=65 hash=1 bd4dda1bae76c117
+tile ice_corner_3d_ne closed=true shadowMask=128 hash=1 97c870ba5972bdbf
+tile ice_corner_3d_sw closed=true isolated fce95e4ffa00af57
+tile ice_corner_3d_sw closed=true shadowMask=65 hash=1 9acc3cd4df070f82
+tile ice_corner_3d_sw closed=true shadowMask=128 hash=1 abbc8d9a61ae3ad7
+tile ice_corner_3d_se closed=true isolated 7df4718ef8ccbef0
+tile ice_corner_3d_se closed=true shadowMask=65 hash=1 cb5185323966df9d
+tile ice_corner_3d_se closed=true shadowMask=128 hash=1 3eac315f55d20361
 tile force_n closed=true isolated b6b52f35adc8dd7d
 tile force_n closed=true shadowMask=65 hash=1 f69b9abf76005cca
 tile force_n closed=true shadowMask=128 hash=1 97dfe0596bcdb843

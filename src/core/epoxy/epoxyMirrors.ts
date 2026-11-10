@@ -234,7 +234,9 @@ export function stepMirrorFloor(ctx: EpoxyContext, entity: RuntimeEntity): boole
   if (outcome === 'stayed' && tile.slideType === 'ice') {
     // Blocked on ice, the mirror bounces back the way it came.
     const bounce = OPPOSITE_DIRECTION[carried];
-    outcome = stepMirror(ctx, entity, def, tile.deflectionMap?.[bounce] ?? bounce);
+    outcome = stepMirror(ctx, entity, def, tile.cc3dCornerBounce === true ? bounce : tile.deflectionMap?.[bounce] ?? bounce);
+    // A refused bounce on a CC3D corner leaves the mirror facing the exit again, so the corner does not turn it back out.
+    if (outcome === 'stayed' && tile.cc3dCornerBounce === true) entity.dir = carried;
   }
   if (outcome !== 'stayed') w.beamDirty = true;
   return outcome !== 'killed';

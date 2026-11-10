@@ -1491,7 +1491,7 @@ export class LevelValidator {
         continue;
       }
       if (def?.stopsAtWall === true) break;
-      const bounce = tile.deflectionMap?.[OPPOSITE_DIRECTION[heading]] ?? OPPOSITE_DIRECTION[heading];
+      const bounce = tile.cc3dCornerBounce === true ? OPPOSITE_DIRECTION[heading] : tile.deflectionMap?.[OPPOSITE_DIRECTION[heading]] ?? OPPOSITE_DIRECTION[heading];
       const back = canEnter(cur.x, cur.y, bounce);
       if (!back) break;
       cur = back;
@@ -1854,7 +1854,7 @@ export class LevelValidator {
       if (!next && tile.slideType === 'ice') {
         // Bounce back on ice
         const bounceDir = OPPOSITE_DIRECTION[dir];
-        dir = tile.deflectionMap?.[bounceDir] || bounceDir;
+        dir = tile.cc3dCornerBounce === true ? bounceDir : tile.deflectionMap?.[bounceDir] || bounceDir;
         opening = undefined;
         next = canEnter(dir);
       }
