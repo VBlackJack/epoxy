@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
@@ -64,9 +64,48 @@ export function isCarriedByForceFloor(w: EpoxyWorld, tile: TileDefinition, playe
   return tile.slideType === 'force' && (!tile.protectedByItem || !player.boots.has(tile.protectedByItem));
 }
 
+/**
+ * Classic rules: the player's permission to choose his direction on a force floor follows his step attempts. A carried
+ * attempt from a force floor grants it, his own attempt from a force floor or from a floor that is neither force nor
+ * ice (or ice he grips) takes it away, and an attempt from ice he slides on leaves it as it was. Boots that cancel the push
+ * leave it alone, since the floor does not carry him.
+ */
+function updateForcePermission(w: EpoxyWorld, fromSlide: boolean): void {
+  const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+  if (tile.slideType === 'force') {
+    if (!isCarriedByForceFloor(w, tile)) return;
+    w.player.forcePermission = fromSlide;
+  } else if (tile.slideType !== 'ice' || playerGripsTile(w, tile)) {
+    w.player.forcePermission = false;
+  }
+}
+
+/**
+ * Classic rules: a player resting on a force floor that carries him (his push blocked, or the level started there) is
+ * set sliding again, so the floor makes its carried attempt this tick, as it does every tick in the original game.
+ * That attempt grants him the choice of direction even when the push is blocked. The random floor draws its direction
+ * from the world generator and the cycling floor takes the next turn of the shared cycle, as a slide arrival does.
+ */
+export function resumeForceCarry(w: EpoxyWorld): void {
+  if (w.player.isSliding || !w.player.alive) return;
+  const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
+  if (!isCarriedByForceFloor(w, tile)) return;
+  if (tile.forceDirection === 'RANDOM' || tile.forceCycle === true) {
+    evaluatePlayerSliding(w, tile, w.player.dir);
+    w.player.slideCooldown = 0;
+    return;
+  }
+  if (!tile.forceDirection) return;
+  w.player.isSliding = true;
+  w.player.slideDir = tile.forceDirection;
+  w.player.dir = tile.forceDirection;
+  w.player.slideCooldown = 0;
+}
+
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
-  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   const w = ctx.world;
+  if (w.ccRules) updateForcePermission(w, fromSlide);
+  const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
   if (dropExitedController(w)) return moved;
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
@@ -491,8 +530,9 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     w.player.isSliding = true;
     w.player.slideDir = forceDir;
     w.player.dir = forceDir;
-    w.player.slideCooldown =
-      ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
+    w.player.slideCooldown = w.ccRules
+      ? CC_FORCE_SLIDE_COOLDOWN_TICKS
+      : ConfigRegistry.getGame().timing.slideCooldownTicks + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS;
     return;
   }
 

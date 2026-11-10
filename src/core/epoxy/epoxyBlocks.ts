@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
+import { CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
@@ -342,13 +342,13 @@ export function moveBlockTo(
   if (updatedTile.slideType === 'ice' && blockDef?.slidesOnIce) {
     block.dir = updatedTile.deflectionMap?.[dir] || dir;
     block.isSliding = true;
-    block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
+    block.cooldownTicks = w.ccRules ? CC_BLOCK_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
   } else if (updatedTile.slideType === 'force' && blockDef?.slidesOnForce) {
     block.dir =
       forceCycleArrival(w, updatedTile) ??
       (updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection ? dir : updatedTile.forceDirection);
     block.isSliding = true;
-    block.cooldownTicks = ConfigRegistry.getGame().timing.slideCooldownTicks;
+    block.cooldownTicks = w.ccRules ? CC_BLOCK_SLIDE_COOLDOWN_TICKS : ConfigRegistry.getGame().timing.slideCooldownTicks;
   } else {
     block.isSliding = false;
   }

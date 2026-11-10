@@ -23,6 +23,7 @@ import {
   type SignatureLevel
 } from './replaySignature';
 import { sanitizeHighScores } from './persistedState';
+import { CC_RULES_VERSION } from '../config/constants';
 
 const NATIVE: SignatureLevel = {};
 const CC_FLAVOR: SignatureLevel = { rulesFlavor: 'cc' };
@@ -34,8 +35,8 @@ describe('replaySignature', () => {
   it('names the engine and rules version of each kind of level', () => {
     expect(replaySignature(NATIVE)).toBe('epoxy:1');
     expect(replaySignature({ ruleset: 'epoxy' })).toBe('epoxy:1');
-    expect(replaySignature(CC_FLAVOR)).toBe('epoxy-cc:1');
-    expect(replaySignature(CC2_IMPORT)).toBe('epoxy-cc:1');
+    expect(replaySignature(CC_FLAVOR)).toBe(`epoxy-cc:${CC_RULES_VERSION}`);
+    expect(replaySignature(CC2_IMPORT)).toBe(`epoxy-cc:${CC_RULES_VERSION}`);
     expect(replaySignature(LYNX)).toBe('lynx:1');
     expect(replaySignature(CC3D)).toBe('cc3d:1');
   });
@@ -67,10 +68,10 @@ describe('isReplayPlayable', () => {
     vi.resetModules();
     vi.doMock('../config/constants', async (importOriginal) => ({
       ...(await importOriginal<typeof import('../config/constants')>()),
-      CC_RULES_VERSION: 2
+      CC_RULES_VERSION: CC_RULES_VERSION + 1
     }));
     const bumped = await import('./replaySignature');
-    expect(bumped.replaySignature(CC_FLAVOR)).toBe('epoxy-cc:2');
+    expect(bumped.replaySignature(CC_FLAVOR)).toBe(`epoxy-cc:${CC_RULES_VERSION + 1}`);
     expect(bumped.isReplayPlayable(CC_FLAVOR, stored)).toBe(false);
     expect(bumped.isReplayPlayable(NATIVE, bumped.replaySignature(NATIVE))).toBe(true);
     vi.doUnmock('../config/constants');

@@ -2239,6 +2239,12 @@ export interface PlayerState {
   keys: Record<string, number>;
   boots: Set<string>;
   /**
+   * Set only on a level with the classic rules: whether the player may choose his direction on a force floor. He may
+   * once the floor has carried him (a carried attempt from a force floor), and loses it with his own next attempt.
+   * Absent until the first attempt, when he may not.
+   */
+  forcePermission?: boolean;
+  /**
    * The character this player is; absent until set, when it is the level's character. Each player of a level with
    * several has its own, and a transmogrifier switches only the player that arrives on it.
    */
@@ -2280,6 +2286,8 @@ export interface PlayerSnapshot {
   inWater: boolean;
   keys: Record<string, number>;
   boots: string[];
+  /** The player's forcePermission; written only when the player has one. */
+  forcePermission?: boolean;
   /** The player's character; written only on a level with several players, where each has its own. */
   character?: PlayerCharacter;
 }
