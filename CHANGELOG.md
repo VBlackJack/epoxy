@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.30.0] - 2026-11-11
+
 ### Added
 
 - Pack format 17: the CC3D colour blocks (color_block_3d_<colour>) and the sealed trap (trap_sealed), a trap that no button, wire or link ever opens, drawn as the trap with the 3d badge. A CC3D trap that no trap control works is now played as a sealed trap instead of being reported lost.
