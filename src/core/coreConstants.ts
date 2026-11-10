@@ -362,6 +362,16 @@ export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
+/** Converted CC3D levels: ticks of a monster step on plain floor, and on ice or a force floor (the floor carries it faster). */
+export const CC3D_MONSTER_STEP_TICKS = 4;
+export const CC3D_MONSTER_FLOOR_STEP_TICKS = 2;
+/**
+ * Converted CC3D levels: a snappy and a nibble rest after a step they chose, and after a blocked try, for this many ticks
+ * (times the slow-time factor), during which they decide nothing.
+ */
+export const CC3D_REST_PHASE_TICKS = 4;
+export const CC3D_RESTING_TYPES: readonly string[] = ['snappy', 'nibble'];
+
 /** Ticks one step of a classic monster lasts; the blob steps at half the speed of the others. */
 export function ccStepTicks(type: string): number {
   return type === CC_BLOB_TYPE ? CC_BLOB_STEP_TICKS : CC_MONSTER_STEP_TICKS;

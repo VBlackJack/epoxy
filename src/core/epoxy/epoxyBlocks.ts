@@ -297,7 +297,8 @@ export function moveBlockTo(
 
   // A block of the CC3D rules takes its step to finish: it holds its cell now and the cell acts on it when the step ends.
   if (deferArrival) {
-    block.arrivalTicks = CC3D_PUSH_STEP_TICKS;
+    // A block the running pass has already visited has missed this tick's countdown: it counts the tick of its push now.
+    block.arrivalTicks = CC3D_PUSH_STEP_TICKS - (w.entityPassSeen.has(block.uid) ? 1 : 0);
     return;
   }
   settleBlockArrival(ctx, block, dir, allowTeleport);

@@ -350,14 +350,14 @@ describe('appearing wall', () => {
     expect(EPOXY_COVERAGE.color_block_on_ice).toBeUndefined();
   });
 
-  it('becomes a wall when a monster tries to enter it, as the Epoxy appearing_wall_any does; the monster walk is then a step out of phase', () => {
+  it('becomes a wall when a monster tries to enter it, as the Epoxy appearing_wall_any does, and the monster walk stays in phase', () => {
     const t = playTimeline({ rows: bouncerInto('Q'), moves: '', glyphs: BOUNCER });
     // Both engines reveal the wall, and the terrain goes through the same two states ...
     expect(t.cc3d.terrain).toHaveLength(2);
     expect(t.epoxy.terrain).toEqual(t.cc3d.terrain);
-    // ... but the bouncer turns round a step apart from CC3D afterwards (a timing difference of the monster, not of the wall).
-    expect(t.sameSequence).toBe(false);
-    expect(t.sameFinal).toBe(false);
+    // ... and the bouncer turns round with CC3D afterwards (the converted-level cadence closed the step it used to lag).
+    expect(t.sameSequence).toBe(true);
+    expect(t.sameFinal).toBe(true);
   });
 });
 

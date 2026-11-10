@@ -24,6 +24,10 @@ import {
   CC_WALKER_TYPE,
   CC_CADENCE_TYPES,
   CC_TEETH_ACTIVE_TICKS,
+  CC3D_MONSTER_FLOOR_STEP_TICKS,
+  CC3D_MONSTER_STEP_TICKS,
+  CC3D_REST_PHASE_TICKS,
+  CC3D_RESTING_TYPES,
   CC_TEETH_CYCLE_TICKS,
   CC_TEETH_TYPE,
   ccStepTicks,
@@ -79,17 +83,18 @@ import { turnMarkedTanks } from './epoxyDevices';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
-  if (w.ccRules) {
-    turnMarkedTanks(w);
+  if (w.ccRules) turnMarkedTanks(w);
+  if (w.ccRules || w.cc3dPace) {
     if (!applyQueuedArrivals(ctx)) return;
   }
-  w.ccPassOpen = w.ccRules;
+  w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
     if (w.ccRules) planClassicDecisions(ctx);
     runEntityPass(ctx);
   } finally {
     w.ccPassOpen = false;
     w.ccPlans.clear();
+    w.entityPassSeen.clear();
   }
 }
 
@@ -154,12 +159,13 @@ function runEntityPass(ctx: EpoxyContext): void {
   const w = ctx.world;
   w.removedUids.clear();
   const clock = w.ccMonsterClock;
-  if (w.ccRules) w.ccMonsterClock++;
+  if (w.ccRules || w.cc3dPace) w.ccMonsterClock++;
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
+    if (w.cc3dPace) w.entityPassSeen.add(entity.uid);
 
     // Entities sitting directly on a clone machine act as templates and do not move on their own
     // (a wisp is never a template: it drifts over a machine like over any other tile)
@@ -195,8 +201,54 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   return alive;
 }
 
-/** Advances one monster of the entity loop by a tick. Returns false when the player was killed, so the loop stops. */
+/**
+ * Advances one monster of the entity loop by a tick. Returns false when the player was killed, so the loop stops.
+ * On a converted CC3D level the rest after a step follows the CC3D pace: shorter when the floor carried the monster, and
+ * a snappy or nibble that chose its step keeps a rest (`restTicks`) that runs beside the step and outlasts a slide.
+ */
 function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
+  const w = ctx.world;
+  if (!w.cc3dPace) return stepMonsterCore(ctx, entity);
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+  const slowdown = monsterSlowdown(w);
+  const resting = (entity.restTicks ?? 0) > 0;
+  if (resting && --(entity.restTicks as number) === 0) delete entity.restTicks;
+  const ready = entity.cooldownTicks === 0;
+  const fromX = entity.x;
+  const fromY = entity.y;
+  const leftSlide = !floorFree && ConfigRegistry.getTile(w.terrain[fromY]?.[fromX]).slideType !== undefined;
+  // A resting monster decides nothing, but the floor still carries it.
+  if (ready && resting && !leftSlide) return true;
+  const queuedBefore = w.ccArrivals.length;
+  const alive = stepMonsterCore(ctx, entity);
+  if (!ready || !alive || entity.cooldownTicks === 0 || w.removedUids.has(entity.uid)) return alive;
+  const rests = CC3D_RESTING_TYPES.includes(entity.type);
+  if (entity.x === fromX && entity.y === fromY) {
+    // A blocked or held monster tries again at once; a snappy and a nibble rest a step's worth first.
+    entity.cooldownTicks = 0;
+    if (rests) entity.restTicks = CC3D_REST_PHASE_TICKS * slowdown - 1;
+    return alive;
+  }
+  const enteredSlide = !floorFree && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
+  // A step the floor carried, or one that enters ice or a force floor, lasts the fast floor step.
+  if (leftSlide || enteredSlide) entity.cooldownTicks = CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown - 1;
+  else if (rests) entity.cooldownTicks = CC3D_MONSTER_STEP_TICKS * slowdown - 1;
+  // A step they chose starts the rest, counted from the end of that step; a step the floor carried does not.
+  if (rests && !leftSlide) entity.restTicks = entity.cooldownTicks + CC3D_REST_PHASE_TICKS * slowdown;
+  retimeQueuedPresses(w, entity, queuedBefore);
+  return alive;
+}
+
+/** The presses the monster queued in this step (from index `first` on) are applied when its step ends: the pass its cooldown runs out in. */
+function retimeQueuedPresses(w: EpoxyWorld, entity: RuntimeEntity, first: number): void {
+  const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+  for (let i = first; i < w.ccArrivals.length; i++) {
+    if (w.ccArrivals[i].uid === entity.uid) w.ccArrivals[i].due = passesCounted + entity.cooldownTicks - 1;
+  }
+}
+
+function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
   // A steered monster never decides a step: it moves only when a steering pad is worked.
   if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
@@ -430,7 +482,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (queuesButtonPress(w, entity, destTile.buttonAction)) {
-      const delay = entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
+      // A converted CC3D level applies the press when the step ends (the wrapper of stepMonster sets the final time).
+      const delay = w.cc3dPace ? entity.cooldownTicks - 1 : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
       // The clock counts the pass of the current tick only once it has started (as markTanksToTurn reads it).
       const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
       w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay });
@@ -451,6 +504,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
  * Challenge 2, whose engine toggles the walls at once.
  */
 function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
+  if (w.cc3dPace) return w.inTick && action !== 'hold_trap';
   if (!w.ccRules || !w.inTick || !CC_CADENCE_TYPES.includes(entity.type)) return false;
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }
