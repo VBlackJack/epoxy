@@ -330,6 +330,14 @@ const STRUCTURAL_CASES: StructuralCase[] = [
     }
   },
   {
+    key: 'bomb_buried',
+    build: () => convertCell(stackOf({ kind: 'bomb' }, { kind: 'socket' })),
+    check: (result) => {
+      expect(result.level.items[CELL_Y][CELL_X]).toBe('bomb');
+      expect(result.report.approx.map((e) => e.key)).toContain('bomb_buried');
+    }
+  },
+  {
     key: 'laser_shooter_covered',
     build: () => convertCell({ item: { kind: 'fish' }, mob: { kind: 'laser_shooter', dir: 'E' } }),
     check: (result) => {
@@ -394,6 +402,13 @@ describe('mapping rows', () => {
     expect(reportKeys(result)).toContain(key);
     expect(elementKeys(source.cc3d as never).has(key)).toBe(true);
     check(result);
+  });
+
+  it('drops a bomb buried under a plate, which is inert, without a loss and without an item', () => {
+    const { result } = convertCell(stackOf({ kind: 'bomb' }, { kind: 'plate', color: 'green' }));
+    expect(result.level.items[CELL_Y][CELL_X]).toBeNull();
+    expect(result.report.drops).toEqual([]);
+    expect(result.report.approx.map((e) => e.key)).not.toContain('bomb_buried');
   });
 
   it('keeps the same set of keys in the coverage table, the converter rules and the fixtures (no drift)', () => {

@@ -32,10 +32,12 @@ import { turnClockwise } from './cc3dWorld';
 import { displayTerrainId } from './display';
 import {
   classifyStack,
+  settleBombs,
   elementKeys,
   EPOXY_COVERAGE,
   isShooterCovered,
   KEY_APPEARING_WALL_WITH_MONSTER,
+  KEY_BOMB_BURIED,
   KEY_BOMB_WITH_ITEM,
   KEY_CLONE_SWITCH_EMPTY,
   KEY_GRAVEL_WITH_REFLECTOR,
@@ -281,6 +283,7 @@ const STRUCTURAL_RULE_KEYS: readonly string[] = [
   KEY_STACKED_RUNTIME,
   KEY_PANELS_ON_NONFLOOR,
   KEY_SOCKET_RED_STACKED,
+  KEY_BOMB_BURIED,
   KEY_BOMB_WITH_ITEM,
   KEY_CLONE_SWITCH_EMPTY,
   KEY_LASER_SHOOTER_COVERED,
@@ -410,9 +413,11 @@ function convertCell(
     return { terrain: `${SHOT_LAUNCHER_PREFIX}${shooter.dir.toLowerCase()}`, item: null, underlay: null, edges };
   }
 
-  let layers = cell.terrain.filter((layer) => layer.kind !== 'bomb');
+  // Only a bomb that acts (the top layer, or buried under clearable layers) is kept; a bomb under a layer that is never cleared is inert.
+  const settled = settleBombs(cell.terrain);
+  let layers = settled.layers.filter((layer) => layer.kind !== 'bomb');
   let item = cell.item === null ? null : ITEM_RULES[cell.item.kind](cell.item);
-  if (layers.length !== cell.terrain.length) {
+  if (layers.length !== settled.layers.length) {
     if (cell.item === null) item = BOMB_ITEM_ID;
     else drop(KEY_BOMB_WITH_ITEM);
   }

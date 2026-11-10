@@ -22,7 +22,7 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { classifyLevel, EPOXY_COVERAGE } from './epoxyCoverage';
 import { expectAgree, expectDisagree } from './cc3dEvidenceAsserts';
 import { device, playTimeline, room, withMob } from './cc3dEvidenceRig';
-import { cc3dModel } from './cc3dTestMaps';
+import { cc3dModel, stacked } from './cc3dTestMaps';
 import type { GlyphMeaning } from './cc3dTestMaps';
 
 /**
@@ -140,6 +140,29 @@ describe('bomb', () => {
         expect(pair.rig.player.x).toBe(3);
       });
     }
+  });
+
+  it('is inert under a plate: the player and a block cross it, and the converter drops the buried bomb', () => {
+    const glyphs: Record<string, GlyphMeaning> = { P: stacked({ kind: 'floor' }, { kind: 'bomb' }, { kind: 'plate', color: 'green' }) };
+    expectAgree({ rows: room('@P.'), moves: 'EE', glyphs }, (pair) => {
+      expect(pair.rig.player.alive).toBe(true);
+      expect(pair.rig.player.x).toBe(3);
+    });
+    expectAgree({ rows: room('@KP.'), moves: 'EE', glyphs: { ...glyphs, K: device('floor') } }, (pair) => {
+      expect(pair.rig.player.alive).toBe(true);
+    });
+    const level = cc3dModel(room('@P.'), glyphs);
+    expect(classifyLevel(level).verdict).toBe('exact');
+  });
+
+  it('is live again once the clearable layer over it is gone, and the coverage marks it approximate', () => {
+    const underSocket: Record<string, GlyphMeaning> = { P: stacked({ kind: 'bomb' }, { kind: 'socket' }) };
+    // Epoxy shows the bomb item under the socket from the start, where CC3D hides it: the approximation the key names.
+    expectDisagree({ rows: room('@P.'), moves: 'E', glyphs: underSocket }, 'items');
+    const t = playTimeline({ rows: room('@P.'), moves: '', glyphs: underSocket }, 'E');
+    expect(t.cc3d.final).toContain('x');
+    expect(t.epoxy.final).toContain('x');
+    expect(classifyLevel(cc3dModel(room('@P.'), underSocket)).approx).toContain('bomb_buried');
   });
 
   it('is spent with the monster that enters it', () => {
