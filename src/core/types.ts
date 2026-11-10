@@ -2351,6 +2351,8 @@ export interface UndoSnapshot {
   pausedTicks?: number;
   /** Entity passes run since the level started; written only on a classic-rules level (the teeth cycle reads it), absent otherwise. */
   ccMonsterClock?: number;
+  /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
+  ccGenerators?: [number, number, number];
   /** The state of the signal network; written only on a level that has one, absent otherwise. */
   signals?: SignalState;
   /** Pulse buttons with an unconsumed arrival (pending) or a press kept for the next settle (carry); written only when one is non-empty. */

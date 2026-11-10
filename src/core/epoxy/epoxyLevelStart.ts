@@ -21,6 +21,7 @@ import { compileSignalSpec } from '../signalLinks';
 import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
 import { usesCcRules } from './ccRules';
+import { newCcGenerators } from './ccGenerators';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -48,7 +49,10 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.nextEntityUid = 1;
   w.ccMonsterClock = 0;
   const ccCadence = usesCcRules(level);
-  w.rng = new SeededRandom(seed ?? SeededRandom.seedFromString(level.id));
+  const levelSeed = seed ?? SeededRandom.seedFromString(level.id);
+  w.rng = new SeededRandom(levelSeed);
+  // A level made for the classic game keeps that game's own generators; a CC2 import keeps the seeded one.
+  w.ccGenerators = ccCadence && level.cc2 === undefined ? newCcGenerators(levelSeed) : null;
 
   w.entities = level.entities.map((e) => {
     const def = ConfigRegistry.getEntityDef(e.type);

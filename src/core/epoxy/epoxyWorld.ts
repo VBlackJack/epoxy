@@ -22,6 +22,7 @@ import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
 import { usesCcRules } from './ccRules';
+import type { CcGenerators } from './ccGenerators';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -149,6 +150,8 @@ export interface EpoxyWorld {
   ccRules: boolean;
   /** Entity-update passes run since the level started (a classic-rules level reads it for the teeth cycle); counts only while ccRules. */
   ccMonsterClock: number;
+  /** The walker and blob generators of a level made for the classic game (a .DAT import); null on every other level. */
+  ccGenerators: CcGenerators | null;
   /** True while an entity pass of a classic-rules level runs (the clock already counts it); transient, never saved. */
   ccPassOpen: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
@@ -254,6 +257,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     hasShots: false,
     ccRules: false,
     ccMonsterClock: 0,
+    ccGenerators: null,
     ccPassOpen: false,
     shotStepTicks: 0,
     launcherLinks: [],
