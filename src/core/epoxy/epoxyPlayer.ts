@@ -21,7 +21,7 @@ import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Direction, PlayerState, TileDefinition } from '../types';
-import { attemptPushBlock } from './epoxyBlocks';
+import { attemptPushBlock, isCc3dPush } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -258,14 +258,24 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     if (entityAtTarget.kind === 'block') {
       // Pushing a block while leaving a CC2 swivel door through a closed side: the push resolves first, then the door
       // turns as the player steps off. Likely what CC2 does, but not verified against the game.
-      const pushed = attemptPushBlock(ctx, entityAtTarget, dir);
+      const pushed = attemptPushBlock(ctx, entityAtTarget, dir, true, false, undefined, true);
       if (!pushed) {
         if (!fromSlide) AudioManager.playSfx('blocked');
         return false;
       }
       // The push may have pressed a button that changed the cell (a toggle wall closing): judge the cell again, and stay
       // put when it no longer lets the player in. The block stays where the push left it, so the bump keeps its undo step.
-      if (!canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.items[targetY][targetX])) {
+      // A CC3D block is the exception: the player's step was planned before the push, and the cell the block leaves acts
+      // on its own as the step goes on (Cc3dSimulation.tryStep), so he is judged on the cell as it stood when the step
+      // began (the character signs, boots and no-signs that bar him still do) and enters whatever it has become.
+      const cc3dStep = isCc3dPush(entityAtTarget);
+      if (
+        !canPlayerEnter(
+          w,
+          cc3dStep ? updatedTargetTile : ConfigRegistry.getTile(w.terrain[targetY][targetX]),
+          cc3dStep ? itemOnTarget : w.items[targetY][targetX]
+        )
+      ) {
         w.rejectedPushMovedBlocks = true;
         if (!fromSlide) AudioManager.playSfx('blocked');
         return false;

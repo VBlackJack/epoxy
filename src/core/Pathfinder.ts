@@ -122,7 +122,7 @@ export class Pathfinder {
     if (hidden !== null) {
       for (const id of hidden.values()) if (ConfigRegistry.getTile(id).plateColor === color) return false;
     }
-    const restingBlocks = engine.getEntities().filter((e) => e.kind === 'block' && !e.isSliding);
+    const restingBlocks = engine.getEntities().filter((e) => e.kind === 'block' && !e.isSliding && e.arrivalTicks === undefined);
     let plates = 0;
     for (let y = 0; y < terrain.length; y++) {
       for (let x = 0; x < terrain[y].length; x++) {

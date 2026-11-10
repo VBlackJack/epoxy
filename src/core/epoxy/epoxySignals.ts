@@ -112,6 +112,8 @@ function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
   const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y) return false;
+    // CC3D: a mob still taking its step presses nothing (Cc3dDevices isPressed asks for remaining 0).
+    if (e.arrivalTicks !== undefined) return false;
     if (anyActor) return true;
     if (e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
