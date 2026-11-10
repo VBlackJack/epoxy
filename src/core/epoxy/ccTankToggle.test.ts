@@ -206,6 +206,11 @@ describe('classic tank reversal', () => {
     const tankOf = () => w.entities.find((e) => e.type === 'tank')!;
     engine.tick();
     expect(w.entities.find((e) => e.type === 'bug')!.x).toBe(9);
+    // The monster's press is queued and applied at the start of the pass two later, not at the step.
+    expect(tankOf().tankTurn).toBeUndefined();
+    expect(w.ccPassOpen).toBe(false);
+    for (let t = 2; t <= 4; t++) engine.tick();
+    // Applied at the start of the fourth pass (clock 3); the tanks turn one pass after that.
     expect(tankOf().tankTurn).toBe(4);
     expect(w.ccPassOpen).toBe(false);
   });
