@@ -527,6 +527,9 @@
             "label": "Sokoban"
           }
         },
+        "lynx_notice": {
+          "label": "Les niveaux Lynx de ce pack se jouent sans les aides d'Epoxy. Un fichier .DAT réimporté se joue sur le moteur Epoxy avec ces aides, dans un nouveau pack : les scores ne sont pas repris."
+        },
         "levels": {
           "title": {
             "label": "Niveaux du pack"

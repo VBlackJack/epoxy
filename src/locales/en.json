@@ -527,6 +527,9 @@
             "label": "Sokoban"
           }
         },
+        "lynx_notice": {
+          "label": "Levels for the Lynx engine in this pack play without the Epoxy aids. A .DAT file imported again plays on the Epoxy engine with them, as a new pack: scores do not carry over."
+        },
         "levels": {
           "title": {
             "label": "Levels of the pack"
