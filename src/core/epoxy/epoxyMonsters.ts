@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   CC_BLOB_TYPE,
+  CC_WALKER_TYPE,
   CC_CADENCE_TYPES,
   CC_TEETH_ACTIVE_TICKS,
   CC_TEETH_CYCLE_TICKS,
@@ -411,7 +412,8 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     const dx = w.player.x - monster.x;
     const dy = w.player.y - monster.y;
     const candidates: Direction[] = [];
-    if (Math.abs(dx) >= Math.abs(dy)) {
+    // On a tie the classic rules (Lynx teeth) go vertical first; Epoxy's own rules go horizontal first.
+    if (w.ccRules ? Math.abs(dx) > Math.abs(dy) : Math.abs(dx) >= Math.abs(dy)) {
       if (dx !== 0) candidates.push(dx > 0 ? 'E' : 'W');
       if (dy !== 0) candidates.push(dy > 0 ? 'S' : 'N');
     } else {
@@ -427,13 +429,13 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     for (const c of candidates) {
       if (canStep(w, monster, c)) return c;
     }
-    // Classic teeth boxed in turn to face their first choice.
+    // Classic teeth boxed in turn to face their first choice (every classic-rules level, CC2 imports included).
     if (w.ccRules && candidates.length > 0 && CC_CADENCE_TYPES.includes(monster.type)) monster.dir = candidates[0];
     return null;
   }
 
   // A classic walker or blob on a level made for the classic game uses that game's own generators.
-  if (w.ccGenerators !== null && (monster.type === 'walker' || monster.type === CC_BLOB_TYPE)) {
+  if (w.ccGenerators !== null && (monster.type === CC_WALKER_TYPE || monster.type === CC_BLOB_TYPE)) {
     return chooseClassicRandomDirection(w, monster, w.ccGenerators);
   }
 
@@ -482,7 +484,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     }
   }
 
-  // A classic monster boxed in turns to face its last candidate.
+  // A classic monster boxed in turns to face its last candidate (every classic-rules level, CC2 imports included).
   if (w.ccRules && CC_CADENCE_TYPES.includes(monster.type) && turnOrder.length > 0) {
     monster.dir = applyRelativeTurn(monster.dir, turnOrder[turnOrder.length - 1]);
   }
@@ -495,7 +497,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
  * The monster faces the drawn way and, when that way is blocked, waits there.
  */
 function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators): Direction | null {
-  if (monster.type === 'walker') {
+  if (monster.type === CC_WALKER_TYPE) {
     if (canStep(w, monster, monster.dir)) return monster.dir;
     monster.dir = drawWalkerTurn(generators, monster.dir);
   } else {

@@ -321,6 +321,7 @@ export const CC_BLOB_STEP_TICKS = 8;
 
 /** The classic monsters that follow the cadence above; any other monster keeps its own move interval. */
 export const CC_BLOB_TYPE = 'blob';
+export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
