@@ -55,7 +55,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.rng = new SeededRandom(levelSeed);
   // Every classic-rules level (a .DAT import and a CC2 import alike) draws walker and blob turns from the classic
   // generators. Calibrated against Chip's Challenge 1 and the official Chip's Challenge 2 levels.
-  w.ccGenerators = ccCadence && level.cc2 === undefined ? newCcGenerators(levelSeed) : null;
+  w.ccGenerators = ccCadence ? newCcGenerators(levelSeed) : null;
 
   w.entities = level.entities.map((e) => {
     const def = ConfigRegistry.getEntityDef(e.type);
