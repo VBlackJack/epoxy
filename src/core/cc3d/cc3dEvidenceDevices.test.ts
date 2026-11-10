@@ -398,7 +398,7 @@ describe.each(CC3D_COLORS)('%s plate', (color) => {
 const TIMELINE_WALKERS: Cc3dMobKind[] = [
   'limpa', 'limpy', 'bouncer', 'golem_blue', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'nibble'
 ];
-/** Ticks between two presses of the settled block runs: a block step in CC3D is slower than the shortest of them. */
+/** Ticks between two presses of the settled block runs: three paces were sampled. */
 const BLOCK_PRESS_SPACINGS = [4, 8, 16];
 const RED_DOOR_OPEN_ID = 'hold_door_red_open';
 
@@ -440,7 +440,7 @@ describe('plate timelines: CC3D presses a plate only at rest, Epoxy counts a mon
     expect(t.cc3d.final).toBe(t.epoxy.final);
   });
 
-  it.each([['K', 'a dirt block'], ['Z', 'an ice block']])('follows %s pushed across the plate and on, press by press, at any pace of the player', (block) => {
+  it.each([['K', 'a dirt block'], ['Z', 'an ice block']])('follows %s pushed across the plate and on, press by press, at three sampled paces of the player', (block) => {
     for (const spacing of BLOCK_PRESS_SPACINGS) {
       for (const presses of ['E', 'EE', 'EEEE', 'EEEEE']) {
         const run = playSettled({ rows: room(`@${block}=..d.`), moves: '', glyphs: GLYPHS }, presses, spacing);
@@ -454,19 +454,125 @@ describe('plate timelines: CC3D presses a plate only at rest, Epoxy counts a mon
     expect(crossing.epoxy).toEqual(crossing.cc3d);
   });
 
-  it('shows that the one disagreement near a plate is the monsters meeting, which happens with no plate on the map', () => {
-    const glyphs: Record<string, GlyphMeaning> = {
-      ...GLYPHS,
-      M: withMob(device('floor'), { kind: 'bouncer', dir: 'E' }),
-      N: withMob(device('floor'), { kind: 'bouncer', dir: 'W' })
-    };
-    // Two bouncers walking into each other, no plate and no door anywhere: the engines already part.
-    const bare = playTimeline({ rows: corridor('M....N'), moves: '', glyphs });
+  it('presses for a snappy that walks over the plate towards a player it cannot reach', () => {
+    const glyphs = walkerGlyphs('snappy', 'E');
+    for (const rows of [room('M.=.#@', '######', '..d...'), room('M..=#@', '######', 'd.....'), room('M.=..@', '######', '..d...')]) {
+      const t = playTimeline({ rows, moves: '', glyphs });
+      expect(t.cc3d.terrain.length).toBeGreaterThan(1);
+      expect(sameTerrainChanges(t)).toBe(true);
+    }
+  });
+
+  it('leaves the yellow golem to cc3dEvidenceYellowGolem.test.ts, which plays it over a plate press by press (it is steered, not timed)', () => {
+    expect(EPOXY_COVERAGE.golem_yellow.reason).toContain('cc3dEvidenceYellowGolem.test.ts');
+  });
+
+  it('gives the plate to a player who crosses without stopping, starts on it, or slides over it on ice or a force floor', () => {
+    const cases: Array<[string, string[], string]> = [
+      ['crossing', room('@=.d.'), 'EEEE'],
+      ['crossing into the door', room('@=d..'), 'EEEE'],
+      ['ice slide over it', room('@I=Id.'), 'EEE'],
+      ['force slide over it', room('@>>=>>d.'), 'E']
+    ];
+    for (const [name, rows, presses] of cases) {
+      const glyphs = { ...GLYPHS, I: device('ice'), '>': device('force', { dir: 'E' }) };
+      const t = playTimeline({ rows, moves: '', glyphs }, presses);
+      expect(t.cc3d.terrain.length, name).toBeGreaterThan(1);
+      expect(sameTerrainChanges(t), name).toBe(true);
+      expect(t.sameSequence, name).toBe(true);
+    }
+    // The player standing on the plate at tick 0: the door state is the same in both engines, whatever it is.
+    const start = playTimeline({ rows: room('@d.'), moves: '', glyphs: { ...GLYPHS, '@': plate('red') } });
+    expect(sameTerrainChanges(start)).toBe(true);
+    expect(start.cc3d.terrain[0]).toBe(start.epoxy.terrain[0]);
+  });
+
+  it('presses the same with an item on the plate, and for a block or the player sliding across it', () => {
+    const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, I: device('ice'), P: { ...plate('red'), item: { kind: 'orb_fire' } } };
+    const cases: Array<[string, string[], string]> = [
+      ['an item on the plate, picked up', room('@P.d.'), 'EEEE'],
+      ['an item on the plate, left', room('@.P.d.'), 'E'],
+      ['a block over an item on the plate', room('@KP.d.'), 'EEE'],
+      ['an ice block sliding across', room('@IZ=.d'), 'E'],
+      ['a dirt block sliding across on ice', room('@KIII=Id.'), 'E']
+    ];
+    for (const [name, rows, presses] of cases) {
+      const t = playTimeline({ rows, moves: '', glyphs }, presses);
+      expect(sameTerrainChanges(t), name).toBe(true);
+    }
+  });
+
+  it('presses the same in all four colours when a limpa crosses', () => {
+    for (const color of CC3D_COLORS) {
+      const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, '=': plate(color), d: holdDoor(color), M: withMob(device('floor'), { kind: 'limpa', dir: 'E' }) };
+      const t = playTimeline({ rows: corridor('M.=...d.'), moves: '', glyphs });
+      expect(t.cc3d.terrain.length, color).toBeGreaterThan(2);
+      expect(sameTerrainChanges(t), color).toBe(true);
+    }
+  });
+});
+
+// ------------------------------------------------------- monsters meeting
+
+/** Kinds whose head-on meeting with another walking monster differs from CC3D, and kinds where it was measured to agree. */
+const MEETING_DIFFERS: Cc3dMobKind[] = ['limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'];
+const MEETING_AGREES: Cc3dMobKind[] = ['nibble', 'snappy', 'golem_blue', 'golem_yellow'];
+const MEETING_ROWS = ['M....N', 'M...N', 'M..N'];
+
+function meeting(a: Cc3dMobKind, b: Cc3dMobKind, row: string): ReturnType<typeof playTimeline> {
+  const glyphs: Record<string, GlyphMeaning> = {
+    ...GLYPHS,
+    M: withMob(device('floor'), { kind: a, dir: 'E' }),
+    N: withMob(device('floor'), { kind: b, dir: 'W' })
+  };
+  return playTimeline({ rows: corridor(row), moves: '', glyphs });
+}
+
+describe('two walking monsters meeting head-on', () => {
+  it.each(MEETING_DIFFERS)('parts the engines for two %s, with no plate or door on the map', (kind) => {
+    for (const row of MEETING_ROWS) expect(meeting(kind, kind, row).sameSequence, row).toBe(false);
+  });
+
+  it.each(MEETING_DIFFERS)('parts the engines for a %s and a bouncer', (kind) => {
+    for (const row of MEETING_ROWS) expect(meeting(kind, 'bouncer', row).sameSequence, row).toBe(false);
+  });
+
+  it.each(MEETING_AGREES)('agrees for two %s', (kind) => {
+    for (const row of MEETING_ROWS) expect(meeting(kind, kind, row).sameSequence, row).toBe(true);
+  });
+
+  it('is what parts two engines near a plate: the plate itself changes the door the same way', () => {
+    const bare = meeting('bouncer', 'bouncer', 'M....N');
     expect(bare.sameSequence).toBe(false);
     expect(bare.cc3d.terrain).toHaveLength(1);
-    // The same pair with a plate and a door between them parts the same way, so the plate is not what differs.
-    const withPlate = playTimeline({ rows: corridor('M=.dN'), moves: '', glyphs });
+    expect(sameTerrainChanges(bare)).toBe(true);
+    // With a plate and a door between the pair the bodies part in the same way, and the first door changes are alike
+    // up to the moment the monsters meet; what differs after that is the walk of the monsters.
+    const withPlate = meeting('bouncer', 'bouncer', 'M=.dN');
     expect(withPlate.sameSequence).toBe(false);
+    expect(withPlate.cc3d.terrain[1]).toBe(withPlate.epoxy.terrain[1]);
+  });
+
+  it('keeps the trap shut for a monster that walks into a trap on a map with no trap control, as the player is', () => {
+    const kinds: Cc3dMobKind[] = ['limpa', 'bouncer', 'golem_blue', 'snappy', 'baby_blinky'];
+    for (const kind of kinds) {
+      const glyphs: Record<string, GlyphMeaning> = { ...GLYPHS, M: withMob(device('floor'), { kind, dir: 'E' }) };
+      const t = playTimeline({ rows: corridor('M.p...'), moves: '', glyphs });
+      expect(t.sameSequence, kind).toBe(true);
+    }
+  });
+
+  it('lists the monsters_meet key for the pairs above, and not for the ones that agree', () => {
+    const glyphs = (a: Cc3dMobKind, b: Cc3dMobKind): Record<string, GlyphMeaning> => ({
+      M: withMob(device('floor'), { kind: a, dir: 'E' }),
+      N: withMob(device('floor'), { kind: b, dir: 'W' })
+    });
+    expect(classifyLevel(cc3dModel(corridor('M.....'), glyphs('bouncer', 'bouncer'))).approx).not.toContain('monsters_meet');
+    expect(classifyLevel(cc3dModel(corridor('M....N'), glyphs('golem_blue', 'golem_blue'))).approx).not.toContain('monsters_meet');
+    expect(classifyLevel(cc3dModel(corridor('M.....'), glyphs('bouncer', 'bouncer'))).approx).not.toContain('monsters_meet');
+    expect(EPOXY_COVERAGE.monsters_meet.level).toBe('approx');
+    expect(EPOXY_COVERAGE.monsters_meet.reason).toContain('cc3dEvidenceDevices.test.ts');
+    expect(EPOXY_COVERAGE.bouncer.reason).toContain('monsters_meet');
   });
 });
 

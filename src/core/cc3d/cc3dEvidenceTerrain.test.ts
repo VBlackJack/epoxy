@@ -291,6 +291,29 @@ describe('appearing wall', () => {
     }
   });
 
+  it('becomes a wall when the player slides into it over ice or a force floor, as in Epoxy', () => {
+    for (const rows of [room('@IIIQ.'), room('@>>>Q.')]) {
+      expectAgree({ rows, moves: 'EE' }, (pair) => {
+        expect(pair.rig.terrainAt(5, 1)).toBe(WALL);
+      });
+    }
+  });
+
+  it('differs when a block slides into it over ice or a force floor: CC3D makes a wall, Epoxy leaves it as it is', () => {
+    for (const rows of [room('@KIIIQ.'), room('@ZIIIQ.'), room('@K>>>Q.')]) {
+      expectDisagree({ rows, moves: 'EE' }, 'cells', (pair) => {
+        expect(pair.rig.terrainAt(6, 1)).toBe(WALL);
+      });
+    }
+    const level = cc3dModel(room('@KIIIQ.'));
+    expect(classifyLevel(level).approx).toEqual(['appearing_wall_with_slide']);
+    // Without a block, or without a floor to slide on, the key is not raised.
+    expect(classifyLevel(cc3dModel(room('@IIIQ.'))).verdict).toBe('exact');
+    expect(classifyLevel(cc3dModel(room('@K..Q.'))).verdict).toBe('exact');
+    expect(EPOXY_COVERAGE.appearing_wall_with_slide.level).toBe('approx');
+    expect(EPOXY_COVERAGE.appearing_wall_with_slide.reason).toContain('cc3dEvidenceTerrain.test.ts');
+  });
+
   it('becomes a wall when a monster tries to enter it, as the Epoxy appearing_wall_any does; the monster walk is then a step out of phase', () => {
     const t = playTimeline({ rows: bouncerInto('Q'), moves: '', glyphs: BOUNCER });
     // Both engines reveal the wall, and the terrain goes through the same two states ...

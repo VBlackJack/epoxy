@@ -295,6 +295,20 @@ const STRUCTURAL_CASES: StructuralCase[] = [
     }
   },
   {
+    key: 'appearing_wall_with_slide',
+    build: () => convertRows(['#######', '#@KIQX#', '#######'], { Q: terrain('appearing_wall'), I: terrain('ice') }),
+    check: (result) => {
+      expect(result.report.approx.map((e) => e.key)).toContain('appearing_wall_with_slide');
+    }
+  },
+  {
+    key: 'monsters_meet',
+    build: () => convertRows(['#######', '#@b.cX#', '#######'], { b: { mob: { kind: 'bouncer', dir: 'E' } }, c: { mob: { kind: 'bouncer', dir: 'W' } } }),
+    check: (result) => {
+      expect(result.report.approx.map((e) => e.key)).toContain('monsters_meet');
+    }
+  },
+  {
     key: 'appearing_wall_with_monster',
     build: () => convertRows(['######', '#@VbX#', '######'], { V: terrain('appearing_wall'), b: { mob: { kind: 'bouncer', dir: 'E' } } }),
     check: (result) => {

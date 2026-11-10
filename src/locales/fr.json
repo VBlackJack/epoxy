@@ -3974,11 +3974,19 @@
       },
       "appearing_wall_with_monster": {
         "name": "Mur apparaissant dans un niveau avec un monstre qui marche",
-        "label": "Un monstre qui révèle un mur apparaissant fait demi-tour un pas à côté de celui de CC3D ensuite, et le golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
+        "label": "Un monstre qui révèle un mur apparaissant fait demi-tour avec un pas de décalage par rapport à celui de CC3D ensuite, et un golem jaune, qu'Epoxy dirige, laisse le mur tel quel là où celui de CC3D en fait un mur."
+      },
+      "appearing_wall_with_slide": {
+        "name": "Mur apparaissant et bloc qui peut glisser",
+        "label": "Un bloc qui glisse contre un mur apparaissant sur de la glace ou un sol de force en fait un mur dans CC3D, là où Epoxy le laisse tel quel."
       },
       "orbs_over_cap": {
         "name": "Plus de quatre orbes",
         "label": "Le niveau contient plus de quatre orbes : un joueur CC3D qui ramasse un cinquième outil dépose le plus ancien sur la case, là où Epoxy garde toutes les bottes."
+      },
+      "monsters_meet": {
+        "name": "Monstres qui se rencontrent",
+        "label": "Le niveau a deux monstres qui marchent ou plus, et deux d'entre eux qui se croisent de face ne se comportent pas comme dans CC3D pour certaines espèces (rebondisseur, limpa, limpy, bébé blinky, bébé hurleur, jambes, blinky, hurleur, marcheur, omni)."
       },
       "trap": {
         "name": "Piège",

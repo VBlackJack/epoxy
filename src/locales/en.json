@@ -3974,11 +3974,19 @@
       },
       "appearing_wall_with_monster": {
         "name": "Appearing wall in a level with a walking monster",
-        "label": "A monster that reveals an appearing wall turns round a step apart from the CC3D one afterwards, and the yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
+        "label": "A monster that reveals an appearing wall turns round one step out of phase with the CC3D one afterwards, and a yellow golem, which Epoxy steers, leaves the wall as it is where the CC3D golem makes it a wall."
+      },
+      "appearing_wall_with_slide": {
+        "name": "Appearing wall and a block that can slide",
+        "label": "A block that slides into an appearing wall over ice or a force floor makes a wall in CC3D, where Epoxy leaves it as it is."
       },
       "orbs_over_cap": {
         "name": "More than four orbs",
         "label": "The level holds more than four orbs: a CC3D player who picks up a fifth tool drops the oldest on the cell, where Epoxy keeps every pair of boots."
+      },
+      "monsters_meet": {
+        "name": "Walking monsters that meet",
+        "label": "The level has two or more walking monsters, and two of them meeting head-on do not behave as in CC3D for some kinds (bouncer, limpa, limpy, baby blinky, baby screamer, legs, blinky, screamer, walker, omni)."
       },
       "trap": {
         "name": "Trap",

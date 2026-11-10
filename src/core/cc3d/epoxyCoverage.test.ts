@@ -75,6 +75,8 @@ describe('epoxy coverage table', () => {
     check('gravel_with_reflector');
     check('orbs_over_cap');
     check('appearing_wall_with_monster');
+    check('appearing_wall_with_slide');
+    check('monsters_meet');
     expect(missing).toEqual([]);
   });
 
@@ -92,7 +94,7 @@ describe('epoxy coverage table', () => {
     for (const key of [
       'stacked_terrain', 'stacked_runtime', 'panels_on_nonfloor', 'socket_red_stacked', 'trap_unworked',
       'clone_switch_empty', 'bomb_with_item', 'laser_shooter_covered', 'gravel_with_reflector', 'orbs_over_cap',
-      'appearing_wall_with_monster'
+      'appearing_wall_with_monster', 'appearing_wall_with_slide', 'monsters_meet'
     ]) named.add(key);
     expect(Object.keys(EPOXY_COVERAGE).filter((key) => !named.has(key))).toEqual([]);
   });
@@ -328,6 +330,22 @@ describe('relation keys', () => {
     const idle = levelOf(['#####', '#@.T#', '#####'], { T: stacked({ kind: 'floor' }, trap) });
     expect(elementKeys(idle).has('trap_unworked')).toBe(false);
     expect(classifyLevel(idle)).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
+  it('flags monsters_meet for two or more walking monsters with one of a differing kind, and for a cloned one', () => {
+    const mob = (kind: Cc3dMobKind) => ({ mob: { kind, dir: 'E' as const } });
+    const two = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('bouncer') }));
+    expect(two.approx).toContain('monsters_meet');
+    const mixed = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('golem_blue') }));
+    expect(mixed.approx).toContain('monsters_meet');
+    const agreeing = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('golem_blue'), N: mob('snappy') }));
+    expect(agreeing.approx).not.toContain('monsters_meet');
+    const alone = classifyLevel(levelOf(['#####', '#@M.#', '#####'], { M: mob('bouncer') }));
+    expect(alone.approx).not.toContain('monsters_meet');
+    const blocks = classifyLevel(levelOf(['######', '#@MK.#', '######'], { M: mob('bouncer') }));
+    expect(blocks.approx).not.toContain('monsters_meet');
+    const cloned = classifyLevel(levelOf(['#####', '#@c.#', '#####'], { c: { stack: [{ kind: 'floor' }, { kind: 'clone_machine', dir: 'E' }], mob: { kind: 'bouncer', dir: 'E' } } }));
+    expect(cloned.approx).toContain('monsters_meet');
   });
 
   it('flags a clone switch whose nearest machine holds no template or a shooter, not one with a walker', () => {
