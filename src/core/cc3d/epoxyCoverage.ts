@@ -97,11 +97,11 @@ const ORBS_OVER_CAP_REASON =
   'The map holds more than four orb items (speed included): a CC3D player who picks up a fifth tool drops the oldest on the cell, where Epoxy keeps every pair of boots (cc3dEvidenceOrbs.test.ts).';
 const PLATE_REASON =
   'Measured in cc3dEvidenceDevices.test.ts: the plates and hold doors of each colour agree with CC3D for the player, the dirt, ice and colour blocks (a colour block only on its own colour), every plate of the colour needed at once, a door closing on its occupant, and a golem walking over a plate, with the same door changes in the same order. At rest the walker, limpa, limpy, bouncer, omni, snappy, nibble, the baby blinky, the baby screamer, both legs, both golems and the four bots press as in CC3D, and the blinky and the screamer press in neither.' +
-  ' The timing is measured too: a monster crossing a plate, walking on into the door cell, or stopped on the plate by a wall changes the door in the same order in both engines (a monster presses a plate only at rest in both engines), and a dirt or ice block pushed across a plate, at the three paces sampled (4, 8 and 16 ticks between presses), leaves the same state after every press. The player crossing without stopping, sliding over a plate on ice or a force floor, an item on a plate, a block sliding across, the snappy and the four colours were measured to agree too, and the yellow golem is measured in cc3dEvidenceYellowGolem.test.ts. Two monsters meeting head-on in a bare corridor agree too (the walker and the omni draw at random and cannot be matched); the key monsters_meet stays for maps with several walking monsters, where the corpus walks still show differences.';
+  ' The timing is measured too: a monster crossing a plate, walking on into the door cell, or stopped on the plate by a wall changes the door in the same order in both engines (a monster presses a plate only at rest in both engines), and a dirt or ice block pushed across a plate, at the three paces sampled (4, 8 and 16 ticks between presses), leaves the same state after every press. The player crossing without stopping, sliding over a plate on ice or a force floor, an item on a plate, a block sliding across, the snappy and the four colours were measured to agree too, and the yellow golem is measured in cc3dEvidenceYellowGolem.test.ts. Two monsters meeting head-on agree too, in a bare corridor and in the corpus walks of maps with several walking monsters, except the walker and the omni, which draw their way at random and cannot be matched; the key monsters_meet stays for a map with several walking monsters, one of them a walker or an omni.';
 const MONSTER_MEET_GAP =
-  ' Two of this monster meeting head-on in a bare corridor agree with CC3D (cc3dEvidenceDevices.test.ts), but the corpus walks of maps with several walking monsters, one of them of this kind, still show differences, so such a map is the key monsters_meet.';
+  ' This monster draws its way at random in CC3D and cannot be matched, so a map with several walking monsters, one of them of this kind, is the key monsters_meet (the other kinds agree, see cc3dEvidenceDevices.test.ts).';
 const MONSTERS_MEET_REASON =
-  'The map has two or more walking monsters, one of a kind that is still approximate: head-on meetings in a bare corridor agree with CC3D (cc3dEvidenceDevices.test.ts), but the corpus walks of such maps still show differences (the walker and the omni draw at random). Nibbles, snappies and blue golems, and the steered yellow golem, were measured to agree and do not count.';
+  'The map has two or more walking monsters, one of them a walker or an omni: those draw their way at random in CC3D and cannot be matched. Head-on meetings of every other kind were measured to agree (cc3dEvidenceDevices.test.ts and the corpus walks), so they do not count.';
 const TIME_LIMIT_REASON =
   'The time limit carries over in seconds and both clocks count the same ticks from the start of the level (cc3dEvidenceTimeLimit.test.ts), but Epoxy kills the player one tick (50 ms) before CC3D does: CC3D shows 0 for one more tick.';
 const BLOCK_GAPS =
@@ -338,9 +338,9 @@ const EXACT_COLORED_GROUPS: ReadonlyArray<{ prefix: string; colors: readonly Cc3
   { prefix: 'hold_door', colors: CC3D_COLORS, reason: HOLD_DOOR_REASON }
 ];
 
-/** Monsters whose head-on meeting with another walking monster differs between the engines (measured per kind pair). */
+/** Monsters whose head-on meeting with another walking monster differs between the engines: the two that draw their way at random in CC3D. Every other kind agrees (cc3dEvidenceDevices.test.ts and the corpus walks). */
 const MEETING_DIFFERS_KINDS: readonly Cc3dMobKind[] = [
-  'walker', 'omni', 'limpa', 'limpy', 'bouncer', 'baby_blinky', 'baby_screamer', 'legs_green', 'legs_red', 'blinky', 'screamer'
+  'walker', 'omni'
 ];
 
 function buildTable(): Record<string, CoverageEntry> {

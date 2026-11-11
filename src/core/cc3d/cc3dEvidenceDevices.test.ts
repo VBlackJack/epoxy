@@ -579,9 +579,14 @@ describe('two walking monsters meeting head-on', () => {
     expect(classifyLevel(cc3dModel(corridor('M.....'), glyphs('bouncer', 'bouncer'))).approx).not.toContain('monsters_meet');
     expect(classifyLevel(cc3dModel(corridor('M....N'), glyphs('golem_blue', 'golem_blue'))).approx).not.toContain('monsters_meet');
     expect(classifyLevel(cc3dModel(corridor('M.....'), glyphs('bouncer', 'bouncer'))).approx).not.toContain('monsters_meet');
+    // Only the two kinds that draw their way at random keep the key.
+    expect(classifyLevel(cc3dModel(corridor('M....N'), glyphs('walker', 'walker'))).approx).toContain('monsters_meet');
+    expect(classifyLevel(cc3dModel(corridor('M....N'), glyphs('omni', 'bouncer'))).approx).toContain('monsters_meet');
     expect(EPOXY_COVERAGE.monsters_meet.level).toBe('approx');
     expect(EPOXY_COVERAGE.monsters_meet.reason).toContain('cc3dEvidenceDevices.test.ts');
-    expect(EPOXY_COVERAGE.bouncer.reason).toContain('monsters_meet');
+    expect(EPOXY_COVERAGE.walker.reason).toContain('monsters_meet');
+    expect(EPOXY_COVERAGE.omni.reason).toContain('monsters_meet');
+    expect(EPOXY_COVERAGE.bouncer.reason).not.toContain('monsters_meet');
   });
 });
 

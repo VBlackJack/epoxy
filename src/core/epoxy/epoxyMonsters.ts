@@ -46,7 +46,7 @@ import {
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { ButtonAction, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
+import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
@@ -122,6 +122,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
         applyPendingRemoval(ctx, monster);
         continue;
       }
+      if (arrival.teleport === true) {
+        if (!applyQueuedTeleport(ctx, monster, arrival, pass)) return false;
+        continue;
+      }
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
       const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
       if (arrival.action === undefined || tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
@@ -129,6 +133,31 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     }
   } finally {
     w.ccArrivalsRunning = false;
+  }
+  return true;
+}
+
+/**
+ * CC3D: a monster whose step ended on a teleporter is moved onto the destination pad when that step ends, then makes
+ * a fast exit step of its own (the speed orb factor applies to it). Returns false when the exit cell killed the player.
+ * Cooldown arithmetic. A floor step that starts in the pass it moves sets `ticks * slowdown - 1` (stepMonster): the
+ * move pass is tick one, the countdown covers the other ticks-1. The exit step is different in two ways: it starts on
+ * the tick after the teleport pass (the teleport is the last tick of the entry step), which adds one tick, and the
+ * pass that applies the teleport also runs stepMonsterCore, which spends one tick of the countdown at once, which
+ * adds another. So `ticks * slowdown - 1 + 1 + 1`, that is `ticks * slowdown + 1`; the monster decides again
+ * three ticks after the teleport (the fast step's two ticks, counted from the tick after the teleport).
+ */
+function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival: CcArrival, pass: number): boolean {
+  const w = ctx.world;
+  if (!ctx.teleportEntity(monster, arrival.x, arrival.y, monster.dir, true)) return true;
+  // The monster stands on the destination pad now and leaves by the forced fast step on the next tick: the cooldown
+  // of 1 is spent by this very pass, so the next pass takes the step (see stepMonsterCore).
+  monster.cooldownTicks = 1;
+  const queued = w.ccArrivals.length;
+  if (!resolveMonsterArrival(ctx, monster, false)) return false;
+  // What the pad does to the monster acts at the end of the arrival tick, with the exit step still to come.
+  for (let i = queued; i < w.ccArrivals.length; i++) {
+    if (w.ccArrivals[i].uid === monster.uid) w.ccArrivals[i].due = pass;
   }
   return true;
 }
@@ -240,6 +269,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // A resting monster decides nothing, but the floor still carries it.
   if (ready && resting && !leftSlide) return true;
   const queuedBefore = w.ccArrivals.length;
+  const exitWanted = ready ? entity.teleportExit : undefined;
   const alive = stepMonsterCore(ctx, entity);
   if (!ready || !alive || entity.cooldownTicks === 0 || w.removedUids.has(entity.uid)) return alive;
   const rests = CC3D_RESTING_TYPES.includes(entity.type);
@@ -247,6 +277,12 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     // A blocked or held monster tries again at once; a snappy and a nibble rest a step's worth first.
     entity.cooldownTicks = 0;
     if (rests) entity.restTicks = CC3D_REST_PHASE_TICKS * slowdown - 1;
+    return alive;
+  }
+  // The forced exit step off a teleporter pad is the fast floor step.
+  if (exitWanted !== undefined && entity.dir === exitWanted) {
+    entity.cooldownTicks = CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown - 1;
+    retimeQueuedPresses(w, entity, queuedBefore);
     return alive;
   }
   const enteredSlide = !floorFree && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
@@ -299,7 +335,12 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
   const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
   let chosenDir: Direction | null;
-  if (w.ccPlans.has(entity.uid)) {
+  // A monster a teleporter put on its destination pad leaves by a forced step; a blocked exit lets it decide normally.
+  const exitDir = entity.teleportExit;
+  delete entity.teleportExit;
+  if (exitDir !== undefined && canStep(w, entity, exitDir)) {
+    chosenDir = exitDir;
+  } else if (w.ccPlans.has(entity.uid)) {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
     w.ccPlans.delete(entity.uid);
@@ -497,6 +538,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && w.cc3dPace && w.inTick && entity.kind === 'monster') {
+    // CC3D moves the monster when its step ends; blocks keep the immediate jump.
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+    return true;
+  }
   if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport) {
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
@@ -545,7 +591,9 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
  * Challenge 2, whose engine toggles the walls at once.
  */
 function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
-  if (w.cc3dPace) return w.inTick && action !== 'hold_trap';
+  // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
+  // neither waits for the step to end.
+  if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
   if (!w.ccRules || !w.inTick || !CC_CADENCE_TYPES.includes(entity.type)) return false;
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }

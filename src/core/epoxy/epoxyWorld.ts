@@ -241,7 +241,7 @@ export interface EpoxyContext {
   checkTargetsWin(): void;
   /** Returns false when a clone spawned by the button killed the player. */
   triggerButton(x: number, y: number, action: ButtonAction): boolean;
-  teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction): boolean;
+  teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction, landOnPad?: boolean): boolean;
 }
 
 /** The state of an engine before any level is loaded. */

@@ -3993,7 +3993,7 @@
       },
       "monsters_meet": {
         "name": "Monstres qui se rencontrent",
-        "label": "Le niveau a deux monstres qui marchent ou plus, et deux d'entre eux qui se croisent de face ne se comportent pas comme dans CC3D pour certaines espèces (rebondisseur, limpa, limpy, bébé blinky, bébé hurleur, jambes, blinky, hurleur, marcheur, omni)."
+        "label": "Le niveau a deux monstres qui marchent ou plus, et l'un d'eux est un marcheur ou un omni, qui tirent leur direction au hasard dans CC3D : deux d'entre eux qui se croisent de face ne peuvent pas être reproduits."
       },
       "time_limit": {
         "name": "Temps limité",
