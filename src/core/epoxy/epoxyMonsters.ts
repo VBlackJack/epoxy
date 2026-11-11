@@ -149,14 +149,15 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
  */
 function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival: CcArrival, pass: number): boolean {
   const w = ctx.world;
-  if (!ctx.teleportEntity(monster, arrival.x, arrival.y, monster.dir)) return true;
-  const exitTicks = CC3D_MONSTER_FLOOR_STEP_TICKS * monsterSlowdown(w);
-  monster.cooldownTicks = exitTicks + 1;
+  if (!ctx.teleportEntity(monster, arrival.x, arrival.y, monster.dir, true)) return true;
+  // The monster stands on the destination pad now and leaves by the forced fast step on the next tick: the cooldown
+  // of 1 is spent by this very pass, so the next pass takes the step (see stepMonsterCore).
+  monster.cooldownTicks = 1;
   const queued = w.ccArrivals.length;
   if (!resolveMonsterArrival(ctx, monster, false)) return false;
-  // What the exit cell does to the monster acts when the exit step ends.
+  // What the pad does to the monster acts at the end of the arrival tick, with the exit step still to come.
   for (let i = queued; i < w.ccArrivals.length; i++) {
-    if (w.ccArrivals[i].uid === monster.uid) w.ccArrivals[i].due = pass + exitTicks;
+    if (w.ccArrivals[i].uid === monster.uid) w.ccArrivals[i].due = pass;
   }
   return true;
 }
@@ -268,6 +269,7 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // A resting monster decides nothing, but the floor still carries it.
   if (ready && resting && !leftSlide) return true;
   const queuedBefore = w.ccArrivals.length;
+  const exitWanted = ready ? entity.teleportExit : undefined;
   const alive = stepMonsterCore(ctx, entity);
   if (!ready || !alive || entity.cooldownTicks === 0 || w.removedUids.has(entity.uid)) return alive;
   const rests = CC3D_RESTING_TYPES.includes(entity.type);
@@ -275,6 +277,12 @@ function stepMonster(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     // A blocked or held monster tries again at once; a snappy and a nibble rest a step's worth first.
     entity.cooldownTicks = 0;
     if (rests) entity.restTicks = CC3D_REST_PHASE_TICKS * slowdown - 1;
+    return alive;
+  }
+  // The forced exit step off a teleporter pad is the fast floor step.
+  if (exitWanted !== undefined && entity.dir === exitWanted) {
+    entity.cooldownTicks = CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown - 1;
+    retimeQueuedPresses(w, entity, queuedBefore);
     return alive;
   }
   const enteredSlide = !floorFree && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
@@ -327,7 +335,12 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
   const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
   let chosenDir: Direction | null;
-  if (w.ccPlans.has(entity.uid)) {
+  // A monster a teleporter put on its destination pad leaves by a forced step; a blocked exit lets it decide normally.
+  const exitDir = entity.teleportExit;
+  delete entity.teleportExit;
+  if (exitDir !== undefined && canStep(w, entity, exitDir)) {
+    chosenDir = exitDir;
+  } else if (w.ccPlans.has(entity.uid)) {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
     w.ccPlans.delete(entity.uid);

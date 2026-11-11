@@ -236,7 +236,8 @@ export function teleportEntity(
   entity: RuntimeEntity,
   fromX: number,
   fromY: number,
-  dir: Direction
+  dir: Direction,
+  landOnPad = false
 ): boolean {
   const w = ctx.world;
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
@@ -254,6 +255,10 @@ export function teleportEntity(
       : nativePadPlan(teleporters, startIdx, origin, exitDirs);
   for (const { pad: candidate, dirs: tryDirs } of entityPlan) {
     if (!(candidate.x === fromX && candidate.y === fromY) && padRefusesLanding(w, origin, candidate, false)) continue;
+    // Landing on the pad (a monster of a converted CC3D level): a pad another entity or a player stands on is skipped.
+    if (landOnPad && !(candidate.x === fromX && candidate.y === fromY)) {
+      if (getEntityAt(w, candidate.x, candidate.y) || playerAtCell(w, candidate.x, candidate.y) !== undefined) continue;
+    }
     for (const exitDir of tryDirs) {
       const vec = DIRECTION_VECTORS[exitDir];
       const exitX = candidate.x + vec.dx;
@@ -268,6 +273,14 @@ export function teleportEntity(
           : canMonsterEnter(w, probe, exitDir);
       if (!canExit) continue;
 
+      if (landOnPad) {
+        // The entity stands on the pad; the exit is a forced step it takes on the next tick (entity.teleportExit).
+        entity.x = candidate.x;
+        entity.y = candidate.y;
+        entity.dir = exitDir;
+        entity.teleportExit = exitDir;
+        return true;
+      }
       entity.x = exitX;
       entity.y = exitY;
       entity.dir = exitDir;

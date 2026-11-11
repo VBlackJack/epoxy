@@ -156,7 +156,7 @@ export class GameEngine {
       completeLevel: () => this.completeLevel(),
       checkTargetsWin: () => this.checkTargetsWin(),
       triggerButton: (x, y, action) => triggerButton(this.ctx, x, y, action),
-      teleportEntity: (entity, fromX, fromY, dir) => teleportEntity(this.ctx, entity, fromX, fromY, dir)
+      teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad)
     };
   }
 

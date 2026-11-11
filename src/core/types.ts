@@ -2146,7 +2146,7 @@ export interface CcArrival {
    * and removes it when the step ends: the hazard that will remove it then.
    */
   removal?: 'bomb' | 'splash' | 'burn';
-  /** A converted CC3D level: the monster's step ended on a teleporter, which moves it when the step ends. Not read yet. */
+  /** A converted CC3D level: the monster's step ended on a teleporter; when the step ends it lands on the destination pad and leaves by a forced fast step one tick later. */
   teleport?: boolean;
   /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
   due: number;
@@ -2276,6 +2276,8 @@ export interface RuntimeEntity {
    * when the tank is not marked. A second press before that pass takes the mark off.
    */
   tankTurn?: number;
+  /** A monster of a converted CC3D level standing on the pad a teleporter sent it to: the way its forced fast exit step takes it next tick. */
+  teleportExit?: Direction;
 }
 
 /** What a step of the player onto a cell does when it ends, on a converted CC3D level (see PlayerState.cc3dArrival). */

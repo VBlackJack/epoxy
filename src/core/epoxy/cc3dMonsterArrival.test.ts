@@ -51,12 +51,14 @@ interface MonsterView {
   y: number;
   dir: Direction;
   cooldownTicks: number;
+  teleportExit?: Direction;
 }
 
 interface WorldView {
   entities: MonsterView[];
   ccArrivals: CcArrival[];
   player: { boots: string[] };
+  terrain: string[][];
 }
 
 function build(
@@ -101,6 +103,12 @@ describe('a blue golem control pressed by a monster', () => {
     expect(flipped).toBe(arrived);
   });
 
+  it('turns the tanks at once on a native level too', () => {
+    const { arrived, flipped } = trace(false);
+    expect(arrived).toBeGreaterThan(0);
+    expect(flipped).toBe(arrived);
+  });
+
   it('queues no press for it', () => {
     const { engine, w } = build(true, [[BUTTON_X, 'button_blue']], [{ type: 'bouncer', x: 3, dir: 'E' }]);
     for (let t = 0; t < 10; t++) {
@@ -126,16 +134,35 @@ describe('a monster stepping onto a teleporter', () => {
     return out;
   }
 
-  it('is moved when its step ends, then walks the fast exit step', () => {
+  it('lands on the destination pad when its step ends, then walks the fast exit step', () => {
     const run = xs(true, 12);
     const onPad = run.indexOf(PAD_IN_X);
     expect(onPad).toBeGreaterThanOrEqual(0);
-    // It stands on the entry pad for the rest of the step, then is moved out in the tick the step ends.
-    const jumped = run.indexOf(EXIT_X);
-    expect(jumped - onPad).toBe(STEP_TICKS - 1);
-    // The exit step lasts CC3D_MONSTER_FLOOR_STEP_TICKS ticks counted from the tick after the jump.
-    const next = run.indexOf(EXIT_X + 1);
-    expect(next - jumped).toBe(CC3D_MONSTER_FLOOR_STEP_TICKS + 1);
+    // It stands on the entry pad for the rest of the step, then stands on the far pad in the tick the step ends.
+    const landed = run.indexOf(PAD_OUT_X);
+    expect(landed - onPad).toBe(STEP_TICKS - 1);
+    // The forced exit step is taken one tick later.
+    const exited = run.indexOf(EXIT_X);
+    expect(exited - landed).toBe(1);
+    // It lasts CC3D_MONSTER_FLOOR_STEP_TICKS ticks.
+    expect(run.indexOf(EXIT_X + 1) - exited).toBe(CC3D_MONSTER_FLOOR_STEP_TICKS);
+  });
+
+  it('occupies the far pad while it stands there', () => {
+    const { engine, w } = build(true, PADS, WALKER);
+    while (monsterOf(w).x !== PAD_OUT_X) engine.tick();
+    expect(monsterOf(w).y).toBe(ROW);
+    expect(monsterOf(w).teleportExit).toBe('E');
+  });
+
+  it('stays on the far pad and decides normally when the exit is blocked', () => {
+    const { engine, w } = build(true, PADS, WALKER);
+    while (monsterOf(w).x !== PAD_OUT_X && engine.getTick() < 40) engine.tick();
+    // The exit closes while the monster stands on the pad.
+    w.terrain[ROW][EXIT_X] = 'wall';
+    for (let t = 0; t < 3; t++) engine.tick();
+    expect(monsterOf(w).teleportExit).toBeUndefined();
+    expect(monsterOf(w).x).not.toBe(EXIT_X);
   });
 
   it('jumps at once on a native level', () => {
@@ -149,11 +176,13 @@ describe('a monster stepping onto a teleporter', () => {
       const { engine, w } = build(true, PADS, WALKER);
       if (slowdown === 2) w.player.boots = ['slow_time'];
       let ticks = 0;
-      while (monsterOf(w).x !== EXIT_X && ticks++ < 40) engine.tick();
+      while (monsterOf(w).x !== PAD_OUT_X && ticks++ < 40) engine.tick();
+      // The landing tick leaves a cooldown of one, spent by the same pass: the exit step is due on the next tick.
+      expect(monsterOf(w).cooldownTicks).toBe(0);
+      engine.tick();
       expect(monsterOf(w).x).toBe(EXIT_X);
-      // `ticks * slowdown - 1` for a step that begins in the move pass, plus the tick before the exit step starts and
-      // the countdown tick the same pass spends: `ticks * slowdown + 1`, one of which is already spent in this pass.
-      expect(monsterOf(w).cooldownTicks).toBe(CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown);
+      // The fast step the way a floor step is written: `ticks * slowdown - 1`.
+      expect(monsterOf(w).cooldownTicks).toBe(CC3D_MONSTER_FLOOR_STEP_TICKS * slowdown - 1);
     }
   });
 
