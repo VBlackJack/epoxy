@@ -46,7 +46,7 @@ import {
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { ButtonAction, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
+import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
@@ -122,6 +122,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
         applyPendingRemoval(ctx, monster);
         continue;
       }
+      if (arrival.teleport === true) {
+        if (!applyQueuedTeleport(ctx, monster, arrival, pass)) return false;
+        continue;
+      }
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
       const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
       if (arrival.action === undefined || tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
@@ -129,6 +133,30 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     }
   } finally {
     w.ccArrivalsRunning = false;
+  }
+  return true;
+}
+
+/**
+ * CC3D: a monster whose step ended on a teleporter is moved onto the destination pad when that step ends, then makes
+ * a fast exit step of its own (the speed orb factor applies to it). Returns false when the exit cell killed the player.
+ * Cooldown arithmetic. A floor step that starts in the pass it moves sets `ticks * slowdown - 1` (stepMonster): the
+ * move pass is tick one, the countdown covers the other ticks-1. The exit step is different in two ways: it starts on
+ * the tick after the teleport pass (the teleport is the last tick of the entry step), which adds one tick, and the
+ * pass that applies the teleport also runs stepMonsterCore, which spends one tick of the countdown at once, which
+ * adds another. So `ticks * slowdown - 1 + 1 + 1`, that is `ticks * slowdown + 1`; the monster decides again
+ * three ticks after the teleport (the fast step's two ticks, counted from the tick after the teleport).
+ */
+function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival: CcArrival, pass: number): boolean {
+  const w = ctx.world;
+  if (!ctx.teleportEntity(monster, arrival.x, arrival.y, monster.dir)) return true;
+  const exitTicks = CC3D_MONSTER_FLOOR_STEP_TICKS * monsterSlowdown(w);
+  monster.cooldownTicks = exitTicks + 1;
+  const queued = w.ccArrivals.length;
+  if (!resolveMonsterArrival(ctx, monster, false)) return false;
+  // What the exit cell does to the monster acts when the exit step ends.
+  for (let i = queued; i < w.ccArrivals.length; i++) {
+    if (w.ccArrivals[i].uid === monster.uid) w.ccArrivals[i].due = pass + exitTicks;
   }
   return true;
 }
@@ -497,6 +525,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && w.cc3dPace && w.inTick && entity.kind === 'monster') {
+    // CC3D moves the monster when its step ends; blocks keep the immediate jump.
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+    return true;
+  }
   if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport) {
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
@@ -545,7 +578,9 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
  * Challenge 2, whose engine toggles the walls at once.
  */
 function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
-  if (w.cc3dPace) return w.inTick && action !== 'hold_trap';
+  // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
+  // neither waits for the step to end.
+  if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
   if (!w.ccRules || !w.inTick || !CC_CADENCE_TYPES.includes(entity.type)) return false;
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }

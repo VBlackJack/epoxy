@@ -15,6 +15,8 @@ versions follow Semantic Versioning.
 
 - The player of a CC3D level converted to Epoxy now acts on arrival, as in CC3D: walking into a monster kills him where he stands, a clone switch is pressed and a chip taken when his step ends, and a teleporter jumps him when his step ends and sends him out by a fast step of his own on the next tick. On the corpus the random-walk mismatches with the meeting rule narrowed to walkers and omnis go from 43 to 35; the committed ones stay at 10 (one walk moves from a monster timing difference to a mismatch). Replays recorded on converted CC3D levels are no longer offered (scores are kept).
 
+- A monster on a CC3D level converted to Epoxy now acts on arrival as in CC3D: the blue golem control it presses turns the tanks when its step starts (not when it ends), and a teleporter moves it when its step ends and sends it out by a fast step of its own (the speed orb factor applies). On the corpus the random-walk mismatches with the meeting rule narrowed to walkers and omnis go from 19 to 11, the committed ones from 11 to 10, and one walk in each moves to a monster timing difference. Replays recorded on converted CC3D levels are no longer offered (scores are kept).
+
 ## [2.30.0] - 2026-11-11
 
 ### Added
