@@ -139,7 +139,7 @@ export function convertImportedLevels(decoded: readonly CompiledLevel[]): { leve
     if (!cc3d) continue;
     const label = cc3d.mapId ?? String(source.number);
     try {
-      const verdict = classifyLevel(cc3d).verdict;
+      const verdict = classifyLevel(cc3d, source.timeLimitSeconds).verdict;
       const converted = convertCc3dLevel(source).level;
       const hasErrors = LevelValidator.validate(converted).issues.some((issue) => issue.severity === 'error');
       levels.push({ ...converted, cc3dSource: cc3d });

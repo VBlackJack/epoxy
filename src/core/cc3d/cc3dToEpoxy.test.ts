@@ -297,6 +297,17 @@ const STRUCTURAL_CASES: StructuralCase[] = [
     }
   },
   {
+    key: 'time_limit',
+    build: () => {
+      const source = cc3dLevel(CELL_ROWS, { timeLimitSeconds: 90 });
+      return { source, result: convertCc3dLevel(source) };
+    },
+    check: (result) => {
+      expect(result.level.timeLimitSeconds).toBe(90);
+      expect(result.report.approx.map((e) => e.key)).toContain('time_limit');
+    }
+  },
+  {
     key: 'monsters_meet',
     build: () => convertRows(['#######', '#@b.cX#', '#######'], { b: { mob: { kind: 'bouncer', dir: 'E' } }, c: { mob: { kind: 'bouncer', dir: 'W' } } }),
     check: (result) => {
@@ -400,7 +411,7 @@ describe('mapping rows', () => {
   it.each(STRUCTURAL_CASES.map((c) => [c.key, c] as const))('structural key %s', (_name, { key, build, check }) => {
     const { source, result } = build();
     expect(reportKeys(result)).toContain(key);
-    expect(elementKeys(source.cc3d as never).has(key)).toBe(true);
+    expect(elementKeys(source.cc3d as never, source.timeLimitSeconds).has(key)).toBe(true);
     check(result);
   });
 
