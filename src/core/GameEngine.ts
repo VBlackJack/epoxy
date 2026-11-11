@@ -975,7 +975,7 @@ export class GameEngine {
     const fromY = mover.y;
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
-    // A converted CC3D level: a step into a monster kills the player where he stands; it is no step and leaves nothing behind.
+    // A converted CC3D level: a step into a monster kills the player where he stands; it counts as a step (Cc3dSimulation.decidePlayer) but leaves nothing behind.
     const diedInPlace = moved && this.w.cc3dPace && !mover.alive && mover.x === fromX && mover.y === fromY;
     if (moved) {
       if (!diedInPlace) lightDepartedDynamite(this.w, this.ticksElapsed);
@@ -986,7 +986,7 @@ export class GameEngine {
       // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
       // following tick, as one fired by a button does (see the clear in tick()).
       fireSignalSinks(this.ctx, edges);
-      if (!diedInPlace) this.stepsCount++;
+      this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
       this.moveHistory.push(dir);

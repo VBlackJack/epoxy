@@ -192,11 +192,11 @@ describe('a step whose effect is still waiting', () => {
 });
 
 describe('a step into a monster', () => {
-  it('is not counted as a step', () => {
+  it('is counted as a step, as CC3D counts it', () => {
     const rows = ['##########', '#........#', '#.@......#', '#........#', '##########'];
     const { engine } = lane(rows, 'converted', { entities: [{ type: 'bouncer', x: 3, y: ROW, dir: 'W' }] });
     engine.attemptPlayerMove('E');
-    expect(engine.getStepsCount()).toBe(0);
+    expect(engine.getStepsCount()).toBe(1);
   });
 });
 
