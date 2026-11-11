@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.31.0] - 2026-11-11
+
 ### Changed
 
 - A CC3D level converted to Epoxy now keeps the CC3D pace on ice and force floors: the player slides one cell every two ticks and is busy one more tick after the slide, a block he pushes onto ice or a force floor waits two ticks before its first slide step, and a refused forced step on a force floor keeps its direction and bars the input along that axis. Native levels and levels of the classic rules are unchanged. On the corpus the random-walk mismatches go from 28 to 17. Replays recorded on converted CC3D levels are no longer offered (scores are kept).
