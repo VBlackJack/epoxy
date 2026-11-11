@@ -3993,7 +3993,7 @@
       },
       "monsters_meet": {
         "name": "Walking monsters that meet",
-        "label": "The level has two or more walking monsters, and two of them meeting head-on do not behave as in CC3D for some kinds (bouncer, limpa, limpy, baby blinky, baby screamer, legs, blinky, screamer, walker, omni)."
+        "label": "The level has two or more walking monsters, and one of them is a walker or an omni, which draw their way at random in CC3D: two of them meeting head-on cannot be matched."
       },
       "time_limit": {
         "name": "Time limit",

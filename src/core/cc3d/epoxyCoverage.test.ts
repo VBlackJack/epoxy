@@ -340,17 +340,20 @@ describe('relation keys', () => {
 
   it('flags monsters_meet for two or more walking monsters with one of a differing kind, and for a cloned one', () => {
     const mob = (kind: Cc3dMobKind) => ({ mob: { kind, dir: 'E' as const } });
-    const two = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('bouncer') }));
+    const two = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('walker'), N: mob('walker') }));
     expect(two.approx).toContain('monsters_meet');
-    const mixed = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('golem_blue') }));
+    const mixed = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('omni'), N: mob('golem_blue') }));
     expect(mixed.approx).toContain('monsters_meet');
+    // Every other kind agrees with CC3D when two meet head-on: only the walker and the omni draw at random.
+    const bouncers = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('bouncer'), N: mob('bouncer') }));
+    expect(bouncers.approx).not.toContain('monsters_meet');
     const agreeing = classifyLevel(levelOf(['######', '#@MN.#', '######'], { M: mob('golem_blue'), N: mob('snappy') }));
     expect(agreeing.approx).not.toContain('monsters_meet');
     const alone = classifyLevel(levelOf(['#####', '#@M.#', '#####'], { M: mob('bouncer') }));
     expect(alone.approx).not.toContain('monsters_meet');
     const blocks = classifyLevel(levelOf(['######', '#@MK.#', '######'], { M: mob('bouncer') }));
     expect(blocks.approx).not.toContain('monsters_meet');
-    const cloned = classifyLevel(levelOf(['#####', '#@c.#', '#####'], { c: { stack: [{ kind: 'floor' }, { kind: 'clone_machine', dir: 'E' }], mob: { kind: 'bouncer', dir: 'E' } } }));
+    const cloned = classifyLevel(levelOf(['#####', '#@c.#', '#####'], { c: { stack: [{ kind: 'floor' }, { kind: 'clone_machine', dir: 'E' }], mob: { kind: 'walker', dir: 'E' } } }));
     expect(cloned.approx).toContain('monsters_meet');
   });
 

@@ -309,7 +309,7 @@ const STRUCTURAL_CASES: StructuralCase[] = [
   },
   {
     key: 'monsters_meet',
-    build: () => convertRows(['#######', '#@b.cX#', '#######'], { b: { mob: { kind: 'bouncer', dir: 'E' } }, c: { mob: { kind: 'bouncer', dir: 'W' } } }),
+    build: () => convertRows(['#######', '#@b.cX#', '#######'], { b: { mob: { kind: 'walker', dir: 'E' } }, c: { mob: { kind: 'walker', dir: 'W' } } }),
     check: (result) => {
       expect(result.report.approx.map((e) => e.key)).toContain('monsters_meet');
     }
