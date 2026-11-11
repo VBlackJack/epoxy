@@ -125,7 +125,7 @@ export function buildCc3dPackOutput(
 
   for (const level of levels) {
     if (!level.cc3d) continue;
-    const coverage = classifyLevel(level.cc3d);
+    const coverage = classifyLevel(level.cc3d, level.timeLimitSeconds);
     verdicts[coverage.verdict]++;
     coverage.lost.forEach((key) => lostKeys.add(key));
     const result = convertCc3dLevel(level);

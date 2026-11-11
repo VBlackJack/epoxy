@@ -43,6 +43,7 @@ import {
   KEY_GRAVEL_WITH_REFLECTOR,
   KEY_LASER_SHOOTER_COVERED,
   KEY_MONSTERS_MEET,
+  KEY_TIME_LIMIT,
   KEY_ORBS_OVER_CAP,
   KEY_PANELS_ON_NONFLOOR,
   KEY_SOCKET_RED_STACKED,
@@ -279,6 +280,7 @@ const MOB_RULES: Record<ConvertibleMobKind, MobRule> = {
 
 /** Coverage keys the cell logic handles on top of the per-kind rules. */
 const STRUCTURAL_RULE_KEYS: readonly string[] = [
+  KEY_TIME_LIMIT,
   KEY_STACKED_TERRAIN,
   KEY_STACKED_RUNTIME,
   KEY_PANELS_ON_NONFLOOR,
@@ -530,8 +532,8 @@ function buildLauncherLinks(input: LinkInput): LauncherLink[] {
 
 // ------------------------------------------------------------------ the report
 
-function buildReport(source: Cc3dLevel, drops: readonly ConversionDrop[]): ConversionReport {
-  const keys = elementKeys(source);
+function buildReport(source: Cc3dLevel, timeLimitSeconds: number, drops: readonly ConversionDrop[]): ConversionReport {
+  const keys = elementKeys(source, timeLimitSeconds);
   for (const drop of drops) keys.add(drop.key);
   const exact: string[] = [];
   const approx: ConversionReportEntry[] = [];
@@ -619,7 +621,7 @@ export function convertCc3dLevel(source: CompiledLevel): ConversionResult {
     ...(source.customHint !== undefined ? { customHint: source.customHint } : {}),
     ...(source.author !== undefined ? { author: source.author } : {}),
     password: source.password,
-    timeLimitSeconds: 0,
+    timeLimitSeconds: source.timeLimitSeconds,
     // The Epoxy engine never checks chips at the exit; only the validator does (LevelValidator), which is why
     // a level without a socket needs chipsRequired 0 while CC3D asks for the fish at the socket only.
     chipsRequired: hasSocket ? plainFish : 0,
@@ -637,5 +639,5 @@ export function convertCc3dLevel(source: CompiledLevel): ConversionResult {
       .map((index): CellUnderlay => ({ x: index % width, y: Math.floor(index / width), terrain: underlays.get(index) as string }));
   }
   if (launcherLinks.length > 0) level.launcherLinks = launcherLinks;
-  return { level, report: buildReport(cc3d, drops) };
+  return { level, report: buildReport(cc3d, source.timeLimitSeconds, drops) };
 }

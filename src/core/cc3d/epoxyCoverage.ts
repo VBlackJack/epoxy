@@ -64,6 +64,8 @@ export const KEY_BOMB_WITH_ITEM = 'bomb_with_item';
 export const KEY_BOMB_BURIED = 'bomb_buried';
 /** A laser shooter standing on an item or on a layer that does something (not plain floor, nor the inert ground and laser controller). */
 export const KEY_LASER_SHOOTER_COVERED = 'laser_shooter_covered';
+/** A level with a time limit: both engines count it in seconds of ticks from tick 0, but Epoxy ends the run one tick earlier. */
+export const KEY_TIME_LIMIT = 'time_limit';
 
 const KEY_SEPARATOR = '_';
 const STACK_SEPARATOR = '+';
@@ -100,6 +102,8 @@ const MONSTER_MEET_GAP =
   ' Two of this monster meeting head-on in a bare corridor agree with CC3D (cc3dEvidenceDevices.test.ts), but the corpus walks of maps with several walking monsters, one of them of this kind, still show differences, so such a map is the key monsters_meet.';
 const MONSTERS_MEET_REASON =
   'The map has two or more walking monsters, one of a kind that is still approximate: head-on meetings in a bare corridor agree with CC3D (cc3dEvidenceDevices.test.ts), but the corpus walks of such maps still show differences (the walker and the omni draw at random). Nibbles, snappies and blue golems, and the steered yellow golem, were measured to agree and do not count.';
+const TIME_LIMIT_REASON =
+  'The time limit carries over in seconds and both clocks count the same ticks from the start of the level (cc3dEvidenceTimeLimit.test.ts), but Epoxy kills the player one tick (50 ms) before CC3D does: CC3D shows 0 for one more tick.';
 const BLOCK_GAPS =
   'The dirt block is dirt_block_3d, which refuses fire and items and makes dirt_3d in water, as the CC3D one does.';
 const PUSH_TIMING_NOTE =
@@ -306,6 +310,7 @@ const APPROX_ENTRIES: Record<string, string> = {
   [KEY_ORBS_OVER_CAP]: ORBS_OVER_CAP_REASON,
   [KEY_APPEARING_WALL_WITH_MONSTER]: APPEARING_WALL_WITH_MONSTER_REASON,
   [KEY_MONSTERS_MEET]: MONSTERS_MEET_REASON,
+  [KEY_TIME_LIMIT]: TIME_LIMIT_REASON,
   reflector:
     'Epoxy plays a reflector as a one-sided mirror that turns shots and beams from its two reflecting faces and destroys the shot from behind (the converter maps it by its reflecting faces, not by reading the letters: LU to one_sided_mirror_sw, DL to one_sided_mirror_nw, UR to one_sided_mirror_se, RD to one_sided_mirror_ne); the existing Epoxy mirrors are two-faced; bounce timing differs from CC3D.',
   walker: WALKER_REASON,
@@ -567,9 +572,13 @@ function meetingMonstersDiffer(level: Cc3dLevel, machines: ReadonlyArray<{ from:
   return differs && walking >= MIN_MEETING_MONSTERS;
 }
 
-/** The element keys of a level, structural ones included. */
-export function elementKeys(level: Cc3dLevel): Set<string> {
+/**
+ * The element keys of a level, structural ones included. `timeLimitSeconds` is the limit of the compiled level that
+ * carries the model (the model itself holds none); a positive one adds the time limit key.
+ */
+export function elementKeys(level: Cc3dLevel, timeLimitSeconds = 0): Set<string> {
   const keys = new Set<string>(relationKeys(level));
+  if (timeLimitSeconds > 0) keys.add(KEY_TIME_LIMIT);
   for (const cell of level.cells) {
     cell.terrain.forEach((layer, index) => keys.add(coverageKeyOf(cell, layer, index)));
     if (cell.item) keys.add(cell.item.kind);
@@ -583,10 +592,10 @@ export function elementKeys(level: Cc3dLevel): Set<string> {
 }
 
 /** Classifies a level; throws on a key the table does not know. */
-export function classifyLevel(level: Cc3dLevel): LevelCoverage {
+export function classifyLevel(level: Cc3dLevel, timeLimitSeconds = 0): LevelCoverage {
   const lostKeys: string[] = [];
   const approxKeys: string[] = [];
-  for (const key of [...elementKeys(level)].sort()) {
+  for (const key of [...elementKeys(level, timeLimitSeconds)].sort()) {
     const found = EPOXY_COVERAGE[key];
     if (!found) throw new Error(`CC3D coverage: no entry for ${key}`);
     if (found.level === 'lost') lostKeys.push(key);

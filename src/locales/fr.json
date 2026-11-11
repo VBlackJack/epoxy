@@ -3995,6 +3995,10 @@
         "name": "Monstres qui se rencontrent",
         "label": "Le niveau a deux monstres qui marchent ou plus, et deux d'entre eux qui se croisent de face ne se comportent pas comme dans CC3D pour certaines espèces (rebondisseur, limpa, limpy, bébé blinky, bébé hurleur, jambes, blinky, hurleur, marcheur, omni)."
       },
+      "time_limit": {
+        "name": "Temps limité",
+        "label": "Le niveau est chronométré. La limite est reprise en secondes, mais Epoxy met fin à la partie un tick (50 ms) avant CC3D."
+      },
       "trap": {
         "name": "Piège",
         "label": "Epoxy joue le piège comme CC3D : il retient ce qui y entre jusqu'à ce qu'une commande l'actionne, et chaque commande actionne le piège suivant dans l'ordre de lecture."
