@@ -24,7 +24,7 @@ import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
-import type { CcArrival } from '../types';
+import type { CcArrival, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -653,6 +653,27 @@ function barsCarriedItem(w: EpoxyWorld, itemId: string | null | undefined): bool
  */
 export function playerCharacterOf(w: EpoxyWorld): PlayerCharacter {
   return w.player.character ?? w.level.character ?? DEFAULT_PLAYER_CHARACTER;
+}
+
+/** A copy of the step-end effects waiting on a player of a converted CC3D level. */
+export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
+  return {
+    ...(a.press !== undefined ? { press: { ...a.press } } : {}),
+    ...(a.chip !== undefined ? { chip: { ...a.chip } } : {}),
+    ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {})
+  };
+}
+
+/** The search key of what waits on the players of a converted CC3D level: empty when nothing does. */
+export function cc3dArrivalKey(w: EpoxyWorld): string {
+  const parts: string[] = [];
+  playersOf(w).forEach((p, index) => {
+    const a = p.cc3dArrival;
+    if (a === undefined) return;
+    const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}`);
+  });
+  return parts.join(';');
 }
 
 /** Every player still on the map: the controlled one first, then the parked ones in swap order. */

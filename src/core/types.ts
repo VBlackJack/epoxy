@@ -2146,6 +2146,8 @@ export interface CcArrival {
    * and removes it when the step ends: the hazard that will remove it then.
    */
   removal?: 'bomb' | 'splash' | 'burn';
+  /** A converted CC3D level: the monster's step ended on a teleporter, which moves it when the step ends. Not read yet. */
+  teleport?: boolean;
   /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
   due: number;
 }
@@ -2276,6 +2278,16 @@ export interface RuntimeEntity {
   tankTurn?: number;
 }
 
+/** What a step of the player onto a cell does when it ends, on a converted CC3D level (see PlayerState.cc3dArrival). */
+export interface Cc3dPlayerArrival {
+  /** The clone switch stepped onto: it is pressed when the step ends if the player is still on it. */
+  press?: GridPoint;
+  /** The chip under the step: taken when the step ends. */
+  chip?: GridPoint;
+  /** The teleporter the step ended on: the player jumps when the step ends; `dir` is the direction he entered it by. */
+  teleport?: GridPoint & { dir: Direction };
+}
+
 export interface PlayerState {
   x: number;
   y: number;
@@ -2300,6 +2312,11 @@ export interface PlayerState {
    * this direction once his wait is over; he takes no move of his own until then.
    */
   teleportExit?: Direction;
+  /**
+   * Converted CC3D level only: what the player's step onto a cell does when that step ends (CC3D acts on arrival, the
+   * walk is a four-tick step). Each field is set while a step is under way and cleared when it ends; absent otherwise.
+   */
+  cc3dArrival?: Cc3dPlayerArrival;
   /**
    * The character this player is; absent until set, when it is the level's character. Each player of a level with
    * several has its own, and a transmogrifier switches only the player that arrives on it.
@@ -2346,6 +2363,8 @@ export interface PlayerSnapshot {
   forcePermission?: boolean;
   /** The player's teleportExit; written only when the player waits on a pad. */
   teleportExit?: Direction;
+  /** The player's cc3dArrival; written only while a step of a converted CC3D level is under way with something pending. */
+  cc3dArrival?: Cc3dPlayerArrival;
   /** The player's character; written only on a level with several players, where each has its own. */
   character?: PlayerCharacter;
 }

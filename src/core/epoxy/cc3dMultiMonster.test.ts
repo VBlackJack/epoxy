@@ -360,7 +360,15 @@ describe('the step of a template let out of a clone machine', () => {
     );
     expect(w.inTick).toBe(false);
     expect(engine.attemptPlayerMove('W')).toBe(true);
-    expect(w.ccArrivals.some((a) => a.removal === 'bomb')).toBe(true);
+    // Re-baselined: the player's press of a clone switch now acts when his step ends (inside a tick), not between two ticks,
+    // so the template is let out by a tick and its removal is queued inside the tick that pressed.
+    expect(w.ccArrivals).toHaveLength(0);
+    let queued = false;
+    for (let t = 0; t < RUN_TICKS && !queued; t++) {
+      engine.tick();
+      queued = w.ccArrivals.some((a) => a.removal === 'bomb');
+    }
+    expect(queued).toBe(true);
     expect(w.entities.some((e) => e.x === 4 && e.kind === 'monster')).toBe(true);
     for (let t = 0; t < RUN_TICKS && w.entities.some((e) => e.x === 4 && e.kind === 'monster'); t++) engine.tick();
     expect(w.entities.some((e) => e.x === 4 && e.kind === 'monster')).toBe(false);
