@@ -30,6 +30,8 @@ beforeEach(() => {
 const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, gridHash: 'x' } as Cc2LevelData;
 /** Passes a splash bars the real player (Lexy: 16 frames at three frames a pass, gone on the fifth). */
 const SPLASH_PASSES = 5;
+/** Most passes the block's step takes to end. */
+const SINK_WAIT_PASSES = 8;
 const BLOCK_X = 2;
 const WATER_X = 3;
 const ROW = 1;
@@ -55,9 +57,10 @@ function load(level: CompiledLevel): GameEngine {
   return engine;
 }
 
-/** Pushes the block into the water; the player ends on the block's old cell. */
+/** Pushes the block into the water and runs the passes until its step ends and it sinks; the player ends on the block's old cell. */
 function sinkBlock(engine: GameEngine): void {
   expect(engine.attemptPlayerMove('E')).toBe(true);
+  for (let pass = 0; pass < SINK_WAIT_PASSES && engine.getTerrain()[ROW][WATER_X] === 'water'; pass++) engine.tick();
   expect(engine.getTerrain()[ROW][WATER_X]).not.toBe('water');
 }
 

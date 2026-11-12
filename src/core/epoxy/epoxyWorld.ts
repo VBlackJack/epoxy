@@ -114,6 +114,11 @@ export interface EpoxyWorld {
    */
   blockSplashes: Map<number, number>;
   /**
+   * CC2 engine: blocks finishing a step whose turn in the running entity pass is spent (by the countdown, or by a block behind
+   * them that slid into their cell), by uid, with the pass. Transient, never saved.
+   */
+  turnSpent: Map<number, number>;
+  /**
    * The side an actor came into a swivel door by, per cell (index y * width + x). The door turns when the
    * actor leaves. Empty at load.
    */
@@ -268,6 +273,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
     blockSplashes: new Map<number, number>(),
+    turnSpent: new Map<number, number>(),
     swivelEntry: new Map<number, Direction>(),
     railCells: new Map<number, RailCellState>(),
     toggleParity: 0,
