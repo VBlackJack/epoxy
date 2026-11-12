@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DEFAULT_RULESET, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
+import { CC2_GATE_BASE_IDS, DEFAULT_RULESET, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, SIGNAL_GATE_CC2_ID_SUFFIX } from '../core/coreConstants';
 import type { Ruleset } from '../core/types';
 
 export const ENV_CONFIG = {
@@ -401,6 +401,20 @@ export const PACK_JSON_VERSION_V17_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Version of a pack file that holds at least one level using an id introduced with format 18 (see
+ * PACK_JSON_VERSION_V18_IDS): the CC2 dirt, which every block but the dirt block packs, and the passable CC2 forms of the
+ * logic gates and counters, which every actor walks through. An older build would play the CC2 dirt as plain dirt that blocks
+ * every block and the gates as impassable, so it must refuse the file.
+ */
+export const PACK_JSON_VERSION_V18 = 18;
+
+/** Ids that only exist from pack format 18: the CC2 dirt and the passable form of each logic gate and counter; matched by name like the format 7 ids. */
+export const PACK_JSON_VERSION_V18_IDS: ReadonlySet<string> = new Set([
+  'dirt_cc2',
+  ...CC2_GATE_BASE_IDS.map((id) => `${id}${SIGNAL_GATE_CC2_ID_SUFFIX}`)
+]);
+
+/**
  * The pack format that introduced each set of ids, lowest first. A file is written in the highest version whose ids
  * one of its levels uses, so a later format only has to add a row here.
  */
@@ -415,14 +429,15 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
   { version: PACK_JSON_VERSION_V14, ids: PACK_JSON_VERSION_V14_IDS },
   { version: PACK_JSON_VERSION_V15, ids: PACK_JSON_VERSION_V15_IDS },
   { version: PACK_JSON_VERSION_V16, ids: PACK_JSON_VERSION_V16_IDS },
-  { version: PACK_JSON_VERSION_V17, ids: PACK_JSON_VERSION_V17_IDS }
+  { version: PACK_JSON_VERSION_V17, ids: PACK_JSON_VERSION_V17_IDS },
+  { version: PACK_JSON_VERSION_V18, ids: PACK_JSON_VERSION_V18_IDS }
 ];
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 17.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 18.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V17;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V18;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';
