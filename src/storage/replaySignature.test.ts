@@ -23,7 +23,7 @@ import {
   type SignatureLevel
 } from './replaySignature';
 import { sanitizeHighScores } from './persistedState';
-import { CC3D_PACE_VERSION, CC_RULES_VERSION } from '../config/constants';
+import { CC2_RULES_VERSION, CC3D_PACE_VERSION, CC_RULES_VERSION } from '../config/constants';
 
 const NATIVE: SignatureLevel = {};
 const CC_FLAVOR: SignatureLevel = { rulesFlavor: 'cc' };
@@ -39,7 +39,7 @@ describe('replaySignature', () => {
     expect(replaySignature(NATIVE)).toBe('epoxy:1');
     expect(replaySignature({ ruleset: 'epoxy' })).toBe('epoxy:1');
     expect(replaySignature(CC_FLAVOR)).toBe(`epoxy-cc:${CC_RULES_VERSION}`);
-    expect(replaySignature(CC2_IMPORT)).toBe(`epoxy-cc:${CC_RULES_VERSION}`);
+    expect(replaySignature(CC2_IMPORT)).toBe(`epoxy-cc2:${CC2_RULES_VERSION}`);
     expect(replaySignature(LYNX)).toBe('lynx:1');
     expect(replaySignature(CC3D)).toBe('cc3d:1');
   });
@@ -94,6 +94,41 @@ describe('isReplayPlayable', () => {
     expect(bumped.replaySignature(CC_FLAVOR)).toBe(`epoxy-cc:${CC_RULES_VERSION + 1}`);
     expect(bumped.isReplayPlayable(CC_FLAVOR, stored)).toBe(false);
     expect(bumped.isReplayPlayable(NATIVE, bumped.replaySignature(NATIVE))).toBe(true);
+    vi.doUnmock('../config/constants');
+    vi.resetModules();
+  });
+});
+
+describe('CC2-engine signature', () => {
+  it('splits a CC2-engine level from the classic DAT signature', () => {
+    expect(replaySignature(CC2_IMPORT)).not.toBe(replaySignature(CC_FLAVOR));
+    expect(replaySignature({ rulesFlavor: 'cc', cc2: {} } as unknown as SignatureLevel)).toBe(`epoxy-cc2:${CC2_RULES_VERSION}`);
+  });
+
+  it('no longer plays an epoxy-cc replay on a CC2 level, and still plays it on a DAT level', () => {
+    const stored = `epoxy-cc:${CC_RULES_VERSION}`;
+    expect(isReplayPlayable(CC2_IMPORT, stored)).toBe(false);
+    expect(isReplayPlayable(CC_FLAVOR, stored)).toBe(true);
+  });
+
+  it('plays an epoxy-cc2 replay on a CC2 level only', () => {
+    const stored = replaySignature(CC2_IMPORT);
+    expect(isReplayPlayable(CC2_IMPORT, stored)).toBe(true);
+    expect(isReplayPlayable(CC_FLAVOR, stored)).toBe(false);
+    expect(isReplayPlayable(NATIVE, stored)).toBe(false);
+  });
+
+  it('a CC2 rules bump drops the CC2 replays and keeps the DAT ones', async () => {
+    const storedCc2 = replaySignature(CC2_IMPORT);
+    const storedDat = replaySignature(CC_FLAVOR);
+    vi.resetModules();
+    vi.doMock('../config/constants', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('../config/constants')>()),
+      CC2_RULES_VERSION: CC2_RULES_VERSION + 1
+    }));
+    const bumped = await import('./replaySignature');
+    expect(bumped.isReplayPlayable(CC2_IMPORT, storedCc2)).toBe(false);
+    expect(bumped.isReplayPlayable(CC_FLAVOR, storedDat)).toBe(true);
     vi.doUnmock('../config/constants');
     vi.resetModules();
   });
