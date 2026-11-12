@@ -28,6 +28,9 @@ beforeEach(() => {
 const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, gridHash: 'x' } as Cc2LevelData;
 const STEEL = 'steel_wall';
 const BOXED_TICKS = 3;
+const CORRIDOR_START_X = 3;
+/** The ghost's own moveIntervalTicks (5) plus the move tick: the native step length. */
+const GHOST_NATIVE_STEP_TICKS = 6;
 
 interface TestWorld {
   entities: { type: string; kind: string; x: number; y: number; dir: Direction }[];
@@ -37,7 +40,7 @@ type Mode = 'cc2' | 'cc' | 'plain';
 
 function corridor(type: string, mode: Mode, dir: Direction = 'E'): CompiledLevel {
   const built = buildTestLevel(['####################', '#@..............#', '####################'], {
-    entities: [{ type, x: 3, y: 1, dir }]
+    entities: [{ type, x: CORRIDOR_START_X, y: 1, dir }]
   });
   if (mode === 'cc2') return { ...built, cc2: CC2_RECORD };
   return mode === 'cc' ? { ...built, rulesFlavor: 'cc' } : built;
@@ -70,9 +73,11 @@ describe('CC2 timid teeth and ghost use the classic cadence', () => {
   });
 
   it('keeps the ghost on its own interval on a native classic level', () => {
-    const at = columns(corridor('ghost', 'cc'), CC_MONSTER_STEP_TICKS);
-    expect(new Set(at).size).toBeGreaterThan(0);
-    expect(at).not.toEqual([4, 4, 4, 4]);
+    const at = columns(corridor('ghost', 'cc'), 2 * GHOST_NATIVE_STEP_TICKS);
+    expect(at.slice(0, GHOST_NATIVE_STEP_TICKS - 1)).toEqual(new Array(GHOST_NATIVE_STEP_TICKS - 1).fill(CORRIDOR_START_X));
+    expect(at[GHOST_NATIVE_STEP_TICKS - 1]).toBe(CORRIDOR_START_X + 1);
+    expect(at[2 * GHOST_NATIVE_STEP_TICKS - 2]).toBe(CORRIDOR_START_X + 1);
+    expect(at[2 * GHOST_NATIVE_STEP_TICKS - 1]).toBe(CORRIDOR_START_X + 2);
   });
 
   it('moves timid teeth only in the first half of each teeth cycle on a CC2 level', () => {

@@ -29,18 +29,22 @@ const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, g
 const FLOOR_STEP_TICKS = CC_MONSTER_STEP_TICKS / 2;
 const TICKS = 16;
 const FLOOR_CELL = 3;
+const FLOOR_ROWS: [string, string][] = [
+  ['ice', 'M.II...'],
+  ['a force floor', 'M.>>...']
+];
 
 interface TestWorld {
   entities: { type: string; kind: string; x: number; y: number }[];
 }
 
-function level(row: string, type: string, mode: 'cc2' | 'cc' | 'plain'): CompiledLevel {
+function level(row: string, type: string, mode: 'cc2' | 'cc'): CompiledLevel {
   const cells = row.replace('M', '.');
   const built = buildTestLevel(['##########', `#${cells}#`, '##########'], {
     entities: [{ type, x: 1 + row.indexOf('M'), y: 1, dir: 'E' as Direction }]
   });
   if (mode === 'cc2') return { ...built, cc2: CC2_RECORD };
-  return mode === 'cc' ? { ...built, rulesFlavor: 'cc' } : built;
+  return { ...built, rulesFlavor: 'cc' };
 }
 
 /** The monster's column after each tick. */
@@ -62,16 +66,13 @@ function ticksBetween(positions: number[], cell: number, next: number): number {
 }
 
 describe('CC2 monster step onto ice or a force floor', () => {
-  it.each([
-    ['ice', 'M.II...'],
-    ['a force floor', 'M.>>...']
-  ])('lasts half a step after entering %s on a CC2 level', (_name, row) => {
+  it.each(FLOOR_ROWS)('lasts half a step after entering %s on a CC2 level', (_name, row) => {
     const at = xs(level(row, 'glider', 'cc2'));
     expect(ticksBetween(at, FLOOR_CELL, FLOOR_CELL + 1)).toBe(FLOOR_STEP_TICKS);
   });
 
-  it('keeps the whole step onto ice on a native classic level', () => {
-    const at = xs(level('M.II...', 'glider', 'cc'));
+  it.each(FLOOR_ROWS)('keeps the whole step onto %s on a native classic level', (_name, row) => {
+    const at = xs(level(row, 'glider', 'cc'));
     expect(ticksBetween(at, FLOOR_CELL, FLOOR_CELL + 1)).toBe(CC_MONSTER_STEP_TICKS);
   });
 });

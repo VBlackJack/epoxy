@@ -34,7 +34,6 @@ import {
   CC3D_REST_PHASE_TICKS,
   CC3D_RESTING_TYPES,
   CC_TEETH_CYCLE_TICKS,
-  CC_TEETH_TYPE,
   ccStepTicks,
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -187,15 +186,17 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
-    if (isCellClosedTrap(w, entity.x, entity.y)) {
+    const def = ConfigRegistry.getEntityDef(entity.type);
+    // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
+    const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
+    if (heldByFloor && isCellClosedTrap(w, entity.x, entity.y)) {
       // A held monster keeps its facing and decides nothing; if the trap opens during the movement pass it is
       // released in that facing.
       w.ccPlans.set(entity.uid, entity.dir);
       continue;
     }
-    const def = ConfigRegistry.getEntityDef(entity.type);
     let plan = chooseMonsterDirection(w, entity, def);
-    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(entity.type === CC_TEETH_TYPE && entity.x === w.player.x && entity.y === w.player.y)) {
+    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
     w.ccPlans.set(entity.uid, plan);

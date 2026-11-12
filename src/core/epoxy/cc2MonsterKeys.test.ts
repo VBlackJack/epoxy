@@ -29,16 +29,19 @@ const TICKS = 24;
 const KEY_CELL = 3;
 const FAR_CELL = 5;
 
+type Mode = 'cc2' | 'cc' | 'plain';
+
 interface TestWorld {
   entities: { kind: string; x: number }[];
   items: (string | null)[][];
 }
 
-function level(row: string, cc2: boolean): CompiledLevel {
+function level(row: string, mode: Mode): CompiledLevel {
   const built = buildTestLevel(['##########', `#${row}#`, '##########'], {
     entities: [{ type: 'glider', x: 1, y: 1, dir: 'E' as Direction }]
   });
-  return cc2 ? { ...built, cc2: CC2_RECORD } : built;
+  if (mode === 'cc2') return { ...built, cc2: CC2_RECORD };
+  return mode === 'cc' ? { ...built, rulesFlavor: 'cc' } : built;
 }
 
 function play(lvl: CompiledLevel): { furthest: number; key: string | null } {
@@ -55,19 +58,31 @@ function play(lvl: CompiledLevel): { furthest: number; key: string | null } {
 
 describe('CC2 monsters and keys', () => {
   it('passes a red key and leaves it on a CC2 level', () => {
-    const result = play(level('..r....', true));
+    const result = play(level('..r....', 'cc2'));
     expect(result.furthest).toBeGreaterThan(KEY_CELL);
     expect(result.key).toBe('key_red');
   });
 
   it('passes a blue key and takes it on a CC2 level', () => {
-    const result = play(level('..b....', true));
+    const result = play(level('..b....', 'cc2'));
     expect(result.furthest).toBeGreaterThan(KEY_CELL);
     expect(result.key).toBeNull();
   });
 
   it.each(['r', 'b'])('is stopped by a %s key on a level that is not a CC2 import', (glyph) => {
-    const result = play(level(`..${glyph}....`, false));
+    const result = play(level(`..${glyph}....`, 'plain'));
+    expect(result.furthest).toBeLessThan(FAR_CELL);
+    expect(result.furthest).toBeLessThanOrEqual(KEY_CELL - 1);
+  });
+
+  it.each(['r', 'b'])('is stopped by a %s key on a native classic level', (glyph) => {
+    const result = play(level(`..${glyph}....`, 'cc'));
+    expect(result.furthest).toBeLessThan(FAR_CELL);
+    expect(result.furthest).toBeLessThanOrEqual(KEY_CELL - 1);
+  });
+
+  it.each(['y', 'k'])('is still stopped by a %s key on a CC2 level', (glyph) => {
+    const result = play(level(`..${glyph}....`, 'cc2'));
     expect(result.furthest).toBeLessThan(FAR_CELL);
     expect(result.furthest).toBeLessThanOrEqual(KEY_CELL - 1);
   });
