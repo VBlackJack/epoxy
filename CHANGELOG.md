@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.32.0] - 2026-11-12
+
 ### Added
 
 - Turn in place to aim a hurl stone: Shift with a direction key (arrows, ZQSD or WASD) turns the player without stepping, and on a phone an Aim toggle beside the stone button makes the d-pad, joystick and swipes turn instead of move. A small chevron shows where a held stone would fly. Turning costs no time or step and is recorded in replays and solutions (lowercase n, e, s, w). It is not offered on levels imported from CC1, CC2 or CC3D, whose games have no such move.
