@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Levels imported from CC2 or from CC1 Steam (.c2m files) now play closer to CC2: a step onto ice or a force floor takes the time of the tile it enters, for the player and for monsters, a slide that ends on the floor waits one tick less, a player who has the choice may walk against a force floor, monsters walk over blue and red keys and pick up blue ones, and timid teeth and ghosts keep the classic monster pace. CC1 .DAT imports and native levels are unchanged. The CC2 replay check also reads two held keys as CC2 does (opposing keys cancel, else the key matching the facing wins, then the horizontal one). Official CC2 replays won on Epoxy go from 49 to 71 of 200, CC1 Steam .c2m from 82 to 93 of 149, CC1 .DAT from 79 to 82, with no level lost. Replays recorded on levels imported from CC1 or CC2 are no longer offered (scores are kept).
+
 ## [2.32.0] - 2026-11-12
 
 ### Added
