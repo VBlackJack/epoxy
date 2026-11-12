@@ -366,7 +366,13 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (tile.hazard === 'water') {
     if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
-    w.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    const cc2 = usesCc2Engine(w.level);
+    w.terrain[destY][destX] =
+      (cc2 ? blockDef?.waterTransformsToCc2 : undefined) ||
+      blockDef?.waterTransformsTo ||
+      (cc2 ? tile.blockTransformsToCc2 : undefined) ||
+      tile.blockTransformsTo ||
+      SUNK_BLOCK_TILE_ID;
     removeEntity(w, block.uid);
     AudioManager.playSfx('splash');
     ctx.emitVisual('splash', destX, destY);
@@ -475,10 +481,7 @@ function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
 export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
   // A block whose step already ended this pass (see settleAheadEarly) has had its turn.
-  if (w.turnSpent.get(entity.uid) === w.ccMonsterClock) {
-    w.turnSpent.delete(entity.uid);
-    return;
-  }
+  if (usesCc2Engine(w.level) && w.turnSpent.get(entity.uid) === w.ccMonsterClock) return;
   // A pushed CC3D block finishing its step: the cell acts on it when the step ends.
   if (entity.arrivalTicks !== undefined) {
     entity.arrivalTicks--;

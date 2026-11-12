@@ -598,7 +598,8 @@
       "passableByBlock": true,
       "hazard": "water",
       "protectedByItem": "boots_water",
-      "blockTransformsTo": "dirt"
+      "blockTransformsTo": "dirt",
+      "blockTransformsToCc2": "dirt_cc2"
     },
     "fire": {
       "id": "fire",

@@ -101,6 +101,7 @@ export function updateEntities(ctx: EpoxyContext): void {
     w.ccPassOpen = false;
     w.ccPlans.clear();
     w.entityPassSeen.clear();
+    w.turnSpent.clear();
   }
 }
 

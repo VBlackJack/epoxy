@@ -368,6 +368,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.blockSplashes = new Map<number, number>();
+  w.turnSpent = new Map<number, number>();
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
   w.litCharges = [];

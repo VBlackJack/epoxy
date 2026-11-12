@@ -1099,6 +1099,8 @@ export interface TileDefinition {
   hazard?: 'water' | 'fire' | 'bomb' | 'slime';
   protectedByItem?: string;
   blockTransformsTo?: string;
+  /** What the cell becomes under a sunk block on a level of the CC2 engine, when it differs from blockTransformsTo. */
+  blockTransformsToCc2?: string;
   /**
    * Block ids that survive entering this tile and clear it (format 14, the CC2 slime: dirt and ice blocks). The tile
    * turns into its `blockTransformsTo` terrain as the block arrives; any other block is destroyed as usual.
@@ -1457,6 +1459,8 @@ export interface EntityDefinition {
   slidesOnIce?: boolean;
   slidesOnForce?: boolean;
   waterTransformsTo?: string;
+  /** What the water becomes on a level of the CC2 engine, when it differs from waterTransformsTo. */
+  waterTransformsToCc2?: string;
   meltsInFireTo?: string;
   destroyedByFire?: boolean;
   /** Whether a bomb on the cell the block enters destroys both. */
