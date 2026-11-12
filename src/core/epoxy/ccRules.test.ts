@@ -26,7 +26,7 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { makeLevel } from '../../test/packFixtures';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel } from '../types';
-import { usesCcRules } from './ccRules';
+import { usesCcRules, usesCc2Engine } from './ccRules';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -121,5 +121,12 @@ describe('persistence', () => {
       fallbackTitle: 'T'
     });
     expect('rulesFlavor' in plain).toBe(false);
+  });
+});
+
+describe('usesCc2Engine', () => {
+  it('is true only for levels converted from a CC2-engine source', () => {
+    expect(usesCc2Engine({ cc2: {} as never })).toBe(true);
+    expect(usesCc2Engine({})).toBe(false);
   });
 });
