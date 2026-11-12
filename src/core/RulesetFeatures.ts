@@ -38,6 +38,8 @@ export interface RulesetFeatures {
   itemDrop: boolean;
   /** Replaying the run behind a high score. */
   highScoreReplay: boolean;
+  /** Turning in place (facing a direction without stepping), to aim a thrown stone. */
+  turnInPlace: boolean;
 }
 
 const EPOXY_FEATURES: RulesetFeatures = {
@@ -47,7 +49,8 @@ const EPOXY_FEATURES: RulesetFeatures = {
   deadEndWatch: true,
   solutionReplay: true,
   itemDrop: true,
-  highScoreReplay: true
+  highScoreReplay: true,
+  turnInPlace: true
 };
 
 const LYNX_FEATURES: RulesetFeatures = {
@@ -57,7 +60,8 @@ const LYNX_FEATURES: RulesetFeatures = {
   deadEndWatch: false,
   solutionReplay: false,
   itemDrop: false,
-  highScoreReplay: true
+  highScoreReplay: true,
+  turnInPlace: false
 };
 
 /** CC3D levels are played by their own engine: no Epoxy play aid applies, only the high score replay. */
@@ -68,7 +72,8 @@ const CC3D_FEATURES: RulesetFeatures = {
   deadEndWatch: false,
   solutionReplay: false,
   itemDrop: false,
-  highScoreReplay: true
+  highScoreReplay: true,
+  turnInPlace: false
 };
 
 /** The aids that stay off on a level with lasers: both search for pushes that cover buttons or targets. */
@@ -702,14 +707,28 @@ function withoutHintsOnConvertedCc3d(level: FeatureLevel | undefined, base: Rule
  * original Chip's Challenge 1, which has no item drop; CC2 imports keep it.
  */
 export function featuresFor(level: FeatureLevel | undefined): RulesetFeatures {
-  const features = withoutHintsOnConvertedCc3d(level, contentFeaturesFor(level));
+  let features = withoutHintsOnConvertedCc3d(level, contentFeaturesFor(level));
+  // Turning in place is an Epoxy rule: the classic rules and the converted CC3D pace (the engine's own gate) have none.
+  if (features.turnInPlace && level !== undefined && withoutTurnInPlace(level)) features = cachedOverlay(noTurnFeaturesCache, features, { turnInPlace: false });
   if (!features.itemDrop || level?.rulesFlavor !== 'cc' || level.cc2 !== undefined) return features;
-  let noDrop = noDropFeaturesCache.get(features);
-  if (noDrop === undefined) {
-    noDrop = { ...features, itemDrop: false };
-    noDropFeaturesCache.set(features, noDrop);
+  return cachedOverlay(noDropFeaturesCache, features, { itemDrop: false });
+}
+
+const noTurnFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
+
+/** True for a level whose engine refuses a turn in place: the classic rules, or a level converted from CC3D. */
+function withoutTurnInPlace(level: FeatureLevel): boolean {
+  if (level.rulesFlavor === 'cc' || level.cc2 !== undefined) return true;
+  return typeof level.id === 'string' && isConvertedCc3dLevel({ id: level.id, cc3dSource: level.cc3dSource });
+}
+
+function cachedOverlay(cache: WeakMap<RulesetFeatures, RulesetFeatures>, base: RulesetFeatures, patch: Partial<RulesetFeatures>): RulesetFeatures {
+  let overlaid = cache.get(base);
+  if (overlaid === undefined) {
+    overlaid = { ...base, ...patch };
+    cache.set(base, overlaid);
   }
-  return noDrop;
+  return overlaid;
 }
 
 function contentFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {

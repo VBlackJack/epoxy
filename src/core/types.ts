@@ -2338,6 +2338,8 @@ export interface TimedMove {
   drop?: string;
   /** True when the action is the swap key: control passes to the next player of a level with several. */
   swap?: true;
+  /** True when the action is a turn in place: the player faces `dir` without stepping. */
+  turn?: true;
 }
 
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */

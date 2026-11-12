@@ -39,11 +39,11 @@ export const ALL_ORIENTATIONS: readonly PieceOrientation[] = [false, true].flatM
 export const IDENTITY_ORIENTATION: PieceOrientation = { quarterTurns: 0, mirrored: false };
 
 /** Raised for a malformed piece, or one whose tiles cannot take an orientation. */
-/** The steps and waits of a piece annotation; an item drop has no place in a piece, so it is an error, not dropped. */
+/** The steps and waits of a piece annotation; an item drop, a swap or a turn in place has no place in a piece, so it is an error, not dropped. */
 function moveActionsOf(pieceId: string, text: string): MoveAction[] {
   const actions = decodeActions(text);
   const moves = actions.filter(isMoveAction);
-  if (moves.length !== actions.length) throw new PieceError(pieceId, 'a solution annotation cannot drop an item (X, G or T)');
+  if (moves.length !== actions.length) throw new PieceError(pieceId, 'a solution annotation cannot drop an item (X, G or T), swap players (P) or turn in place (n, e, s or w)');
   return moves;
 }
 

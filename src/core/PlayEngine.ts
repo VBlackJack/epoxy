@@ -74,6 +74,11 @@ export interface PlayEngine {
    * map. An engine without several players omits it.
    */
   swapPlayer?(): boolean;
+  /**
+   * Optional. Turn in place: the player faces `dir` without stepping, at no cost. False when refused (sliding, force floor,
+   * same facing, classic or converted CC3D rules, dead, paused, completed). An engine without it omits it.
+   */
+  turnPlayer?(dir: Direction): boolean;
   /** Optional. The players not controlled now, in swap order; undefined on a level with one player. */
   getParkedPlayers?(): readonly PlayerState[] | undefined;
   /** Optional. How many players already left through an exit; undefined on a level with one player. */

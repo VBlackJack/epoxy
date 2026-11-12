@@ -104,7 +104,7 @@ const VALID_FAMILIES: readonly EncyclopediaFamilyId[] = [
   'parity'
 ];
 const VALID_WIN_RULES: readonly WinRule[] = ['exit', 'targets', 'receivers'];
-const SOLUTION_PATTERN = /^[NESW.XGTP]+$/;
+const SOLUTION_PATTERN = /^[NESWnesw.XGTP]+$/;
 const MIN_ARCHETYPE_TIER = 1;
 const MAX_ARCHETYPE_TIER = 5;
 const ARCHETYPE_LEVEL_PREFIX = 'encyclopedia_';

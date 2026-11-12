@@ -34,9 +34,9 @@ const DROP_CLOSE = ']';
 /** Writes the swap key in a compact trace. */
 const SWAP_MARK = '~';
 
-/** One move per letter (N, E, S, W); an item drop is written `[item_id]` and the swap key `~`. */
+/** One move per letter (N, E, S, W), a turn in place its lowercase letter; an item drop is written `[item_id]` and the swap key `~`. */
 export function compactTrace(moves: readonly TimedMove[]): string {
-  return moves.map((m) => (m.drop ? `${DROP_OPEN}${m.drop}${DROP_CLOSE}` : m.swap === true ? SWAP_MARK : m.dir)).join('');
+  return moves.map((m) => (m.drop ? `${DROP_OPEN}${m.drop}${DROP_CLOSE}` : m.swap === true ? SWAP_MARK : m.turn === true ? m.dir.toLowerCase() : m.dir)).join('');
 }
 
 /** The play aids a level offers, as the page would show them. */
