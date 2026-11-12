@@ -1725,7 +1725,7 @@ export class PixelRenderer {
     );
     // A held hurl stone is thrown the way the player faces: a chevron on that edge of his cell shows it (turn in place).
     if (player.alive && featuresFor(engine.getLevel()).turnInPlace && engine.holdsItem(STONE_ITEM_ID)) {
-      this.drawAimChevron(sceneCtx, spritePx, spritePy, unit, player.dir, lowRes);
+      this.drawAimChevron(sceneCtx, spritePx, spritePy - hop * unit, unit, player.dir, lowRes);
     }
     // The players not controlled stand where they are, each with its own character.
     const parked = engine.getParkedPlayers?.();
@@ -7163,7 +7163,7 @@ export class PixelRenderer {
     ctx.restore();
   }
 
-  /** A small chevron on the edge of the cell the player faces; its pixels are whole numbers when `snap` (low-res and retro styles). */
+  /** A small chevron on the edge of the cell the player faces (`y` already carries the sprite's hop lift); its pixels are whole numbers when `snap` (low-res and retro styles). */
   private drawAimChevron(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, dir: Direction, snap: boolean): void {
     const step = AIM_FACING_STEP[dir];
     const fit = (value: number): number => (snap ? Math.round(value) : value);

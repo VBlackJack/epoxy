@@ -37,6 +37,8 @@ const BYTES = 4;
 const PLAYER_CELL = { x: 5, y: 5 };
 const CHEVRON_POINTS = 3;
 const HALF = 2;
+const HOP_TILE_PX = 20;
+const HOP_LIFT_PX = 3;
 
 interface Point {
   readonly x: number;
@@ -174,5 +176,23 @@ describe('aim chevron', () => {
       expect(Number.isInteger(point.x)).toBe(true);
       expect(Number.isInteger(point.y)).toBe(true);
     }
+  });
+
+  it('follows the hop lift of the sprite: a lifted origin moves the chevron up by the same amount', () => {
+    const renderer = new PixelRenderer();
+    const draw = (y: number): Point[] => {
+      const out: Point[][] = [];
+      const canvas = createCanvas(CANVAS_SIZE, CANVAS_SIZE, out);
+      (renderer as unknown as { drawAimChevron(c: CanvasRenderingContext2D, x: number, y: number, size: number, dir: Direction, snap: boolean): void })
+        .drawAimChevron(canvas.getContext('2d'), 0, y, HOP_TILE_PX, 'S', false);
+      return out[0];
+    };
+    loadTestConfigs();
+    const grounded = draw(HOP_TILE_PX);
+    const lifted = draw(HOP_TILE_PX - HOP_LIFT_PX);
+    lifted.forEach((point, i) => {
+      expect(point.x).toBe(grounded[i].x);
+      expect(point.y).toBeCloseTo(grounded[i].y - HOP_LIFT_PX);
+    });
   });
 });
