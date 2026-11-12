@@ -955,6 +955,9 @@ export class GameEngine {
     // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
     refreshTrapLatch(this.w);
     this.checkTargetsWin();
+    // CC2 engine: what the step onto a cell does acts when that step ends, at the end of the tick that ran its wait out.
+    // Not after an early return above (paused, time out, death), nor once the level is won.
+    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted) applyCc3dStepEnd(this.ctx);
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }
@@ -967,7 +970,7 @@ export class GameEngine {
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
     // switch, a jump) bars the input. It always acts at the true end of the step (see applyCc3dStepEnd), so this never sticks.
-    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || this.w.player.cc3dArrival !== undefined) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
       return false;
     }
 

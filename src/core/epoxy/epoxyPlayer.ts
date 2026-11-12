@@ -434,8 +434,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
       return;
     }
-    if (itemDef.collectible === 'chip' && w.cc3dPace && !atStepEnd) {
-      // CC3D picks the chip up when the step ends. The keys and tools below are still taken at the start of the step: a
+    if (itemDef.collectible === 'chip' && defersStepEffects(w) && !atStepEnd) {
+      // CC3D and CC2 pick the chip up when the step ends. The keys and tools below are still taken at the start of the step: a
       // known gap, as only a monster or a button acting inside the step could tell.
       cc3dArrivalOf(w.player).chip = { x, y };
     } else if (itemDef.collectible === 'chip') {
@@ -485,8 +485,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   notePulseArrival(w, x, y, null);
 
-  if (tile.buttonAction === 'trigger_cloner' && w.cc3dPace && !atStepEnd) {
-    // CC3D: the player works a clone switch when the step that took him onto it ends.
+  if (tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !atStepEnd) {
+    // CC3D: the player works a clone switch, and CC2 any button, when the step that took him onto it ends.
     cc3dArrivalOf(w.player).press = { x, y };
   } else if (tile.buttonAction) {
     triggerButton(ctx, x, y, tile.buttonAction);
@@ -527,6 +527,19 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   evaluatePlayerSliding(w, tile, entryDir);
 }
 
+/**
+ * Whether what a step of the player does on the cell it ends on waits for the end of the step (applyCc3dStepEnd): a
+ * converted CC3D level and a CC2-engine level. Teleports stay with the step on a CC2-engine level.
+ */
+export function defersStepEffects(w: EpoxyWorld): boolean {
+  return w.cc3dPace || usesCc2Engine(w.level);
+}
+
+/** Whether pressing the button `action` waits for the end of the step: every button on CC2, only the clone switch on CC3D. */
+function defersButton(w: EpoxyWorld, action: string): boolean {
+  return usesCc2Engine(w.level) || (w.cc3dPace && action === 'trigger_cloner');
+}
+
 /** The step-end effects waiting on `p`, created on first use. */
 function cc3dArrivalOf(p: PlayerState): Cc3dPlayerArrival {
   p.cc3dArrival ??= {};
@@ -560,7 +573,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
-    if (p.x === x && p.y === y && tile.buttonAction === 'trigger_cloner' && !triggerButton(ctx, x, y, tile.buttonAction)) return false;
+    if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction)) return false;
     if (!p.alive) return true;
   }
   if (pending.chip !== undefined) {
@@ -675,11 +688,11 @@ export function tickParkedPlayers(ctx: EpoxyContext): void {
     if (!w.player.alive || w.levelCompleted) return;
     withPlayer(w, parked, () => {
       if (w.player.moveCooldown > 0) w.player.moveCooldown--;
-      if (w.cc3dPace) applyCc3dStepEnd(ctx);
+      if (defersStepEffects(w)) applyCc3dStepEnd(ctx);
       if (w.player.isSliding) {
         if (w.player.slideCooldown > 0) {
           w.player.slideCooldown--;
-          if (w.cc3dPace && w.player.slideCooldown === 0) applyCc3dStepEnd(ctx);
+          if (defersStepEffects(w) && w.player.slideCooldown === 0) applyCc3dStepEnd(ctx);
         } else {
           processPlayerSlideStep(ctx);
         }
