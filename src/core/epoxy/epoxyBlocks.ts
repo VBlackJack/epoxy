@@ -58,8 +58,14 @@ export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
   return until !== undefined && w.ccMonsterClock < until;
 }
 
+/** Drops the splashes whose life is over: they bar nobody and are not drawn. */
+export function pruneSplashes(w: EpoxyWorld): void {
+  if (w.blockSplashes.size === 0) return;
+  for (const [cell, until] of w.blockSplashes) if (w.ccMonsterClock >= until) w.blockSplashes.delete(cell);
+}
+
 /** Any mover other than the real player that tries to enter a cell erases the splash on it. */
-function eraseSplash(w: EpoxyWorld, x: number, y: number): void {
+export function eraseSplash(w: EpoxyWorld, x: number, y: number): void {
   if (w.blockSplashes.size > 0) w.blockSplashes.delete(y * mapWidth(w) + x);
 }
 

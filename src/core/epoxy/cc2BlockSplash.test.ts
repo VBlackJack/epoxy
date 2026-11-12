@@ -35,6 +35,10 @@ const SINK_WAIT_PASSES = 8;
 const BLOCK_X = 2;
 const WATER_X = 3;
 const ROW = 1;
+const MONSTER_X = 6;
+const FAR_FUTURE_PASSES = 1000;
+/** Ticks a glider needs to decide at least one step. */
+const MONSTER_WAIT_TICKS = 12;
 
 type Mode = 'cc2' | 'cc' | 'plain';
 
@@ -134,5 +138,23 @@ describe('CC2 block splash', () => {
     expect(shown?.[0].left).toBeGreaterThan(0);
     for (let pass = 0; pass < SPLASH_PASSES; pass++) engine.tick();
     expect(engine.getBlockSplashes()).toBeUndefined();
+  });
+
+  it('is erased by a monster that considers stepping onto it, on a CC2 level only', () => {
+    for (const mode of ['cc2', 'cc'] as const) {
+      const built = buildTestLevel(['#########', '#@......#', '#########'], { entities: [{ type: 'glider', x: MONSTER_X, y: ROW, dir: 'W' }] });
+      const engine = load(mode === 'cc2' ? { ...built, cc2: CC2_RECORD } : { ...built, rulesFlavor: 'cc' });
+      const w = worldOf(engine);
+      w.blockSplashes.set(ROW * engine.getMapWidth() + MONSTER_X - 1, w.ccMonsterClock + FAR_FUTURE_PASSES);
+      for (let i = 0; i < MONSTER_WAIT_TICKS; i++) engine.tick();
+      expect(w.blockSplashes.size, mode).toBe(mode === 'cc2' ? 0 : 1);
+    }
+  });
+
+  it('drops an expired splash from the world', () => {
+    const engine = load(room('cc2'));
+    sinkBlock(engine);
+    for (let pass = 0; pass < SPLASH_PASSES + 2; pass++) engine.tick();
+    expect(worldOf(engine).blockSplashes.size).toBe(0);
   });
 });
