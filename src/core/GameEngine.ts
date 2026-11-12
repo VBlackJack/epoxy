@@ -66,6 +66,9 @@ import {
   playerWalkCooldown,
   processPlayerSlideStep,
   applyCc3dStepEnd,
+  cc2PlayerViewOf,
+  recordCc2PlayerView,
+  resetCc2PlayerView,
   processTeleportExit,
   resumeForceCarry,
   tickParkedPlayers
@@ -952,6 +955,8 @@ export class GameEngine {
     // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
     refreshTrapLatch(this.w);
     this.checkTargetsWin();
+    // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
+    recordCc2PlayerView(this.w);
   }
 
   public attemptPlayerMove(dir: Direction): boolean {
@@ -997,6 +1002,8 @@ export class GameEngine {
     }
 
     this.saveUndoSnapshot();
+    // CC2 engine: the teeth of the coming tick aim at where he stands now, not at the cell this move takes him to.
+    if (usesCc2Engine(this.w.level) && this.w.cc2PlayerView === undefined) this.w.cc2PlayerView = cc2PlayerViewOf(this.w);
     this.w.gridMutatedByMove = false;
     this.w.rejectedPushMovedBlocks = false;
     // The mover may leave through an exit during the move, which hands control to the next player.
@@ -1057,6 +1064,7 @@ export class GameEngine {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
     this.saveUndoSnapshot();
     rotatePlayers(this.w);
+    resetCc2PlayerView(this.w);
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
     return true;

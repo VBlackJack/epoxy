@@ -21,7 +21,7 @@ import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
-import { Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
+import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
 import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
@@ -130,7 +130,10 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   if (w.ccRules) updateForcePermission(w, fromSlide);
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
-  if (dropExitedController(w)) return moved;
+  if (dropExitedController(w)) {
+    resetCc2PlayerView(w);
+    return moved;
+  }
   // The mirror players copy the move the player attempted, a refused one too, a forced slide step included.
   // They copy the requested direction, before any track redirect of the player's own cell.
   // A parked player's forced steps (w.swappedIn set) are not copied: the mirrors follow the controlled player's moves.
@@ -401,6 +404,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir, w.ccRules)) {
+      markCc2Teleport(w, x, y);
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
       return;
@@ -695,6 +699,8 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
   delete w.player.teleportExit;
   const mover = w.player;
+  // CC2 engine: the exit step begins from the destination pad, which is where the teeth aim on this first exit tick.
+  resetCc2PlayerView(w, dir);
   const moved = executePlayerMove(ctx, dir, true);
   if (moved && mover === w.player && w.player.alive && w.player.exited !== true && w.cc3dPace) {
     // CC3D: the exit is a fast step, started on the tick after the jump (the rest of its wait is what is left here).
@@ -760,4 +766,80 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
     w.player.moveCooldown = Math.max(w.player.moveCooldown, CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS);
   }
   ctx.checkTargetsWin();
+}
+
+/** Ticks left on the controlled player's step: the move wait, or the slide wait while he slides. */
+function stepCooldownOf(p: PlayerState): number {
+  return Math.max(p.moveCooldown, p.isSliding ? p.slideCooldown : 0);
+}
+
+/** Whether the apparent player position is kept: a CC2-engine level, and the controlled player in his own slot. */
+function tracksCc2PlayerView(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && w.swappedIn === null;
+}
+
+/**
+ * CC2 engine: puts the apparent player position on his cell, at rest (a hand-off to another player, the exit step out
+ * of a teleporter pad). The view means: the player stands on (x, y) and is still `cooldown` ticks short of a step of
+ * `stepLength` ticks along `dir`, so he appears `cooldown / stepLength` of a cell behind (x, y) against `dir`.
+ */
+export function resetCc2PlayerView(w: EpoxyWorld, dir: Direction = w.player.dir): void {
+  if (!tracksCc2PlayerView(w)) return;
+  w.cc2PlayerView = { x: w.player.x, y: w.player.y, dir, cooldown: 0, stepLength: 1 };
+}
+
+/** The view as it stands, or the controlled player at rest on his cell when none was taken yet. */
+export function cc2PlayerViewOf(w: EpoxyWorld): Cc2PlayerView {
+  return w.cc2PlayerView ?? { x: w.player.x, y: w.player.y, dir: w.player.dir, cooldown: 0, stepLength: 1 };
+}
+
+/**
+ * CC2 engine: the explicit teleport marker. The jump to the destination pad happens when the step onto the source pad
+ * (x, y) starts here, but the teeth see the player move onto the source pad and only then jump. The marker rides on
+ * the view (`sourcePad`), which is left as it stood (the teeth of the tick under way read it); the next
+ * recordCc2PlayerView moves it onto the pad.
+ */
+function markCc2Teleport(w: EpoxyWorld, x: number, y: number): void {
+  if (!tracksCc2PlayerView(w) || w.cc3dPace) return;
+  const view = w.cc2PlayerView;
+  w.cc2PlayerView = view === undefined ? { x, y, dir: w.player.dir, cooldown: 0, stepLength: 1, sourcePad: { x, y } } : { ...view, sourcePad: { x, y } };
+}
+
+/**
+ * CC2 engine: records where the controlled player appears to be, at the end of a tick, so the teeth of the next tick
+ * (which run after this tick's input moved him, but aim where he stood before it) read his position at the start of it.
+ * A step in progress puts him `cooldown / stepLength` of a cell behind his cell; the step length is the real one (ice,
+ * force floors, speed boots), read from the cooldown the step was given. A teleport keeps the apparent position on the
+ * source pad until the exit step (resetCc2PlayerView in processTeleportExit moves it onto the destination pad).
+ */
+export function recordCc2PlayerView(w: EpoxyWorld): void {
+  if (!tracksCc2PlayerView(w)) return;
+  const p = w.player;
+  const cooldown = stepCooldownOf(p);
+  const prev = w.cc2PlayerView;
+  if (prev === undefined) {
+    w.cc2PlayerView = { x: p.x, y: p.y, dir: p.dir, cooldown, stepLength: Math.max(1, cooldown) };
+    return;
+  }
+  const pad = prev.sourcePad;
+  if (pad !== undefined) {
+    if (prev.x !== pad.x || prev.y !== pad.y) {
+      // The teleport was marked after this view was taken: from now the apparent position is the pad he stepped onto.
+      const dx = Math.sign(pad.x - prev.x);
+      const dy = Math.sign(pad.y - prev.y);
+      const dir = dx === 0 && dy < 0 ? 'N' : dx === 0 && dy > 0 ? 'S' : dy === 0 && dx > 0 ? 'E' : dy === 0 && dx < 0 ? 'W' : prev.dir;
+      w.cc2PlayerView = { x: pad.x, y: pad.y, dir, cooldown, stepLength: Math.max(1, cooldown + 1), sourcePad: { ...pad } };
+    } else {
+      w.cc2PlayerView = { ...prev, cooldown, sourcePad: { ...pad } };
+    }
+    return;
+  }
+  const moved = prev.x !== p.x || prev.y !== p.y;
+  w.cc2PlayerView = {
+    x: p.x,
+    y: p.y,
+    dir: p.isSliding && p.slideDir ? p.slideDir : p.dir,
+    cooldown,
+    stepLength: moved ? Math.max(1, cooldown + 1) : Math.max(prev.stepLength, cooldown)
+  };
 }
