@@ -319,3 +319,85 @@ describe('classic walk wait after a slide', () => {
     expect(engine.getPlayer().moveCooldown).toBe(0);
   });
 });
+
+/** A level converted from a CC2-engine source: the classic rules plus the stored CC2 data that selects the CC2 step timing. */
+function startCc2(rows: string[]): { engine: GameEngine; w: TestWorld } {
+  const engine = new GameEngine();
+  engine.loadLevel({ ...level(rows, true), cc2: {} as never });
+  return { engine, w: (engine as unknown as { w: TestWorld }).w };
+}
+
+/** Ticks from a voluntary step east onto the lane until the player has moved one cell further. */
+function ticksToFirstSlideStep(engine: GameEngine, w: TestWorld): number {
+  engine.attemptPlayerMove('E');
+  const x = w.player.x;
+  for (let t = 1; t <= 12; t++) {
+    engine.tick();
+    if (w.player.x !== x) return t;
+  }
+  return -1;
+}
+
+describe('CC2 engine player step timing', () => {
+  it('lasts one tick longer for a voluntary step onto ice or a force floor than on the shared classic model', () => {
+    for (const rows of [FORCE_LANE, ICE_LANE]) {
+      const shared = start(rows, true);
+      const cc2 = startCc2(rows);
+      expect(ticksToFirstSlideStep(cc2.engine, cc2.w)).toBe(ticksToFirstSlideStep(shared.engine, shared.w) + 1);
+    }
+  });
+
+  it('keeps the player busy two ticks after a voluntary step onto a force floor, one on the shared model', () => {
+    const shared = start(FORCE_LANE, true);
+    const cc2 = startCc2(FORCE_LANE);
+    shared.engine.attemptPlayerMove('E');
+    cc2.engine.attemptPlayerMove('E');
+    expect(shared.engine.getPlayer().moveCooldown).toBe(1);
+    expect(cc2.engine.getPlayer().moveCooldown).toBe(2);
+  });
+
+  it('does not let speed boots shorten the step onto a slide tile', () => {
+    for (const rows of [FORCE_LANE, ICE_LANE]) {
+      const plain = startCc2(rows);
+      const hasted = startCc2(rows);
+      hasted.engine.getPlayer().boots.add('boots_speed');
+      expect(ticksToFirstSlideStep(hasted.engine, hasted.w)).toBe(ticksToFirstSlideStep(plain.engine, plain.w));
+    }
+  });
+
+  it('carries the player at most one cell every two ticks while a held key goes along the floor', () => {
+    const { engine, w } = startCc2(FORCE_LANE);
+    const xs: number[] = [];
+    for (let t = 0; t < 16; t++) {
+      engine.attemptPlayerMove('E');
+      engine.tick();
+      xs.push(w.player.x);
+    }
+    const moves = xs.filter((x, i) => i > 0 && x !== xs[i - 1]).length;
+    expect(moves).toBeLessThanOrEqual(8);
+    expect(moves).toBeGreaterThanOrEqual(6);
+  });
+
+  it('waits one tick less than the shared model once a slide ends on plain floor', () => {
+    const run = (cc2: boolean): number => {
+      const { engine, w } = cc2 ? startCc2(ICE_LANE) : start(ICE_LANE, true);
+      engine.attemptPlayerMove('E');
+      for (let i = 0; i < 60 && w.player.x < 11; i++) engine.tick();
+      expect(w.player.x).toBe(11);
+      return engine.getPlayer().moveCooldown;
+    };
+    expect(run(true)).toBe(run(false) - 1);
+  });
+
+  it('lets a player with the choice walk against a force floor, which the shared model refuses', () => {
+    const choose = (cc2: boolean): boolean => {
+      const { engine, w } = cc2 ? startCc2(FORCE_LANE) : start(FORCE_LANE, true);
+      engine.attemptPlayerMove('E');
+      for (let i = 0; i < 12 && w.player.x < 5; i++) engine.tick();
+      settleCooldown(engine);
+      return engine.attemptPlayerMove('W');
+    };
+    expect(choose(false)).toBe(false);
+    expect(choose(true)).toBe(true);
+  });
+});
