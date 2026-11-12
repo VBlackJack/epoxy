@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { usesCc2Engine } from './ccRules';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
@@ -23,6 +24,7 @@ import {
   CC_MONSTER_BUTTON_DELAY_PASSES,
   CC_WALKER_TYPE,
   CC_CADENCE_TYPES,
+  CC2_FLOOR_STEP_DIVISOR,
   CC_TEETH_ACTIVE_TICKS,
   CC3D_MONSTER_FLOOR_STEP_TICKS,
   CC3D_MONSTER_STEP_TICKS,
@@ -246,6 +248,15 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   // Like the original, a creature that could not move (a blocked decision, a held trap, a blocked forced move on a
   // slide tile) tries again on the next tick.
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
+  else if (ready && alive && usesCc2Engine(ctx.world.level) && entity.cooldownTicks > 0 && !ctx.world.removedUids.has(entity.uid)) {
+    // CC2 takes the step time from the destination: a step onto ice or a force floor lasts a share of the plain step.
+    const def = ConfigRegistry.getEntityDef(entity.type);
+    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+    const destSlide = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]).slideType;
+    if (!floorFree && (destSlide === 'ice' || destSlide === 'force')) {
+      entity.cooldownTicks = Math.floor(ccStepTicks(entity.type) / CC2_FLOOR_STEP_DIVISOR) * monsterSlowdown(ctx.world) - 1;
+    }
+  }
   return alive;
 }
 

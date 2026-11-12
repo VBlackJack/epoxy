@@ -368,6 +368,9 @@ export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
+/** CC2-engine levels: a monster step onto ice or a force floor lasts this share of a step (the destination's speed factor). */
+export const CC2_FLOOR_STEP_DIVISOR = 2;
+
 /** Converted CC3D levels: ticks of a monster step on plain floor, and on ice or a force floor (the floor carries it faster). */
 export const CC3D_MONSTER_STEP_TICKS = 4;
 export const CC3D_MONSTER_FLOOR_STEP_TICKS = 2;
