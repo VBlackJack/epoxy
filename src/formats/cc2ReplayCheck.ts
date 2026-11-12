@@ -267,7 +267,8 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
   let moves = 0;
   let dropWasDown = false;
   for (let tick = 0; tick < total; tick++) {
-    const tickKeys = tick < keys.length ? keys[tick] : 0;
+    // Past the replay end the Epoxy engine keeps holding the last input, as the reference player does; the Lynx based engines release.
+    const tickKeys = tick < keys.length ? keys[tick] : !lynx && keys.length > 0 ? keys[keys.length - 1] : 0;
     const held = heldDirections(tickKeys);
     const dropIsDown = (tickKeys & CC2_REPLAY_ACTION_BITS.drop) !== 0;
     if (!lynx && dropIsDown && !dropWasDown) dropOldestBoots(engine);

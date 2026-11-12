@@ -235,3 +235,30 @@ describe('checkCc2Replay with several held keys', () => {
     expect(checkCc2Replay(level, replay, 'held').won).toBe(false);
   });
 });
+
+describe('checkCc2Replay after the replay ends', () => {
+  const LONG_CORRIDOR = 20;
+  // One step of E, then the stream ends with E still held (no release entry).
+  const endsHeld = () =>
+    replayOf([
+      [0, E],
+      [STEP_FRAMES, E]
+    ]);
+
+  it('keeps holding the last input during the grace period on the Epoxy engine', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, endsHeld(), 'held').won).toBe(true);
+  });
+
+  it('still releases after a final release entry', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, replayOf(hold(E, 2)), 'held').won).toBe(false);
+  });
+
+  it('leaves the Lynx based engines releasing at the end', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    for (const engine of ['lynx', 'cc2'] as const) {
+      expect(checkCc2Replay(level, endsHeld(), 'held', engine).won).toBe(false);
+    }
+  });
+});
