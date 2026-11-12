@@ -50,6 +50,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
   w.nextEntityUid = 1;
   w.ccMonsterClock = 0;
+  // The world object is reused across levels: the apparent player position of the last level must not leak into this one.
+  w.cc2PlayerView = undefined;
   w.ccArrivals = [];
   w.ccArrivalsRunning = false;
   const ccCadence = usesCcRules(level);

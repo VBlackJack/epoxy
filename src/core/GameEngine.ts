@@ -28,6 +28,7 @@ import {
   SPENT_REVEAL_KEY_PREFIX,
   PLAYER_CHARACTER_KEY_PREFIX,
   CC3D_ARRIVAL_KEY_PREFIX,
+  CC2_PLAYER_VIEW_KEY_PREFIX,
   PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
@@ -84,6 +85,8 @@ import {
   revealedTerrain,
   canPlayerEnter,
   cc3dArrivalKey,
+  cc2PlayerViewKey,
+  copyCc2PlayerView,
   copyCc3dArrival,
   createEpoxyWorld,
   getEntityAt,
@@ -438,6 +441,11 @@ export class GameEngine {
     if (this.w.railCells.size > 0) parts.push(`${RAIL_STATE_KEY_PREFIX}${railStateKey(this.w)}`);
     const arrivals = cc3dArrivalKey(this.w);
     if (arrivals !== '') parts.push(`${CC3D_ARRIVAL_KEY_PREFIX}${arrivals}`);
+    // The teeth of a CC2-engine level aim at the apparent player position, so it tells search states apart.
+    if (usesCc2Engine(this.w.level)) {
+      const view = cc2PlayerViewKey(this.w);
+      if (view !== '') parts.push(`${CC2_PLAYER_VIEW_KEY_PREFIX}${view}`);
+    }
     return parts.join('|');
   }
 
@@ -746,6 +754,8 @@ export class GameEngine {
       ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
       // Only a classic-rules level reads the entity-pass clock (the teeth cycle).
       ...(this.w.ccRules || this.w.cc3dPace ? { ccMonsterClock: this.w.ccMonsterClock } : {}),
+      // Only a CC2-engine level that has run a tick has an apparent player position.
+      ...(this.w.cc2PlayerView !== undefined && usesCc2Engine(this.w.level) ? { cc2PlayerView: copyCc2PlayerView(this.w.cc2PlayerView) } : {}),
       // Only a CC2-engine level with a splash still lasting has one to put back.
       ...(this.w.blockSplashes.size > 0 ? { blockSplashes: [...this.w.blockSplashes] } : {}),
       ...(this.w.ccGenerators !== null ? { ccGenerators: [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] as [number, number, number] } : {}),
@@ -845,6 +855,7 @@ export class GameEngine {
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
+    this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
     if (this.w.ccGenerators !== null && snap.ccGenerators !== undefined) {
       [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] = snap.ccGenerators;
     }

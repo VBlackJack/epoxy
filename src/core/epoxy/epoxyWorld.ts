@@ -24,7 +24,7 @@ import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
-import type { CcArrival, Cc3dPlayerArrival } from '../types';
+import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -177,6 +177,8 @@ export interface EpoxyWorld {
   entityPassSeen: Set<number>;
   /** Entity-update passes run since the level started (the teeth cycle of a classic-rules level and the press queue of a converted CC3D level read it); counts only while ccRules or cc3dPace. */
   ccMonsterClock: number;
+  /** CC2 engine: the apparent player position at the start of the tick, read by the teeth; undefined before the first tick and off CC2 levels. Saved with the undo snapshot. */
+  cc2PlayerView: Cc2PlayerView | undefined;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
   ccGenerators: CcGenerators | null;
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
@@ -298,6 +300,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     trapLatch: null,
     trapCells: [],
     ccMonsterClock: 0,
+    cc2PlayerView: undefined,
     ccGenerators: null,
     ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
@@ -674,8 +677,21 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
   return {
     ...(a.press !== undefined ? { press: { ...a.press } } : {}),
     ...(a.chip !== undefined ? { chip: { ...a.chip } } : {}),
-    ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {})
+    ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {}),
+    ...(a.opening !== undefined ? { opening: { ...a.opening } } : {})
   };
+}
+
+/** A copy of the apparent player position of a CC2-engine level. */
+export function copyCc2PlayerView(v: Cc2PlayerView): Cc2PlayerView {
+  return { ...v, ...(v.sourcePad !== undefined ? { sourcePad: { ...v.sourcePad } } : {}) };
+}
+
+/** The search key of the apparent player position: empty when there is none. */
+export function cc2PlayerViewKey(w: EpoxyWorld): string {
+  const v = w.cc2PlayerView;
+  if (v === undefined) return '';
+  return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.stepLength}${v.sourcePad === undefined ? '' : `p${v.sourcePad.x}.${v.sourcePad.y}`}`;
 }
 
 /** The search key of what waits on the players of a converted CC3D level: empty when nothing does. */
@@ -685,7 +701,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}`);
   });
   return parts.join(';');
 }

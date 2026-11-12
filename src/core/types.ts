@@ -2290,6 +2290,27 @@ export interface Cc3dPlayerArrival {
   chip?: GridPoint;
   /** The teleporter the step ended on: the player jumps when the step ends; `dir` is the direction he entered it by. */
   teleport?: GridPoint & { dir: Direction };
+  /** CC2 engine: the cell the player is stepping into, which stays solid for monsters until the step ends (a socket or door he opens on arrival). */
+  opening?: GridPoint;
+}
+
+/**
+ * CC2 engine: where the player appears to be at the start of a tick, before this tick's input moves him. The teeth
+ * aim at this apparent position, not at his cell (a step is not over until its cooldown has run out, and a
+ * teleport happens when the step onto the pad ends).
+ */
+export interface Cc2PlayerView {
+  /** The apparent cell. */
+  x: number;
+  y: number;
+  /** The way the step under way goes. */
+  dir: Direction;
+  /** Ticks left on the step cooldown. */
+  cooldown: number;
+  /** Length of the step in ticks (how far along it the player is: 1 - cooldown / length). */
+  stepLength: number;
+  /** A teleport under way: the cell of the source pad the apparent position stays on until the exit step. */
+  sourcePad?: GridPoint;
 }
 
 export interface PlayerState {
@@ -2422,6 +2443,8 @@ export interface UndoSnapshot {
   pausedTicks?: number;
   /** Entity passes run since the level started; written only on a classic-rules level (the teeth cycle reads it), absent otherwise. */
   ccMonsterClock?: number;
+  /** The apparent player position the CC2 teeth aim at; written only on a CC2-engine level once a tick has run, absent otherwise. */
+  cc2PlayerView?: Cc2PlayerView;
   /** Splashes a block left in water: [cell index, entity pass it lasts until]; written only while one lasts on a CC2-engine level, absent otherwise. */
   blockSplashes?: [number, number][];
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
