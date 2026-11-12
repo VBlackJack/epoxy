@@ -1026,6 +1026,27 @@ export class GameEngine {
     return true;
   }
 
+  /**
+   * Turn in place: the player faces `dir` without stepping, so that a thrown stone can be aimed. Costs nothing: no tick,
+   * no move cooldown, no step, no undo snapshot, no sound, no mirror, laser or signal effect. Allowed during the cooldown
+   * of a step and inside a closed trap. Refused (false, nothing recorded) while paused, dead or once the level ended, on
+   * the classic and converted CC3D rules, while sliding, carried by a force floor, waiting to leave a teleporter or to
+   * land from a CC3D arrival, and when already facing `dir`. The turn is recorded in the timed history so that a
+   * recorded solution replays it; undo restores the facing through the previous snapshot and truncates the entry.
+   */
+  public turnPlayer(dir: Direction): boolean {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    if (this.w.ccRules || this.w.cc3dPace) return false;
+    const player = this.w.player;
+    if (player.isSliding || player.teleportExit !== undefined || player.cc3dArrival !== undefined) return false;
+    if (dir === player.dir) return false;
+    const currentTile = ConfigRegistry.getTile(this.w.terrain[player.y][player.x]);
+    if (isCarriedByForceFloor(this.w, currentTile)) return false;
+    player.dir = dir;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, turn: true });
+    return true;
+  }
+
   public isCellClosedTrap(tx: number, ty: number): boolean {
     return isCellClosedTrap(this.w, tx, ty);
   }

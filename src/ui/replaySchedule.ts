@@ -38,12 +38,14 @@ export function collectDueMoves(moves: readonly TimedMove[], startIndex: number,
   return { due, nextIndex: idx };
 }
 
-/** Applies one recorded action to the engine: a drop, a swap of players, or a move. */
+/** Applies one recorded action to the engine: a drop, a swap of players, a turn in place, or a move. */
 export function applyTimedMove(engine: PlayEngine, move: TimedMove): void {
   if (move.drop) {
     engine.dropItem(move.drop);
   } else if (move.swap === true) {
     engine.swapPlayer?.();
+  } else if (move.turn === true) {
+    engine.turnPlayer?.(move.dir);
   } else {
     engine.attemptPlayerMove(move.dir);
   }
@@ -68,7 +70,9 @@ export function sanitizeTimedMoves(value: unknown): TimedMove[] | undefined {
         ? { tick: entry.tick, dir: entry.dir, drop: entry.drop }
         : entry.swap === true
           ? { tick: entry.tick, dir: entry.dir, swap: true }
-          : { tick: entry.tick, dir: entry.dir }
+          : entry.turn === true
+            ? { tick: entry.tick, dir: entry.dir, turn: true }
+            : { tick: entry.tick, dir: entry.dir }
     );
   }
   return result;

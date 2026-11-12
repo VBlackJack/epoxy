@@ -1152,6 +1152,9 @@
       "gate": {
         "action": "Set down a Pocket Gate"
       },
+      "aim": {
+        "action": "Aim (turn without stepping)"
+      },
       "stone": {
         "action": "Throw a Hurl Stone"
       },
@@ -1546,6 +1549,9 @@
       },
       "kb_move": {
         "label": "Arrows / WASD / ZQSD: Move player"
+      },
+      "kb_aim": {
+        "label": "Shift + direction key (arrows or ZQSD/WASD): turn in place"
       },
       "kb_click": {
         "label": "Left Click / Tap: Auto-pathfind (A*) to tile"

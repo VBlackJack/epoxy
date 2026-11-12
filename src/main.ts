@@ -111,6 +111,7 @@ import {
 import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
+import { AimMode, turnDirectionForChord } from './ui/aimInput';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -300,6 +301,8 @@ class EpoxyApplication {
   private currentLevelIndex: number = 0;
   private activeMode: 'play' | 'editor' = 'play';
   private heldDirection: Direction | null = null;
+  /** Phone aim toggle: while on, direction inputs turn the player instead of moving it. */
+  private readonly aimMode = new AimMode(document.getElementById('touch-btn-aim') as HTMLButtonElement | null);
   /** Side of the screen the touch pad floats on in the phone full screen layout. */
   private dpadSide: DpadSide = DEFAULT_DPAD_SIDE;
   private touchControl: TouchControl = DEFAULT_TOUCH_CONTROL;
@@ -1680,9 +1683,20 @@ class EpoxyApplication {
     }
   }
 
+  /** True when the level lets the player turn without stepping and the engine can do it. */
+  private turnsInPlace(): boolean {
+    return Boolean(this.engine.turnPlayer) && featuresFor(this.engine.getLevel()).turnInPlace;
+  }
+
   /** Starts a held move from any input source (keys, d-pad, swipe). */
   private beginHeldMove(dir: Direction): void {
     this.clearAutoMove();
+    if (this.aimMode.isOn() && this.turnsInPlace()) {
+      this.heldDirection = null;
+      this.aimMode.noteAimed(dir);
+      this.engine.turnPlayer?.(dir);
+      return;
+    }
     this.heldDirection = dir;
     this.engine.attemptPlayerMove(dir);
   }
@@ -1772,7 +1786,7 @@ class EpoxyApplication {
             const dir: Direction =
               Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : dy > 0 ? 'S' : 'N';
             this.clearAutoMove();
-            if (this.heldDirection !== dir) {
+            if (this.aimMode.currentDirection(this.heldDirection) !== dir) {
               this.triggerHaptic();
               this.beginHeldMove(dir);
             }
@@ -1790,6 +1804,7 @@ class EpoxyApplication {
       if (this.activeMode !== 'play' || this.floatingActive) return;
       if (e.touches.length === 0) {
         this.heldDirection = null;
+        this.aimMode.release();
 
         const duration = Date.now() - startTime;
         const changed = e.changedTouches[0];
@@ -2072,6 +2087,7 @@ class EpoxyApplication {
   /** Loads a level into the engine its ruleset asks for. */
   private loadPlayLevel(level: CompiledLevel): void {
     this.engineSelector.forLevel(level).loadLevel(level);
+    this.aimMode.set(false);
     this.syncSokobanSkinControl(level.winRule);
     this.syncCc2Banner(level);
   }
@@ -3007,6 +3023,7 @@ class EpoxyApplication {
       };
       const stopMove = (): void => {
         btn.classList.remove(DPAD_PRESSED_CLASS);
+        this.aimMode.release();
         if (this.heldDirection === dir) {
           this.heldDirection = null;
         }
@@ -3030,7 +3047,7 @@ class EpoxyApplication {
           const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
           const btn = targetEl?.closest('.dpad-btn') as HTMLElement | null;
           const dir = btn?.getAttribute('data-dir') as Direction | null;
-          if (dir && dir !== this.heldDirection) {
+          if (dir && dir !== this.aimMode.currentDirection(this.heldDirection)) {
             this.triggerHaptic();
             this.beginHeldMove(dir);
             this.markDpadPressed(btn);
@@ -3040,6 +3057,7 @@ class EpoxyApplication {
       );
       const release = (): void => {
         this.heldDirection = null;
+        this.aimMode.release();
         this.markDpadPressed(null);
       };
       container.addEventListener('touchend', release);
@@ -3468,6 +3486,18 @@ class EpoxyApplication {
     // '?' is a Shift chord on a key whose code is bound elsewhere on some layouts (AZERTY).
     if (e.key === '?') {
       run(() => this.openHelpModal());
+      return;
+    }
+
+    const turnDir = turnDirectionForChord(e, kb, this.turnsInPlace());
+    if (turnDir) {
+      // A held Shift + arrow turns once: auto-repeat must not spin the player.
+      run(() => {
+        if (e.repeat) return;
+        this.clearAutoMove();
+        this.heldDirection = null;
+        this.engine.turnPlayer?.(turnDir);
+      });
       return;
     }
 
@@ -4191,6 +4221,9 @@ class EpoxyApplication {
       button.disabled = !this.engine.holdsItem(itemId);
       anyVisible = anyVisible || levelHasItem;
     }
+    const aimVisible = this.turnsInPlace() && this.placedEpoxyBoots().has(STONE_ITEM_ID);
+    this.aimMode.sync(aimVisible, this.engine.holdsItem(STONE_ITEM_ID));
+    anyVisible = anyVisible || aimVisible;
     // The swap button is one more button on the strip, so it wraps the row like a drop button does.
     anyVisible = this.updatePlayersHud() || anyVisible;
     document.body.classList.toggle('charge-button-visible', anyVisible);

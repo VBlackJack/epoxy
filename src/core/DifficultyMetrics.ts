@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
-import { decodeActions, isDropAction, PieceSolver, SolverAction, SWAP_ACTION, WAIT_ACTION } from '../generator/PieceSolver';
+import { decodeActions, isDropAction, isTurnAction, PieceSolver, SolverAction, SWAP_ACTION, WAIT_ACTION } from '../generator/PieceSolver';
 import { GameEngine } from './GameEngine';
 import { DIRT_TILE_IDS, LevelMetrics, Mechanic } from './LevelMetrics';
 import { isPlayerWalkable } from './Walkability';
@@ -241,8 +241,8 @@ export class DifficultyMetrics {
       played++;
       if (action === WAIT_ACTION) {
         waits++;
-      } else if (isDropAction(action) || action === SWAP_ACTION) {
-        // Dropping an item or swapping players counts as a move but is no step: the run of direction reversals is left as it was.
+      } else if (isDropAction(action) || action === SWAP_ACTION || isTurnAction(action)) {
+        // Dropping an item, swapping players or turning in place counts as a move but is no step: the run of direction reversals is left as it was.
         moves++;
       } else {
         moves++;

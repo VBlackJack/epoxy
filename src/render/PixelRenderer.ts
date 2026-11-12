@@ -16,11 +16,11 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, PHASE_LINE_PATTERN, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, PHASE_LINE_PATTERN, STONE_ITEM_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { WARD } from './wardShape';
-import { bootsRevealHiddenWalls } from '../core/RulesetFeatures';
+import { bootsRevealHiddenWalls, featuresFor } from '../core/RulesetFeatures';
 import { JUNCTION_NO_SWITCH, JUNCTION_SAMPLE_MASK, paintRailJunction, paintRailPiece } from './railArt';
 import { paintRelayPad, paintWiredMark } from './relayArt';
 import {
@@ -537,6 +537,20 @@ const CONTROLLED_RING_WIDTH_RATIO = 0.06;
 const CONTROLLED_RING_CENTER_Y_RATIO = 0.82;
 const CONTROLLED_RING_RADIUS_X_RATIO = 0.4;
 const CONTROLLED_RING_RADIUS_Y_RATIO = 0.14;
+/** The aim chevron of a held hurl stone: opacity, stroke width, tip distance from the cell centre, arm depth and half spread (cell ratios). */
+const AIM_CHEVRON_ALPHA = 0.85;
+const AIM_CHEVRON_WIDTH_RATIO = 0.07;
+const AIM_CHEVRON_TIP_RATIO = 0.48;
+const AIM_CHEVRON_DEPTH_RATIO = 0.18;
+const AIM_CHEVRON_SPREAD_RATIO = 0.2;
+const AIM_CHEVRON_MIN_WIDTH_PX = 1;
+/** Unit step of each facing in screen space (y grows downward). */
+const AIM_FACING_STEP: Readonly<Record<Direction, { readonly x: number; readonly y: number }>> = {
+  N: { x: 0, y: -1 },
+  E: { x: 1, y: 0 },
+  S: { x: 0, y: 1 },
+  W: { x: -1, y: 0 }
+};
 
 /** Lights are gathered from terrain this many tiles beyond the view, so their glow can reach in. */
 const LIGHT_MARGIN_TILES = 2;
@@ -1709,6 +1723,10 @@ export class PixelRenderer {
       hop,
       this.usesRunewardCharacters() ? this.playerPoseExtras(engine) : undefined
     );
+    // A held hurl stone is thrown the way the player faces: a chevron on that edge of his cell shows it (turn in place).
+    if (player.alive && featuresFor(engine.getLevel()).turnInPlace && engine.holdsItem(STONE_ITEM_ID)) {
+      this.drawAimChevron(sceneCtx, spritePx, spritePy - hop * unit, unit, player.dir, lowRes);
+    }
     // The players not controlled stand where they are, each with its own character.
     const parked = engine.getParkedPlayers?.();
     if (parked !== undefined) {
@@ -7141,6 +7159,34 @@ export class PixelRenderer {
       0,
       Math.PI * 2
     );
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** A small chevron on the edge of the cell the player faces (`y` already carries the sprite's hop lift); its pixels are whole numbers when `snap` (low-res and retro styles). */
+  private drawAimChevron(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, dir: Direction, snap: boolean): void {
+    const step = AIM_FACING_STEP[dir];
+    const fit = (value: number): number => (snap ? Math.round(value) : value);
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const tipX = cx + step.x * size * AIM_CHEVRON_TIP_RATIO;
+    const tipY = cy + step.y * size * AIM_CHEVRON_TIP_RATIO;
+    const backX = tipX - step.x * size * AIM_CHEVRON_DEPTH_RATIO;
+    const backY = tipY - step.y * size * AIM_CHEVRON_DEPTH_RATIO;
+    // The perpendicular of the facing spreads the two arms.
+    const spreadX = Math.abs(step.y) * size * AIM_CHEVRON_SPREAD_RATIO;
+    const spreadY = Math.abs(step.x) * size * AIM_CHEVRON_SPREAD_RATIO;
+    ctx.save();
+    ctx.globalAlpha = AIM_CHEVRON_ALPHA;
+    ctx.strokeStyle = this.pal().objectiveHalo;
+    const width = size * AIM_CHEVRON_WIDTH_RATIO;
+    ctx.lineWidth = snap ? Math.max(AIM_CHEVRON_MIN_WIDTH_PX, Math.round(width)) : Math.max(AIM_CHEVRON_MIN_WIDTH_PX, width);
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(fit(backX - spreadX), fit(backY - spreadY));
+    ctx.lineTo(fit(tipX), fit(tipY));
+    ctx.lineTo(fit(backX + spreadX), fit(backY + spreadY));
     ctx.stroke();
     ctx.restore();
   }

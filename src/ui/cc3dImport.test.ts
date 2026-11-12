@@ -164,10 +164,10 @@ describe('import as Epoxy levels', () => {
     expect(result.summary.imported).toBe(1);
   });
 
-  it('gives the imported level every Epoxy aid except the push hint and the dead-end watch, which the block solver cannot judge on CC3D goals', async () => {
+  it('gives the imported level every Epoxy aid except the push hint, the dead-end watch and turning in place, which the block solver cannot judge on CC3D goals', async () => {
     const { levels } = await importCc3dSelection([file('1.xml', VALID, 1)], MAX_BYTES, 'Pack');
     expect(featuresFor(levels[0]).itemDrop).toBe(true);
-    expect(featuresFor(levels[0])).toEqual({ ...featuresFor({ ruleset: 'epoxy' }), blockHint: false, deadEndWatch: false });
+    expect(featuresFor(levels[0])).toEqual({ ...featuresFor({ ruleset: 'epoxy' }), blockHint: false, deadEndWatch: false, turnInPlace: false });
   });
 
   it('keeps every converted level in the pack and counts it under exactly one verdict', () => {

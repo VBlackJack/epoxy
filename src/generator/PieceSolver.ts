@@ -44,7 +44,33 @@ export const DROP_STONE_ACTION = 'DROP_STONE';
 export type DropAction = typeof DROP_CHARGE_ACTION | typeof DROP_GATE_ACTION | typeof DROP_STONE_ACTION;
 /** The swap key: control passes to the next player of a level with several. */
 export const SWAP_ACTION = 'SWAP';
-export type SolverAction = Direction | typeof WAIT_ACTION | DropAction | typeof SWAP_ACTION;
+/** Turning in place, one action per direction faced: the player faces it without stepping (to aim a thrown stone). */
+export const TURN_N_ACTION = 'TURN_N';
+export const TURN_E_ACTION = 'TURN_E';
+export const TURN_S_ACTION = 'TURN_S';
+export const TURN_W_ACTION = 'TURN_W';
+export type TurnAction = typeof TURN_N_ACTION | typeof TURN_E_ACTION | typeof TURN_S_ACTION | typeof TURN_W_ACTION;
+export type SolverAction = Direction | typeof WAIT_ACTION | DropAction | typeof SWAP_ACTION | TurnAction;
+
+/** The direction each turn action faces. */
+export const TURN_ACTION_DIRECTIONS: Readonly<Record<TurnAction, Direction>> = {
+  [TURN_N_ACTION]: 'N',
+  [TURN_E_ACTION]: 'E',
+  [TURN_S_ACTION]: 'S',
+  [TURN_W_ACTION]: 'W'
+};
+
+/** The turn action that faces each direction; its written letter is the direction's lowercase letter. */
+const TURN_ACTION_BY_LETTER: Readonly<Record<string, TurnAction>> = {
+  n: TURN_N_ACTION,
+  e: TURN_E_ACTION,
+  s: TURN_S_ACTION,
+  w: TURN_W_ACTION
+};
+
+export function isTurnAction(action: SolverAction): action is TurnAction {
+  return action in TURN_ACTION_DIRECTIONS;
+}
 /** The actions a search tries from a state: a step or a wait (dropping an item is never searched). */
 export type MoveAction = Direction | typeof WAIT_ACTION;
 
@@ -60,10 +86,10 @@ export function isDropAction(action: SolverAction): action is DropAction {
 }
 
 export function isMoveAction(action: SolverAction): action is MoveAction {
-  return !isDropAction(action) && action !== SWAP_ACTION;
+  return !isDropAction(action) && action !== SWAP_ACTION && !isTurnAction(action);
 }
 
-/** Letter standing for a wait in a written action list; moves use N, E, S and W. */
+/** Letter standing for a wait in a written action list; moves use N, E, S and W, turns in place n, e, s and w. */
 export const WAIT_LETTER = '.';
 
 /** Letter standing for the swap key (switch Player) in a written action list. */
@@ -87,7 +113,17 @@ const DROP_ACTION_LETTERS: Readonly<Record<DropAction, string>> = {
 
 export function encodeActions(actions: readonly SolverAction[]): string {
   return actions
-    .map((a) => (a === WAIT_ACTION ? WAIT_LETTER : a === SWAP_ACTION ? SWAP_LETTER : isDropAction(a) ? DROP_ACTION_LETTERS[a] : a))
+    .map((a) =>
+      a === WAIT_ACTION
+        ? WAIT_LETTER
+        : a === SWAP_ACTION
+          ? SWAP_LETTER
+          : isDropAction(a)
+            ? DROP_ACTION_LETTERS[a]
+            : isTurnAction(a)
+              ? TURN_ACTION_DIRECTIONS[a].toLowerCase()
+              : a
+    )
     .join('');
 }
 
@@ -98,6 +134,8 @@ export function decodeActions(text: string): SolverAction[] {
     if (ch === DROP_CHARGE_LETTER) return DROP_CHARGE_ACTION;
     if (ch === DROP_GATE_LETTER) return DROP_GATE_ACTION;
     if (ch === DROP_STONE_LETTER) return DROP_STONE_ACTION;
+    const turn = TURN_ACTION_BY_LETTER[ch];
+    if (turn !== undefined) return turn;
     return ch as Direction;
   });
 }
@@ -365,6 +403,11 @@ export class PieceSolver {
     if (action === SWAP_ACTION) {
       // A swap that cannot happen (nobody else on the map) breaks the list, like a drop that cannot.
       if (!engine.swapPlayer()) return false;
+      return this.settle(engine);
+    }
+    if (isTurnAction(action)) {
+      // A turn that cannot happen (already facing that way, a force floor) breaks the list, like a drop that cannot.
+      if (!engine.turnPlayer(TURN_ACTION_DIRECTIONS[action])) return false;
       return this.settle(engine);
     }
     if (isDropAction(action)) {

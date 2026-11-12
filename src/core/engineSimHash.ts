@@ -15,7 +15,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { collectDueMoves } from '../ui/replaySchedule';
+import { applyTimedMove, collectDueMoves } from '../ui/replaySchedule';
 import { timedSolution } from '../generator/SolutionReplay';
 import { GameEngine } from './GameEngine';
 import type { CompiledLevel, Direction } from './types';
@@ -137,11 +137,7 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
         let index = 0;
         for (let i = 0; i < MAX_REPLAY_TICKS && !engine.isLevelCompleted(); i++) {
           const { due, nextIndex } = collectDueMoves(moves, index, engine.getTick());
-          for (const move of due) {
-            if (move.drop !== undefined) engine.dropItem(move.drop);
-            else if (move.swap === true) engine.swapPlayer();
-            else engine.attemptPlayerMove(move.dir);
-          }
+          for (const move of due) applyTimedMove(engine, move);
           index = nextIndex;
           tickAndRecord();
           if (!engine.getPlayer().alive) break;
