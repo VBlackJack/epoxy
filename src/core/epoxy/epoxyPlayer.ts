@@ -202,6 +202,8 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   // True when opening the target shows terrain the level hid under it (see the entry pass below).
   let revealedUnder = false;
+  // True when this step opened a socket or a door (CC2 engine: the cell stays closed to monsters until the step ends).
+  let opensTarget = false;
 
   if (targetTile.requiresAllChips) {
     if (w.chipsRemaining <= 0) {
@@ -209,6 +211,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       revealedUnder = revealed !== null;
       w.terrain[targetY][targetX] = revealed ?? (targetTile.transformsToOnUnlock || FLOOR_TILE_ID);
       w.gridMutatedByMove = true;
+      opensTarget = true;
       AudioManager.playSfx('socket');
       ctx.emitVisual('unlock', targetX, targetY, 'yellow');
     } else {
@@ -228,6 +231,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       revealedUnder = revealed !== null;
       w.terrain[targetY][targetX] = revealed ?? (targetTile.transformsToOnUnlock || FLOOR_TILE_ID);
       w.gridMutatedByMove = true;
+      opensTarget = true;
       AudioManager.playSfx('door');
       ctx.emitVisual('unlock', targetX, targetY, targetTile.colorKey || 'yellow');
     } else {
@@ -331,6 +335,9 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   w.player.x = targetX;
   w.player.y = targetY;
   w.statusBannerKey = wardSpent ? 'hud.messages.ward_spent' : null;
+  // CC2 engine: the socket or door he opened goes when his step ends (Lexy on_arrive), so until then monsters find it shut.
+  // Set only now that the step went through; applyCc3dStepEnd clears it.
+  if (opensTarget && usesCc2Engine(w.level) && !w.cc3dPace) cc3dArrivalOf(w.player).opening = { x: targetX, y: targetY };
 
   if (!fromSlide) {
     AudioManager.playStep(stepTerrainOf(ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.player.boots));
