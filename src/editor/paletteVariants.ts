@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { SIGNAL_GATE_CC2_ID_SUFFIX } from '../core/coreConstants';
 import type { TileDefinition } from '../core/types';
 
 /** Names of the variant families, read from the tile configs: a family is a set of tiles that differ by one field. */
@@ -22,6 +23,8 @@ export const VARIANT_FAMILY = {
   noSign: 'no_sign',
   /** A counter gate: one tile per starting value (signalCounterStart). */
   signalCounter: 'signal_counter',
+  /** A counter gate of the Chip's Challenge 2 set (id suffix _cc2): its own family, apart from the native counters. */
+  signalCounterCc2: 'signal_counter_cc2',
   /** A swivel door: one tile per pair of closed sides (swivelTurns). */
   swivel: 'swivel',
   /** A swivel door that follows the Chip's Challenge 2 rule (swivelRule cc2). */
@@ -33,7 +36,9 @@ export const VARIANT_FAMILY = {
 /** The family a tile belongs to, decided from its config fields alone; null when it stands on its own. */
 export function variantFamilyOf(tile: TileDefinition): string | null {
   if (tile.layer === 'item' && tile.forbiddenItem !== undefined) return VARIANT_FAMILY.noSign;
-  if (tile.signalCounterStart !== undefined) return VARIANT_FAMILY.signalCounter;
+  if (tile.signalCounterStart !== undefined) {
+    return tile.id.endsWith(SIGNAL_GATE_CC2_ID_SUFFIX) ? VARIANT_FAMILY.signalCounterCc2 : VARIANT_FAMILY.signalCounter;
+  }
   if (tile.swivelTurns !== undefined) return tile.swivelRule === 'cc2' ? VARIANT_FAMILY.swivelCc2 : VARIANT_FAMILY.swivel;
   if (tile.signalToggleTwin !== undefined) return VARIANT_FAMILY.toggleSwitch;
   return null;

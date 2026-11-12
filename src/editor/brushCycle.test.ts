@@ -34,6 +34,7 @@ describe('variant families', () => {
     const t = tiles();
     expect(variantFamilyOf(t.no_sign_key_red)).toBe(VARIANT_FAMILY.noSign);
     expect(variantFamilyOf(t.signal_counter_3)).toBe(VARIANT_FAMILY.signalCounter);
+    expect(variantFamilyOf(t.signal_counter_3_cc2)).toBe(VARIANT_FAMILY.signalCounterCc2);
     expect(variantFamilyOf(t.swivel_door_cc2_ne)).toBe(VARIANT_FAMILY.swivelCc2);
     expect(variantFamilyOf(t.swivel_door_ne)).toBe(VARIANT_FAMILY.swivel);
     expect(variantFamilyOf(t.toggle_switch_on)).toBe(VARIANT_FAMILY.toggleSwitch);
@@ -44,7 +45,11 @@ describe('variant families', () => {
   it('lists the members of a family in config order', () => {
     const counters = familyMembers(tiles(), VARIANT_FAMILY.signalCounter, MECHANISMS).map((tile) => tile.id);
     expect(counters.length).toBeGreaterThan(1);
-    expect(counters).toEqual(Object.keys(tiles()).filter((id) => tiles()[id].signalCounterStart !== undefined));
+    const native = Object.keys(tiles()).filter((id) => tiles()[id].signalCounterStart !== undefined && !id.endsWith('_cc2'));
+    expect(counters).toEqual(native);
+    const cc2 = familyMembers(tiles(), VARIANT_FAMILY.signalCounterCc2, MECHANISMS).map((tile) => tile.id);
+    expect(cc2).toEqual(Object.keys(tiles()).filter((id) => tiles()[id].signalCounterStart !== undefined && id.endsWith('_cc2')));
+    expect(cc2.length).toBe(counters.length);
   });
 
   it('keeps one entry per family, showing the chosen variant, else the first', () => {
