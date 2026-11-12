@@ -15,12 +15,12 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { CC_CADENCE_TYPES, DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, DEFAULT_PLAYER_CHARACTER, PULSE_WIRED_ACTION } from '../coreConstants';
+import { followsCcCadence, DEFAULT_MONSTER_MOVE_INTERVAL_TICKS, DEFAULT_PLAYER_CHARACTER, PULSE_WIRED_ACTION } from '../coreConstants';
 import { SeededRandom } from '../Random';
 import { compileSignalSpec } from '../signalLinks';
 import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
-import { usesCcRules } from './ccRules';
+import { usesCc2Engine, usesCcRules } from './ccRules';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { newCcGenerators } from './ccGenerators';
 import { hasEntityFacing } from './epoxyArrowBlocks';
@@ -70,7 +70,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       y: e.y,
       dir: e.dir,
       // A classic-rules monster and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
-      cooldownTicks: (ccCadence && CC_CADENCE_TYPES.includes(e.type)) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      cooldownTicks: (ccCadence && followsCcCadence(e.type, usesCc2Engine(level))) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),
