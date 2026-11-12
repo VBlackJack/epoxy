@@ -109,6 +109,8 @@ function revealBump(w: EpoxyWorld, refusal: PushRefusal): void {
 
 /** Ticks a CC3D block the player pushes takes to finish its step before its cell acts on it (Cc3d STEP_TICKS.normal). */
 const CC3D_PUSH_STEP_TICKS = 4;
+/** Ticks a pushed block of the CC2 engine takes to finish its step (the same four as the CC3D push). */
+const CC2_PUSH_STEP_TICKS = 4;
 
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
 function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
@@ -330,7 +332,7 @@ export function moveBlockTo(
   // A block of the CC3D rules takes its step to finish: it holds its cell now and the cell acts on it when the step ends.
   if (deferArrival) {
     // A block the running pass has already visited has missed this tick's countdown: it counts the tick of its push now.
-    block.arrivalTicks = CC3D_PUSH_STEP_TICKS - (w.entityPassSeen.has(block.uid) ? 1 : 0);
+    block.arrivalTicks = (usesCc2Engine(w.level) ? CC2_PUSH_STEP_TICKS : CC3D_PUSH_STEP_TICKS) - (w.entityPassSeen.has(block.uid) ? 1 : 0);
     return;
   }
   settleBlockArrival(ctx, block, dir, allowTeleport);
