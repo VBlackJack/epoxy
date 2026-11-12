@@ -5157,6 +5157,108 @@
         "label": "Le joueur la dégage en y marchant ; les monstres ne peuvent pas y entrer. Un bloc de terre, un bloc de couleur ou un bloc de glace peut y entrer. Un bloc de terre ou de couleur la change en sol ; un bloc de glace passe dessus et la laisse intacte."
       }
     },
+    "dirt_cc2": {
+      "name": "Terre (CC2)",
+      "desc": {
+        "label": "Le joueur la dégage en y marchant ; les monstres ne peuvent pas y entrer. Tout bloc sauf un bloc de terre peut y entrer et la change en sol."
+      }
+    },
+    "signal_gate_and_cc2": {
+      "name": "Porte ET (CC2)",
+      "desc": {
+        "label": "Envoie un signal tant que toutes ses entrées liées en envoient un. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_gate_or_cc2": {
+      "name": "Porte OU (CC2)",
+      "desc": {
+        "label": "Envoie un signal tant qu'une de ses entrées liées en envoie un. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_gate_not_cc2": {
+      "name": "Porte NON (CC2)",
+      "desc": {
+        "label": "Envoie un signal tant que son unique entrée liée n'en envoie pas. Nécessite : un lien de signal en entrée et un en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_gate_xor_cc2": {
+      "name": "Porte OU exclusif (CC2)",
+      "desc": {
+        "label": "Envoie un signal tant qu'un nombre impair de ses entrées liées en envoient un. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_gate_nand_cc2": {
+      "name": "Porte NON-ET (CC2)",
+      "desc": {
+        "label": "Envoie un signal sauf si tous les signaux qui lui sont liés en envoient un. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_gate_dlatch_cc2": {
+      "name": "Verrou de données (CC2)",
+      "desc": {
+        "label": "Mémorise le signal de son lien de données (port in0) tant que son lien d'horloge (port in1) envoie un signal, et envoie ce qu'il mémorise. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_0_cc2": {
+      "name": "Compteur (0) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 0. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_1_cc2": {
+      "name": "Compteur (1) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 1. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_2_cc2": {
+      "name": "Compteur (2) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 2. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_3_cc2": {
+      "name": "Compteur (3) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 3. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_4_cc2": {
+      "name": "Compteur (4) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 4. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_5_cc2": {
+      "name": "Compteur (5) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 5. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_6_cc2": {
+      "name": "Compteur (6) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 6. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_7_cc2": {
+      "name": "Compteur (7) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 7. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_8_cc2": {
+      "name": "Compteur (8) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 8. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
+    "signal_counter_9_cc2": {
+      "name": "Compteur (9) (CC2)",
+      "desc": {
+        "label": "Compte à chaque départ de sa première entrée (in0) et décompte à chaque départ de la seconde (in1), de 0 à 9 ; démarre à 9. Passer au-delà de 9 envoie une brève impulsion sur out0 ; passer sous 0 envoie sur out1 jusqu'au comptage suivant. Nécessite : des liens de signal en entrée et en sortie. Tout acteur peut la traverser."
+      }
+    },
     "popup_wall_cc2": {
       "name": "Mur escamotable (CC2)",
       "desc": {

@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { findFormat17ConfigErrors } from './ConfigValidation';
 import { ConfigRegistry } from './ConfigRegistry';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V16_IDS, PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V17_IDS } from './constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V16_IDS, PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V17_IDS, PACK_JSON_VERSION_V18 } from './constants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
@@ -42,7 +42,7 @@ describe('format 17 ids', () => {
   it('lists exactly the new ids, none of them in an older format', () => {
     expect([...PACK_JSON_VERSION_V17_IDS].sort()).toEqual([...NEW_IDS].sort());
     for (const id of NEW_IDS) expect(PACK_JSON_VERSION_V16_IDS.has(id), id).toBe(false);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V17);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
   });
 
   it('defines every new id in the shipped configs, with a name and a description in both languages', () => {
@@ -83,7 +83,7 @@ describe('format 17 ids', () => {
     const level = makeLevel('f17');
     level.terrain[1][1] = 'trap_sealed';
     const file = JSON.parse(serializePack('P', [level]));
-    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V17 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
+    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V18 + 1 }), ConfigRegistry.getLevelSizeBounds(), new Set<string>(), () => 0);
     expect(read).toEqual({ ok: false, error: 'version' });
   });
 });

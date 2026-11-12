@@ -35,7 +35,7 @@ import {
   PACK_JSON_VERSION_V14,
   PACK_JSON_VERSION_V15,
   PACK_JSON_VERSION_V16,
-  PACK_JSON_VERSION_V17
+  PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V18
 } from '../../config/constants';
 import { tileAvailability } from '../../editor/paletteAvailability';
 import { DatCodec, datRefusalReason } from '../../formats/DatCodec';
@@ -637,8 +637,8 @@ describe('pocket gate: rulesets and formats', () => {
   });
 
   it('lists every id set in the table, each with the ids in the shipped configs', () => {
-    expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toEqual([PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10, PACK_JSON_VERSION_V11, PACK_JSON_VERSION_V12, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V14, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V17]);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V17);
+    expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toEqual([PACK_JSON_VERSION_V7, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V10, PACK_JSON_VERSION_V11, PACK_JSON_VERSION_V12, PACK_JSON_VERSION_V13, PACK_JSON_VERSION_V14, PACK_JSON_VERSION_V15, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V17, PACK_JSON_VERSION_V18]);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
     expect([...PACK_JSON_VERSION_V8_IDS].sort()).toEqual([GATE, PAD].sort());
     for (const id of PACK_JSON_VERSION_V8_IDS) expect(ConfigRegistry.getTiles().tiles[id]).toBeDefined();
   });

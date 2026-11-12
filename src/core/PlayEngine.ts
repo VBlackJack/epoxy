@@ -124,6 +124,8 @@ export interface PlayEngine {
   getHiddenLayerCells?(): ReadonlySet<number>;
   /** Optional. The blast charges lit and not yet blasted, with the tick each blasts at; undefined when none is lit. An engine without charges omits it. */
   getLitCharges?(): readonly LitCharge[] | undefined;
+  /** Optional. The splashes a block left in water that still bar the player, with the fraction of their life left (1 fresh, toward 0 gone); undefined when none. */
+  getBlockSplashes?(): readonly { x: number; y: number; left: number }[] | undefined;
   /** Optional. The shots in flight; undefined on a level without shot launchers. An engine without them omits it. */
   getShots?(): readonly Shot[] | undefined;
   /**

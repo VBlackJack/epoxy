@@ -109,6 +109,16 @@ export interface EpoxyWorld {
    */
   revealedCells: Set<number>;
   /**
+   * CC2 engine: the splashes a block sunk in water left, by cell (index y * width + x), each with the entity pass (counted by
+   * ccMonsterClock) it lasts until; the real player cannot enter such a cell before then. Empty at load, saved with the undo snapshot.
+   */
+  blockSplashes: Map<number, number>;
+  /**
+   * CC2 engine: blocks finishing a step whose turn in the running entity pass is spent (by the countdown, or by a block behind
+   * them that slid into their cell), by uid, with the pass. Transient, never saved.
+   */
+  turnSpent: Map<number, number>;
+  /**
    * The side an actor came into a swivel door by, per cell (index y * width + x). The door turns when the
    * actor leaves. Empty at load.
    */
@@ -262,6 +272,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     underlays: null,
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
+    blockSplashes: new Map<number, number>(),
+    turnSpent: new Map<number, number>(),
     swivelEntry: new Map<number, Direction>(),
     railCells: new Map<number, RailCellState>(),
     toggleParity: 0,
@@ -355,6 +367,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   }
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
+  w.blockSplashes = new Map<number, number>();
+  w.turnSpent = new Map<number, number>();
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
   w.litCharges = [];

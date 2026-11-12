@@ -384,6 +384,22 @@ describe('findSignalConfigErrors', () => {
     expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByPlayer: true })).join()).toContain('impassable');
     expect(findSignalConfigErrors(withTile('signal_gate_xor', { passableByBlock: true })).join()).toContain('impassable');
   });
+
+  it('accepts the passable CC2 form of a gate, and nothing else passable', () => {
+    const tiles = shipped();
+    expect(tiles.signal_gate_and_cc2.passableByPlayer).toBe(true);
+    expect(tiles.signal_counter_3_cc2.passableByMonster).toBe(true);
+    expect(tiles.signal_gate_and.passableByPlayer).toBe(false);
+    expect(findSignalConfigErrors(tiles)).toEqual([]);
+    // The same logic under another suffix, another logic under the suffix, or another counter start are no variant of the gate.
+    expect(findSignalConfigErrors({ ...tiles, signal_gate_and_alt: { ...tiles.signal_gate_and_cc2, id: 'signal_gate_and_alt' } }).join()).toContain('impassable');
+    expect(findSignalConfigErrors(withTile('signal_gate_and_cc2', { signalGate: 'or' })).join()).toContain('impassable');
+    expect(findSignalConfigErrors(withTile('signal_counter_3_cc2', { signalCounterStart: 4 })).join()).toContain('impassable');
+  });
+
+  it('keeps the base gate impassable even when its CC2 form exists', () => {
+    expect(findSignalConfigErrors(withTile('signal_gate_and', { passableByMonster: true })).join()).toContain('signal_gate_and: a signal gate must be impassable');
+  });
 });
 
 describe('findTouchConfigErrors', () => {

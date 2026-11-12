@@ -52,7 +52,7 @@ import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
-import { attemptPushBlock, canPushBlock, stepSlidingBlock } from './epoxyBlocks';
+import { attemptPushBlock, canPushBlock, eraseSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -101,6 +101,8 @@ export function updateEntities(ctx: EpoxyContext): void {
     w.ccPassOpen = false;
     w.ccPlans.clear();
     w.entityPassSeen.clear();
+    w.turnSpent.clear();
+    pruneSplashes(w);
   }
 }
 
@@ -818,6 +820,11 @@ function canopyStopsStep(w: EpoxyWorld, def: EntityDefinition | undefined, fromX
 
 /** A step the monster takes on its own: a block in the way counts as free when the monster pushes and the push would succeed. */
 function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): boolean {
+  // CC2 engine: a monster that so much as considers stepping onto a block splash erases it (Lexy: any non-player actor).
+  if (usesCc2Engine(w.level) && w.blockSplashes.size > 0) {
+    const vec = DIRECTION_VECTORS[wanted];
+    eraseSplash(w, monster.x + vec.dx, monster.y + vec.dy);
+  }
   return canMonsterEnter(w, monster, wanted, false, true, true);
 }
 

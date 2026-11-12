@@ -21,6 +21,7 @@ import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, CC_BLOCK_SLIDE_COOLDOWN_TICKS, 
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
+import { usesCc2Engine } from './ccRules';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -40,8 +41,33 @@ import {
   removeEntity,
   shotAt,
   playerAtCell,
-  killPlayerAt
+  killPlayerAt,
+  mapWidth
 } from './epoxyWorld';
+
+/**
+ * CC2 engine: entity passes a splash a block left in water bars the real player (Lexy: a 16-frame animation that a cooldown of
+ * three frames a tick takes down on the fifth pass after it appeared).
+ */
+export const CC2_SPLASH_BLOCK_PASSES = 5;
+
+/** Whether a splash a block left in water still bars the real player from this cell. */
+export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
+  if (w.blockSplashes.size === 0) return false;
+  const until = w.blockSplashes.get(y * mapWidth(w) + x);
+  return until !== undefined && w.ccMonsterClock < until;
+}
+
+/** Drops the splashes whose life is over: they bar nobody and are not drawn. */
+export function pruneSplashes(w: EpoxyWorld): void {
+  if (w.blockSplashes.size === 0) return;
+  for (const [cell, until] of w.blockSplashes) if (w.ccMonsterClock >= until) w.blockSplashes.delete(cell);
+}
+
+/** Any mover other than the real player that tries to enter a cell erases the splash on it. */
+export function eraseSplash(w: EpoxyWorld, x: number, y: number): void {
+  if (w.blockSplashes.size > 0) w.blockSplashes.delete(y * mapWidth(w) + x);
+}
 
 /**
  * Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). `head` is the block
@@ -83,6 +109,8 @@ function revealBump(w: EpoxyWorld, refusal: PushRefusal): void {
 
 /** Ticks a CC3D block the player pushes takes to finish its step before its cell acts on it (Cc3d STEP_TICKS.normal). */
 const CC3D_PUSH_STEP_TICKS = 4;
+/** Ticks a pushed block of the CC2 engine takes to finish its step (the same four as the CC3D push). */
+const CC2_PUSH_STEP_TICKS = 4;
 
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
 function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
@@ -211,12 +239,17 @@ export function attemptPushBlock(
 
 /**
  * Whether the step of a block the player pushes ends later than the push: a CC3D block (Cc3dSimulation.startStep gives it
- * the player's four ticks) onto a cell that is not ice, a force floor or a teleporter, which it enters at the fast pace
- * and which act on it at once here.
+ * the player's four ticks) or a block of a CC2-engine level onto a cell that is not ice, a force floor or a teleporter,
+ * which it enters at the fast pace and which act on it at once here.
  */
 function defersArrival(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number): boolean {
-  if (ConfigRegistry.getEntityDef(block.type)?.stopsAtWall !== true) return false;
-  const tile = ConfigRegistry.getTile(w.terrain[destY][destX]);
+  if (!usesCc2Engine(w.level) && ConfigRegistry.getEntityDef(block.type)?.stopsAtWall !== true) return false;
+  return arrivesAtStepEnd(w, destX, destY);
+}
+
+/** Whether a block that reaches this cell takes a whole step to do so: not onto ice, a force floor or a teleporter, which act at once. */
+function arrivesAtStepEnd(w: EpoxyWorld, x: number, y: number): boolean {
+  const tile = ConfigRegistry.getTile(w.terrain[y][x]);
   return tile.slideType === undefined && tile.isTeleporter !== true && tile.teleportsToSelf !== true;
 }
 
@@ -286,6 +319,7 @@ export function moveBlockTo(
   block.x = destX;
   block.y = destY;
   block.dir = dir;
+  eraseSplash(w, destX, destY);
   enterSwivel(w, destX, destY, dir);
 
   const crushed = playerAtCell(w, destX, destY);
@@ -298,7 +332,7 @@ export function moveBlockTo(
   // A block of the CC3D rules takes its step to finish: it holds its cell now and the cell acts on it when the step ends.
   if (deferArrival) {
     // A block the running pass has already visited has missed this tick's countdown: it counts the tick of its push now.
-    block.arrivalTicks = CC3D_PUSH_STEP_TICKS - (w.entityPassSeen.has(block.uid) ? 1 : 0);
+    block.arrivalTicks = (usesCc2Engine(w.level) ? CC2_PUSH_STEP_TICKS : CC3D_PUSH_STEP_TICKS) - (w.entityPassSeen.has(block.uid) ? 1 : 0);
     return;
   }
   settleBlockArrival(ctx, block, dir, allowTeleport);
@@ -339,7 +373,10 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   }
 
   if (tile.hazard === 'water') {
-    w.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
+    const filled = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    // On a CC2-engine level the fill is the CC2 form of that tile when it has one (CC2 dirt stops only the dirt block).
+    w.terrain[destY][destX] = (usesCc2Engine(w.level) ? ConfigRegistry.getTile(filled).cc2Twin : undefined) || filled;
     removeEntity(w, block.uid);
     AudioManager.playSfx('splash');
     ctx.emitVisual('splash', destX, destY);
@@ -428,12 +465,31 @@ function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, 
   return pushed;
 }
 
+/**
+ * CC2 engine: a block in the cell ahead whose step ends in this pass has ended it before the block behind moves (Lexy ends a step
+ * at the start of the tic, ahead of the moves), whatever their order in the entity list: a block sunk in the water ahead has
+ * filled it by then.
+ */
+function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  if (!isInBounds(w, x, y)) return;
+  const ahead = getEntityAt(w, x, y);
+  if (ahead === undefined || ahead.kind !== 'block' || ahead.arrivalTicks === undefined || ahead.arrivalTicks > 1) return;
+  if (w.turnSpent.get(ahead.uid) === w.ccMonsterClock) return;
+  delete ahead.arrivalTicks;
+  w.turnSpent.set(ahead.uid, w.ccMonsterClock);
+  settleBlockArrival(ctx, ahead, ahead.dir, true);
+}
+
 /** Advances one block of the entity loop by a tick: a block moves only while it slides. */
 export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
+  // A block whose step already ended this pass (see settleAheadEarly) has had its turn.
+  if (usesCc2Engine(w.level) && w.turnSpent.get(entity.uid) === w.ccMonsterClock) return;
   // A pushed CC3D block finishing its step: the cell acts on it when the step ends.
   if (entity.arrivalTicks !== undefined) {
     entity.arrivalTicks--;
+    if (usesCc2Engine(w.level)) w.turnSpent.set(entity.uid, w.ccMonsterClock);
     if (entity.arrivalTicks <= 0) {
       delete entity.arrivalTicks;
       settleBlockArrival(ctx, entity, entity.dir, true);
@@ -458,6 +514,7 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
     return;
   }
 
+  if (usesCc2Engine(w.level)) settleAheadEarly(ctx, nx, ny);
   if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
     // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
     if (!w.player.alive) return;
@@ -482,7 +539,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   }
 
   if (isCanBlockEnter(w, entity, nx, ny, slideDir)) {
-    moveBlockTo(ctx, entity, nx, ny, slideDir);
+    // CC2 engine: a block sliding off ice or a force floor onto a plain cell takes a full step; that cell acts at its end.
+    moveBlockTo(ctx, entity, nx, ny, slideDir, true, usesCc2Engine(w.level) && arrivesAtStepEnd(w, nx, ny));
     return;
   }
   // A slide that runs into an appearing wall any mover reveals shows it.

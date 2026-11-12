@@ -85,6 +85,30 @@ describe('checkCc2ReplayBest on the CC2 engine', () => {
   });
 });
 
+describe('checkCc2Replay with the CC2 dirt', () => {
+  const walkThroughDirt = () => {
+    const level = levelOf(6, 1, [terrain(4, 0, CODE_EXIT)]);
+    level.terrain[0][2] = 'dirt_cc2';
+    return level;
+  };
+
+  it('plays the CC2 dirt as dirt on the Lynx and CC2 engines, which would play an unknown id as a wall', () => {
+    const level = walkThroughDirt();
+    for (const engine of ['lynx', 'cc2'] as const) {
+      const best = checkCc2ReplayBest(level, replayOf(hold(E, 4)), engine);
+      expect(best.won, engine).toBe(true);
+      expect(best.unsupported, engine).toEqual([]);
+    }
+  });
+
+  it('leaves the level it was given untouched, and the Epoxy engine on the CC2 dirt', () => {
+    const level = walkThroughDirt();
+    expect(checkCc2ReplayBest(level, replayOf(hold(E, 4)), 'epoxy').won).toBe(true);
+    checkCc2ReplayBest(level, replayOf(hold(E, 4)), 'lynx');
+    expect(level.terrain[0][2]).toBe('dirt_cc2');
+  });
+});
+
 describe('checkCc2Replay', () => {
   it('wins a straight walk with both strategies', () => {
     const level = levelOf(6, 1, [terrain(4, 0, CODE_EXIT)]);
@@ -233,5 +257,32 @@ describe('checkCc2Replay with several held keys', () => {
       expect(checkCc2Replay(level, replay, 'held', engine).won).toBe(true);
     }
     expect(checkCc2Replay(level, replay, 'held').won).toBe(false);
+  });
+});
+
+describe('checkCc2Replay after the replay ends', () => {
+  const LONG_CORRIDOR = 20;
+  // One step of E, then the stream ends with E still held (no release entry).
+  const endsHeld = () =>
+    replayOf([
+      [0, E],
+      [STEP_FRAMES, E]
+    ]);
+
+  it('keeps holding the last input during the grace period on the Epoxy engine', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, endsHeld(), 'held').won).toBe(true);
+  });
+
+  it('still releases after a final release entry', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, replayOf(hold(E, 2)), 'held').won).toBe(false);
+  });
+
+  it('leaves the Lynx based engines releasing at the end', () => {
+    const level = levelOf(LONG_CORRIDOR, 1, [terrain(LONG_CORRIDOR - 1, 0, CODE_EXIT)]);
+    for (const engine of ['lynx', 'cc2'] as const) {
+      expect(checkCc2Replay(level, endsHeld(), 'held', engine).won).toBe(false);
+    }
   });
 });

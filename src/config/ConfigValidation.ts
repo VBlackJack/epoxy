@@ -37,7 +37,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { SIGNAL_GATE_CC2_ID_SUFFIX, CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -1511,6 +1511,23 @@ const SIGNAL_SOURCE_VALUES: readonly unknown[] = ['held', 'pulse', 'inverted', '
 const SIGNAL_GATE_VALUES: readonly unknown[] = ['and', 'or', 'not', 'xor', 'latch', 'nand', 'dlatch', 'counter'];
 
 /**
+ * True when the tile is the Chip's Challenge 2 passable form of a signal gate: its id is the id of an existing
+ * impassable gate plus the CC2 suffix, with the same logic and the same counter start. Only these may be passable.
+ */
+function isPassableGateVariant(tile: TileDefinition, tiles: Record<string, TileDefinition>): boolean {
+  if (!tile.id.endsWith(SIGNAL_GATE_CC2_ID_SUFFIX)) return false;
+  const base = tiles[tile.id.slice(0, -SIGNAL_GATE_CC2_ID_SUFFIX.length)];
+  return (
+    base !== undefined &&
+    base.signalGate === tile.signalGate &&
+    base.signalCounterStart === tile.signalCounterStart &&
+    !base.passableByPlayer &&
+    !base.passableByMonster &&
+    !base.passableByBlock
+  );
+}
+
+/**
  * Problems of the signal fields of tiles.json: a source is 'held', 'pulse', 'inverted' or 'toggle' (a toggle source names its
  * other form); a gate is one of the five logics; the
  * latch start flag is true and sits on a latch; all of them belong to a terrain tile, a tile has one signal
@@ -1565,7 +1582,7 @@ export function findSignalConfigErrors(tiles: Record<string, TileDefinition>): s
     if (tile.plateColor !== undefined || tile.holdDoorColor !== undefined || tile.laserReceiverGroup !== undefined) {
       errors.push(`${id}: a signal tile cannot also be a plate, a hold door or a laser receiver`);
     }
-    if (hasGate && (tile.passableByPlayer || tile.passableByMonster || tile.passableByBlock)) {
+    if (hasGate && (tile.passableByPlayer || tile.passableByMonster || tile.passableByBlock) && !isPassableGateVariant(tile, tiles)) {
       errors.push(`${id}: a signal gate must be impassable`);
     }
   }

@@ -1099,6 +1099,8 @@ export interface TileDefinition {
   hazard?: 'water' | 'fire' | 'bomb' | 'slime';
   protectedByItem?: string;
   blockTransformsTo?: string;
+  /** The tile that stands in for this one where a block leaves it behind on a level of the CC2 engine (sunk dirt becomes dirt_cc2). */
+  cc2Twin?: string;
   /**
    * Block ids that survive entering this tile and clear it (format 14, the CC2 slime: dirt and ice blocks). The tile
    * turns into its `blockTransformsTo` terrain as the block arrives; any other block is destroyed as usual.
@@ -2420,6 +2422,8 @@ export interface UndoSnapshot {
   pausedTicks?: number;
   /** Entity passes run since the level started; written only on a classic-rules level (the teeth cycle reads it), absent otherwise. */
   ccMonsterClock?: number;
+  /** Splashes a block left in water: [cell index, entity pass it lasts until]; written only while one lasts on a CC2-engine level, absent otherwise. */
+  blockSplashes?: [number, number][];
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
   ccGenerators?: [number, number, number];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */

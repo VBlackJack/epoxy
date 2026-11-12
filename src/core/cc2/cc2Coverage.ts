@@ -60,7 +60,7 @@ export const KEY_HELMET_NO_SIGN = 'helmet_no_sign';
 
 const EXACT_REASON = 'Epoxy plays this element as CC2 does.';
 const WIRE_REASON =
-  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. A wire reaching a red pad or a transmogrifier switches it on and off (the powered twin pair); wires Epoxy still does not follow are reported under their own keys (wired_teleport, wired_transmogrifier, wired_flame_jet).';
+  'Wire topology (floor wires, crossings, tunnels, sources, gates) is played as in CC2; checked against the Lexy Labyrinth wiring rules. Signals settle at the end of a move where CC2 settles every tick: that timing is judged by the replay check. A CC2 logic gate has no collision, so the converter places the passable <gate>_cc2 form (signal_gate_and_cc2, signal_counter_3_cc2): every actor walks through it, with the wiring of the gate it follows. A wire reaching a red pad or a transmogrifier switches it on and off (the powered twin pair); wires Epoxy still does not follow are reported under their own keys (wired_teleport, wired_transmogrifier, wired_flame_jet).';
 const RESERVED_REASON =
   'Epoxy does not play this element: the converter keeps it as a reserved placeholder (a wall for a terrain, inert for an item, motionless for an entity), so the level is not playable as imported.';
 const TELEPORT_REASON =
@@ -116,6 +116,8 @@ const GENDER_SIGN_REASON =
  * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x, purple_wall and
  * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources) and nand_gate
  * (signal_gate_nand). The
+ * dirt is placed as dirt_cc2, which only the dirt block cannot enter. The
+ * logic gates are placed as their passable <gate>_cc2 form, which every actor walks through. The
  * data latch (signal_gate_dlatch, both rotations) plays under the wire key. The wire timing
  * is judged by the wire key, so a wired level stays approximate.
  */

@@ -129,6 +129,12 @@ describe('terrain, items and entities', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
+  it('plays CC2 dirt as dirt_cc2, which every block but the dirt block packs down, and keeps the exact verdict', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x32 })]);
+    expect(level.terrain[0][1]).toBe('dirt_cc2');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
   it('plays the floor mimic, timid teeth, ghost and rover as Epoxy monsters, two exact and two approximate', () => {
     const { level, coverage } = convert([
       put(1, 0, actorTile(0x82, DIR_E), { code: FLOOR_CODE }),
@@ -863,13 +869,13 @@ describe('wires', () => {
     ];
     const { level, coverage, report } = convertCc2Map(makeMap(8, 2, [player(0, 1), ...cells]), OPTIONS);
     expect(level.terrain[0]).toEqual([
-      'signal_gate_not',
-      'signal_gate_and',
-      'signal_gate_or',
-      'signal_gate_xor',
-      'signal_gate_dlatch',
-      'signal_gate_nand',
-      'signal_counter_0',
+      'signal_gate_not_cc2',
+      'signal_gate_and_cc2',
+      'signal_gate_or_cc2',
+      'signal_gate_xor_cc2',
+      'signal_gate_dlatch_cc2',
+      'signal_gate_nand_cc2',
+      'signal_counter_0_cc2',
       'cc2_unknown'
     ]);
     expect(coverage.lost).toEqual(['unknown']);
@@ -881,7 +887,7 @@ describe('wires', () => {
   it('plays each latch rotation and the diode as an Epoxy gate', () => {
     const cells = [put(0, 0, modTile(GATE, 0x10)), put(1, 0, modTile(GATE, 0x40)), put(2, 0, modTile(GATE, 0x43)), put(3, 0, modTile(GATE, 0x18))];
     const { level, coverage } = convertCc2Map(makeMap(4, 2, [player(0, 1), ...cells]), OPTIONS);
-    expect(level.terrain[0]).toEqual(['signal_gate_dlatch', 'signal_gate_dlatch', 'signal_gate_dlatch', 'signal_gate_or']);
+    expect(level.terrain[0]).toEqual(['signal_gate_dlatch_cc2', 'signal_gate_dlatch_cc2', 'signal_gate_dlatch_cc2', 'signal_gate_or_cc2']);
     expect(coverage.approx).not.toContain('data_latch');
     expect(coverage.lost).toEqual([]);
   });
