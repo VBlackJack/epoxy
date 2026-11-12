@@ -1551,7 +1551,7 @@
         "label": "Flèches / ZQSD / WASD : Déplacer le joueur"
       },
       "kb_aim": {
-        "label": "Maj + flèche : tourner sur place"
+        "label": "Maj + touche de direction (flèches ou ZQSD/WASD) : tourner sur place"
       },
       "kb_click": {
         "label": "Clic Gauche / Tap : Déplacement auto (A*) vers la case"

@@ -1693,6 +1693,7 @@ class EpoxyApplication {
     this.clearAutoMove();
     if (this.aimMode.isOn() && this.turnsInPlace()) {
       this.heldDirection = null;
+      this.aimMode.noteAimed(dir);
       this.engine.turnPlayer?.(dir);
       return;
     }
@@ -1785,7 +1786,7 @@ class EpoxyApplication {
             const dir: Direction =
               Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : dy > 0 ? 'S' : 'N';
             this.clearAutoMove();
-            if (this.heldDirection !== dir) {
+            if (this.aimMode.currentDirection(this.heldDirection) !== dir) {
               this.triggerHaptic();
               this.beginHeldMove(dir);
             }
@@ -1803,6 +1804,7 @@ class EpoxyApplication {
       if (this.activeMode !== 'play' || this.floatingActive) return;
       if (e.touches.length === 0) {
         this.heldDirection = null;
+        this.aimMode.release();
 
         const duration = Date.now() - startTime;
         const changed = e.changedTouches[0];
@@ -3021,6 +3023,7 @@ class EpoxyApplication {
       };
       const stopMove = (): void => {
         btn.classList.remove(DPAD_PRESSED_CLASS);
+        this.aimMode.release();
         if (this.heldDirection === dir) {
           this.heldDirection = null;
         }
@@ -3044,7 +3047,7 @@ class EpoxyApplication {
           const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
           const btn = targetEl?.closest('.dpad-btn') as HTMLElement | null;
           const dir = btn?.getAttribute('data-dir') as Direction | null;
-          if (dir && dir !== this.heldDirection) {
+          if (dir && dir !== this.aimMode.currentDirection(this.heldDirection)) {
             this.triggerHaptic();
             this.beginHeldMove(dir);
             this.markDpadPressed(btn);
@@ -3054,6 +3057,7 @@ class EpoxyApplication {
       );
       const release = (): void => {
         this.heldDirection = null;
+        this.aimMode.release();
         this.markDpadPressed(null);
       };
       container.addEventListener('touchend', release);

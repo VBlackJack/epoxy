@@ -125,6 +125,22 @@ describe('aim button', () => {
     expect(button.getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('dedupes a slide in aim mode on the last aimed direction until the finger lifts', () => {
+    syncFor(aim, EPOXY_LEVEL, true, true);
+    expect(aim.currentDirection('N')).toBe('N');
+    aim.set(true);
+    expect(aim.currentDirection(null)).toBeNull();
+    aim.noteAimed('E');
+    expect(aim.currentDirection(null)).toBe('E');
+    aim.release();
+    expect(aim.currentDirection(null)).toBeNull();
+    aim.noteAimed('S');
+    aim.set(false);
+    expect(aim.currentDirection(null)).toBeNull();
+    aim.set(true);
+    expect(aim.currentDirection(null)).toBeNull();
+  });
+
   it('resets on a level load', () => {
     syncFor(aim, EPOXY_LEVEL, true, true);
     aim.set(true);
