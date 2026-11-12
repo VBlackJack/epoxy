@@ -1152,6 +1152,9 @@
       "gate": {
         "action": "Poser une porte de poche"
       },
+      "aim": {
+        "action": "Viser (tourner sans avancer)"
+      },
       "stone": {
         "action": "Lancer une pierre de jet"
       },
@@ -1546,6 +1549,9 @@
       },
       "kb_move": {
         "label": "Flèches / ZQSD / WASD : Déplacer le joueur"
+      },
+      "kb_aim": {
+        "label": "Maj + flèche : tourner sur place"
       },
       "kb_click": {
         "label": "Clic Gauche / Tap : Déplacement auto (A*) vers la case"

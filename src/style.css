@@ -3624,6 +3624,12 @@ body.touch-overlay .touch-overlay-controls .touch-overlay-btn:active {
   background: var(--overlay-pad-fill-pressed);
 }
 
+/* Aim toggle: pressed while aim mode is on, so a direction turns instead of stepping */
+body.touch-overlay .touch-overlay-controls .touch-overlay-btn[aria-pressed='true'] {
+  background: var(--overlay-pad-fill-pressed);
+  border-color: var(--overlay-focus);
+}
+
 body.touch-overlay .touch-overlay-controls .touch-overlay-btn:focus-visible {
   outline: 3px solid var(--overlay-focus);
   outline-offset: 2px;
