@@ -371,6 +371,10 @@ export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_b
 /** CC2-engine levels: a monster step onto ice or a force floor lasts this share of a step (the destination's speed factor). */
 export const CC2_FLOOR_STEP_DIVISOR = 2;
 
+/** CC2-engine levels: keys that do not stop a monster, and the one of them a monster picks up (the red key is left lying). */
+export const CC2_MONSTER_PASSABLE_KEYS: readonly string[] = ['key_blue', 'key_red'];
+export const CC2_MONSTER_PICKED_KEY = 'key_blue';
+
 /** Converted CC3D levels: ticks of a monster step on plain floor, and on ice or a force floor (the floor carries it faster). */
 export const CC3D_MONSTER_STEP_TICKS = 4;
 export const CC3D_MONSTER_FLOOR_STEP_TICKS = 2;

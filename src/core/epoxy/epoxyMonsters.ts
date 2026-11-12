@@ -25,6 +25,8 @@ import {
   CC_WALKER_TYPE,
   CC_CADENCE_TYPES,
   CC2_FLOOR_STEP_DIVISOR,
+  CC2_MONSTER_PASSABLE_KEYS,
+  CC2_MONSTER_PICKED_KEY,
   CC_TEETH_ACTIVE_TICKS,
   CC3D_MONSTER_FLOOR_STEP_TICKS,
   CC3D_MONSTER_STEP_TICKS,
@@ -488,6 +490,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     const lying = w.items[ny][nx];
     if (lying && monsterPicksUp(lying)) w.items[ny][nx] = null;
   }
+  // CC2: a monster walks over a blue key and takes it, and walks over a red key and leaves it.
+  if (def?.picksUpItems !== true && entity.kind === 'monster' && usesCc2Engine(w.level) && w.items[ny][nx] === CC2_MONSTER_PICKED_KEY) {
+    w.items[ny][nx] = null;
+  }
 
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
@@ -878,7 +884,8 @@ export function canMonsterEnter(
   if (destTile.hazard !== undefined && def?.refusesHazards?.includes(destTile.hazard) === true) return false;
 
   const itemId = w.items[ny][nx];
-  if (def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
+  const keyPasses = itemId !== null && CC2_MONSTER_PASSABLE_KEYS.includes(itemId) && usesCc2Engine(w.level);
+  if (!keyPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 
