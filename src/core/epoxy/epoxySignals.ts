@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
 import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
+import { usesCc2Engine } from './ccRules';
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
@@ -184,6 +185,17 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
 }
 
 /**
+ * Records the clone machine and launcher sinks as off. Only a settle's own edge check and the display of a powered cell
+ * read a sink's stored output (no link leaves a sink, see normalizeSignalLinks), so this changes nothing but the first edge.
+ */
+function startFiringSinksOff(runtime: SignalRuntime): void {
+  for (const index of runtime.network.sinkIndexes) {
+    const fires = runtime.defs.get(index)?.fires;
+    if (fires === 'cloner' || fires === 'launcher') runtime.state.lastOutputs[index] = false;
+  }
+}
+
+/**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
  * source never reads the trace of the pass before. With `prime` (level load) it only records, no edge. Settle before the hold doors are set, so a door follows
@@ -196,6 +208,9 @@ export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): Signa
   refreshBeams(w);
   const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime), prime);
   runtime.state = result.state;
+  // CC2 engine: every circuit starts off (Lexy recalculate_circuitry), so a cloner or launcher whose source is held at load
+  // rises on the first settle and fires on tick 0. Gates and the other sinks keep the primed state, so they never flip at load.
+  if (prime && usesCc2Engine(w.level)) startFiringSinksOff(runtime);
   // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
   runtime.pending.clear();
   // A gray area button holds its level sinks on for this settle only: the set read now is the next settle's to replace.
