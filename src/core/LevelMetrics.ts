@@ -109,7 +109,7 @@ const UNREACHED = -1;
  * Tiles told apart by id: dirt and fake blue walls share every behaviour
  * flag (both turn to floor when stepped on and stop blocks).
  */
-export const DIRT_TILE_IDS: ReadonlySet<string> = new Set(['dirt']);
+export const DIRT_TILE_IDS: ReadonlySet<string> = new Set(['dirt', 'dirt_cc2', 'dirt_3d']);
 const HIDDEN_WALL_TILE_IDS: ReadonlySet<string> = new Set([
   'blue_wall_fake',
   'blue_wall_real',
