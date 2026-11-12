@@ -58,17 +58,26 @@ describe('CC2 gates the converter now plays', () => {
     ];
     const { level, coverage } = convertCc2Map(makeMap(6, 2, [player(0, 1), ...cells]), OPTIONS);
     expect(level.terrain[0]).toEqual([
-      'signal_gate_nand',
-      'signal_gate_dlatch',
-      'signal_gate_dlatch',
-      'signal_counter_0',
-      'signal_counter_7',
-      'signal_counter_9'
+      'signal_gate_nand_cc2',
+      'signal_gate_dlatch_cc2',
+      'signal_gate_dlatch_cc2',
+      'signal_counter_0_cc2',
+      'signal_counter_7_cc2',
+      'signal_counter_9_cc2'
     ]);
     expect(coverage.lost).toEqual([]);
     expect(coverage.approx).toContain('counter_gate');
     expect(coverage.approx).not.toContain('data_latch');
     expect(coverage.approx).not.toContain('wire');
+  });
+
+  it('places the passable CC2 form of every gate and counter, never the impassable native gate', () => {
+    const cells = [gate(0, 0, 0x01), gate(1, 0, 0x05), gate(2, 0, 0x09), gate(3, 0, 0x0d), gate(4, 0, NAND_FACING_E), gate(5, 0, LATCH_CW_FACING_E)];
+    for (let digit = 0; digit <= 9; digit++) cells.push(gate(digit, 1, COUNTER_FIRST + digit));
+    const { level } = convertCc2Map(makeMap(10, 3, [player(0, 2), ...cells]), OPTIONS);
+    for (const id of [...level.terrain[0].slice(0, 6), ...level.terrain[1]]) {
+      expect(id).toMatch(/^signal_(gate|counter)_[a-z0-9]+_cc2$/);
+    }
   });
 
   it('keeps the other gates and their links free of ports', () => {

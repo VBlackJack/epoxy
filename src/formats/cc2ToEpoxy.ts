@@ -30,7 +30,7 @@ import {
   KEY_WIRE_TUNNEL,
   classifyCc2Level
 } from '../core/cc2/cc2Coverage';
-import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, EXTRA_PLAYERS_MAX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
+import { CC2_ID_PREFIX, DEFAULT_PLAYER_CHARACTER, EXTRA_PLAYERS_MAX, LOCKED_ARROW_BLOCK_ID, MELINDA_CHARACTER, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, RAIL_JUNCTION_TILE_ID, SIGNAL_COUNTER_TILE_ID_PREFIX, SIGNAL_GATE_CC2_ID_SUFFIX, WIRE_FLOOR_TILE_ID } from '../core/coreConstants';
 import type {
   Cc2Coverage,
   CellEdge,
@@ -149,16 +149,20 @@ const TELEPORT_LAST = 0x13;
 const TRANSMOGRIFIER = 0x4e;
 const CODE_TELEPORT_RED = 0x10;
 
+/**
+ * The passable CC2 form of each gate (`<gate>_cc2`): a CC2 logic gate has no collision, so every actor walks through it.
+ * The impassable gates stay for native levels.
+ */
 const GATE_IDS: Readonly<Record<string, string>> = {
-  not: 'signal_gate_not',
-  and: 'signal_gate_and',
-  or: 'signal_gate_or',
-  xor: 'signal_gate_xor',
-  nand: 'signal_gate_nand',
+  not: `signal_gate_not${SIGNAL_GATE_CC2_ID_SUFFIX}`,
+  and: `signal_gate_and${SIGNAL_GATE_CC2_ID_SUFFIX}`,
+  or: `signal_gate_or${SIGNAL_GATE_CC2_ID_SUFFIX}`,
+  xor: `signal_gate_xor${SIGNAL_GATE_CC2_ID_SUFFIX}`,
+  nand: `signal_gate_nand${SIGNAL_GATE_CC2_ID_SUFFIX}`,
   /** Both CC2 latches are data latches; the Epoxy toggle latch (signal_latch_off) is no longer what they become. */
-  latch: 'signal_gate_dlatch',
+  latch: `signal_gate_dlatch${SIGNAL_GATE_CC2_ID_SUFFIX}`,
   /** A diode passes its single input to its output: an OR gate with one input does the same. */
-  diode: 'signal_gate_or'
+  diode: `signal_gate_or${SIGNAL_GATE_CC2_ID_SUFFIX}`
 };
 
 /** Tags of the note that start a block; only a [CLUE] block is a hint. */
@@ -809,7 +813,7 @@ function terrainMapping(tile: Cc2Tile, warnings: string[], where: string, wired:
     if (gate.kind === 'unknown') return { id: UNKNOWN_ID, key: UNKNOWN_KEY };
     if (gate.kind === 'nand') return { id: GATE_IDS.nand, key: KEY_NAND_GATE };
     // The counter starts with the digit its modifier names; it has no facing.
-    if (gate.kind === 'counter') return { id: `${SIGNAL_COUNTER_TILE_ID_PREFIX}${(tile.mod ?? COUNTER_MODIFIER_BASE) - COUNTER_MODIFIER_BASE}`, key: KEY_COUNTER_GATE };
+    if (gate.kind === 'counter') return { id: `${SIGNAL_COUNTER_TILE_ID_PREFIX}${(tile.mod ?? COUNTER_MODIFIER_BASE) - COUNTER_MODIFIER_BASE}${SIGNAL_GATE_CC2_ID_SUFFIX}`, key: KEY_COUNTER_GATE };
     return { id: GATE_IDS[gate.kind], key: KEY_WIRE };
   }
   if (GENDER_SIGN_MAP.has(code)) return GENDER_SIGN_MAP.get(code) as Cc2TileMapping;

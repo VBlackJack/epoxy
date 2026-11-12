@@ -230,6 +230,23 @@ export const WIRE_FLOOR_TILE_ID = 'signal_wire_floor';
 /** Tile id prefix of the counter gates; the digit the counter starts with follows it. */
 export const SIGNAL_COUNTER_TILE_ID_PREFIX = 'signal_counter_';
 
+/**
+ * Id suffix of the Chip's Challenge 2 passable form of a signal gate (`signal_gate_and_cc2`, `signal_counter_3_cc2`): the
+ * same logic as the gate it follows, but every actor walks through it, as through the CC2 logic gate.
+ */
+export const SIGNAL_GATE_CC2_ID_SUFFIX = '_cc2';
+
+/** The ids of the signal gates that have a CC2 passable form: the logic gates and the ten counters. */
+export const CC2_GATE_BASE_IDS: readonly string[] = [
+  'signal_gate_and',
+  'signal_gate_or',
+  'signal_gate_not',
+  'signal_gate_xor',
+  'signal_gate_nand',
+  'signal_gate_dlatch',
+  ...Array.from({ length: SIGNAL_COUNTER_MAX + 1 }, (_, digit) => `${SIGNAL_COUNTER_TILE_ID_PREFIX}${digit}`)
+];
+
 /** Tile id of the shot trigger, the tile whose action is fire_launchers. */
 export const SHOT_TRIGGER_TILE_ID = 'shot_trigger';
 

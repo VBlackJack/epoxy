@@ -20,7 +20,7 @@
  * vector style and in the art of the Runeward style. Pure module: no DOM.
  */
 
-import { NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX } from '../core/coreConstants';
+import { CC2_GATE_BASE_IDS, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, SIGNAL_GATE_CC2_ID_SUFFIX } from '../core/coreConstants';
 import type { RunewardArtConfig } from '../core/types';
 import {
   MELINDA_BOW_COLOURS,
@@ -101,6 +101,8 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   button_orange_cc2: { base: 'signal_plate', mark: 'cc2' },
   // The format 17 look-alike: the CC3D trap that no button opens, on the trap.
   [SEALED_TRAP_TILE]: { base: 'trap', mark: '3d' },
+  // The CC2 logic gates: the gate of the same logic that every actor walks through.
+  ...Object.fromEntries(CC2_GATE_BASE_IDS.map((id): [string, Cc2Variant] => [`${id}${SIGNAL_GATE_CC2_ID_SUFFIX}`, { base: id, mark: 'cc2' }])),
   // The format 17 CC3D ice corners, on the native corner of the same sides.
   ice_corner_3d_nw: { base: 'ice_nw', mark: '3d' },
   ice_corner_3d_ne: { base: 'ice_ne', mark: '3d' },

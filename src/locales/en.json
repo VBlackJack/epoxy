@@ -5157,6 +5157,102 @@
         "label": "The player clears it by walking in; monsters cannot enter. A dirt block, a colour block or an ice block may enter. A dirt block or a colour block turns it into floor; an ice block passes over and leaves it."
       }
     },
+    "signal_gate_and_cc2": {
+      "name": "AND Gate (CC2)",
+      "desc": {
+        "label": "Sends a signal while every linked input is sending one. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_gate_or_cc2": {
+      "name": "OR Gate (CC2)",
+      "desc": {
+        "label": "Sends a signal while any linked input is sending one. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_gate_not_cc2": {
+      "name": "NOT Gate (CC2)",
+      "desc": {
+        "label": "Sends a signal while its one linked input is not sending one. Needs: one signal link in, and one out. Every actor may walk through it."
+      }
+    },
+    "signal_gate_xor_cc2": {
+      "name": "XOR Gate (CC2)",
+      "desc": {
+        "label": "Sends a signal while an odd number of its linked inputs are sending one. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_gate_nand_cc2": {
+      "name": "NAND Gate (CC2)",
+      "desc": {
+        "label": "Sends a signal unless every signal linked into it is sending. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_gate_dlatch_cc2": {
+      "name": "Data Latch (CC2)",
+      "desc": {
+        "label": "Remembers the signal on its data link (port in0) while its clock link (port in1) is sending, and sends what it remembers. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_0_cc2": {
+      "name": "Counter (0) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 0. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_1_cc2": {
+      "name": "Counter (1) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 1. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_2_cc2": {
+      "name": "Counter (2) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 2. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_3_cc2": {
+      "name": "Counter (3) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 3. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_4_cc2": {
+      "name": "Counter (4) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 4. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_5_cc2": {
+      "name": "Counter (5) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 5. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_6_cc2": {
+      "name": "Counter (6) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 6. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_7_cc2": {
+      "name": "Counter (7) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 7. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_8_cc2": {
+      "name": "Counter (8) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 8. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
+    "signal_counter_9_cc2": {
+      "name": "Counter (9) (CC2)",
+      "desc": {
+        "label": "Counts up on each start of its first input (in0) and down on each start of its second (in1), from 0 to 9; starts at 9. Wrapping past 9 sends a short pulse on out0; wrapping below 0 sends on out1 until the next count. Needs: signal links in and out. Every actor may walk through it."
+      }
+    },
     "popup_wall_cc2": {
       "name": "Pop-Up Wall (CC2)",
       "desc": {
