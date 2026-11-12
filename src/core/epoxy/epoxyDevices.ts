@@ -68,8 +68,11 @@ const MAX_ACTIVE_ENTITIES = 512;
 /** Sound played when hold doors open or close. */
 const HOLD_DOOR_SFX = 'door';
 
-/** Returns false when a clone spawned by the button killed the player. */
-export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action: ButtonAction): boolean {
+/**
+ * Returns false when a clone spawned by the button killed the player. `atStepEnd` marks a press made when the player's
+ * step ends (CC2 engine): a blue button then turns the tanks at their next decision instead of a few passes later.
+ */
+export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action: ButtonAction, atStepEnd = false): boolean {
   const w = ctx.world;
   AudioManager.playSfx('button');
 
@@ -91,7 +94,7 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
   } else if (action === 'swap_chips_bombs') {
     swapChipsAndBombs(w, bx, by);
   } else if (action === 'reverse_tanks' && w.ccRules) {
-    markTanksToTurn(w);
+    markTanksToTurn(w, atStepEnd);
   } else if (action === 'reverse_tanks') {
     for (const ent of w.entities) {
       if (ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) {
@@ -128,14 +131,16 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
 /**
  * Classic rules, blue button: every tank off a clone machine and off the ice carries one toggled mark, due a few entity
  * passes later; a second press before the tank acts takes the mark off again (one flag, as in the reference engine).
- * Epoxy's own levels turn every tank at once.
+ * Epoxy's own levels turn every tank at once. A press made at the end of the player's step (`atStepEnd`) is due in the
+ * pass already counted: the tanks turn at their next decision.
  */
-function markTanksToTurn(w: EpoxyWorld): void {
+function markTanksToTurn(w: EpoxyWorld, atStepEnd: boolean): void {
   // The clock counts the pass of the current tick as soon as it starts: count from the passes begun before this tick,
   // whatever the source of the press (the player, a slide, a monster stepping on the button).
   const begun = w.ccPassOpen ? w.ccMonsterClock - 1 : w.ccMonsterClock;
   // A press taken from the monster queue turns the tanks one pass after it is applied.
-  const due = w.ccArrivalsRunning ? w.ccMonsterClock + CC_QUEUED_TANK_TURN_DELAY_PASSES : begun + CC_TANK_TURN_DELAY_PASSES;
+  const delayed = w.ccArrivalsRunning ? w.ccMonsterClock + CC_QUEUED_TANK_TURN_DELAY_PASSES : begun + CC_TANK_TURN_DELAY_PASSES;
+  const due = atStepEnd ? w.ccMonsterClock : delayed;
   for (const ent of w.entities) {
     if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
     const tile = ConfigRegistry.getTile(w.terrain[ent.y]?.[ent.x]);

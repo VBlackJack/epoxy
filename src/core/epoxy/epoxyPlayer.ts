@@ -573,7 +573,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
-    if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction)) return false;
+    if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
   }
   if (pending.chip !== undefined) {
