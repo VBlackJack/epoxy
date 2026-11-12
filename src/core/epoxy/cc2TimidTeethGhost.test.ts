@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
-import { CC_MONSTER_STEP_TICKS, CC_TEETH_CYCLE_TICKS } from '../coreConstants';
+import { CC2_TEETH_PHASE_OFFSET, CC_MONSTER_STEP_TICKS, CC_TEETH_CYCLE_TICKS } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel, Direction } from '../types';
 
@@ -81,11 +81,15 @@ describe('CC2 timid teeth and ghost use the classic cadence', () => {
   });
 
   it('moves timid teeth only in the first half of each teeth cycle on a CC2 level', () => {
-    const at = columns(corridor('timid_teeth', 'cc2'), CC_TEETH_CYCLE_TICKS + 1);
-    // The player stands at the west end, so the timid teeth flee east; they hold still through the idle half.
-    const idle = at.slice(CC_MONSTER_STEP_TICKS, CC_TEETH_CYCLE_TICKS);
+    const at = columns(corridor('timid_teeth', 'cc2'), CC_TEETH_CYCLE_TICKS + CC_MONSTER_STEP_TICKS);
+    // The CC2 cycle is shifted by CC2_TEETH_PHASE_OFFSET: the first decision falls on tick CYCLE - OFFSET + 1 and the next
+    // one a cycle later. The player stands at the west end, so the timid teeth flee east; they hold still in between.
+    const firstMove = CC_TEETH_CYCLE_TICKS - CC2_TEETH_PHASE_OFFSET;
+    expect(new Set(at.slice(0, firstMove)).size).toBe(1);
+    expect(at[firstMove]).toBeGreaterThan(at[firstMove - 1]);
+    const idle = at.slice(firstMove, firstMove + CC_TEETH_CYCLE_TICKS);
     expect(new Set(idle).size).toBe(1);
-    expect(at[CC_TEETH_CYCLE_TICKS]).toBeGreaterThan(idle[0]);
+    expect(at[firstMove + CC_TEETH_CYCLE_TICKS]).toBeGreaterThan(idle[0]);
   });
 
   it('does not give timid teeth the teeth cycle on a native classic level', () => {

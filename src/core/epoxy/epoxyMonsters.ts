@@ -28,12 +28,10 @@ import {
   CC2_FLOOR_STEP_DIVISOR,
   CC2_MONSTER_PASSABLE_KEYS,
   CC2_MONSTER_PICKED_KEY,
-  CC_TEETH_ACTIVE_TICKS,
   CC3D_MONSTER_FLOOR_STEP_TICKS,
   CC3D_MONSTER_STEP_TICKS,
   CC3D_REST_PHASE_TICKS,
   CC3D_RESTING_TYPES,
-  CC_TEETH_CYCLE_TICKS,
   ccStepTicks,
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -46,6 +44,7 @@ import {
   PHASE_LINE_PATTERN,
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
+  teethMayDecide,
   TURTLE_TILE_ID
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
@@ -187,7 +186,7 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     const entity = w.entities[i];
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
-    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
     const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
@@ -246,7 +245,7 @@ function runEntityPass(ctx: EpoxyContext): void {
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level))) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
