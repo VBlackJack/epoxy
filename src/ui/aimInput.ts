@@ -57,6 +57,7 @@ const HIDDEN_CLASS = 'hidden';
  */
 export class AimMode {
   private on = false;
+  private aimed: Direction | null = null;
 
   constructor(private readonly button: HTMLButtonElement | null) {
     this.button?.addEventListener('click', () => this.set(!this.on));
@@ -69,7 +70,26 @@ export class AimMode {
 
   set(on: boolean): void {
     this.on = on && Boolean(this.button) && !this.button?.disabled;
+    if (!this.on) this.aimed = null;
     this.render();
+  }
+
+  /** Records the direction just aimed, so a slide that stays on it is not a new turn. */
+  noteAimed(dir: Direction): void {
+    this.aimed = dir;
+  }
+
+  /** The finger lifted: the next touch toward any direction is a new turn. */
+  release(): void {
+    this.aimed = null;
+  }
+
+  /**
+   * The direction a touch slide compares a new reading with: the last aimed one in aim mode
+   * (a turn leaves no held direction), the held move otherwise.
+   */
+  currentDirection(held: Direction | null): Direction | null {
+    return this.on ? this.aimed : held;
   }
 
   /**
@@ -81,7 +101,10 @@ export class AimMode {
       this.button.classList.toggle(HIDDEN_CLASS, !visible);
       this.button.disabled = !holdsStone;
     }
-    if (!visible || !holdsStone) this.on = false;
+    if (!visible || !holdsStone) {
+      this.on = false;
+      this.aimed = null;
+    }
     this.render();
   }
 
