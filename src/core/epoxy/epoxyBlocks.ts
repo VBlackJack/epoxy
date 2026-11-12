@@ -374,13 +374,9 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (tile.hazard === 'water') {
     if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
-    const cc2 = usesCc2Engine(w.level);
-    w.terrain[destY][destX] =
-      (cc2 ? blockDef?.waterTransformsToCc2 : undefined) ||
-      blockDef?.waterTransformsTo ||
-      (cc2 ? tile.blockTransformsToCc2 : undefined) ||
-      tile.blockTransformsTo ||
-      SUNK_BLOCK_TILE_ID;
+    const filled = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    // On a CC2-engine level the fill is the CC2 form of that tile when it has one (CC2 dirt stops only the dirt block).
+    w.terrain[destY][destX] = (usesCc2Engine(w.level) ? ConfigRegistry.getTile(filled).cc2Twin : undefined) || filled;
     removeEntity(w, block.uid);
     AudioManager.playSfx('splash');
     ctx.emitVisual('splash', destX, destY);

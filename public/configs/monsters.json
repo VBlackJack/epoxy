@@ -9,7 +9,6 @@
       "slidesOnIce": true,
       "slidesOnForce": true,
       "waterTransformsTo": "dirt",
-      "waterTransformsToCc2": "dirt_cc2",
       "destroyedByFire": false,
       "destroyedByBomb": true,
       "transmogrifiesToCc2": "ice_block"

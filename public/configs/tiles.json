@@ -513,7 +513,8 @@
       "passableByMonster": false,
       "passableByBlock": false,
       "transformsToOnStep": "floor",
-      "bootsForCharacter": { "melinda": "hiking_boots" }
+      "bootsForCharacter": { "melinda": "hiking_boots" },
+      "cc2Twin": "dirt_cc2"
     },
     "dirt_cc2": {
       "id": "dirt_cc2",
@@ -598,8 +599,7 @@
       "passableByBlock": true,
       "hazard": "water",
       "protectedByItem": "boots_water",
-      "blockTransformsTo": "dirt",
-      "blockTransformsToCc2": "dirt_cc2"
+      "blockTransformsTo": "dirt"
     },
     "fire": {
       "id": "fire",
