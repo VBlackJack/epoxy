@@ -122,8 +122,9 @@ export const FAMILIES: Readonly<Record<string, readonly string[]>> = {
   sealed_trap: ['trap_sealed'],
   cc3d_colour_blocks: COLOURS.map((c) => `color_block_3d_${c}`),
   cc3d_ice_corners: ['ice_corner_3d_nw', 'ice_corner_3d_ne', 'ice_corner_3d_sw', 'ice_corner_3d_se'],
-  // The CC2 logic gates: the gates and counters every actor walks through.
+  // The CC2 dirt: it stops only the dirt block.
   cc2_dirt: ['dirt_cc2'],
+  // The CC2 logic gates: the gates and counters every actor walks through.
   cc2_logic_gates: CC2_GATE_BASE_IDS.map((id) => `${id}${SIGNAL_GATE_CC2_ID_SUFFIX}`),
   coloured_toggles: [
     ...['red', 'blue', 'yellow'].flatMap((c) => [
