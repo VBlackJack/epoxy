@@ -19,6 +19,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
 import { STEP_TICKS } from '../cc3d/cc3dConstants';
@@ -60,6 +61,15 @@ import {
 export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 /** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
+
+/** CC2 engine: extra slide ticks a voluntary step onto ice or a force floor lasts (the step takes the time of the tile it enters). */
+export const CC2_SLIDE_ENTRY_EXTRA_TICKS = 1;
+/** CC2 engine: move cooldown after a voluntary step onto a force floor. */
+export const CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS = 2;
+/** CC2 engine: least move cooldown after a slide step that goes on sliding. */
+export const CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS = 1;
+/** CC2 engine: ticks a slide that ends on plain floor waits less than a walking step (the last slide step is an in-tick move). */
+export const CC2_SLIDE_END_WAIT_REDUCTION_TICKS = 1;
 
 /** Shortest wait between two voluntary moves, whatever the haste. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
@@ -734,6 +744,14 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
     // A player who slid onto a teleporter waits the time of a slide step before the forced exit.
     const wait = w.player.teleportExit !== undefined ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
     w.player.moveCooldown = Math.max(w.player.moveCooldown, wait);
+    // CC2 engine: the slide step that ends on plain floor is an in-tick move, so the wait is one tick shorter.
+    if (usesCc2Engine(w.level) && w.player.teleportExit === undefined && w.player.moveCooldown > 0) {
+      w.player.moveCooldown -= CC2_SLIDE_END_WAIT_REDUCTION_TICKS;
+    }
+  }
+  // CC2 engine: a carried step that goes on sliding lasts a tick before the player may choose again.
+  if (usesCc2Engine(w.level) && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && w.player.isSliding) {
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS);
   }
   ctx.checkTargetsWin();
 }

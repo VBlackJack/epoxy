@@ -368,6 +368,28 @@ export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
 export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
+/** The timid teeth and the ghost: they follow the classic cadence on a CC2-engine level only (CC2 gives them the classic step). */
+export const CC_TIMID_TEETH_TYPE = 'timid_teeth';
+export const CC_GHOST_TYPE = 'ghost';
+export const CC2_EXTRA_CADENCE_TYPES: readonly string[] = [CC_TIMID_TEETH_TYPE, CC_GHOST_TYPE];
+
+/** True when `type` follows the classic cadence; `cc2Engine` adds the CC2-only types (timid teeth, ghost). */
+export function followsCcCadence(type: string, cc2Engine: boolean): boolean {
+  return CC_CADENCE_TYPES.includes(type) || (cc2Engine && CC2_EXTRA_CADENCE_TYPES.includes(type));
+}
+
+/** True for monsters that decide only in the active half of the teeth cycle; the timid teeth do so on a CC2-engine level only. */
+export function followsTeethPhase(type: string, cc2Engine: boolean): boolean {
+  return type === CC_TEETH_TYPE || (cc2Engine && type === CC_TIMID_TEETH_TYPE);
+}
+
+/** CC2-engine levels: a monster step onto ice or a force floor lasts this share of a step (the destination's speed factor). */
+export const CC2_FLOOR_STEP_DIVISOR = 2;
+
+/** CC2-engine levels: keys that do not stop a monster, and the one of them a monster picks up (the red key is left lying). */
+export const CC2_MONSTER_PASSABLE_KEYS: readonly string[] = ['key_blue', 'key_red'];
+export const CC2_MONSTER_PICKED_KEY = 'key_blue';
+
 /** Converted CC3D levels: ticks of a monster step on plain floor, and on ice or a force floor (the floor carries it faster). */
 export const CC3D_MONSTER_STEP_TICKS = 4;
 export const CC3D_MONSTER_FLOOR_STEP_TICKS = 2;

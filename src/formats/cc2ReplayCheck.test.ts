@@ -21,7 +21,7 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { C2M_TAGS, type Cc2RawSection } from './cc2Model';
 import { CC2_FRAMES_PER_TICK, CC2_REPLAY_ACTION_BITS, CC2_REPLAY_KEY_BITS, decodeCc2Replay } from './cc2Replay';
-import { checkCc2Replay, checkCc2ReplayBest } from './cc2ReplayCheck';
+import { checkCc2Replay, checkCc2ReplayBest, resolveCc2HeldOrder } from './cc2ReplayCheck';
 import { makeMap, player, put } from './cc2TestMaps';
 import { convertCc2Map } from './cc2ToEpoxy';
 
@@ -36,7 +36,7 @@ const TAP_FRAMES = CC2_FRAMES_PER_TICK;
 const SHORT_RUN_STEPS = 2;
 const FAR_RIGHT_X = 1;
 
-const { E, S } = CC2_REPLAY_KEY_BITS;
+const { N, E, S, W } = CC2_REPLAY_KEY_BITS;
 
 type Entry = [delay: number, keys: number];
 
@@ -173,5 +173,65 @@ describe('checkCc2Replay', () => {
     const best = checkCc2ReplayBest(level, replay);
     expect(best.won).toBe(true);
     expect(best.ignoredKeyBits).toBe(CC2_REPLAY_ACTION_BITS.drop);
+  });
+});
+
+describe('resolveCc2HeldOrder', () => {
+  it('cancels all input when an opposing pair is held, with two or three keys', () => {
+    expect(resolveCc2HeldOrder(['N', 'S'], 'N')).toEqual([]);
+    expect(resolveCc2HeldOrder(['E', 'W'], 'E')).toEqual([]);
+    expect(resolveCc2HeldOrder(['N', 'E', 'S'], 'E')).toEqual([]);
+    expect(resolveCc2HeldOrder(['E', 'S', 'W'], 'S')).toEqual([]);
+  });
+
+  it('tries the key matching the facing first', () => {
+    expect(resolveCc2HeldOrder(['N', 'E'], 'N')).toEqual(['N', 'E']);
+    expect(resolveCc2HeldOrder(['E', 'S'], 'E')).toEqual(['E', 'S']);
+    expect(resolveCc2HeldOrder(['S', 'W'], 'S')).toEqual(['S', 'W']);
+  });
+
+  it('falls back to the horizontal key when the facing is not held', () => {
+    expect(resolveCc2HeldOrder(['N', 'E'], 'W')).toEqual(['E', 'N']);
+    expect(resolveCc2HeldOrder(['S', 'W'], 'N')).toEqual(['W', 'S']);
+  });
+
+  it('leaves a single key untouched', () => {
+    expect(resolveCc2HeldOrder(['S'], 'E')).toEqual(['S']);
+    expect(resolveCc2HeldOrder([], 'E')).toEqual([]);
+  });
+});
+
+describe('checkCc2Replay with several held keys', () => {
+  const holdBoth = (a: number, b: number) => replayOf(hold(a | b, 6));
+
+  it('ignores the whole tick on the Epoxy engine when an opposing pair is held', () => {
+    const level = levelOf(3, 1, [terrain(2, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, holdBoth(E, W), 'held').won).toBe(false);
+    expect(checkCc2Replay(level, replayOf(hold(E, 6)), 'held').won).toBe(true);
+  });
+
+  it('ignores a third key with an opposing pair on the Epoxy engine', () => {
+    const level = levelOf(3, 3, [terrain(2, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, replayOf(hold(E | W | S, 6)), 'held').won).toBe(false);
+  });
+
+  it('walks the horizontal key first when the facing is not held', () => {
+    // Exit east on a one row corridor: N is blocked, so only the horizontal key can make progress.
+    const level = levelOf(3, 1, [terrain(2, 0, CODE_EXIT)]);
+    expect(checkCc2Replay(level, holdBoth(N, E), 'held').won).toBe(true);
+  });
+
+  it('keeps the Lynx based engines on their own resolution', () => {
+    // East alone, then west pressed on top: the Lynx engines follow the older key, the Epoxy engine stops.
+    const level = levelOf(5, 1, [terrain(4, 0, CODE_EXIT)]);
+    const replay = replayOf([
+      [0, E],
+      [STEP_FRAMES, E | W],
+      [6 * STEP_FRAMES, 0]
+    ]);
+    for (const engine of ['lynx', 'cc2'] as const) {
+      expect(checkCc2Replay(level, replay, 'held', engine).won).toBe(true);
+    }
+    expect(checkCc2Replay(level, replay, 'held').won).toBe(false);
   });
 });

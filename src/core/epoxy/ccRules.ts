@@ -24,3 +24,11 @@ import type { CompiledLevel } from '../types';
 export function usesCcRules(level: Pick<CompiledLevel, 'rulesFlavor' | 'cc2'>): boolean {
   return level.rulesFlavor === 'cc' || level.cc2 !== undefined;
 }
+
+/**
+ * True for a level converted from a CC2-engine source (.c2m: CC2 and CC1 Steam). Rules calibrated on CC2-engine
+ * replays are gated on this, so .DAT and native 'cc'-flavour levels keep the shared CC model.
+ */
+export function usesCc2Engine(level: Pick<CompiledLevel, 'cc2'>): boolean {
+  return level.cc2 !== undefined;
+}

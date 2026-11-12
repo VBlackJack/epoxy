@@ -54,7 +54,10 @@ import {
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { updateEntities } from './epoxy/epoxyMonsters';
+import { usesCc2Engine } from './epoxy/ccRules';
 import {
+  CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS,
+  CC2_SLIDE_ENTRY_EXTRA_TICKS,
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
   executePlayerMove,
   isCarriedByForceFloor,
@@ -947,7 +950,9 @@ export class GameEngine {
       // A converted CC3D level: the player resting on a force floor whose forced step was refused keeps its drift, and his
       // input along that axis is refused both ways (Cc3dSimulation.inputAllowed).
       const keptDrift = this.w.cc3dPace && !this.w.player.isSliding;
-      if (activeForceDir && (dir === OPPOSITE_DIRECTION[activeForceDir] || (keptDrift && dir === activeForceDir))) {
+      // CC2 engine: a player with the choice may walk against the floor (Lexy: any direction overrides a force floor).
+      const refusesOpposite = !usesCc2Engine(this.w.level);
+      if (activeForceDir && ((refusesOpposite && dir === OPPOSITE_DIRECTION[activeForceDir]) || (keptDrift && dir === activeForceDir))) {
         AudioManager.playSfx('blocked');
         return false;
       }
@@ -997,6 +1002,11 @@ export class GameEngine {
         this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
           : playerWalkCooldown(this.w);
+        // CC2 engine: a voluntary step onto ice or a force floor lasts the time of the tile it enters; boots do not shorten it.
+        if (usesCc2Engine(this.w.level) && this.w.ccRules && this.w.player.isSliding && this.w.player.alive) {
+          this.w.player.slideCooldown += CC2_SLIDE_ENTRY_EXTRA_TICKS;
+          if (isCarriedByForceFloor(this.w, destTile)) this.w.player.moveCooldown = CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS;
+        }
       }
       resolveLasers(this.ctx);
       this.checkTargetsWin();

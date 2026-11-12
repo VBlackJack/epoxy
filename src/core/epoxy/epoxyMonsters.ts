@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { usesCc2Engine } from './ccRules';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
@@ -22,14 +23,17 @@ import {
   CC_BLOB_TYPE,
   CC_MONSTER_BUTTON_DELAY_PASSES,
   CC_WALKER_TYPE,
-  CC_CADENCE_TYPES,
+  followsCcCadence,
+  followsTeethPhase,
+  CC2_FLOOR_STEP_DIVISOR,
+  CC2_MONSTER_PASSABLE_KEYS,
+  CC2_MONSTER_PICKED_KEY,
   CC_TEETH_ACTIVE_TICKS,
   CC3D_MONSTER_FLOOR_STEP_TICKS,
   CC3D_MONSTER_STEP_TICKS,
   CC3D_REST_PHASE_TICKS,
   CC3D_RESTING_TYPES,
   CC_TEETH_CYCLE_TICKS,
-  CC_TEETH_TYPE,
   ccStepTicks,
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -179,18 +183,20 @@ function planClassicDecisions(ctx: EpoxyContext): void {
   const clock = w.ccMonsterClock;
   for (let i = w.entities.length - 1; i >= 0; i--) {
     const entity = w.entities[i];
-    if (entity.kind === 'block' || !CC_CADENCE_TYPES.includes(entity.type) || entity.cooldownTicks !== 0) continue;
+    if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
-    if (entity.type === CC_TEETH_TYPE && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
-    if (isCellClosedTrap(w, entity.x, entity.y)) {
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
+    const def = ConfigRegistry.getEntityDef(entity.type);
+    // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
+    const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
+    if (heldByFloor && isCellClosedTrap(w, entity.x, entity.y)) {
       // A held monster keeps its facing and decides nothing; if the trap opens during the movement pass it is
       // released in that facing.
       w.ccPlans.set(entity.uid, entity.dir);
       continue;
     }
-    const def = ConfigRegistry.getEntityDef(entity.type);
     let plan = chooseMonsterDirection(w, entity, def);
-    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(entity.type === CC_TEETH_TYPE && entity.x === w.player.x && entity.y === w.player.y)) {
+    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
     w.ccPlans.set(entity.uid, plan);
@@ -226,7 +232,7 @@ function runEntityPass(ctx: EpoxyContext): void {
       continue;
     }
 
-    if (!(w.ccRules && CC_CADENCE_TYPES.includes(entity.type) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+    if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
   }
 }
 
@@ -238,7 +244,7 @@ function runEntityPass(ctx: EpoxyContext): void {
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && entity.type === CC_TEETH_TYPE && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -246,6 +252,15 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   // Like the original, a creature that could not move (a blocked decision, a held trap, a blocked forced move on a
   // slide tile) tries again on the next tick.
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
+  else if (ready && alive && usesCc2Engine(ctx.world.level) && entity.cooldownTicks > 0 && !ctx.world.removedUids.has(entity.uid)) {
+    // CC2 takes the step time from the destination: a step onto ice or a force floor lasts a share of the plain step.
+    const def = ConfigRegistry.getEntityDef(entity.type);
+    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+    const destSlide = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]).slideType;
+    if (!floorFree && (destSlide === 'ice' || destSlide === 'force')) {
+      entity.cooldownTicks = Math.floor(ccStepTicks(entity.type) / CC2_FLOOR_STEP_DIVISOR) * monsterSlowdown(ctx.world) - 1;
+    }
+  }
   return alive;
 }
 
@@ -319,7 +334,7 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const def = ConfigRegistry.getEntityDef(entity.type);
   // A step lasts interval + 1 ticks (the countdown, then the move); slow-time boots stretch the whole step.
   const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
-  const stepTicks = w.ccRules && CC_CADENCE_TYPES.includes(entity.type) ? ccStepTicks(entity.type) : interval + 1;
+  const stepTicks = w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? ccStepTicks(entity.type) : interval + 1;
   entity.cooldownTicks = stepTicks * monsterSlowdown(w) - 1;
 
   // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
@@ -477,6 +492,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     const lying = w.items[ny][nx];
     if (lying && monsterPicksUp(lying)) w.items[ny][nx] = null;
   }
+  // CC2: a monster walks over a blue key and takes it, and walks over a red key and leaves it.
+  if (def?.picksUpItems !== true && entity.kind === 'monster' && usesCc2Engine(w.level) && w.items[ny][nx] === CC2_MONSTER_PICKED_KEY) {
+    w.items[ny][nx] = null;
+  }
 
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
@@ -594,7 +613,7 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
   // neither waits for the step to end.
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
-  if (!w.ccRules || !w.inTick || !CC_CADENCE_TYPES.includes(entity.type)) return false;
+  if (!w.ccRules || !w.inTick || !followsCcCadence(entity.type, usesCc2Engine(w.level))) return false;
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }
 
@@ -665,7 +684,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
       if (canStep(w, monster, c)) return c;
     }
     // Classic teeth boxed in turn to face their first choice (every classic-rules level, CC2 imports included).
-    if (w.ccRules && candidates.length > 0 && CC_CADENCE_TYPES.includes(monster.type)) monster.dir = candidates[0];
+    if (w.ccRules && candidates.length > 0 && followsCcCadence(monster.type, usesCc2Engine(w.level))) monster.dir = candidates[0];
     return null;
   }
 
@@ -720,7 +739,7 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   }
 
   // A classic monster boxed in turns to face its last candidate (every classic-rules level, CC2 imports included).
-  if (w.ccRules && CC_CADENCE_TYPES.includes(monster.type) && turnOrder.length > 0) {
+  if (w.ccRules && followsCcCadence(monster.type, usesCc2Engine(w.level)) && turnOrder.length > 0) {
     monster.dir = applyRelativeTurn(monster.dir, turnOrder[turnOrder.length - 1]);
   }
   return null;
@@ -867,7 +886,8 @@ export function canMonsterEnter(
   if (destTile.hazard !== undefined && def?.refusesHazards?.includes(destTile.hazard) === true) return false;
 
   const itemId = w.items[ny][nx];
-  if (def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
+  const keyPasses = itemId !== null && CC2_MONSTER_PASSABLE_KEYS.includes(itemId) && usesCc2Engine(w.level);
+  if (!keyPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 

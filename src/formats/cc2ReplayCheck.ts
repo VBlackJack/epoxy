@@ -41,7 +41,8 @@ import {
  *
  * - `held`: at each tick, the keys held at that CC2 tick are offered to the engine, which keeps its own move cadence
  *   (cooldown, ice, force floors). This is the closest to how a person plays. The Epoxy engine is sent a move
- *   attempt every tick (most recent press first, the older key as fallback); the Lynx engine is told the first held
+ *   attempt every tick, resolved like CC2 (see `resolveCc2HeldOrder`: an opposing pair held cancels all direction
+ *   input, else the key matching the facing first, then the horizontal key, the other key as fallback); the Lynx engine is told the first held
  *   direction each tick and falls back to the second key on a tick after the player was free to move and did not.
  * - `steps`: each key press becomes `ceil(held ticks / cadence)` steps; before each step the engine is ticked until
  *   the player is at rest. The time spent holding a key is ignored, only the sequence of moves is kept, so it
@@ -235,6 +236,24 @@ function dropOldestBoots(engine: PlayEngine): void {
   if (!oldest.done) engine.dropItem(oldest.value);
 }
 
+/** Pairs of opposing directions: when one pair is held at once, CC2 ignores all direction input. */
+const OPPOSING_PAIRS: readonly (readonly [Cc2Direction, Cc2Direction])[] = [
+  ['N', 'S'],
+  ['E', 'W']
+];
+const HORIZONTAL_DIRECTIONS: readonly Cc2Direction[] = ['E', 'W'];
+
+/**
+ * The order in which CC2 tries the held direction keys. An opposing pair held (up and down, or left and right) cancels
+ * every direction that tick; otherwise, with one vertical and one horizontal key held, the key matching the current
+ * facing is tried first, then the horizontal one, and the other key is the fallback when the first is blocked.
+ */
+export function resolveCc2HeldOrder(held: readonly Cc2Direction[], facing: Cc2Direction): Cc2Direction[] {
+  if (OPPOSING_PAIRS.some(([a, b]) => held.includes(a) && held.includes(b))) return [];
+  const rank = (dir: Cc2Direction): number => (dir === facing ? 2 : HORIZONTAL_DIRECTIONS.includes(dir) ? 1 : 0);
+  return [...held].sort((a, b) => rank(b) - rank(a));
+}
+
 /** Strategy `held`: offer the held keys to the engine at every tick. */
 function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
   const lynx = engineKind === 'lynx' || engineKind === 'cc2' ? (engine as LynxEngine) : null;
@@ -256,7 +275,9 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
     for (const dir of DIRECTIONS) if (!held.includes(dir)) down.delete(dir);
     for (const dir of held) if (!down.has(dir)) down.set(dir, tick);
     // Most recent press first; the older key is the fallback when the newer one is blocked.
-    const order = [...held].sort((a, b) => (down.get(b) ?? 0) - (down.get(a) ?? 0));
+    const byRecency = [...held].sort((a, b) => (down.get(b) ?? 0) - (down.get(a) ?? 0));
+    // The CC2 resolution of several held keys is applied on the Epoxy engine only; the Lynx based engines keep their own.
+    const order = lynx ? byRecency : resolveCc2HeldOrder(held, engine.getPlayer().dir as Cc2Direction);
     if (lynx) {
       // The older key leads; the newer one is tried on a tick after a free player did not move.
       const byAge = [...order].reverse();

@@ -19,7 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
-  CC_CADENCE_TYPES,
+  followsCcCadence,
   CC_QUEUED_TANK_TURN_DELAY_PASSES,
   CC_TANK_TURN_DELAY_PASSES,
   CHIP_ITEM_ID,
@@ -42,6 +42,7 @@ import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
+import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
@@ -536,7 +537,7 @@ export function spawnFromCloner(
     dir: templateDir,
     // In the original the creature let out of a clone machine takes its step out at once, so a classic-rules monster
     // decides again when that step ends; any other entity waits out its interval.
-    cooldownTicks: w.ccRules && CC_CADENCE_TYPES.includes(templateType) ? ccStepTicks(templateType) * monsterSlowdown(w) - 1 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+    cooldownTicks: w.ccRules && followsCcCadence(templateType, usesCc2Engine(w.level)) ? ccStepTicks(templateType) * monsterSlowdown(w) - 1 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
     isSliding: kind === 'block',
     ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {}),
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
