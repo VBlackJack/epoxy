@@ -21,6 +21,7 @@ import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, CC_BLOCK_SLIDE_COOLDOWN_TICKS, 
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
+import { usesCc2Engine } from './ccRules';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -40,8 +41,27 @@ import {
   removeEntity,
   shotAt,
   playerAtCell,
-  killPlayerAt
+  killPlayerAt,
+  mapWidth
 } from './epoxyWorld';
+
+/**
+ * CC2 engine: entity passes a splash a block left in water bars the real player (Lexy: a 16-frame animation that a cooldown of
+ * three frames a tick takes down on the fifth pass after it appeared).
+ */
+const CC2_SPLASH_BLOCK_PASSES = 5;
+
+/** Whether a splash a block left in water still bars the real player from this cell. */
+export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
+  if (w.blockSplashes.size === 0) return false;
+  const until = w.blockSplashes.get(y * mapWidth(w) + x);
+  return until !== undefined && w.ccMonsterClock < until;
+}
+
+/** Any mover other than the real player that tries to enter a cell erases the splash on it. */
+function eraseSplash(w: EpoxyWorld, x: number, y: number): void {
+  if (w.blockSplashes.size > 0) w.blockSplashes.delete(y * mapWidth(w) + x);
+}
 
 /**
  * Whether a push by this block may move a neighbouring block of the given type (CC2 chain pushing). `head` is the block
@@ -286,6 +306,7 @@ export function moveBlockTo(
   block.x = destX;
   block.y = destY;
   block.dir = dir;
+  eraseSplash(w, destX, destY);
   enterSwivel(w, destX, destY, dir);
 
   const crushed = playerAtCell(w, destX, destY);
@@ -339,6 +360,7 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   }
 
   if (tile.hazard === 'water') {
+    if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
     w.terrain[destY][destX] = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
     removeEntity(w, block.uid);
     AudioManager.playSfx('splash');

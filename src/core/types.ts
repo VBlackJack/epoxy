@@ -2420,6 +2420,8 @@ export interface UndoSnapshot {
   pausedTicks?: number;
   /** Entity passes run since the level started; written only on a classic-rules level (the teeth cycle reads it), absent otherwise. */
   ccMonsterClock?: number;
+  /** Splashes a block left in water: [cell index, entity pass it lasts until]; written only while one lasts on a CC2-engine level, absent otherwise. */
+  blockSplashes?: [number, number][];
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
   ccGenerators?: [number, number, number];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */

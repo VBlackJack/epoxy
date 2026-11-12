@@ -23,7 +23,7 @@ import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
 import { STEP_TICKS } from '../cc3d/cc3dConstants';
-import { attemptPushBlock, isCc3dPush } from './epoxyBlocks';
+import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -155,6 +155,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   }
 
   if (isEdgeBlocked(w, w.player.x, w.player.y, targetX, targetY, dir, false, rail)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // CC2 engine: the splash a block left in the water bars the real player from its cell while it lasts.
+  if (splashBarsPlayer(w, targetX, targetY)) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
