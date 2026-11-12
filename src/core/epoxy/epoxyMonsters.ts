@@ -619,10 +619,24 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
 }
 
 /**
+ * The point teeth aim at. On a CC2-engine level, once a tick has recorded the player's view, it is his apparent position
+ * (the cell he is stepping out of, or the source pad of a teleport, plus the share of the step still to run), not his cell
+ * (Lexy pursue_player, visual_position); otherwise the player's cell.
+ */
+function chaseTarget(w: EpoxyWorld): { x: number; y: number } {
+  const view = w.cc2PlayerView;
+  if (view === undefined || !usesCc2Engine(w.level)) return { x: w.player.x, y: w.player.y };
+  const base = view.sourcePad ?? view;
+  const left = view.stepLength > 0 ? Math.min(1, Math.max(0, view.cooldown / view.stepLength)) : 0;
+  const vec = DIRECTION_VECTORS[view.dir];
+  return { x: base.x - vec.dx * left, y: base.y - vec.dy * left };
+}
+
+/**
  * The direction a monster steps in, or null. `def` is the definition whose behaviour decides: the monster's own,
  * or for a rover the one it is imitating just now (the monster's own definition still rules what it may enter).
  */
-function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
+export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
   if (!def) return null;
 
   // A phasing monster ignores the tile it stands on: no sliding, no forcing, no turning floor.
@@ -664,8 +678,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   }
 
   if (def.movementPattern === CHASE_PLAYER_PATTERN || def.movementPattern === FLEE_PLAYER_PATTERN) {
-    const dx = w.player.x - monster.x;
-    const dy = w.player.y - monster.y;
+    const target = chaseTarget(w);
+    const dx = target.x - monster.x;
+    const dy = target.y - monster.y;
     const candidates: Direction[] = [];
     // On a tie the classic rules (Lynx teeth) go vertical first; Epoxy's own rules go horizontal first.
     if (w.ccRules ? Math.abs(dx) > Math.abs(dy) : Math.abs(dx) >= Math.abs(dy)) {
