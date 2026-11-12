@@ -116,6 +116,7 @@ const GENDER_SIGN_REASON =
  * thief and thief_keys, bomb, stopwatch_bonus, stopwatch_penalty (time_penalty), score_10/100/1000/2x, purple_wall and
  * purple_floor (flipped by the wire, both edges), toggle_switch_off/on and black_button (wire sources) and nand_gate
  * (signal_gate_nand). The
+ * dirt is placed as dirt_cc2, which only the dirt block cannot enter. The
  * logic gates are placed as their passable <gate>_cc2 form, which every actor walks through. The
  * data latch (signal_gate_dlatch, both rotations) plays under the wire key. The wire timing
  * is judged by the wire key, so a wired level stays approximate.

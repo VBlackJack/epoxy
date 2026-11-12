@@ -129,6 +129,12 @@ describe('terrain, items and entities', () => {
     expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
   });
 
+  it('plays CC2 dirt as dirt_cc2, which every block but the dirt block packs down, and keeps the exact verdict', () => {
+    const { level, coverage } = convert([put(1, 0, { code: 0x32 })]);
+    expect(level.terrain[0][1]).toBe('dirt_cc2');
+    expect(coverage).toEqual({ verdict: 'exact', lost: [], approx: [] });
+  });
+
   it('plays the floor mimic, timid teeth, ghost and rover as Epoxy monsters, two exact and two approximate', () => {
     const { level, coverage } = convert([
       put(1, 0, actorTile(0x82, DIR_E), { code: FLOOR_CODE }),

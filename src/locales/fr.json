@@ -5157,6 +5157,12 @@
         "label": "Le joueur la dégage en y marchant ; les monstres ne peuvent pas y entrer. Un bloc de terre, un bloc de couleur ou un bloc de glace peut y entrer. Un bloc de terre ou de couleur la change en sol ; un bloc de glace passe dessus et la laisse intacte."
       }
     },
+    "dirt_cc2": {
+      "name": "Terre (CC2)",
+      "desc": {
+        "label": "Le joueur la dégage en y marchant ; les monstres ne peuvent pas y entrer. Tout bloc sauf un bloc de terre peut y entrer et la change en sol."
+      }
+    },
     "signal_gate_and_cc2": {
       "name": "Porte ET (CC2)",
       "desc": {

@@ -362,6 +362,9 @@ tile turn_plate_ccw closed=true shadowMask=128 hash=1 61f32cc2a0e25a79
 tile dirt closed=true isolated a70fa01be0a72e26
 tile dirt closed=true shadowMask=65 hash=1 8c1cfc4f4f35aa16
 tile dirt closed=true shadowMask=128 hash=1 8aadb34d0037e725
+tile dirt_cc2 closed=true isolated 407e850014b63425
+tile dirt_cc2 closed=true shadowMask=65 hash=1 33ae710f50d16c8c
+tile dirt_cc2 closed=true shadowMask=128 hash=1 fe38988cf18d8b67
 tile gravel closed=true isolated 3e2be278ec346417
 tile gravel closed=true shadowMask=65 hash=1 ff29ca1369c84518
 tile gravel closed=true shadowMask=128 hash=1 c528058389e8e667

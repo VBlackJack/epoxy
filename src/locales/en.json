@@ -5157,6 +5157,12 @@
         "label": "The player clears it by walking in; monsters cannot enter. A dirt block, a colour block or an ice block may enter. A dirt block or a colour block turns it into floor; an ice block passes over and leaves it."
       }
     },
+    "dirt_cc2": {
+      "name": "Dirt (CC2)",
+      "desc": {
+        "label": "The player clears it by walking in; monsters cannot enter. Every block but a dirt block may enter and turns it into floor."
+      }
+    },
     "signal_gate_and_cc2": {
       "name": "AND Gate (CC2)",
       "desc": {

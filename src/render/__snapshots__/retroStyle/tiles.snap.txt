@@ -223,6 +223,11 @@ tile theme=cyber_neon id=dirt 657e63a6ee154c82
 tile theme=arctic_lab id=dirt ba6bfd52837529e7
 tile theme=magma_core id=dirt e6d83a04843ab7ce
 tile theme=lynx_lcd id=dirt ad0d1a743a88d9bf
+tile theme=default id=dirt_cc2 f7fa2944a1a88b9a
+tile theme=cyber_neon id=dirt_cc2 709bcd42bb873b93
+tile theme=arctic_lab id=dirt_cc2 ca963d0410a29f1f
+tile theme=magma_core id=dirt_cc2 31af83ef31e4a9c2
+tile theme=lynx_lcd id=dirt_cc2 45f0a318867dd807
 tile theme=default id=gravel e75efccac0904169
 tile theme=cyber_neon id=gravel 914e2e9a92f656ab
 tile theme=arctic_lab id=gravel ff86703896c95d24

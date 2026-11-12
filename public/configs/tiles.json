@@ -515,6 +515,21 @@
       "transformsToOnStep": "floor",
       "bootsForCharacter": { "melinda": "hiking_boots" }
     },
+    "dirt_cc2": {
+      "id": "dirt_cc2",
+      "category": "terrain",
+      "layer": "terrain",
+      "i18nKey": "tiles.dirt_cc2.name",
+      "laserTransparent": true,
+      "passableByPlayer": true,
+      "passableByMonster": false,
+      "passableByBlock": true,
+      "transformsToOnStep": "floor",
+      "bootsForCharacter": { "melinda": "hiking_boots" },
+      "blockClearsTo": "floor",
+      "barsBlocks": ["dirt_block"],
+      "keptBy": []
+    },
     "gravel": {
       "id": "gravel",
       "category": "terrain",

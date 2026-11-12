@@ -103,6 +103,8 @@ export const CC2_TERRAIN_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   [SEALED_TRAP_TILE]: { base: 'trap', mark: '3d' },
   // The CC2 logic gates: the gate of the same logic that every actor walks through.
   ...Object.fromEntries(CC2_GATE_BASE_IDS.map((id): [string, Cc2Variant] => [`${id}${SIGNAL_GATE_CC2_ID_SUFFIX}`, { base: id, mark: 'cc2' }])),
+  // The CC2 dirt: only the dirt block is stopped by it, every other block packs it down.
+  dirt_cc2: { base: 'dirt', mark: 'cc2' },
   // The format 17 CC3D ice corners, on the native corner of the same sides.
   ice_corner_3d_nw: { base: 'ice_nw', mark: '3d' },
   ice_corner_3d_ne: { base: 'ice_ne', mark: '3d' },
