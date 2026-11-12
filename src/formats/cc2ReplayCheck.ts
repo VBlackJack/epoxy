@@ -175,8 +175,19 @@ const FORCE_START_MASK = 3;
 /** Lynx sound player: the check plays in silence. */
 const SILENT_SOUND = { effect: () => undefined, step: () => undefined };
 
+/** The CC2 dirt and the plain dirt: the frozen Lynx engine plays an id it does not know as a wall, and dirt_cc2 is the dirt the CC2 rules pack. */
+const CC2_DIRT_ID = 'dirt_cc2';
+const LYNX_DIRT_ID = 'dirt';
+
+/** The level as the Lynx based engines read it: the Epoxy-only forms of a Lynx tile are replaced by that tile. */
+function forLynxEngines(level: CompiledLevel): CompiledLevel {
+  if (!level.terrain.some((row) => row.includes(CC2_DIRT_ID))) return level;
+  return { ...level, terrain: level.terrain.map((row) => row.map((id) => (id === CC2_DIRT_ID ? LYNX_DIRT_ID : id))) };
+}
+
 function newEngine(level: CompiledLevel, replay: Cc2Replay, kind: Cc2ReplayEngine): PlayEngine {
   if (kind === 'lynx' || kind === 'cc2') {
+    level = forLynxEngines(level);
     const lynx = kind === 'cc2' ? createCc2Engine(SILENT_SOUND) : new LynxEngine(SILENT_SOUND);
     lynx.setReplayOptions({ randomForceStart: FORCE_START_DIRECTIONS[replay.forceFloorStart & FORCE_START_MASK] });
     lynx.loadLevel(level, replay.blobSeed);
