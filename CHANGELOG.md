@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Levels imported from CC2 or from CC1 Steam (.c2m files) play closer to CC2 once more, checked tick by tick against an independent CC2 engine: teeth and timid teeth choose a direction only on four ticks out of eight and chase where the player appears to be in his step, a boxed-in teeth faces its last choice, a cloner or launcher held down by a monster from the start fires on the first tick, buttons and chips take effect when the player's step ends (a blue button then turns the tanks at once), a socket the player is stepping into stays solid for monsters until he arrives, and a monster on a force floor keeps its forced move when the cell ahead is being vacated. CC1 .DAT imports, native levels and CC3D levels are unchanged. Official CC2 replays won on Epoxy go from 83 to 90 of 200 and CC1 Steam .c2m from 107 to 111 of 149, with no level lost.
+- Replays recorded on CC2 and CC1 Steam (.c2m) imports now carry their own rules version, so a change to the CC2 rules no longer drops the replays of CC1 .DAT imports. Replays recorded on .c2m imports before this version are no longer offered (scores are kept).
+
 ## [2.33.0] - 2026-11-12
 
 ### Changed
