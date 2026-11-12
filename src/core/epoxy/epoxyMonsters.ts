@@ -200,8 +200,19 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
+    // CC2 engine: every monster decides first and moves after (Lexy game.js:960-1074), so a monster on a force floor plans the
+    // forced way even when the cell ahead is held by a monster that leaves it earlier in this pass; the move is tried in its turn.
+    if (plan === null && usesCc2Engine(w.level)) plan = blockedForcedPlan(w, entity, def);
     w.ccPlans.set(entity.uid, plan);
   }
+}
+
+/** The way a floor forces a monster, for the CC2 plan of a monster whose forced move is blocked right now; null when the floor does not decide for it. */
+function blockedForcedPlan(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
+  if (def === undefined || def.movementPattern === PHASE_LINE_PATTERN || def.ignoresSlidingFloors === true || def.ignoresFloorEffects === true) return null;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType !== 'force' || here.forceCycle === true || here.forceDirection === undefined || here.forceDirection === 'RANDOM') return null;
+  return here.forceDirection;
 }
 
 function runEntityPass(ctx: EpoxyContext): void {
