@@ -699,8 +699,9 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
     for (const c of candidates) {
       if (canStep(w, monster, c)) return c;
     }
-    // Classic teeth boxed in turn to face their first choice (every classic-rules level, CC2 imports included).
-    if (w.ccRules && candidates.length > 0 && followsCcCadence(monster.type, usesCc2Engine(w.level))) monster.dir = candidates[0];
+    // Classic teeth boxed in turn to face their first choice; on a CC2-engine level they take the last choice, as every actor does
+    // (Lexy game.js:1770-1774), and the move is tried in their turn through the plan (the facing).
+    if (w.ccRules && candidates.length > 0 && followsCcCadence(monster.type, usesCc2Engine(w.level))) monster.dir = usesCc2Engine(w.level) ? candidates[candidates.length - 1] : candidates[0];
     return null;
   }
 

@@ -111,3 +111,33 @@ describe('CC2 teeth aim at the apparent position of the player', () => {
     }
   });
 });
+
+describe('CC2 boxed-in teeth', () => {
+  const player = { x: 7, y: 5 };
+
+  it('face their last choice', () => {
+    const f = fixture(OPEN_ROOM, 'cc2', player);
+    // Candidates are [E, S] (dx 5 beats dy 3); wall both off.
+    f.w.terrain[2][3] = 'wall';
+    f.w.terrain[3][2] = 'wall';
+    expect(choose(f)).toBeNull();
+    expect(f.monster.dir).toBe('S');
+  });
+
+  it('face their first choice on a cc-flavour level', () => {
+    const f = fixture(OPEN_ROOM, 'cc', player);
+    f.w.terrain[2][3] = 'wall';
+    f.w.terrain[3][2] = 'wall';
+    expect(choose(f)).toBeNull();
+    expect(f.monster.dir).toBe('E');
+  });
+
+  it('leave their facing alone on a native level', () => {
+    const f = fixture(OPEN_ROOM, 'native', player);
+    f.monster.dir = 'N';
+    f.w.terrain[2][3] = 'wall';
+    f.w.terrain[3][2] = 'wall';
+    expect(choose(f)).toBeNull();
+    expect(f.monster.dir).toBe('N');
+  });
+});
