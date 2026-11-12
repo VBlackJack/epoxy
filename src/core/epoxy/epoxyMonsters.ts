@@ -76,6 +76,7 @@ import {
   monsterSlowdown,
   notePulseArrival,
   playerCharacterOf,
+  playersOf,
   removeEntity,
   playerAtCell,
   takeRevealedTerrain,
@@ -629,6 +630,10 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }
 
+function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {
+  return playersOf(w).some((p) => p.cc3dArrival?.opening?.x === x && p.cc3dArrival.opening.y === y);
+}
+
 /**
  * The point teeth aim at. On a CC2-engine level, once a tick has recorded the player's view, it is his apparent position
  * (the cell he is stepping out of, or the source pad of a teleport, plus the share of the step still to run), not his cell
@@ -881,6 +886,9 @@ export function canMonsterEnter(
   const def = ConfigRegistry.getEntityDef(monster.type);
   if (def?.ignoresCellEdges !== true && isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
   if (canopyStopsStep(w, def, monster.x, monster.y, nx, ny)) return false;
+  // CC2 engine: the cell a player is stepping into (a socket or door he opens on arrival) stays as it was for the monsters until
+  // his step ends; a ghost, which passes solid tiles, is not held (Lexy tiletypes.js:43-45, 3510-3517).
+  if (def?.passesSolidTiles !== true && usesCc2Engine(w.level) && isPlayerOpening(w, nx, ny)) return false;
 
   const destTileId = w.terrain[ny][nx];
   const destTile = ConfigRegistry.getTile(destTileId);
