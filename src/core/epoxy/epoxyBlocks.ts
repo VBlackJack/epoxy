@@ -49,7 +49,7 @@ import {
  * CC2 engine: entity passes a splash a block left in water bars the real player (Lexy: a 16-frame animation that a cooldown of
  * three frames a tick takes down on the fifth pass after it appeared).
  */
-const CC2_SPLASH_BLOCK_PASSES = 5;
+export const CC2_SPLASH_BLOCK_PASSES = 5;
 
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {

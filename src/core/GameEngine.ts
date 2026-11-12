@@ -39,6 +39,7 @@ import {
 } from './coreConstants';
 import { countPausedTick } from './epoxy/epoxyCc2Items';
 import { railStateKey, railStateOf, restoreRailState } from './epoxy/epoxyRailsCc2';
+import { CC2_SPLASH_BLOCK_PASSES } from './epoxy/epoxyBlocks';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { lightDepartedDynamite, setDownDynamite } from './epoxy/epoxyDynamite';
 import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
@@ -398,6 +399,17 @@ export class GameEngine {
    * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
    * so nothing about charges reaches a level without one or its hash.
    */
+  public getBlockSplashes(): readonly { x: number; y: number; left: number }[] | undefined {
+    if (this.w.blockSplashes.size === 0) return undefined;
+    const width = this.getMapWidth();
+    const out: { x: number; y: number; left: number }[] = [];
+    for (const [cell, until] of this.w.blockSplashes) {
+      const passes = until - this.w.ccMonsterClock;
+      if (passes > 0) out.push({ x: cell % width, y: Math.floor(cell / width), left: Math.min(1, passes / CC2_SPLASH_BLOCK_PASSES) });
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
   public getLitCharges(): readonly LitCharge[] | undefined {
     return this.w.litCharges.length > 0 ? copyLitCharges(this.w) : undefined;
   }

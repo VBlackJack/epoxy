@@ -391,6 +391,8 @@ const POCKET_PAD_ART = {
 const POCKET_PAD_TOP = -Math.PI / 2;
 /** Fuse ring of a lit charge: radius and width as tile fractions; the ring empties as the fuse burns, and the cell blinks near the end. */
 const CHARGE_FUSE_RING = { radius: 0.46, widthTile: 0.07, warnFraction: 0.34, blinkTicks: 4, flashAlpha: 0.32 } as const;
+/** Ripple a block leaves where it sank in water: ring radius and width as tile fractions, the peak opacity; the ring widens and fades over the splash life. */
+const BLOCK_SPLASH_RING = { startRadius: 0.2, growRadius: 0.28, widthTile: 0.06, alpha: 0.85 } as const;
 /** Angle the fuse ring starts from (twelve o'clock). */
 const CHARGE_FUSE_RING_START = -Math.PI / 2;
 /** Opacity of the awake lurker drawn over the seam of a sleeping one in the editor, so it can be found and told apart. */
@@ -1621,6 +1623,16 @@ export class PixelRenderer {
             : { px: originX + Math.floor((cx - region.x0) * unit), py: originY + Math.floor((cy - region.y0) * unit) },
         unit,
         drawSize
+      );
+    }
+
+    const blockSplashes = engine.getBlockSplashes?.();
+    if (blockSplashes !== undefined) {
+      this.paintBlockSplashes(sceneCtx, blockSplashes, (cx, cy) =>
+        cx < startTileX || cx > endTileX || cy < startTileY || cy > endTileY
+          ? null
+          : { px: originX + Math.floor((cx - region.x0) * unit), py: originY + Math.floor((cy - region.y0) * unit) },
+        unit
       );
     }
 
@@ -4208,6 +4220,29 @@ export class PixelRenderer {
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.arc(at.px + unit / 2, at.py + unit / 2, unit * CHARGE_FUSE_RING.radius, CHARGE_FUSE_RING_START, CHARGE_FUSE_RING_START + FULL_TURN * fraction);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /** The ripple a block leaves where it sank in water (CC2 engine): a ring that widens and fades while it bars the player. */
+  private paintBlockSplashes(
+    ctx: CanvasRenderingContext2D,
+    splashes: readonly { x: number; y: number; left: number }[],
+    cell: (x: number, y: number) => { px: number; py: number } | null,
+    unit: number
+  ): void {
+    const colour = this.pal().fxSplash;
+    for (const splash of splashes) {
+      const at = cell(splash.x, splash.y);
+      if (at === null) continue;
+      const age = 1 - splash.left;
+      ctx.save();
+      ctx.globalAlpha = BLOCK_SPLASH_RING.alpha * splash.left;
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = Math.max(1, unit * BLOCK_SPLASH_RING.widthTile);
+      ctx.beginPath();
+      ctx.arc(at.px + unit / 2, at.py + unit / 2, unit * (BLOCK_SPLASH_RING.startRadius + BLOCK_SPLASH_RING.growRadius * age), 0, FULL_TURN);
       ctx.stroke();
       ctx.restore();
     }

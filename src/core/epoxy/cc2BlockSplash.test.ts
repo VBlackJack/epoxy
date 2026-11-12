@@ -124,4 +124,15 @@ describe('CC2 block splash', () => {
     expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(w.blockSplashes.size).toBe(0);
   });
+
+  it('is offered to the renderer while it is active, and no longer once it is gone', () => {
+    const engine = load(room('cc2'));
+    sinkBlock(engine);
+    const shown = engine.getBlockSplashes();
+    expect(shown).toHaveLength(1);
+    expect(shown?.[0]).toMatchObject({ x: WATER_X, y: ROW });
+    expect(shown?.[0].left).toBeGreaterThan(0);
+    for (let pass = 0; pass < SPLASH_PASSES; pass++) engine.tick();
+    expect(engine.getBlockSplashes()).toBeUndefined();
+  });
 });
