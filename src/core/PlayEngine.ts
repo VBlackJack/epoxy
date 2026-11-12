@@ -75,8 +75,9 @@ export interface PlayEngine {
    */
   swapPlayer?(): boolean;
   /**
-   * Optional. Turn in place: the player faces `dir` without stepping, at no cost. False when refused (sliding, force floor,
-   * same facing, classic or converted CC3D rules, dead, paused, completed). An engine without it omits it.
+   * Optional. Turn in place: the player faces `dir` without stepping, at no cost. False when refused (sliding, on a force floor,
+   * waiting to leave a teleporter or to land from a CC3D arrival, same facing, classic or converted CC3D rules, dead,
+   * paused, completed). An engine without it omits it.
    */
   turnPlayer?(dir: Direction): boolean;
   /** Optional. The players not controlled now, in swap order; undefined on a level with one player. */

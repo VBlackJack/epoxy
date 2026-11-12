@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { DEFAULT_PLAYER_CHARACTER, FIRE_LAUNCHERS_ACTION, FLEE_PLAYER_PATTERN, HIKING_BOOTS_ITEM_ID, PHASE_LINE_PATTERN, PULSE_WIRED_ACTION, RAILROAD_SIGN_ITEM_ID, STEER_MONSTERS_ACTION, channelOfButtonAction } from './coreConstants';
+import { usesCcRules } from './epoxy/ccRules';
 import { isConvertedCc3dLevel } from './cc3d/cc3dConstants';
 import { CompiledLevel } from './types';
 
@@ -718,7 +719,7 @@ const noTurnFeaturesCache = new WeakMap<RulesetFeatures, RulesetFeatures>();
 
 /** True for a level whose engine refuses a turn in place: the classic rules, or a level converted from CC3D. */
 function withoutTurnInPlace(level: FeatureLevel): boolean {
-  if (level.rulesFlavor === 'cc' || level.cc2 !== undefined) return true;
+  if (usesCcRules({ rulesFlavor: level.rulesFlavor, cc2: level.cc2 })) return true;
   return typeof level.id === 'string' && isConvertedCc3dLevel({ id: level.id, cc3dSource: level.cc3dSource });
 }
 

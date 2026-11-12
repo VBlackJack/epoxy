@@ -201,6 +201,50 @@ describe('turnPlayer: the turn itself', () => {
   });
 });
 
+describe('turn timing, players and flight', () => {
+  it('records the current tick during a cooldown, and a replay applies it at that tick', () => {
+    const engine = load(room());
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    tickN(engine, 2);
+    const tick = engine.getTick();
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
+    expect(engine.turnPlayer('N')).toBe(true);
+    const recorded = engine.getTimedMoveHistory();
+    expect(recorded[recorded.length - 1]).toEqual({ tick, dir: 'N', turn: true });
+
+    const replay = load(room());
+    for (let i = 0; i <= tick; i++) {
+      for (const move of recorded.filter((m) => m.tick === replay.getTick())) applyTimedMove(replay, move);
+      if (replay.getTick() < tick) replay.tick();
+    }
+    expect(replay.getTick()).toBe(tick);
+    expect(replay.getPlayer().dir).toBe('N');
+    expect(replay.getPlayer()).toMatchObject({ x: engine.getPlayer().x, y: engine.getPlayer().y });
+  });
+
+  it('changes only the controlled player on a level with several', () => {
+    const engine = load(room({ extra: { extraPlayers: [{ x: 8, y: 8, dir: 'E', character: 'melinda' }] } }));
+    const parked = engine.getParkedPlayers();
+    expect(parked).toHaveLength(1);
+    const parkedBefore = { x: parked![0].x, y: parked![0].y, dir: parked![0].dir };
+    expect(engine.turnPlayer('S')).toBe(true);
+    expect(engine.getPlayer().dir).toBe('S');
+    expect(engine.getParkedPlayers()![0]).toMatchObject(parkedBefore);
+  });
+
+  it('sends a stone thrown after a turn along the new facing', () => {
+    const engine = load(room({ items: [[5, 8, 'bomb'], [8, 5, 'bomb']] }));
+    engine.getPlayer().keys[STONE] = 1;
+    expect(engine.turnPlayer('S')).toBe(true);
+    expect(engine.dropItem(STONE)).toBe(true);
+    const shot = engine.getShots()?.[0];
+    if (shot !== undefined) expect(shot).toMatchObject({ x: START.x, dir: 'S' });
+    tickN(engine, FLIGHT_TICKS);
+    expect(engine.getItems()[8][5]).toBeNull();
+    expect(engine.getItems()[5][8]).toBe('bomb');
+  });
+});
+
 describe('turn then throw', () => {
   it('throws a hurl stone across water to the far side once the player faces it', () => {
     const level = room({
