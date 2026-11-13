@@ -76,21 +76,24 @@ function ballBlocker(w: EpoxyWorld, ball: RuntimeEntity, dir: Direction): BallBl
 }
 
 /**
- * Blows the ball up where it stands: it is gone, and its cell holds a blast that bars the player (a ball spent at the very
- * moment it is set down leaves a harmless one: `bars` false). A button it held down stays held.
+ * Blows the ball up where it stands: it is gone, and its cell holds a blast that bars the player. A ball spent at the very
+ * moment it is set down (`atLaunch`) leaves a harmless blast and no press on the button of the player's cell under it; any
+ * other ball leaves a button it held down held.
  */
-export function explodeRollingBall(ctx: EpoxyContext, ball: RuntimeEntity, bars = true): void {
+export function explodeRollingBall(ctx: EpoxyContext, ball: RuntimeEntity, atLaunch = false): void {
   const w = ctx.world;
   removeEntity(w, ball.uid);
   w.beamDirty = true;
   AudioManager.playSfx(BALL_BLAST_SFX);
   ctx.emitVisual('explosion', ball.x, ball.y);
-  if (bars) leaveBlast(w, ball.x, ball.y);
-  keepHeldButton(w, ball.x, ball.y);
+  if (!atLaunch) {
+    leaveBlast(w, ball.x, ball.y);
+    keepHeldButton(w, ball.x, ball.y);
+  }
 }
 
 /** Kills what stopped the ball (a helmet does not protect a player), then blows the ball up. Returns false when a player died. */
-function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBlocker, bars: boolean): boolean {
+function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBlocker, atLaunch: boolean): boolean {
   const w = ctx.world;
   if (blocker !== 'terrain') {
     if ('player' in blocker) {
@@ -104,7 +107,7 @@ function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBloc
       keepHeldButton(w, victim.x, victim.y);
     }
   }
-  explodeRollingBall(ctx, ball, bars);
+  explodeRollingBall(ctx, ball, atLaunch);
   return w.player.alive;
 }
 
@@ -118,7 +121,7 @@ export function checkBallWay(ctx: EpoxyContext, ball: RuntimeEntity, dir: Direct
   const blocker = ballBlocker(w, ball, dir);
   if (blocker === null) return true;
   if (blocker === 'terrain' && ConfigRegistry.getTile(w.terrain[ball.y]?.[ball.x]).slideType !== undefined) return true;
-  return settleBlocked(ctx, ball, blocker, true);
+  return settleBlocked(ctx, ball, blocker, false);
 }
 
 /**
@@ -160,7 +163,7 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   w.entities.push(ball);
   const blocker = ballBlocker(w, ball, dir);
   if (blocker !== null) {
-    settleBlocked(ctx, ball, blocker, false);
+    settleBlocked(ctx, ball, blocker, true);
     return true;
   }
   // The first step is taken out of turn, toward the way faced whatever the floor of the cell says.

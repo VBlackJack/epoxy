@@ -60,3 +60,29 @@ describe('a ball set down after an undo', () => {
     expect(ballOf(engine)).toMatchObject({ x: LAST_FLOOR_X - 1, y: ROOM_ROW });
   });
 });
+
+const ORANGE_BUTTON = 'button_orange_cc2';
+const BROWN_BUTTON = 'button_brown';
+const START_X = 2;
+const FACED_X = START_X + 1;
+
+describe('a ball spent at launch and the button under the player', () => {
+  for (const button of [ORANGE_BUTTON, BROWN_BUTTON]) {
+    it(`does not toggle the ${button} the player stands on`, () => {
+      const engine = bowler({ terrain: { [`${START_X},${ROOM_ROW}`]: button, [`${FACED_X},${ROOM_ROW}`]: 'wall' } });
+      expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+      expect(ballOf(engine)).toBeUndefined();
+      expect(engine.getCc2WaveState()?.toggledButtons).toBeUndefined();
+    });
+
+    it(`still toggles the ${button} of the actor it kills at launch`, () => {
+      const engine = bowler({
+        terrain: { [`${FACED_X},${ROOM_ROW}`]: button },
+        entities: [{ type: 'lurker_dormant', x: FACED_X, y: ROOM_ROW, dir: 'N' }]
+      });
+      expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+      expect(engine.getEntities()).toEqual([]);
+      expect(engine.getCc2WaveState()?.toggledButtons).toEqual([ROOM_ROW * ROOM_SIZE + FACED_X]);
+    });
+  }
+});
