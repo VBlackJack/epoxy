@@ -168,8 +168,8 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
  * The block slap of the CC2 engine: with two direction keys held the player pushes the block next to him toward each of
  * them before he chooses, without moving. Refused while he slides or waits out a step, and across whatever would refuse
  * the step itself (a thin wall, the map edge, a splash); on a track cell the push follows the track redirect. His facing
- * is left as it was. The slap bumps the cell as a step would: a blue fake wall shows as floor, an invisible or appearing
- * wall becomes a wall. True when a block was pushed or a cell changed.
+ * is left as it was. The slap bumps the cell as a step would: a blue real wall or an appearing wall shows as a wall, a
+ * blue fake wall shows as floor, and an invisible wall does not change. True when a block was pushed or a cell changed.
  */
 export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): boolean {
   const w = ctx.world;
