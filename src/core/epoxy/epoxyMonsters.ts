@@ -227,10 +227,13 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
   const clock = w.ccMonsterClock;
   // A fireball melting an ice block removes it from the list while the pass runs: the pass walks the list as it was.
   const decisionOrder = w.entities.slice();
+  // Uids are never reused, so a change in the removed set tells that an actor was removed during the pass.
+  const removedAtStart = w.removedUids.size;
+  const removedDuringPass = (entity: RuntimeEntity): boolean => w.removedUids.size !== removedAtStart && !w.entities.includes(entity);
   for (let i = decisionOrder.length - 1; i >= 0; i--) {
     const entity = decisionOrder[i];
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
-    if (w.entities.length !== decisionOrder.length && !w.entities.includes(entity)) continue;
+    if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
       planYellowTank(w, entity, clock);
       continue;
@@ -275,7 +278,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // A rolling ball judges the way at its decision: what blocks it is killed or it blows up, there and then.
     if (isRollingBallDef(def) && !checkBallWay(ctx, entity, plan ?? entity.dir)) return false;
     // The entity may be gone by now (the ball blew up, or the monster probed one).
-    if (w.entities.length !== decisionOrder.length && !w.entities.includes(entity)) continue;
+    if (removedDuringPass(entity)) continue;
     w.ccPlans.set(entity.uid, plan);
   }
   return true;
