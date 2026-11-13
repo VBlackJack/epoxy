@@ -486,7 +486,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 1;
+export const CC2_RULES_VERSION = 2;
 
 /** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
 export const LYNX_RULES_VERSION = 1;
