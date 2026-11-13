@@ -17,6 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from '../core/GameEngine';
 import { createCc2Engine } from '../core/cc2/Cc2Engine';
+import { resolveCc2HeldOrder } from '../core/epoxy/cc2HeldInput';
 import { LynxEngine } from '../core/lynx/LynxEngine';
 import type { PlayEngine } from '../core/PlayEngine';
 import type { CompiledLevel, Direction } from '../core/types';
@@ -277,24 +278,6 @@ function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: numbe
     return engine.swapPlayer?.() === true;
   }
   return false;
-}
-
-/** Pairs of opposing directions: when one pair is held at once, CC2 ignores all direction input. */
-const OPPOSING_PAIRS: readonly (readonly [Cc2Direction, Cc2Direction])[] = [
-  ['N', 'S'],
-  ['E', 'W']
-];
-const HORIZONTAL_DIRECTIONS: readonly Cc2Direction[] = ['E', 'W'];
-
-/**
- * The order in which CC2 tries the held direction keys. An opposing pair held (up and down, or left and right) cancels
- * every direction that tick; otherwise, with one vertical and one horizontal key held, the key matching the current
- * facing is tried first, then the horizontal one, and the other key is the fallback when the first is blocked.
- */
-export function resolveCc2HeldOrder(held: readonly Cc2Direction[], facing: Cc2Direction): Cc2Direction[] {
-  if (OPPOSING_PAIRS.some(([a, b]) => held.includes(a) && held.includes(b))) return [];
-  const rank = (dir: Cc2Direction): number => (dir === facing ? 2 : HORIZONTAL_DIRECTIONS.includes(dir) ? 1 : 0);
-  return [...held].sort((a, b) => rank(b) - rank(a));
 }
 
 /** Strategy `held`: offer the held keys to the engine at every tick. */
