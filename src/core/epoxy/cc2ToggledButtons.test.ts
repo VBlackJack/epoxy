@@ -135,11 +135,12 @@ describe('toggleHeldButton: a brown button toggled with nothing on it', () => {
     expect(engine.isCellClosedTrap(TRAP_CELL.x, TRAP_CELL.y)).toBe(false);
   });
 
-  it('shuts the trap again on a second toggle, and does nothing outside the CC2 engine', () => {
+  it('counts presses: a second removal on the cell never releases the trap, and nothing changes outside the CC2 engine', () => {
     const engine = load(brownLevel('cc2'));
     toggleHeldButton(worldOf(engine), BROWN_BUTTON.x, BROWN_BUTTON.y);
-    toggleHeldButton(worldOf(engine), BROWN_BUTTON.x, BROWN_BUTTON.y);
-    expect(engine.isCellClosedTrap(TRAP_CELL.x, TRAP_CELL.y)).toBe(true);
+    expect(toggleHeldButton(worldOf(engine), BROWN_BUTTON.x, BROWN_BUTTON.y)).toBe(true);
+    expect(engine.isCellClosedTrap(TRAP_CELL.x, TRAP_CELL.y)).toBe(false);
+    expect(worldOf(engine).cc2ToggledButtonCells).toEqual([BROWN_BUTTON.y * mapWidth(worldOf(engine)) + BROWN_BUTTON.x]);
 
     const classic = load(brownLevel('cc'));
     toggleHeldButton(worldOf(classic), BROWN_BUTTON.x, BROWN_BUTTON.y);

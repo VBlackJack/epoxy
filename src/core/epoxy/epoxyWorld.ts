@@ -215,7 +215,7 @@ export interface EpoxyWorld {
   cc2BrownHeld?: number[];
   /**
    * CC2 engine: the cell indices (ascending) of the buttons that count as held although no actor stands on them, because a
-   * rolling ball blew up on one (the toggle is an exclusive or: a second ball on the cell releases it). Empty on every other
+   * rolling ball blew up on one (an orange button toggles, an exclusive or: a second ball on the cell releases it; a brown button counts presses, so it stays held). Empty on every other
    * level; reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while non-empty.
    */
   cc2ToggledButtonCells: number[];

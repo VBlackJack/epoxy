@@ -114,6 +114,8 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
 
 /** Tile id of the pink button: the only held source CC2 reads from an actor at rest (Lexy button_pink is_emitting). */
 const PINK_BUTTON_TILE_ID = SIGNAL_PLATE_TILE_ID;
+/** The button action of a brown button (it holds a trap open while pressed). */
+const BROWN_BUTTON_ACTION = 'hold_trap';
 
 /**
  * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
@@ -427,10 +429,11 @@ export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | un
 }
 
 /**
- * CC2 engine: toggles the button on the cell (`x`, `y`) in the world set of buttons held with no actor on them (an exclusive
- * or: a second toggle releases it). Keeps the cell indices ascending. Called when an actor is removed in place on an orange
- * or brown button with no departure (a rolling ball that blew up there, the actor it killed). Does nothing on any other
- * level. Returns true when the cell is held afterwards.
+ * CC2 engine: marks the button on the cell (`x`, `y`) as held with no actor on it, in the world set of such buttons (cell indices
+ * kept ascending). Called when an actor is removed in place on an orange or brown button with no departure (a rolling ball that
+ * blew up there, the actor it killed). An orange button toggles (an exclusive or: a second removal releases it); a brown button
+ * counts presses (Lexy add_press without remove_press), so a second removal never releases it. Does nothing on any other level.
+ * Returns true when the cell is held afterwards.
  */
 export function toggleHeldButton(w: EpoxyWorld, x: number, y: number): boolean {
   if (!usesCc2Engine(w.level)) return false;
@@ -438,6 +441,7 @@ export function toggleHeldButton(w: EpoxyWorld, x: number, y: number): boolean {
   const held = w.cc2ToggledButtonCells;
   const at = held.indexOf(cell);
   if (at >= 0) {
+    if (ConfigRegistry.getTile(w.terrain[y]?.[x]).buttonAction === BROWN_BUTTON_ACTION) return true;
     held.splice(at, 1);
     return false;
   }
