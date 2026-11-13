@@ -246,7 +246,10 @@ function isButtonLinkedSink(w: EpoxyWorld, runtime: SignalRuntime, sinkCell: num
  */
 function startWiredSinksOff(w: EpoxyWorld, runtime: SignalRuntime): void {
   for (const index of runtime.network.sinkIndexes) {
-    if (!isButtonLinkedSink(w, runtime, runtime.network.nodes[index].cell)) runtime.state.lastOutputs[index] = false;
+    const cell = runtime.network.nodes[index].cell;
+    // A wired trap whose wire is on at load is open from the start: its monster may leave in tick 0 (no edge fires for a trap).
+    if (ConfigRegistry.getTile(w.terrain[Math.floor(cell / mapWidth(w))][cell % mapWidth(w)]).wiredTrap === true) continue;
+    if (!isButtonLinkedSink(w, runtime, cell)) runtime.state.lastOutputs[index] = false;
   }
 }
 
