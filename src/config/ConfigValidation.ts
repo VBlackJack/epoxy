@@ -951,7 +951,9 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
       record.signalLinks,
       level.terrain,
       record.ruleset,
-      normalizeUnderlays(record.underlays, level.terrain, record.ruleset)
+      normalizeUnderlays(record.underlays, level.terrain, record.ruleset),
+      undefined,
+      isCc2LevelData(record.cc2)
     );
     if (wires === null || JSON.stringify(wires) !== JSON.stringify(record.signalLinks)) bad.push('signalLinks');
   }

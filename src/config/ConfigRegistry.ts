@@ -1561,7 +1561,7 @@ class ConfigRegistryService {
     const railTracks = normalizeRailTracks(bp.railTracks, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
     const launcherLinks = normalizeLauncherLinks(bp.launcherLinks, terrain, bp.ruleset, underlays);
-    const signalLinks = normalizeSignalLinks(bp.signalLinks, terrain, bp.ruleset, underlays);
+    const signalLinks = normalizeSignalLinks(bp.signalLinks, terrain, bp.ruleset, underlays, undefined, isCc2LevelData(bp.cc2));
 
     return {
       id: levelId,
