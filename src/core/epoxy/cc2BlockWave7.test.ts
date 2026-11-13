@@ -50,6 +50,7 @@ const WATCH_TICKS = 6;
 const SPLASH_PASSES = 5;
 const MELT_WAIT_PASSES = 8;
 const FIRE_X = 4;
+const ICE_X = 6;
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const ctxOf = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
@@ -177,6 +178,54 @@ describe('melted ice block splash (MS)', () => {
   it('leaves none on a classic or a native level', () => {
     for (const mode of ['cc', 'native'] as const) {
       expect(worldOf(melt(mode)).blockSplashes.size, mode).toBe(0);
+    }
+  });
+});
+
+describe('block boxed in on ice (IB)', () => {
+  function boxed(mode: RoomMode, openSide: boolean): GameEngine {
+    const engine = load(mode, {
+      startX: 1,
+      terrain: {
+        [`${ICE_X},${ROOM_ROW}`]: 'ice',
+        [`${ICE_X + 1},${ROOM_ROW}`]: 'wall',
+        [`${ICE_X - 1},${ROOM_ROW}`]: openSide ? 'floor' : 'wall',
+        [`${ICE_X},${ROOM_ROW - 1}`]: 'wall',
+        [`${ICE_X},${ROOM_ROW + 1}`]: 'wall'
+      },
+      entities: [{ type: ICE_BLOCK, x: ICE_X, y: ROOM_ROW, dir: 'E' }]
+    });
+    const block = worldOf(engine).entities.find((e) => e.kind === 'block');
+    if (block === undefined) throw new Error('the room has a block');
+    block.isSliding = true;
+    block.cooldownTicks = 0;
+    return engine;
+  }
+  const blockOf = (engine: GameEngine) => worldOf(engine).entities.find((e) => e.kind === 'block');
+
+  it('keeps sliding and turns round each tick on a CC2 level, without a sound', () => {
+    const engine = boxed('cc2', false);
+    const dirs: string[] = [];
+    for (let i = 0; i < WATCH_TICKS; i++) {
+      engine.tick();
+      expect(blockOf(engine)?.isSliding).toBe(true);
+      dirs.push(blockOf(engine)?.dir ?? '');
+    }
+    expect(new Set(dirs).size).toBeGreaterThan(1);
+    expect(playSfx).not.toHaveBeenCalled();
+  });
+
+  it('leaves as soon as the way back opens', () => {
+    const engine = boxed('cc2', true);
+    for (let i = 0; i < WATCH_TICKS; i++) engine.tick();
+    expect(blockOf(engine)?.x).toBeLessThan(ICE_X);
+  });
+
+  it('stops on a classic or a native level', () => {
+    for (const mode of ['cc', 'native'] as const) {
+      const engine = boxed(mode, false);
+      for (let i = 0; i < WATCH_TICKS; i++) engine.tick();
+      expect(blockOf(engine)?.isSliding, mode).toBe(false);
     }
   });
 });

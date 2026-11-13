@@ -634,6 +634,10 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
     const bVec = DIRECTION_VECTORS[deflected];
     if (isCanBlockEnter(w, entity, entity.x + bVec.dx, entity.y + bVec.dy, deflected)) {
       moveBlockTo(ctx, entity, entity.x + bVec.dx, entity.y + bVec.dy, deflected);
+    } else if (usesCc2Engine(w.level)) {
+      // CC2 engine: a slide on ice never ends. A block boxed in keeps bonking, turned round each tick (no sound: nothing
+      // moved), and leaves as soon as a side opens.
+      entity.dir = deflected;
     } else {
       entity.isSliding = false;
     }
