@@ -51,6 +51,9 @@ import {
  */
 export const CC2_SPLASH_BLOCK_PASSES = 5;
 
+/** The block type the CC2 item bar (blocksDirtBlock) applies to. */
+const CC2_DIRT_BLOCK_TYPE = 'dirt_block';
+
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
   if (w.blockSplashes.size === 0) return false;
@@ -278,6 +281,15 @@ export function isCanBlockEnter(
   // An item that bars blocks (the toggle clock) keeps them out of its cell.
   const destItem = w.items[destY][destX];
   if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
+  // On a CC2-engine level the dirt block is also kept out of the cells holding chips, keys and bonus items.
+  if (
+    destItem !== null &&
+    block.type === CC2_DIRT_BLOCK_TYPE &&
+    usesCc2Engine(w.level) &&
+    ConfigRegistry.getTile(destItem).blocksDirtBlock === true
+  ) {
+    return false;
+  }
   // A block of the CC3D rules keeps out of any item except a bomb, which it sets off; a floating colour block bars every block.
   if (
     destItem !== null &&
