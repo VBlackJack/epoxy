@@ -541,7 +541,12 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     }
   }
 
-  notePulseArrival(w, x, y, null);
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && (tile.signalSource === 'toggle' || tile.signalSource === 'pulse')) {
+    // CC2 engine: a light switch or pulse source acts when the step onto it ends, if he is still on it (Lexy on_arrive).
+    cc3dArrivalOf(w.player).pulse = { x, y };
+  } else {
+    notePulseArrival(w, x, y, null);
+  }
 
   if (tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !atStepEnd) {
     // CC3D: the player works a clone switch, and CC2 any button, when the step that took him onto it ends.
@@ -629,6 +634,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
   delete p.cc3dArrival;
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
+  if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
