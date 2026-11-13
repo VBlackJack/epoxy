@@ -53,7 +53,7 @@ import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity, TileDefinition } from '../types';
 import { isCc2YellowTank, markYellowButtonArrival } from './epoxySteering';
-import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerTurn } from './ccGenerators';
+import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerByte, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
@@ -615,6 +615,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree && destTile.transmogrifyTable === 'cc2') {
     const pool = def?.transmogrifiesToCc2Pool;
     if (def?.transmogrifiesToCc2 !== undefined) entity.type = def.transmogrifiesToCc2;
+    else if (pool !== undefined && pool.length > 0 && usesCc2Engine(w.level) && w.ccGenerators !== null) entity.type = pool[drawWalkerByte(w.ccGenerators) % pool.length];
     else if (pool !== undefined && pool.length > 0) entity.type = pool[w.rng.nextInt(0, pool.length - 1)];
     delete entity.tankTurn;
   }
