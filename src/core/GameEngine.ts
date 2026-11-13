@@ -144,6 +144,13 @@ const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
 /** The canopy cells of a level without a canopy. */
 const NO_CANOPIES: ReadonlySet<number> = new Set();
 
+/** Copies an entity for a snapshot: the array fields are copied too, so the live entity and the snapshot never share one. */
+export function copyEntity(e: RuntimeEntity): RuntimeEntity {
+  const copy = { ...e };
+  if (e.heldTools !== undefined) copy.heldTools = [...e.heldTools];
+  return copy;
+}
+
 export class GameEngine {
   /** The play state of the loaded level, shared with the engine modules. */
   private readonly w: EpoxyWorld = createEpoxyWorld();
@@ -748,7 +755,7 @@ export class GameEngine {
     return {
       terrain: this.w.terrain.map((r) => [...r]),
       items: this.w.items.map((r) => [...r]),
-      entities: this.w.entities.map((e) => ({ ...e })),
+      entities: this.w.entities.map(copyEntity),
       player: this.snapshotPlayer(this.w.player),
       // Only a level with several players saves the others and the count of those who left.
       ...(this.hasSeveralPlayers()
@@ -862,7 +869,7 @@ export class GameEngine {
   public restoreState(snap: UndoSnapshot): void {
     this.w.terrain = snap.terrain.map((r) => [...r]);
     this.w.items = snap.items.map((r) => [...r]);
-    this.w.entities = snap.entities.map((e) => ({ ...e }));
+    this.w.entities = snap.entities.map(copyEntity);
     this.w.player = this.restorePlayer(snap.player, snap.player.character ?? snap.playerCharacter);
     this.w.parked = (snap.parked ?? []).map((p) => this.restorePlayer(p, p.character));
     this.w.exitedPlayers = snap.exitedPlayers ?? 0;

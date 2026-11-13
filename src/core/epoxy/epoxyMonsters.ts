@@ -1027,13 +1027,18 @@ export function canMonsterEnter(
 }
 
 /** Whether a monster that picks things up (a ghost, a rover) takes this item: the keys but the red one, and the tools. */
-function monsterPicksUp(itemId: string): boolean {
+export function monsterPicksUp(itemId: string): boolean {
   const item = ConfigRegistry.getTile(itemId);
   return (
     item.collectible !== undefined &&
     MONSTER_PICKUP_COLLECTIBLES.includes(item.collectible) &&
     item.colorKey !== MONSTER_IGNORED_KEY_COLOR
   );
+}
+
+/** Whether a CC2 rolling ball takes this item as it rolls over it: what a picking monster takes, and the score bonuses flagged for it. */
+export function rollingBallPicksUp(itemId: string): boolean {
+  return monsterPicksUp(itemId) || ConfigRegistry.getTile(itemId).rollingBallTakesCc2 === true;
 }
 
 /**
