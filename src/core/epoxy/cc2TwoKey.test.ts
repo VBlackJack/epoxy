@@ -194,6 +194,20 @@ describe('two keys on a CC2-engine level', () => {
     expect(cellOfEntity(engine, 'dirt_block')).toBe(`${START_X},${START_Y + 1}`);
   });
 
+  it('bumps an appearing wall into a wall and a blue fake wall into floor, one undo step restoring both', () => {
+    const eastCell = `${START_X + 1},${START_Y}`;
+    const appearing = load({ terrain: { [eastCell]: 'appearing_wall' } });
+    expect(hold(appearing, ['E', 'S'])).toBe(true);
+    expect(appearing.getTerrain()[START_Y][START_X + 1]).toBe('wall');
+    expect(at(appearing)).toBe(`${START_X},${START_Y + 1}`);
+    expect(appearing.undo()).toBe(true);
+    expect(appearing.getTerrain()[START_Y][START_X + 1]).toBe('appearing_wall');
+    const fake = load({ terrain: { [eastCell]: 'blue_wall_fake' } });
+    expect(hold(fake, ['E', 'S'])).toBe(true);
+    expect(fake.getTerrain()[START_Y][START_X + 1]).toBe('floor');
+    expect(at(fake)).toBe(eastCell);
+  });
+
   it('does not slap while the player waits out a step', () => {
     const engine = load({ entities: [block(START_X, START_Y + 1)] });
     engine.attemptPlayerMove('E');

@@ -15,7 +15,7 @@
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
+import { CC2_SLAP_REVEALED_TILE_IDS, DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
@@ -148,11 +148,28 @@ export function steerMirrorsOnce(ctx: EpoxyContext, dir: Direction): void {
   if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, dir);
 }
 
+/** What a slap shows of the cell it bumps: a listed fake wall turns to what it hides (floor), an appearing wall to its wall. */
+function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
+  const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (tile.revealsToOnTouch !== undefined) {
+    w.terrain[y][x] = tile.revealsToOnTouch;
+    w.gridMutatedByMove = true;
+    return true;
+  }
+  if (tile.transformsToOnStep !== undefined && CC2_SLAP_REVEALED_TILE_IDS.includes(tile.id)) {
+    w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? tile.transformsToOnStep;
+    w.gridMutatedByMove = true;
+    return true;
+  }
+  return false;
+}
+
 /**
  * The block slap of the CC2 engine: with two direction keys held the player pushes the block next to him toward each of
  * them before he chooses, without moving. Refused while he slides or waits out a step, and across whatever would refuse
  * the step itself (a thin wall, the map edge, a splash); on a track cell the push follows the track redirect. His facing
- * is left as it was. True when a block was pushed.
+ * is left as it was. The slap bumps the cell as a step would: a blue fake wall shows as floor, an invisible or appearing
+ * wall becomes a wall. True when a block was pushed or a cell changed.
  */
 export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): boolean {
   const w = ctx.world;
@@ -167,11 +184,12 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   if (!isInBounds(w, targetX, targetY)) return false;
   if (isEdgeBlocked(w, p.x, p.y, targetX, targetY, dir, false, rail)) return false;
   if (splashBarsPlayer(w, targetX, targetY)) return false;
+  const bumped = bumpRevealedCell(w, targetX, targetY);
   const block = getEntityAt(w, targetX, targetY);
-  if (block === undefined || block.kind !== 'block') return false;
+  if (block === undefined || block.kind !== 'block') return bumped;
   const pushed = attemptPushBlock(ctx, block, dir, true, false, undefined, true);
   p.dir = facing;
-  return pushed;
+  return pushed || bumped;
 }
 
 /** The player's own step toward `requestedDir`: the track redirect, the checks of the cell ahead, the push of a block and the arrival. */
