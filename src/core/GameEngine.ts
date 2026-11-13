@@ -576,7 +576,7 @@ export class GameEngine {
    * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    if (!this.beginInput()) return false;
     if (!itemId || !this.holdsItem(itemId)) {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
       return false;
@@ -918,10 +918,38 @@ export class GameEngine {
     this.w.beamDirty = true;
   }
 
+  /**
+   * CC2 engine: acts on what the player's step left pending once it has ended (see applyCc3dStepEnd). Called at the start of
+   * every entry point that consumes input, so the effects of a step act when the next tick or input begins (the original
+   * runs them in the first frame of the tick after the wait ran out). Idempotent: nothing is pending the second time. The
+   * entity pass that follows is the one that closes the previous tick, which w.cc2BeforePass tells a clone machine.
+   * Returns false when the effects ended the level or killed the player.
+   */
+  private flushCc2StepEnd(): boolean {
+    const w = this.w;
+    if (!usesCc2Engine(w.level) || w.cc3dPace || w.player.cc3dArrival === undefined) return w.player.alive && !w.levelCompleted;
+    w.cc2BeforePass = true;
+    try {
+      applyCc3dStepEnd(this.ctx);
+    } finally {
+      w.cc2BeforePass = undefined;
+    }
+    // The pending effects may have moved him (a teleporter jump): where he appears to be as the next tick starts changes with it.
+    if (w.player.cc3dArrival === undefined) recordCc2PlayerView(w);
+    return w.player.alive && !w.levelCompleted;
+  }
+
+  /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
+  private beginInput(): boolean {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    return this.flushCc2StepEnd();
+  }
+
   public tick(): void {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) {
       return;
     }
+    if (!this.flushCc2StepEnd()) return;
 
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;
@@ -988,10 +1016,9 @@ export class GameEngine {
     // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
     refreshTrapLatch(this.w);
     this.checkTargetsWin();
-    // CC2 engine: what the step onto a cell does acts when that step ends, at the end of the tick that ran its wait out.
-    // Not after an early return above (paused, time out, death), nor once the level is won.
-    // A press that ended the level or killed the player leaves nothing to record.
-    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted && !applyCc3dStepEnd(this.ctx)) return;
+    // CC2 engine: what the step onto a cell does acts when that step ends, at the start of the next tick or input
+    // (flushCc2StepEnd); a brown button it held was held for this tick only.
+    this.w.cc2BrownHeld = undefined;
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }
@@ -1005,6 +1032,7 @@ export class GameEngine {
    */
   public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     if (dirs.length === 0) return false;
+    if (!this.beginInput()) return false;
     const keys = dirs.filter((d, i) => dirs.indexOf(d) === i);
     if (!usesCc2Engine(this.w.level) || this.w.cc3dPace || keys.length === 1) return this.attemptPlayerMove(dirs[0]);
     if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
@@ -1071,9 +1099,7 @@ export class GameEngine {
   }
 
   public attemptPlayerMove(dir: Direction): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) {
-      return false;
-    }
+    if (!this.beginInput()) return false;
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
@@ -1172,7 +1198,7 @@ export class GameEngine {
    * recorded solution replays it.
    */
   public swapPlayer(): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
+    if (!this.beginInput() || this.w.parked.length === 0) return false;
     this.saveUndoSnapshot();
     rotatePlayers(this.w);
     resetCc2PlayerView(this.w);
@@ -1188,7 +1214,7 @@ export class GameEngine {
    * solution replays it.
    */
   public cycleInventory(): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted || !usesCc2Engine(this.w.level)) return false;
+    if (!usesCc2Engine(this.w.level) || !this.beginInput()) return false;
     const boots = this.w.player.boots;
     if (boots.size < MIN_BOOTS_TO_CYCLE) return false;
     this.saveUndoSnapshot();
@@ -1224,7 +1250,7 @@ export class GameEngine {
    * recorded solution replays it; undo restores the facing through the previous snapshot and truncates the entry.
    */
   public turnPlayer(dir: Direction): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    if (!this.beginInput()) return false;
     if (this.w.ccRules || this.w.cc3dPace) return false;
     const player = this.w.player;
     if (player.isSliding || player.teleportExit !== undefined || player.cc3dArrival !== undefined) return false;

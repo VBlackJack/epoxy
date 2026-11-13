@@ -111,7 +111,8 @@ describe('player arrival pulse and brown', () => {
     const engine = load();
     const w = world(engine);
     w.player.cc3dArrival = { pulse: { ...PULSE_POINT }, brown: { ...BROWN_POINT } };
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    // The pending effects of a step that is over act at the start of any input, so the snapshot is taken directly.
+    (engine as unknown as { saveUndoSnapshot: () => void }).saveUndoSnapshot();
     w.player.cc3dArrival = undefined;
     expect(engine.undo()).toBe(true);
     expect(world(engine).player.cc3dArrival?.pulse).toEqual(PULSE_POINT);

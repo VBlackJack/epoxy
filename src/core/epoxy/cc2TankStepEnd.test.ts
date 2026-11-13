@@ -59,7 +59,12 @@ describe('CC2 engine: a blue button pressed at step end', () => {
     expect(markOf(engine)).toBeUndefined();
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
-    expect(markOf(engine)).toBe(world(engine).ccMonsterClock);
+    // The press acts at the start of the next tick, before its entity pass: the mark is due at that very pass, which spends it.
+    expect(markOf(engine)).toBeUndefined();
+    const dirBefore = world(engine).entities.find((e) => e.type === TANK)?.dir;
+    engine.tick();
+    expect(markOf(engine)).toBeUndefined();
+    expect(world(engine).entities.find((e) => e.type === TANK)?.dir).not.toBe(dirBefore);
   });
 
   it('keeps the calibrated delay for a press at the start of the step on a DAT-style level', () => {
