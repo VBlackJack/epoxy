@@ -520,7 +520,7 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     chosenDir = chooseMonsterDirection(w, entity, behaviour);
   }
   // CC2 engine: a monster that probed a rolling ball was blown up with it: it takes no step.
-  if (w.removedUids.has(entity.uid)) return true;
+  if (!w.entities.includes(entity)) return true;
   if (!chosenDir) {
     // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
     // A monster that draws its way at random (the CC3D omni) draws again next tick when the draw is blocked.
@@ -1090,7 +1090,7 @@ function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): bool
   // Lexy tests the canopy, thin wall, item and terrain layers before the actor layer: a ball is bumped only once those admit the monster.
   if (!canMonsterEnter(w, monster, wanted, true, true, true)) return false;
   bumpRollingBall(w, monster, wanted);
-  if (w.removedUids.has(monster.uid)) return false;
+  if (!w.entities.includes(monster)) return false;
   return canMonsterEnter(w, monster, wanted, false, true, true);
 }
 
