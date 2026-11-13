@@ -581,6 +581,8 @@ export const RAIL_DEFAULT_ENTRY: Direction = 'S';
 export const CC3D_ARRIVAL_KEY_PREFIX = 'ca';
 /** Prefix of the apparent player position in the runtime key of a CC2-engine level. */
 export const CC2_PLAYER_VIEW_KEY_PREFIX = 'pv';
+/** Prefix of the hidden rule state of a CC2-engine level (blob modifier, deferred sink edges, pending yellow tank steers) in the runtime key. */
+export const CC2_HIDDEN_STATE_KEY_PREFIX = 'ch';
 
 /** Prefix of the track cell state in a search state key. */
 export const RAIL_STATE_KEY_PREFIX = 'rl';

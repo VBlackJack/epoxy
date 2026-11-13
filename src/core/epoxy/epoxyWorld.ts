@@ -708,6 +708,20 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
   return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}${v.sourcePad === undefined ? '' : `p${v.sourcePad.x}.${v.sourcePad.y}`}`;
 }
 
+/**
+ * The search key of the rule state a CC2-engine level keeps beyond the grid and that changes what happens next: the blob
+ * modifier, the sink edges deferred to the next tick, and the pending steer of each yellow tank. Empty when none is set.
+ */
+export function cc2HiddenStateKey(w: EpoxyWorld): string {
+  const parts: string[] = [];
+  const modifier = w.ccGenerators?.blobModifier;
+  if (modifier !== undefined) parts.push(`m${modifier}`);
+  if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
+  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
+  if (steers.length > 0) parts.push(`s${steers.join(',')}`);
+  return parts.join(';');
+}
+
 /** The search key of what waits on the players of a converted CC3D level: empty when nothing does. */
 export function cc3dArrivalKey(w: EpoxyWorld): string {
   const parts: string[] = [];

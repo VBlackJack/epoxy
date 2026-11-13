@@ -211,3 +211,20 @@ describe('yellow tank decisions that wait', () => {
     expect(tank.dir).toBe(STEER);
   });
 });
+
+describe('runtime key of the hidden CC2 rule state', () => {
+  it('tells a tank with a pending steer from one without, on a CC2 level only', () => {
+    const engine = start('cc2');
+    const rest = engine.getRuntimeKeyExtra();
+    tankOf(engine).pendingSteer = 'E';
+    const steered = engine.getRuntimeKeyExtra();
+    expect(steered).not.toBe(rest);
+    tankOf(engine).pendingSteerDue = FOREIGN_DUE;
+    expect(engine.getRuntimeKeyExtra()).not.toBe(steered);
+
+    const native = start('native');
+    const nativeRest = native.getRuntimeKeyExtra();
+    tankOf(native).pendingSteer = 'E';
+    expect(native.getRuntimeKeyExtra()).toBe(nativeRest);
+  });
+});

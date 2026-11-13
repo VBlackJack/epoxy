@@ -29,6 +29,7 @@ import {
   PLAYER_CHARACTER_KEY_PREFIX,
   CC3D_ARRIVAL_KEY_PREFIX,
   CC2_PLAYER_VIEW_KEY_PREFIX,
+  CC2_HIDDEN_STATE_KEY_PREFIX,
   PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
@@ -91,6 +92,7 @@ import {
   canPlayerEnter,
   cc3dArrivalKey,
   cc2PlayerViewKey,
+  cc2HiddenStateKey,
   copyCc2PlayerView,
   copyCc3dArrival,
   createEpoxyWorld,
@@ -461,6 +463,8 @@ export class GameEngine {
     if (usesCc2Engine(this.w.level)) {
       const view = cc2PlayerViewKey(this.w);
       if (view !== '') parts.push(`${CC2_PLAYER_VIEW_KEY_PREFIX}${view}`);
+      const hidden = cc2HiddenStateKey(this.w);
+      if (hidden !== '') parts.push(`${CC2_HIDDEN_STATE_KEY_PREFIX}${hidden}`);
     }
     return parts.join('|');
   }
