@@ -248,13 +248,24 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
       w.ccPlans.set(entity.uid, entity.dir);
       continue;
     }
-    let plan = chooseMonsterDirection(w, entity, def);
+    // CC2 engine: a rover decides with the behaviour it imitates, and each decision is counted here, once; its step
+    // does not count it again. A decision on a sliding floor is not one (Lexy decides nothing while an actor slides).
+    const cc2 = usesCc2Engine(w.level);
+    const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
+    const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+    // A rover imitating teeth chases only in the teeth window and decides nothing otherwise: it waits and decides again next tick.
+    const behaviourType = behaviour?.id ?? entity.type;
+    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2)) {
+      w.ccPlans.set(entity.uid, null);
+      continue;
+    }
+    let plan = chooseMonsterDirection(w, entity, behaviour);
     // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
       if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
     }
-    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
+    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
     // CC2 engine: every monster decides first and moves after (Lexy game.js:960-1074), so a monster on a force floor plans the
@@ -471,7 +482,8 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // A rover decides each step with the behaviour of the monster it is imitating just now. Each decision is counted,
   // except while it slides (Lexy decides nothing then).
   const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
-  const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+  // On a CC2-engine level the decision pass has already counted a rover's decision (it holds a plan): not counted twice.
+  const behaviour = sliding || w.ccPlans.has(entity.uid) ? emulatedDef(entity, def) : advanceEmulation(entity, def);
   let chosenDir: Direction | null;
   // A monster a teleporter put on its destination pad leaves by a forced step; a blocked exit lets it decide normally.
   const exitDir = entity.teleportExit;

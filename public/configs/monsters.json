@@ -688,7 +688,9 @@
       "pushesBlocks": true,
       "entersBarredTiles": ["exit", "socket", "dirt", "gravel", "thief_keys"],
       "passesItems": true,
-      "picksUpItems": true
+      "picksUpItems": true,
+      "cc2Cadence": true,
+      "ccStepTicks": 8
     },
     "arrow_block_none": {
       "id": "arrow_block_none",
