@@ -34,9 +34,23 @@ const DROP_CLOSE = ']';
 /** Writes the swap key in a compact trace. */
 const SWAP_MARK = '~';
 
-/** One move per letter (N, E, S, W), a turn in place its lowercase letter; an item drop is written `[item_id]` and the swap key `~`. */
+/** Opens and closes two held direction keys in a compact trace. */
+const PAIR_OPEN = '(';
+const PAIR_CLOSE = ')';
+
+/**
+ * One move per letter (N, E, S, W), a turn in place its lowercase letter; two held direction keys are written `(NE)`,
+ * an item drop `[item_id]` and the swap key `~`.
+ */
 export function compactTrace(moves: readonly TimedMove[]): string {
-  return moves.map((m) => (m.drop ? `${DROP_OPEN}${m.drop}${DROP_CLOSE}` : m.swap === true ? SWAP_MARK : m.turn === true ? m.dir.toLowerCase() : m.dir)).join('');
+  return moves
+    .map((m) => {
+      if (m.drop) return `${DROP_OPEN}${m.drop}${DROP_CLOSE}`;
+      if (m.swap === true) return SWAP_MARK;
+      if (m.alt !== undefined) return `${PAIR_OPEN}${m.dir}${m.alt}${PAIR_CLOSE}`;
+      return m.turn === true ? m.dir.toLowerCase() : m.dir;
+    })
+    .join('');
 }
 
 /** The play aids a level offers, as the page would show them. */
