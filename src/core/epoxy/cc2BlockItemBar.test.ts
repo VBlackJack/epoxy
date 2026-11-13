@@ -21,6 +21,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
+import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -55,5 +56,44 @@ describe('CC2 dirt block item bar', () => {
 
   it('does not bar another block type', () => {
     expect(pushInto('cc2', 'chip', 'ice_block')).toBe(true);
+  });
+});
+
+/** Passes a block's push step takes to end, at most. */
+const PUSH_WAIT_PASSES = 8;
+/** Passes the explosion bars the real player (the same life as the splash in water). */
+const EXPLOSION_PASSES = 5;
+
+const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
+
+function blowUp(mode: RoomMode, blockType: string): GameEngine {
+  const engine = new GameEngine();
+  engine.loadLevel(
+    room({ mode, startX: 2, items: { [`${ITEM_X},${ROOM_ROW}`]: 'bomb' }, entities: [{ type: blockType, x: BLOCK_X, y: ROOM_ROW, dir: 'E' }] })
+  );
+  expect(engine.attemptPlayerMove('E')).toBe(true);
+  for (let pass = 0; pass < PUSH_WAIT_PASSES && engine.getItems()[ROOM_ROW][ITEM_X] !== null; pass++) engine.tick();
+  expect(engine.getItems()[ROOM_ROW][ITEM_X]).toBeNull();
+  return engine;
+}
+
+describe('CC2 dirt block blown up on a bomb', () => {
+  it('leaves an explosion that bars the real player for the splash life, then lets him in', () => {
+    const engine = blowUp('cc2', 'dirt_block');
+    expect(worldOf(engine).blockSplashes.size).toBe(1);
+    for (let pass = 0; pass < EXPLOSION_PASSES; pass++) {
+      engine.getPlayer().moveCooldown = 0;
+      expect(engine.attemptPlayerMove('E'), `pass ${pass}`).toBe(false);
+      engine.tick();
+    }
+    engine.getPlayer().moveCooldown = 0;
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+  });
+
+  it('leaves nothing on a classic-rules or a native level', () => {
+    for (const mode of ['cc', 'native'] as const) {
+      const engine = blowUp(mode, 'dirt_block');
+      expect(worldOf(engine).blockSplashes.size, mode).toBe(0);
+    }
   });
 });

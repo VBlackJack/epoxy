@@ -378,6 +378,8 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb' && blockDef?.destroyedByBomb) {
     w.items[destY][destX] = null;
+    // On a CC2-engine level the explosion bars the real player like the splash of a block in water.
+    if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
     removeEntity(w, block.uid);
     AudioManager.playSfx('bomb');
     ctx.emitVisual('explosion', destX, destY);
