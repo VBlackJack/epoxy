@@ -66,6 +66,11 @@ function leaveBlockSplash(w: EpoxyWorld, x: number, y: number, explosion: boolea
   else w.blockExplosions.delete(cell);
 }
 
+/** CC2 engine: leaves a water splash on the cell, as a block sunk in water does; for rules outside this file (a teleporting or sunk mover). */
+export function leaveSplash(w: EpoxyWorld, x: number, y: number): void {
+  leaveBlockSplash(w, x, y, false);
+}
+
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
   if (w.blockSplashes.size === 0) return false;

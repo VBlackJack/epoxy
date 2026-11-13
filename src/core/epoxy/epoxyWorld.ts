@@ -202,6 +202,16 @@ export interface EpoxyWorld {
   ccArrivalsRunning: boolean;
   /** True while an entity pass of a classic-rules level runs (the clock already counts it); transient, never saved. */
   ccPassOpen: boolean;
+  /**
+   * CC2 engine: true while the player's step of the current tick has not run yet, so the entity pass that is running is the
+   * one that closes the previous tick. Transient: set only inside a try/finally like ccPassOpen, never saved in a snapshot.
+   */
+  cc2BeforePass?: boolean;
+  /**
+   * CC2 engine: the cell index of the brown button the player's step ended on, held for the rest of the tick even if he
+   * leaves at once. Absent while none is held; saved with the undo snapshot and part of the search key.
+   */
+  cc2BrownHeld?: number;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -695,7 +705,9 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
     ...(a.press !== undefined ? { press: { ...a.press } } : {}),
     ...(a.chip !== undefined ? { chip: { ...a.chip } } : {}),
     ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {}),
-    ...(a.opening !== undefined ? { opening: { ...a.opening } } : {})
+    ...(a.opening !== undefined ? { opening: { ...a.opening } } : {}),
+    ...(a.pulse !== undefined ? { pulse: { ...a.pulse } } : {}),
+    ...(a.brown !== undefined ? { brown: { ...a.brown } } : {})
   };
 }
 
@@ -722,6 +734,7 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
+  if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld}`);
   return parts.join(';');
 }
 
@@ -732,7 +745,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}`);
   });
   return parts.join(';');
 }

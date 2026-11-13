@@ -2300,6 +2300,10 @@ export interface Cc3dPlayerArrival {
   teleport?: GridPoint & { dir: Direction };
   /** CC2 engine: the cell the player is stepping into, which stays solid for monsters until the step ends (a socket or door he opens on arrival). */
   opening?: GridPoint;
+  /** CC2 engine: the toggle or pulse source stepped onto: it acts when the step ends if the player is still on it. */
+  pulse?: GridPoint;
+  /** CC2 engine: the brown button stepped onto: it is held for the tick when the step ends, even if the player leaves at once. */
+  brown?: GridPoint;
 }
 
 /**
@@ -2479,6 +2483,8 @@ export interface UndoSnapshot {
   ccBlobModifier?: number;
   /** Wire-fired cloner and launcher edges waiting for the next tick on a CC2-engine level; written only while one waits, absent otherwise. */
   cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
+  /** The cell index of the brown button held by a CC2-engine player's step; written only while one is held, absent otherwise. */
+  cc2BrownHeld?: number;
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */

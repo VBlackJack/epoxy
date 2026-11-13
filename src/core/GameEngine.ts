@@ -789,6 +789,7 @@ export class GameEngine {
       ...(this.w.ccGenerators?.blobModifier !== undefined ? { ccBlobModifier: this.w.ccGenerators.blobModifier } : {}),
       // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
+      ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: this.w.cc2BrownHeld } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -893,6 +894,7 @@ export class GameEngine {
       else delete this.w.ccGenerators.blobModifier;
     }
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
+    this.w.cc2BrownHeld = snap.cc2BrownHeld;
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -1201,12 +1203,14 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
    * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
-    if (blobModifier === undefined && edges.length === 0) return undefined;
+    const brownHeld = this.w.cc2BrownHeld;
+    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined) return undefined;
     return {
       ...(blobModifier !== undefined ? { blobModifier } : {}),
+      ...(brownHeld !== undefined ? { brownHeld } : {}),
       ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
     };
   }
@@ -1339,6 +1343,7 @@ export class GameEngine {
     this.w.levelCompleted = true;
     // Nothing fires after the win: the wire-fired edges still waiting are dropped.
     this.w.cc2DeferredSinkEdges = [];
+    this.w.cc2BrownHeld = undefined;
     this.w.player.isSliding = false;
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();
