@@ -490,6 +490,8 @@ export const CC2_RULES_VERSION = 3;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
+// It also covers the wave 6 rules (the rolling ball as an actor, held buttons, wired traps, the yellow teleporter as an item,
+// monster teleports at step end, the rover cadence): v2.33.0 signed .c2m replays with CC_RULES_VERSION, so 3 is still unreleased.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 
