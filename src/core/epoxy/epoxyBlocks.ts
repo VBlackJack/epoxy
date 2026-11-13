@@ -541,6 +541,23 @@ const BLOCK_STEP_DONE: BlockStepResult = Object.freeze({});
 /** The result of a block step whose slide was refused on a force floor. */
 const BLOCK_STEP_REFUSED_ON_FORCE: BlockStepResult = Object.freeze({ refusedOnForce: true as const });
 
+/**
+ * CC2 engine: a block at rest on a force floor is carried by it (the floor acts on what stands on it every tick, not only
+ * on arrival). A turning force floor draws its next direction from the shared turn, as for an arrival; a random floor
+ * without a turn has no direction to give.
+ */
+function takeForceFloorDrift(w: EpoxyWorld, entity: RuntimeEntity): void {
+  const here = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]);
+  if (here.slideType !== 'force') return;
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  if (def?.slidesOnForce !== true) return;
+  const dir = forceCycleArrival(w, here) ?? (here.forceDirection === 'RANDOM' ? undefined : here.forceDirection);
+  if (dir === undefined) return;
+  entity.isSliding = true;
+  entity.dir = dir;
+  entity.cooldownTicks = 0;
+}
+
 /** Advances one block of the entity loop by a tick: a block moves only while it slides. */
 export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): BlockStepResult {
   const w = ctx.world;
@@ -556,6 +573,7 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
     }
     return BLOCK_STEP_DONE;
   }
+  if (!entity.isSliding && usesCc2Engine(w.level)) takeForceFloorDrift(w, entity);
   if (!entity.isSliding) return BLOCK_STEP_DONE;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
