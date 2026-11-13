@@ -2373,6 +2373,11 @@ export interface TimedMove {
   turn?: true;
   /** True when the action is the cycle key: the oldest pair of boots held goes to the end of the list. */
   cycle?: true;
+  /**
+   * The second key of a two-key hold (CC2 engine): `dir` is the most recent key and `alt` the older one, an orthogonal
+   * direction. A replay offers both to the engine, which resolves them as the live game did.
+   */
+  alt?: Direction;
 }
 
 /** What a block left on its cell that bars the real player for a few entity passes (CC2 engine): the splash of water or the blast of a bomb. */

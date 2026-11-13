@@ -249,6 +249,8 @@ export interface EpoxyWorld {
   gridMutatedByMove: boolean;
   /** Set when a push that was refused still moved blocks (a chain that stopped partway): the move keeps its undo snapshot. */
   rejectedPushMovedBlocks: boolean;
+  /** True while a two-key move makes its attempts: the mirror players are steered once with the decision, not per attempt. */
+  mirrorsHeldBack: boolean;
   /** Pushes that moved a block other than the one pushed directly (a chain, partial ones included); a debug counter. */
   chainPushCount: number;
 }
@@ -346,6 +348,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     removedUids: new Set<number>(),
     gridMutatedByMove: false,
     rejectedPushMovedBlocks: false,
+    mirrorsHeldBack: false,
     chainPushCount: 0
   };
 }

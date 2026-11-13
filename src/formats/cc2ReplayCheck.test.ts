@@ -21,7 +21,8 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { C2M_TAGS, type Cc2RawSection } from './cc2Model';
 import { CC2_FRAMES_PER_TICK, CC2_REPLAY_ACTION_BITS, CC2_REPLAY_KEY_BITS, decodeCc2Replay } from './cc2Replay';
-import { checkCc2Replay, checkCc2ReplayBest, resolveCc2HeldOrder } from './cc2ReplayCheck';
+import { resolveCc2HeldOrder } from '../core/epoxy/cc2HeldInput';
+import { checkCc2Replay, checkCc2ReplayBest } from './cc2ReplayCheck';
 import { FLOOR_CODE, makeMap, player, put } from './cc2TestMaps';
 import { convertCc2Map } from './cc2ToEpoxy';
 

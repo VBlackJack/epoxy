@@ -60,11 +60,14 @@ import {
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { updateEntities } from './epoxy/epoxyMonsters';
 import { usesCc2Engine } from './epoxy/ccRules';
+import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
   CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS,
   CC2_SLIDE_ENTRY_EXTRA_TICKS,
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
   executePlayerMove,
+  slapBlockAhead,
+  steerMirrorsOnce,
   isCarriedByForceFloor,
   playerWalkCooldown,
   processPlayerSlideStep,
@@ -133,6 +136,8 @@ const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gat
 
 /** Pairs of boots needed for the cycle key to change anything. */
 const MIN_BOOTS_TO_CYCLE = 2;
+/** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
+const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -987,6 +992,80 @@ export class GameEngine {
     if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted && !applyCc3dStepEnd(this.ctx)) return;
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
+  }
+
+  /**
+   * The direction keys held now, most recent first. Without the two-key rules of the CC2 engine (any other level, or
+   * one key) this is attemptPlayerMove(dirs[0]). On a CC2-engine level, an opposing pair or more than two keys are
+   * ignored; with two orthogonal keys the player first slaps (pushes) the blocks beside him toward both, then steps
+   * toward the key matching his facing (else the horizontal one) and falls back to the other when that is blocked. The
+   * mirror players follow the decision once. The two keys are one undo step and one recorded move ({dir, alt}).
+   */
+  public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
+    if (dirs.length === 0) return false;
+    const keys = dirs.filter((d, i) => dirs.indexOf(d) === i);
+    if (!usesCc2Engine(this.w.level) || this.w.cc3dPace || keys.length === 1) return this.attemptPlayerMove(dirs[0]);
+    if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    const player = this.w.player;
+    // A player who cannot decide this tick (waiting out a step, locked on ice, leaving a teleporter) does nothing at all.
+    if (player.moveCooldown > 0 || player.teleportExit !== undefined || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
+      return false;
+    }
+    // The force-floor refusal of attemptPlayerMove: a player still being carried has no choice yet, so nothing turns.
+    if (this.w.ccRules && player.forcePermission !== true && isCarriedByForceFloor(this.w, ConfigRegistry.getTile(this.w.terrain[player.y][player.x]))) {
+      return false;
+    }
+    const order = resolveCc2HeldOrder(keys, player.dir);
+    // A player in a closed trap only turns: the first key of the order decides, as one key would.
+    if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
+
+    const undoBefore = [...this.undoStack];
+    const tickAtMove = this.ticksElapsed;
+    const historyBefore = this.timedMoveHistory.length;
+    const dirBefore = player.dir;
+    const permissionBefore = player.forcePermission;
+    let mutated = false;
+    this.saveUndoSnapshot();
+    const undoWithSlap = [...this.undoStack];
+    let slapped = false;
+    for (const slapDir of CC2_SLAP_ORDER) {
+      if (keys.includes(slapDir) && slapBlockAhead(this.ctx, slapDir)) slapped = true;
+    }
+    let moved = false;
+    let decision = order[0];
+    if (this.w.player.alive && !this.w.levelCompleted) {
+      this.w.mirrorsHeldBack = true;
+      try {
+        for (const dir of order) {
+          decision = dir;
+          moved = this.attemptPlayerMove(dir);
+          // A refused step that still altered the world (a revealed wall, pushed blocks) is a move of its own.
+          if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks) mutated = true;
+          if (moved) break;
+        }
+        if (!moved) {
+          // Both ways refused: he faces the horizontal key, as the original does.
+          decision = order.find((d) => CC2_HORIZONTAL_DIRECTIONS.includes(d)) ?? order[0];
+          player.dir = decision;
+        }
+      } finally {
+        this.w.mirrorsHeldBack = false;
+      }
+      // The controlled player stays in place unless he left through an exit, which hands control on without a copy.
+      if (this.w.player === player && player.exited !== true) steerMirrorsOnce(this.ctx, decision);
+    }
+    const changed = slapped || moved || mutated || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
+    // The attempts recorded and pushed snapshots of their own; the hold keeps one of each, or none.
+    this.timedMoveHistory.length = historyBefore;
+    this.undoStack.length = 0;
+    if (!changed) {
+      this.undoStack.push(...undoBefore);
+      return false;
+    }
+    this.undoStack.push(...undoWithSlap);
+    this.timedMoveHistory.push({ tick: tickAtMove, dir: keys[0], alt: keys[1] });
+    return moved;
   }
 
   public attemptPlayerMove(dir: Direction): boolean {

@@ -61,6 +61,12 @@ export interface PlayEngine {
    * is sent attemptPlayerMove every tick while a direction is held.
    */
   holdPlayerDirection?(dir: Direction | null): void;
+  /**
+   * Optional. The direction keys held at once, most recent first (one or two, orthogonal; three or an opposing pair are
+   * legal input too). An engine with the two-key rules of Chip's Challenge 2 resolves them as the original does; one
+   * without them plays `dirs[0]` exactly as attemptPlayerMove does. False when no move was made.
+   */
+  attemptPlayerMoveHeld?(dirs: readonly Direction[]): boolean;
   dropItem(itemId: string | null): boolean;
   holdsItem(itemId: string): boolean;
   undo(): boolean;

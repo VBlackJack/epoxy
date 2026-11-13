@@ -123,6 +123,15 @@ describe('compactTrace', () => {
       ])
     ).toBe('N[key_red]S');
   });
+
+  it('writes the two keys of a held pair in parentheses', () => {
+    expect(
+      compactTrace([
+        { tick: 0, dir: 'N', alt: 'E' },
+        { tick: 1, dir: 'S' }
+      ])
+    ).toBe('(NE)S');
+  });
 });
 
 describe('assistsFor', () => {
