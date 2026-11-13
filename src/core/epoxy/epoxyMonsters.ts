@@ -91,7 +91,7 @@ export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
   if (w.ccRules) {
-    if (!applyQueuedArrivals(ctx)) return;
+    if (!applyQueuedPassStartArrivals(ctx)) return;
   } else if (w.cc3dPace) {
     dropOrphanArrivals(w);
   }
@@ -105,6 +105,21 @@ export function updateEntities(ctx: EpoxyContext): void {
     w.entityPassSeen.clear();
     w.turnSpent.clear();
     pruneSplashes(w);
+  }
+}
+
+/**
+ * CC2 engine: the queued presses applied at the start of an entity pass close the previous tick, so a clone machine they
+ * trigger counts the clone down one tick longer (w.cc2BeforePass). Other levels apply them as before.
+ */
+function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  if (!usesCc2Engine(w.level)) return applyQueuedArrivals(ctx);
+  w.cc2BeforePass = true;
+  try {
+    return applyQueuedArrivals(ctx);
+  } finally {
+    w.cc2BeforePass = undefined;
   }
 }
 
