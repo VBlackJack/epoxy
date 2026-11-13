@@ -15,7 +15,13 @@
  */
 
 import { KEY_TRAP_OPEN } from '../core/cc2/cc2Coverage';
-import { CC2_ID_PREFIX } from '../core/coreConstants';
+import {
+  BUTTON_ORANGE_CC2_TILE_ID,
+  CC2_ID_PREFIX,
+  FLAME_JET_CC2_OFF_TILE_ID,
+  FLAME_JET_CC2_ON_TILE_ID,
+  SIGNAL_PLATE_TILE_ID
+} from '../core/coreConstants';
 
 /**
  * Static mapping of CC2 tile codes to Epoxy ids, with the coverage key each one stands for (see
@@ -47,9 +53,9 @@ export const WALL_ID = 'wall';
 export const CLONE_MACHINE_ID = 'clone_machine';
 export const TRAP_ID = 'trap';
 export const HINT_ID = 'hint';
-export const SIGNAL_PLATE_ID = 'signal_plate';
+export const SIGNAL_PLATE_ID = SIGNAL_PLATE_TILE_ID;
 /** The held orange button of format 16: pressed by every actor standing on it. */
-export const BUTTON_ORANGE_CC2_ID = 'button_orange_cc2';
+export const BUTTON_ORANGE_CC2_ID = BUTTON_ORANGE_CC2_TILE_ID;
 export const TOGGLE_WALL_CLOSED_ID = 'toggle_wall_closed';
 export const TOGGLE_WALL_OPEN_ID = 'toggle_wall_open';
 export const BUTTON_RED_ID = 'button_red';
@@ -64,8 +70,8 @@ export const BLUE_WALL_FAKE_ID = 'blue_wall_fake';
  * them; the load settle of the engine swaps them for their live form when their input is on.
  */
 export const WIRED_TRAP: Cc2TileMapping = { id: 'trap_wired', key: 'wired_trap' };
-export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: 'flame_jet_cc2_off', key: 'wired_flame_jet' };
-export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: 'flame_jet_cc2_on', key: 'wired_flame_jet' };
+export const WIRED_FLAME_JET_OFF: Cc2TileMapping = { id: FLAME_JET_CC2_OFF_TILE_ID, key: 'wired_flame_jet' };
+export const WIRED_FLAME_JET_ON: Cc2TileMapping = { id: FLAME_JET_CC2_ON_TILE_ID, key: 'wired_flame_jet' };
 export const WIRED_TELEPORT_RED_OFF: Cc2TileMapping = { id: 'teleport_red_cc2_off', key: 'teleport_red' };
 export const WIRED_TRANSMOGRIFIER_OFF: Cc2TileMapping = { id: 'transmogrifier_cc2_off', key: 'transmogrifier' };
 
@@ -137,8 +143,8 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   [0x50, same('steel_wall')],
   // The CC2 pink button is held: powered while an actor stands on it, which is the Epoxy pressure plate.
   [0x5e, same(SIGNAL_PLATE_ID, 'wire')],
-  [0x5f, same('flame_jet_cc2_off', 'flame_jet')],
-  [0x60, same('flame_jet_cc2_on', 'flame_jet')],
+  [0x5f, same(FLAME_JET_CC2_OFF_TILE_ID, 'flame_jet')],
+  [0x60, same(FLAME_JET_CC2_ON_TILE_ID, 'flame_jet')],
   // The orange button is held by any actor (sliding and flying ones too); the converter links it to the jet CC2 would connect
   // (see cc2ToEpoxy).
   [0x61, same(BUTTON_ORANGE_CC2_ID, 'button_orange')],

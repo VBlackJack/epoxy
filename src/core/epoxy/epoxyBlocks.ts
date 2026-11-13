@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, STEER_MONSTERS_ACTION, CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
+import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, STEER_MONSTERS_ACTION, CC_BLOCK_SLIDE_COOLDOWN_TICKS, DIRT_BLOCK_ENTITY_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
@@ -53,7 +53,7 @@ import {
 export const CC2_SPLASH_BLOCK_PASSES = 5;
 
 /** The block type the CC2 item bar (blocksDirtBlock) applies to. */
-const CC2_DIRT_BLOCK_TYPE = 'dirt_block';
+const CC2_DIRT_BLOCK_TYPE = DIRT_BLOCK_ENTITY_ID;
 
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {

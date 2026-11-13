@@ -17,7 +17,15 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
-import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
+import {
+  BUTTON_ORANGE_CC2_TILE_ID,
+  DYNAMITE_FIRE_TILE_ID,
+  FLAME_JET_CC2_OFF_TILE_ID,
+  FLAME_JET_CC2_ON_TILE_ID,
+  FLOOR_TILE_ID,
+  LIGHTNING_BOLT_ITEM_ID,
+  SIGNAL_PLATE_TILE_ID
+} from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
@@ -105,7 +113,7 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
 }
 
 /** Tile id of the pink button: the only held source CC2 reads from an actor at rest (Lexy button_pink is_emitting). */
-const PINK_BUTTON_TILE_ID = 'signal_plate';
+const PINK_BUTTON_TILE_ID = SIGNAL_PLATE_TILE_ID;
 
 /**
  * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
@@ -201,9 +209,9 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, ph
 }
 
 /** Tile ids of the buttons whose link to a sink is no Lexy circuit: CC2 hands an orange button its flame jet by position, not by wire. */
-const BUTTON_LINK_SOURCE_TILE_IDS: ReadonlySet<string> = new Set(['button_orange_cc2']);
+const BUTTON_LINK_SOURCE_TILE_IDS: ReadonlySet<string> = new Set([BUTTON_ORANGE_CC2_TILE_ID]);
 /** Tile ids of the CC2 wired flame jet: a wire lights it on a rising edge only, an orange button toggles it both ways. */
-const CC2_WIRED_FLAME_JET_TILE_IDS: ReadonlySet<string> = new Set(['flame_jet_cc2_off', 'flame_jet_cc2_on']);
+const CC2_WIRED_FLAME_JET_TILE_IDS: ReadonlySet<string> = new Set([FLAME_JET_CC2_OFF_TILE_ID, FLAME_JET_CC2_ON_TILE_ID]);
 
 /**
  * Whether a sink is fed by a button link: a link into its cell whose source is a button CC2 links by position instead of
