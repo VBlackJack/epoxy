@@ -1035,12 +1035,13 @@ describe('coverage truth', () => {
   });
 
   it('starts a wired pad in the form its source asks for once the engine has loaded the level', () => {
-    // A toggle switch feeds the pad; the converter places the off form and the load settle swaps it when the switch is on.
+    // A toggle switch feeds the pad; the converter places the off form and the first settle (tick 0: every CC2 circuit starts off) swaps it when the switch is on.
     const SWITCH_ON = 0x89;
     const SWITCH_OFF = 0x88;
     const loaded = (source: number, code: number): string => {
       const engine = new GameEngine();
       engine.loadLevel(wiredPad(code, source).level);
+      engine.tick();
       return engine.getTerrain()[0][2];
     };
     expect(loaded(SWITCH_ON, 0x10)).toBe('teleport_red_cc2');
