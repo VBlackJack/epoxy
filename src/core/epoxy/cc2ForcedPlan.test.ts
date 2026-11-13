@@ -88,3 +88,19 @@ describe('CC2 monster on a force floor with the way ahead held by a monster that
     expect(free).toBe(plain);
   });
 });
+
+describe('CC2 monster on a force floor with a wall ahead', () => {
+  // Lexy make_actor_decision: a monster on a force floor decides the forced way without looking at the cell ahead,
+  // so it faces the wall and bonks; it does not turn away.
+  it('stays on the floor, facing the forced way', () => {
+    const built = buildTestLevel(['#########', '#.>#....#', '#########'], { entities: [{ type: 'glider', x: FORCED_X, y: 1, dir: 'N' }] });
+    const cells = built.terrain.map((r) => [...r]);
+    cells[1][1] = 'floor';
+    const engine = new GameEngine();
+    engine.loadLevel({ ...built, terrain: cells, playerStart: { x: 7, y: 1, dir: 'N' }, cc2: CC2_RECORD });
+    const w = (engine as unknown as { w: { entities: { type: string; x: number; dir: string }[] } }).w;
+    engine.tick();
+    const glider = w.entities.find((e) => e.type === 'glider');
+    expect({ x: glider?.x, dir: glider?.dir }).toEqual({ x: FORCED_X, dir: 'E' });
+  });
+});
