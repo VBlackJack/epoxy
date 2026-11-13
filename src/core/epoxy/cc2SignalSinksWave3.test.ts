@@ -159,3 +159,50 @@ describe('the CC2 pink button reads only an actor at rest', () => {
     expect(jetAt(engine)).toBe(JET_ON);
   });
 });
+
+const CLONER_X = 5;
+const CLONE_X = CLONER_X + 1;
+const CLONE_MACHINE = 'clone_machine';
+
+/** A lane with a source wired to a clone machine holding a block template facing east; a block rests on the source when `held`. */
+function cloneLane(mode: Mode, source: string, held: boolean): CompiledLevel {
+  const template = { type: BLOCK, x: CLONER_X, y: ROW, dir: 'E' as Direction };
+  const entities = held ? [template, { type: BLOCK, x: SOURCE_X, y: ROW, dir: 'E' as Direction }] : [template];
+  const built = buildTestLevel(EMPTY_ROWS, { entities });
+  built.terrain[ROW][SOURCE_X] = source;
+  built.terrain[ROW][CLONER_X] = CLONE_MACHINE;
+  const wired: CompiledLevel = { ...built, signalLinks: [{ fromX: SOURCE_X, fromY: ROW, toX: CLONER_X, toY: ROW }] };
+  return mode === 'cc2' ? { ...wired, cc2: CC2_RECORD } : wired;
+}
+
+const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
+const deferredCount = (engine: GameEngine): number => engine.getCc2WaveState()?.deferredSinkEdges?.length ?? 0;
+
+describe('CC2 engine: a wire-fired clone machine acts one wire phase later', () => {
+  it('fires an edge of the tick phase one tick later', () => {
+    const engine = load(cloneLane('cc2', PLATE, true));
+    engine.tick();
+    expect(clonesAt(engine)).toBe(0);
+    expect(deferredCount(engine)).toBe(1);
+    engine.tick();
+    expect(clonesAt(engine)).toBe(1);
+    expect(deferredCount(engine)).toBe(0);
+  });
+
+  it('fires an edge of the move phase at the end of the same tick', () => {
+    const engine = load(cloneLane('cc2', ORANGE, false));
+    stepEast(engine);
+    expect(clonesAt(engine)).toBe(0);
+    expect(deferredCount(engine)).toBe(1);
+    engine.tick();
+    expect(clonesAt(engine)).toBe(1);
+    expect(deferredCount(engine)).toBe(0);
+  });
+
+  it('fires at once, in the phase of the edge, on a level that is not CC2', () => {
+    const engine = load(cloneLane('native', ORANGE, false));
+    stepEast(engine);
+    expect(clonesAt(engine)).toBe(1);
+    expect(deferredCount(engine)).toBe(0);
+  });
+});

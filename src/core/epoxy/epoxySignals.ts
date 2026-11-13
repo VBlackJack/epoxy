@@ -326,12 +326,35 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
  * wired flame jet), which flips on a falling edge too; on a CC2 level a wired flame jet flips on the rising edge only, unless an
  * orange button works it.
+ *
+ * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
+ * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
+ * `cc2DeferredSinkEdges`: one from the move phase fires at the end of the same tick (the next tick phase), one from the tick
+ * phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  */
-export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[], _phase: SignalPhase = SIGNAL_PHASE_TICK): void {
+export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
   const width = mapWidth(w);
+  let edges = edgesNow;
+  if (usesCc2Engine(w.level)) {
+    const waiting = w.cc2DeferredSinkEdges;
+    const isActionEdge = (edge: SignalEdge): boolean => {
+      const index = runtime.network.indexOfCell.get(edge.cell);
+      const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
+      return edge.rising && (fires === 'cloner' || fires === 'launcher');
+    };
+    const deferred = edgesNow.filter(isActionEdge);
+    const immediate = edgesNow.filter((edge) => !isActionEdge(edge));
+    if (phase === SIGNAL_PHASE_TICK) {
+      w.cc2DeferredSinkEdges = deferred;
+      edges = [...waiting, ...immediate];
+    } else {
+      w.cc2DeferredSinkEdges = [...waiting, ...deferred];
+      edges = immediate;
+    }
+  }
   for (const edge of edges) {
     if (!w.player.alive || w.levelCompleted) return;
     const index = runtime.network.indexOfCell.get(edge.cell);
