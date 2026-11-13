@@ -21,12 +21,32 @@ import { Direction, RuntimeEntity } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { railRedirect } from './epoxyRailsCc2';
 import { leaveSwivel } from './epoxySwivels';
+import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, resolveMonsterArrival } from './epoxyMonsters';
 import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, monsterLeavesCell, playerAtCell } from './epoxyWorld';
 
 /** Whether the entity is a monster that moves only when a steering pad is worked. */
 function isSteered(entity: RuntimeEntity): boolean {
   return entity.kind === 'monster' && ConfigRegistry.getEntityDef(entity.type)?.steeredBy === STEER_MONSTERS_ACTION;
+}
+
+/** Whether the entity is a steered tank of a CC2-engine level, which takes a pending decision instead of stepping at once. */
+export function isCc2YellowTank(w: EpoxyWorld, entity: RuntimeEntity): boolean {
+  return usesCc2Engine(w.level) && ConfigRegistry.getEntityDef(entity.type)?.steeredBy === STEER_MONSTERS_ACTION;
+}
+
+/**
+ * CC2 engine: an actor that arrives on a yellow button sets the pending decision of every yellow tank to its own way
+ * (Lexy tiletypes.js tank_yellow). The tank takes it at its next decision. `dueClock` is the first entity pass at which
+ * it may be taken (the end of the arriving actor's step); absent, the tank may take it at once.
+ */
+export function markYellowButtonArrival(w: EpoxyWorld, dir: Direction, dueClock?: number): void {
+  for (const entity of w.entities) {
+    if (!isCc2YellowTank(w, entity)) continue;
+    entity.pendingSteer = dir;
+    if (dueClock !== undefined) entity.pendingSteerDue = dueClock;
+    else delete entity.pendingSteerDue;
+  }
 }
 
 /** Whether the entity is still on the grid: the step of a puppet earlier in the line may have removed it. */
@@ -89,6 +109,11 @@ function stepSteered(ctx: EpoxyContext, entity: RuntimeEntity, wanted: Direction
  */
 export function steerMonsters(ctx: EpoxyContext, dir: Direction): boolean {
   const w = ctx.world;
+  // CC2 engine: the player's arrival on the pad only sets the pending decision of the tanks.
+  if (usesCc2Engine(w.level)) {
+    markYellowButtonArrival(w, dir);
+    return true;
+  }
   let alive = true;
   for (const entity of steeringOrder(w, dir)) {
     if (!isOnGrid(w, entity.uid)) continue;

@@ -77,8 +77,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       x: e.x,
       y: e.y,
       dir: e.dir,
-      // A classic-rules monster and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
-      cooldownTicks: (ccCadence && followsCcCadence(e.type, usesCc2Engine(level))) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      // A classic-rules monster, a CC2 yellow tank and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
+      cooldownTicks: (usesCc2Engine(level) && def?.steeredBy !== undefined) || (ccCadence && followsCcCadence(e.type, usesCc2Engine(level))) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),
