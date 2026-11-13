@@ -115,7 +115,8 @@ describe('cadence from config', () => {
     expect(followsCcCadence('ghost', false)).toBe(false);
     expect(followsCcCadence('ghost', true)).toBe(true);
     expect(followsCcCadence('timid_teeth', true)).toBe(true);
-    expect(followsCcCadence('rover', true)).toBe(false);
+    expect(followsCcCadence('rover', true)).toBe(true);
+    expect(ccStepTicks('rover')).toBe(8);
   });
 
   it('gives the rolling ball the classic step on a CC2-engine level only', () => {
