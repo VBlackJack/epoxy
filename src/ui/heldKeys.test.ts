@@ -18,6 +18,18 @@ import { describe, expect, it } from 'vitest';
 import { HeldKeys, supportsHeldMove } from './heldKeys';
 
 describe('HeldKeys', () => {
+  it('moves a fresh press of a held code to the front, but keeps place on auto-repeat', () => {
+    const h = new HeldKeys();
+    h.press('ArrowUp', 'N');
+    h.press('ArrowRight', 'E');
+    h.press('ArrowUp', 'N', true);
+    expect(h.directions()).toEqual(['E', 'N']);
+    h.press('ArrowUp', 'N');
+    expect(h.directions()).toEqual(['N', 'E']);
+    h.release('ArrowUp');
+    expect(h.directions()).toEqual(['E']);
+  });
+
   it('is empty at start', () => {
     const h = new HeldKeys();
     expect(h.current()).toBeNull();

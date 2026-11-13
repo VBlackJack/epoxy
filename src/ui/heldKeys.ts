@@ -35,9 +35,15 @@ interface HeldKey {
 export class HeldKeys {
   private keys: HeldKey[] = [];
 
-  /** Records a press. A code already held (key auto-repeat) keeps its place in the order. */
-  press(code: string, dir: Direction): void {
-    if (this.has(code)) return;
+  /**
+   * Records a press. Auto-repeat of a held code keeps its place in the order; a fresh press of a code already held (its
+   * keyup was lost) moves it to the front, so no stale older key takes over on release.
+   */
+  press(code: string, dir: Direction, repeat = false): void {
+    if (this.has(code)) {
+      if (repeat) return;
+      this.keys = this.keys.filter((k) => k.code !== code);
+    }
     this.keys.push({ code, dir });
   }
 
