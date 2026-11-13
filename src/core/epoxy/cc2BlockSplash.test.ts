@@ -44,6 +44,8 @@ type Mode = 'cc2' | 'cc' | 'plain';
 
 interface SplashWorld {
   blockSplashes: Map<number, number>;
+  blockExplosions: Set<number>;
+  items: (string | null)[][];
   ccMonsterClock: number;
 }
 
@@ -156,5 +158,41 @@ describe('CC2 block splash', () => {
     sinkBlock(engine);
     for (let pass = 0; pass < SPLASH_PASSES + 2; pass++) engine.tick();
     expect(worldOf(engine).blockSplashes.size).toBe(0);
+  });
+});
+
+describe('CC2 block blast', () => {
+  /** The block is pushed onto a bomb set where the water is: the bomb takes the block and the cell. */
+  function blastBlock(): GameEngine {
+    const engine = load(room('cc2'));
+    worldOf(engine).items[ROW][WATER_X] = 'bomb';
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    for (let pass = 0; pass < SINK_WAIT_PASSES && worldOf(engine).blockSplashes.size === 0; pass++) engine.tick();
+    return engine;
+  }
+
+  it('bars the real player like a splash and is offered to the renderer as an explosion', () => {
+    const engine = blastBlock();
+    expect(worldOf(engine).blockSplashes.size).toBe(1);
+    expect(engine.getBlockSplashes()?.[0]).toMatchObject({ x: WATER_X, y: ROW, kind: 'explosion' });
+    expect(canStepEast(engine)).toBe(false);
+  });
+
+  it('is offered as a splash for a block sunk in water', () => {
+    const engine = load(room('cc2'));
+    sinkBlock(engine);
+    expect(engine.getBlockSplashes()?.[0].kind).toBe('splash');
+    expect(worldOf(engine).blockExplosions.size).toBe(0);
+  });
+
+  it('keeps its kind through undo and is dropped when it wears off', () => {
+    const engine = blastBlock();
+    engine.getPlayer().moveCooldown = 0;
+    expect(engine.attemptPlayerMove('W')).toBe(true);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getBlockSplashes()?.[0].kind).toBe('explosion');
+    for (let pass = 0; pass < SPLASH_PASSES; pass++) engine.tick();
+    expect(engine.getBlockSplashes()).toBeUndefined();
+    expect(worldOf(engine).blockExplosions.size).toBe(0);
   });
 });

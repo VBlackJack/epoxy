@@ -115,6 +115,11 @@ export interface EpoxyWorld {
    */
   blockSplashes: Map<number, number>;
   /**
+   * CC2 engine: the cells of `blockSplashes` whose entry is the blast of a block a bomb destroyed, not the splash of a block
+   * sunk in water (the two bar the player alike; only the picture differs). Always a subset of the splash cells; empty at load, saved with the undo snapshot.
+   */
+  blockExplosions: Set<number>;
+  /**
    * CC2 engine: blocks finishing a step whose turn in the running entity pass is spent (by the countdown, or by a block behind
    * them that slid into their cell), by uid, with the pass. Transient, never saved.
    */
@@ -281,6 +286,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
     blockSplashes: new Map<number, number>(),
+    blockExplosions: new Set<number>(),
     turnSpent: new Map<number, number>(),
     swivelEntry: new Map<number, Direction>(),
     railCells: new Map<number, RailCellState>(),
@@ -378,6 +384,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.blockSplashes = new Map<number, number>();
+  w.blockExplosions = new Set<number>();
   w.turnSpent = new Map<number, number>();
   w.toggleParity = 0;
   w.forceCycleTurn = 0;

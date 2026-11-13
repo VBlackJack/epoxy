@@ -55,6 +55,17 @@ export const CC2_SPLASH_BLOCK_PASSES = 5;
 /** The block type the CC2 item bar (blocksDirtBlock) applies to. */
 const CC2_DIRT_BLOCK_TYPE = DIRT_BLOCK_ENTITY_ID;
 
+/**
+ * CC2 engine: a block that left a splash (sunk in water) or a blast (destroyed by a bomb) on its cell, which bars the real
+ * player for a few entity passes. The kind only changes the picture.
+ */
+function leaveBlockSplash(w: EpoxyWorld, x: number, y: number, explosion: boolean): void {
+  const cell = y * mapWidth(w) + x;
+  w.blockSplashes.set(cell, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
+  if (explosion) w.blockExplosions.add(cell);
+  else w.blockExplosions.delete(cell);
+}
+
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
   if (w.blockSplashes.size === 0) return false;
@@ -65,12 +76,19 @@ export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
 /** Drops the splashes whose life is over: they bar nobody and are not drawn. */
 export function pruneSplashes(w: EpoxyWorld): void {
   if (w.blockSplashes.size === 0) return;
-  for (const [cell, until] of w.blockSplashes) if (w.ccMonsterClock >= until) w.blockSplashes.delete(cell);
+  for (const [cell, until] of w.blockSplashes) {
+    if (w.ccMonsterClock < until) continue;
+    w.blockSplashes.delete(cell);
+    w.blockExplosions.delete(cell);
+  }
 }
 
 /** Any mover other than the real player that tries to enter a cell erases the splash on it. */
 export function eraseSplash(w: EpoxyWorld, x: number, y: number): void {
-  if (w.blockSplashes.size > 0) w.blockSplashes.delete(y * mapWidth(w) + x);
+  if (w.blockSplashes.size === 0) return;
+  const cell = y * mapWidth(w) + x;
+  w.blockSplashes.delete(cell);
+  w.blockExplosions.delete(cell);
 }
 
 /**
@@ -379,8 +397,8 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (itemId && ConfigRegistry.getTile(itemId).hazard === 'bomb' && blockDef?.destroyedByBomb) {
     w.items[destY][destX] = null;
-    // On a CC2-engine level the explosion bars the real player like the splash of a block in water.
-    if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
+    // On a CC2-engine level the blast of any block a bomb destroys bars the real player like the splash of a block in water.
+    if (usesCc2Engine(w.level)) leaveBlockSplash(w, destX, destY, true);
     removeEntity(w, block.uid);
     AudioManager.playSfx('bomb');
     ctx.emitVisual('explosion', destX, destY);
@@ -388,7 +406,7 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   }
 
   if (tile.hazard === 'water') {
-    if (usesCc2Engine(w.level)) w.blockSplashes.set(destY * mapWidth(w) + destX, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
+    if (usesCc2Engine(w.level)) leaveBlockSplash(w, destX, destY, false);
     const filled = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
     // On a CC2-engine level the fill is the CC2 form of that tile when it has one (CC2 dirt stops only the dirt block).
     w.terrain[destY][destX] = (usesCc2Engine(w.level) ? ConfigRegistry.getTile(filled).cc2Twin : undefined) || filled;

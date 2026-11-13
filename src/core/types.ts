@@ -2375,6 +2375,15 @@ export interface TimedMove {
   cycle?: true;
 }
 
+/** What a block left on its cell that bars the real player for a few entity passes (CC2 engine): the splash of water or the blast of a bomb. */
+export type BlockSplashKind = 'splash' | 'explosion';
+
+/** A block splash as the renderer sees it: its cell, the fraction of its life left (1 fresh, toward 0 gone) and its kind. */
+export interface BlockSplash extends GridPoint {
+  left: number;
+  kind: BlockSplashKind;
+}
+
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
 export interface LitCharge extends GridPoint {
   detonateTick: number;
@@ -2457,6 +2466,8 @@ export interface UndoSnapshot {
   cc2PlayerView?: Cc2PlayerView;
   /** Splashes a block left in water: [cell index, entity pass it lasts until]; written only while one lasts on a CC2-engine level, absent otherwise. */
   blockSplashes?: [number, number][];
+  /** The cells of `blockSplashes` that are the blast of a block a bomb destroyed (the rest are water splashes); written only while one lasts, absent otherwise. */
+  blockExplosions?: number[];
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
   ccGenerators?: [number, number, number];
   /** The blob modifier of the CC2 generators; written only once a CC2 level set one, absent otherwise. */

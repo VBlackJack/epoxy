@@ -31,7 +31,7 @@ import {
   paintWiredDevice,
   type WiredColours
 } from './wiredArt';
-import { BeamCell, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, PlayerCharacter, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
+import { BeamCell, BlockSplash, Direction, GraphicsStyle, GridPoint, LitCharge, MirrorAxis, MirrorCorner, PlayerCharacter, RunewardArtConfig, ThemePalette, TileDefinition } from '../core/types';
 import {
   BOOT_COLOR_KEYS,
   BLOCK_ON_TARGET_COLOR_KEY,
@@ -4225,15 +4225,17 @@ export class PixelRenderer {
     }
   }
 
-  /** The ripple a block leaves where it sank in water (CC2 engine): a ring that widens and fades while it bars the player. */
+  /** The ripple a block leaves where it sank in water, or the blast ring where a bomb destroyed it (CC2 engine): a ring that widens and fades while it bars the player. */
   private paintBlockSplashes(
     ctx: CanvasRenderingContext2D,
-    splashes: readonly { x: number; y: number; left: number }[],
+    splashes: readonly BlockSplash[],
     cell: (x: number, y: number) => { px: number; py: number } | null,
     unit: number
   ): void {
-    const colour = this.pal().fxSplash;
+    const pal = this.pal();
     for (const splash of splashes) {
+      // A bomb's blast rings in the explosion colour of the style, the water's splash in the splash colour.
+      const colour = splash.kind === 'explosion' ? pal.fxExplosion : pal.fxSplash;
       const at = cell(splash.x, splash.y);
       if (at === null) continue;
       const age = 1 - splash.left;

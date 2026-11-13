@@ -110,6 +110,7 @@ import {
   CompiledLevel,
   Direction,
   GridPoint,
+  BlockSplash,
   LitCharge,
   PlayerCharacter,
   PlayerState,
@@ -410,13 +411,20 @@ export class GameEngine {
    * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
    * so nothing about charges reaches a level without one or its hash.
    */
-  public getBlockSplashes(): readonly { x: number; y: number; left: number }[] | undefined {
+  public getBlockSplashes(): readonly BlockSplash[] | undefined {
     if (this.w.blockSplashes.size === 0) return undefined;
     const width = this.getMapWidth();
-    const out: { x: number; y: number; left: number }[] = [];
+    const out: BlockSplash[] = [];
     for (const [cell, until] of this.w.blockSplashes) {
       const passes = until - this.w.ccMonsterClock;
-      if (passes > 0) out.push({ x: cell % width, y: Math.floor(cell / width), left: Math.min(1, passes / CC2_SPLASH_BLOCK_PASSES) });
+      if (passes > 0) {
+        out.push({
+          x: cell % width,
+          y: Math.floor(cell / width),
+          left: Math.min(1, passes / CC2_SPLASH_BLOCK_PASSES),
+          kind: this.w.blockExplosions.has(cell) ? 'explosion' : 'splash'
+        });
+      }
     }
     return out.length > 0 ? out : undefined;
   }
@@ -766,6 +774,7 @@ export class GameEngine {
       ...(this.w.cc2PlayerView !== undefined && usesCc2Engine(this.w.level) ? { cc2PlayerView: copyCc2PlayerView(this.w.cc2PlayerView) } : {}),
       // Only a CC2-engine level with a splash still lasting has one to put back.
       ...(this.w.blockSplashes.size > 0 ? { blockSplashes: [...this.w.blockSplashes] } : {}),
+      ...(this.w.blockExplosions.size > 0 ? { blockExplosions: [...this.w.blockExplosions] } : {}),
       ...(this.w.ccGenerators !== null ? { ccGenerators: [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] as [number, number, number] } : {}),
       // Only a CC2 level that set a blob modifier has one to put back.
       ...(this.w.ccGenerators?.blobModifier !== undefined ? { ccBlobModifier: this.w.ccGenerators.blobModifier } : {}),
@@ -867,6 +876,7 @@ export class GameEngine {
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
+    this.w.blockExplosions = new Set(snap.blockExplosions ?? []);
     this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
     if (this.w.ccGenerators !== null && snap.ccGenerators !== undefined) {
       [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] = snap.ccGenerators;
