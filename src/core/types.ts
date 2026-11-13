@@ -1603,6 +1603,10 @@ export interface EntityDefinition {
    * block melts into, and the monster does not move that step (the CC3D screamers).
    */
   meltsIceBlocks?: boolean;
+  /** CC2 engine: a monster that melts an ice block it bumps and then tries its next way (the fireball, Lexy ice_block.on_after_bumped). */
+  meltsIceOnBumpCc2?: boolean;
+  /** CC2 engine, on a block: water that swallows it becomes plain floor, not dirt (the frame blocks, Lexy water.on_arrive). */
+  waterBecomesFloorCc2?: boolean;
   /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
   immuneToSlime?: boolean;
   /** A monster that steps onto turtles, which sink into water behind it when it leaves them (the CC3D monsters). */

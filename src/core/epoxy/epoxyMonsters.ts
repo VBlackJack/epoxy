@@ -839,7 +839,7 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   for (const rel of turnOrder) {
     const candidateDir = applyRelativeTurn(monster.dir, rel);
     // A monster that melts ice spends its step melting the ice block it would otherwise enter.
-    if (monster.type === CC2_ICE_MELTER_TYPE && usesCc2Engine(w.level)) {
+    if (def.meltsIceOnBumpCc2 === true && usesCc2Engine(w.level)) {
       // CC2 engine (Lexy ice_block.on_after_bumped): a fireball that bumps an ice block melts it, and tries its next way.
       if (meltIceBlockAhead(w, monster, candidateDir, true)) continue;
     } else if (def.meltsIceBlocks === true && meltIceBlockAhead(w, monster, candidateDir, false)) return null;
@@ -871,9 +871,6 @@ function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, gen
   }
   return canStep(w, monster, monster.dir) ? monster.dir : null;
 }
-
-/** CC2 engine: the one monster that melts an ice block it bumps (Lexy ice_block.on_after_bumped names the fireball). */
-const CC2_ICE_MELTER_TYPE = 'fireball';
 
 /**
  * Melts the block of ice in the cell a monster tries to enter: the block is removed and, when the cell is plain floor,
