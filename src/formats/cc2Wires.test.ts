@@ -80,7 +80,7 @@ describe('wire networks', () => {
     expect(buildCc2Wires(map).links).toEqual([]);
   });
 
-  it('feeds every sink of the network and ignores a green toggle wall', () => {
+  it('feeds every sink of the network, a green toggle wall included (Lexy powers any tile with an on_power action)', () => {
     const map = makeMap(3, 3, [
       button(1, 0, S),
       wire(1, 1, N | E | W),
@@ -88,7 +88,7 @@ describe('wire networks', () => {
       cloner(2, 1)
     ]);
     const result = buildCc2Wires(map);
-    expect(result.links).toEqual([link(1, 0, 2, 1)]);
+    expect(result.links).toEqual([link(1, 0, 0, 1), link(1, 0, 2, 1)]);
     expect(result.unsupported).toEqual([]);
   });
 
