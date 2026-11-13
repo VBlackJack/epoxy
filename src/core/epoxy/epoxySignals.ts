@@ -184,14 +184,32 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
   return levels;
 }
 
+/** Tile ids of the buttons whose link to a sink is no Lexy circuit: CC2 hands an orange button its flame jet by position, not by wire. */
+const BUTTON_LINK_SOURCE_TILE_IDS: ReadonlySet<string> = new Set(['button_orange_cc2']);
+
 /**
- * Records the clone machine and launcher sinks as off. Only a settle's own edge check and the display of a powered cell
- * read a sink's stored output (no link leaves a sink, see normalizeSignalLinks), so this changes nothing but the first edge.
+ * Whether a sink is fed by a button link: a link into its cell whose source is a button CC2 links by position instead of
+ * by wire (the orange button and its flame jet). Lexy builds no circuit for such a link, so the sink has no wire edge to
+ * start from. The one decision shared by the load prime and the flame jet edge rule.
  */
-function startFiringSinksOff(runtime: SignalRuntime): void {
+function isButtonLinkedSink(w: EpoxyWorld, runtime: SignalRuntime, sinkCell: number): boolean {
+  const width = mapWidth(w);
+  return runtime.network.links.some((link) => {
+    if (link.to !== sinkCell) return false;
+    const row = w.terrain[Math.floor(link.from / width)];
+    return row !== undefined && BUTTON_LINK_SOURCE_TILE_IDS.has(row[link.from % width]);
+  });
+}
+
+/**
+ * Records every wired sink as off, except one fed by a button link. Lexy starts every circuit off (recalculate_circuitry),
+ * so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0, a door or a flame jet
+ * follows. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no link leaves a
+ * sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
+ */
+function startWiredSinksOff(w: EpoxyWorld, runtime: SignalRuntime): void {
   for (const index of runtime.network.sinkIndexes) {
-    const fires = runtime.defs.get(index)?.fires;
-    if (fires === 'cloner' || fires === 'launcher') runtime.state.lastOutputs[index] = false;
+    if (!isButtonLinkedSink(w, runtime, runtime.network.nodes[index].cell)) runtime.state.lastOutputs[index] = false;
   }
 }
 
@@ -215,9 +233,9 @@ export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, _phase
   refreshBeams(w);
   const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime), prime);
   runtime.state = result.state;
-  // CC2 engine: every circuit starts off (Lexy recalculate_circuitry), so a cloner or launcher whose source is held at load
-  // rises on the first settle and fires on tick 0. Gates and the other sinks keep the primed state, so they never flip at load.
-  if (prime && usesCc2Engine(w.level)) startFiringSinksOff(runtime);
+  // CC2 engine: every wired sink starts off (Lexy recalculate_circuitry), so one whose source is held at load rises on the first
+  // settle. A sink fed by a button link keeps the primed state, and gates keep it too.
+  if (prime && usesCc2Engine(w.level)) startWiredSinksOff(w, runtime);
   // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
   runtime.pending.clear();
   // A gray area button holds its level sinks on for this settle only: the set read now is the next settle's to replace.
