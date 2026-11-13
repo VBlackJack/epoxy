@@ -939,6 +939,17 @@ export class GameEngine {
     return w.player.alive && !w.levelCompleted;
   }
 
+  /**
+   * CC2 engine: lets the step-end effects the player's finished step left pending act now instead of at the start of the
+   * next tick or input, so that what is drawn and read between ticks (HUD, renderer, click-to-move safety) is the state
+   * after them. Idempotent and equivalent to the flush the next entry point does anyway, so a replay is unchanged.
+   * A no-op on any other level, while paused, dead or once the level ended.
+   */
+  public flushPendingStepEnd(): void {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return;
+    this.flushCc2StepEnd();
+  }
+
   /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
   private beginInput(): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
