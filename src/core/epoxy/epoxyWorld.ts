@@ -209,10 +209,10 @@ export interface EpoxyWorld {
    */
   cc2BeforePass?: boolean;
   /**
-   * CC2 engine: the cell index of the brown button the player's step ended on, held for the rest of the tick even if he
-   * leaves at once. Absent while none is held; saved with the undo snapshot and part of the search key.
+   * CC2 engine: the cell indices (ascending) of the brown buttons the players' steps ended on, held for the rest of the
+   * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
    */
-  cc2BrownHeld?: number;
+  cc2BrownHeld?: number[];
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -735,7 +735,7 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
-  if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld}`);
+  if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   return parts.join(';');
 }
 
@@ -1003,8 +1003,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
-  // CC2 engine: a brown button the player's step ended on is held for the rest of the tick, even if he leaves at once.
-  if (w.cc2BrownHeld !== undefined && w.cc2BrownHeld === by * mapWidth(w) + bx) return true;
+  // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
+  if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
   // On a converted CC3D level the player works a brown button only at rest, like everything else.
   // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
   const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;

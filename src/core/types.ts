@@ -2483,8 +2483,8 @@ export interface UndoSnapshot {
   ccBlobModifier?: number;
   /** Wire-fired cloner and launcher edges waiting for the next tick on a CC2-engine level; written only while one waits, absent otherwise. */
   cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
-  /** The cell index of the brown button held by a CC2-engine player's step; written only while one is held, absent otherwise. */
-  cc2BrownHeld?: number;
+  /** The ascending cell indices of the brown buttons held by CC2-engine players' steps; written only while one is held, absent otherwise. */
+  cc2BrownHeld?: number[];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */

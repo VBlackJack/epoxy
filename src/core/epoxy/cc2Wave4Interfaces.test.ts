@@ -56,31 +56,31 @@ describe('brown button hold', () => {
   it('enters the search key and the wave state only when set', () => {
     const engine = load();
     const unset = cc2HiddenStateKey(world(engine));
-    world(engine).cc2BrownHeld = BROWN_CELL;
+    world(engine).cc2BrownHeld = [BROWN_CELL];
     expect(cc2HiddenStateKey(world(engine))).not.toBe(unset);
-    expect(engine.getCc2WaveState()?.brownHeld).toBe(BROWN_CELL);
+    expect(engine.getCc2WaveState()?.brownHeld).toEqual([BROWN_CELL]);
     world(engine).cc2BrownHeld = undefined;
     expect(cc2HiddenStateKey(world(engine))).toBe(unset);
   });
 
   it('is reset when another level loads in the same world', () => {
     const engine = load();
-    world(engine).cc2BrownHeld = BROWN_CELL;
+    world(engine).cc2BrownHeld = [BROWN_CELL];
     engine.loadLevel(room({ mode: 'cc2' }));
     expect(world(engine).cc2BrownHeld).toBeUndefined();
   });
 
   it('is saved with the undo snapshot and dropped by an undo to a snapshot without it', () => {
     const engine = load();
-    world(engine).cc2BrownHeld = BROWN_CELL;
+    world(engine).cc2BrownHeld = [BROWN_CELL];
     expect(engine.attemptPlayerMove('E')).toBe(true);
     world(engine).cc2BrownHeld = undefined;
     expect(engine.undo()).toBe(true);
-    expect(world(engine).cc2BrownHeld).toBe(BROWN_CELL);
+    expect(world(engine).cc2BrownHeld).toEqual([BROWN_CELL]);
 
     const plain = load();
     expect(plain.attemptPlayerMove('E')).toBe(true);
-    world(plain).cc2BrownHeld = BROWN_CELL;
+    world(plain).cc2BrownHeld = [BROWN_CELL];
     expect(plain.undo()).toBe(true);
     expect(world(plain).cc2BrownHeld).toBeUndefined();
   });

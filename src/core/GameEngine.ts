@@ -789,7 +789,7 @@ export class GameEngine {
       ...(this.w.ccGenerators?.blobModifier !== undefined ? { ccBlobModifier: this.w.ccGenerators.blobModifier } : {}),
       // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
-      ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: this.w.cc2BrownHeld } : {}),
+      ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -894,7 +894,7 @@ export class GameEngine {
       else delete this.w.ccGenerators.blobModifier;
     }
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
-    this.w.cc2BrownHeld = snap.cc2BrownHeld;
+    this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -1029,6 +1029,7 @@ export class GameEngine {
     this.checkTargetsWin();
     // CC2 engine: what the step onto a cell does acts when that step ends, at the start of the next tick or input
     // (flushCc2StepEnd); a brown button it held was held for this tick only.
+    // Cleared at the tick end, so a held button is only ever visible between an input (or flush) and the tick.
     this.w.cc2BrownHeld = undefined;
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
@@ -1240,14 +1241,14 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
    * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
     const brownHeld = this.w.cc2BrownHeld;
     if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined) return undefined;
     return {
       ...(blobModifier !== undefined ? { blobModifier } : {}),
-      ...(brownHeld !== undefined ? { brownHeld } : {}),
+      ...(brownHeld !== undefined ? { brownHeld: [...brownHeld] } : {}),
       ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
     };
   }

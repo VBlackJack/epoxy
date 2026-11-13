@@ -643,7 +643,10 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   delete p.cc3dArrival;
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
   if (pending.brown !== undefined && p.x === pending.brown.x && p.y === pending.brown.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).buttonAction === 'hold_trap') {
-    w.cc2BrownHeld = p.y * mapWidth(w) + p.x;
+    // Several players can end steps on different brown buttons before the tick: each cell stays held, in ascending order.
+    const cell = p.y * mapWidth(w) + p.x;
+    const held = w.cc2BrownHeld ?? [];
+    if (!held.includes(cell)) w.cc2BrownHeld = [...held, cell].sort((a, b) => a - b);
   }
   if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {

@@ -77,7 +77,7 @@ describe('CC2 engine: a brown button works when the step onto it ends', () => {
     // The next input: the step-end press acts first, then he steps off the button.
     expect(engine.attemptPlayerMove('N')).toBe(true);
     expect(engine.getPlayer().y).toBe(ROOM_ROW - 1);
-    expect(world(engine).cc2BrownHeld).toBe(ROOM_ROW * mapWidth(world(engine)) + BUTTON_X);
+    expect(world(engine).cc2BrownHeld).toEqual([ROOM_ROW * mapWidth(world(engine)) + BUTTON_X]);
     expect(trapClosed(engine)).toBe(false);
     engine.tick();
     expect(world(engine).cc2BrownHeld).toBeUndefined();
@@ -124,6 +124,63 @@ describe('a level not on the CC2 engine presses the brown button at the start of
     expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(trapClosed(engine)).toBe(false);
     expect(engine.getPlayer().cc3dArrival?.brown).toBeUndefined();
+    expect(world(engine).cc2BrownHeld).toBeUndefined();
+  });
+});
+
+describe('CC2 engine: two players ending steps on two brown buttons in the same tick', () => {
+  const OTHER_ROW = 7;
+  const OTHER_BUTTON_X = 3;
+  const OTHER_TRAP_X = 10;
+  const OTHER_TRAP_Y = 9;
+
+  function loadTwo(): GameEngine {
+    const level = room({
+      mode: 'cc2',
+      terrain: {
+        [`${BUTTON_X},${ROOM_ROW}`]: BROWN_BUTTON,
+        [`${TRAP_X},${TRAP_Y}`]: TRAP,
+        [`${OTHER_BUTTON_X},${OTHER_ROW}`]: BROWN_BUTTON,
+        [`${OTHER_TRAP_X},${OTHER_TRAP_Y}`]: TRAP
+      }
+    });
+    level.trapLinks = [
+      { buttonX: BUTTON_X, buttonY: ROOM_ROW, trapX: TRAP_X, trapY: TRAP_Y },
+      { buttonX: OTHER_BUTTON_X, buttonY: OTHER_ROW, trapX: OTHER_TRAP_X, trapY: OTHER_TRAP_Y }
+    ];
+    level.extraPlayers = [{ x: 2, y: OTHER_ROW, dir: 'E', character: 'chip' }];
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    return engine;
+  }
+
+  /** Puts the controlled player on a brown button with its step-end pending, as a finished step leaves him. */
+  function endStepOn(engine: GameEngine, x: number, y: number): void {
+    const p = engine.getPlayer();
+    p.x = x;
+    p.y = y;
+    p.moveCooldown = 0;
+    p.cc3dArrival = { brown: { x, y } };
+    engine.flushPendingStepEnd();
+  }
+
+  it.each([
+    ['first player first', false],
+    ['second player first', true]
+  ])('holds both buttons, in ascending cell order, until the tick ends (%s)', (_label, secondFirst) => {
+    const engine = loadTwo();
+    const width = mapWidth(world(engine));
+    const first = ROOM_ROW * width + BUTTON_X;
+    const second = OTHER_ROW * width + OTHER_BUTTON_X;
+    if (secondFirst) expect(engine.swapPlayer()).toBe(true);
+    endStepOn(engine, secondFirst ? OTHER_BUTTON_X : BUTTON_X, secondFirst ? OTHER_ROW : ROOM_ROW);
+    expect(world(engine).cc2BrownHeld).toEqual([secondFirst ? second : first]);
+    expect(engine.swapPlayer()).toBe(true);
+    endStepOn(engine, secondFirst ? BUTTON_X : OTHER_BUTTON_X, secondFirst ? ROOM_ROW : OTHER_ROW);
+    expect(world(engine).cc2BrownHeld).toEqual([first, second]);
+    expect(cc2HiddenStateKey(world(engine))).toContain(`b${first},${second}`);
+    expect(engine.captureState().cc2BrownHeld).toEqual([first, second]);
+    engine.tick();
     expect(world(engine).cc2BrownHeld).toBeUndefined();
   });
 });
