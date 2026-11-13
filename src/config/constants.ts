@@ -487,6 +487,8 @@ export const CC_RULES_VERSION = 9;
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
 export const CC2_RULES_VERSION = 2;
+// Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
+// recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 
 /** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
 export const LYNX_RULES_VERSION = 1;
