@@ -26,7 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
-import { ROLLING_BALL_ENTITY_ID } from '../coreConstants';
+import { CELL_EDGE_BITS, ROLLING_BALL_ENTITY_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import { launchRollingBall } from './epoxyRollingBall';
 import type { EpoxyContext } from './epoxyWorld';
@@ -75,5 +75,26 @@ describe('CC2 rolling ball: bumped by a deciding actor', () => {
     engine.tick();
     expect(ballOf(engine)).toBeDefined();
     expect(engine.getEntities().some((e) => e.type === 'tank')).toBe(true);
+  });
+
+  it('spares a bug whose probe of the ball cell is stopped by gravel under the ball', () => {
+    const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'bug', x: BALL_X, y: ROOM_ROW + 1, dir: 'E' }] });
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    context(engine).world.terrain[ROOM_ROW][BALL_X] = 'gravel';
+    engine.tick();
+    expect(engine.getEntities().some((e) => e.type === 'bug')).toBe(true);
+    expect(ballOf(engine)).toBeDefined();
+  });
+
+  it('spares a bug whose probe of the ball cell is stopped by a thin wall between them', () => {
+    const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'bug', x: BALL_X, y: ROOM_ROW + 1, dir: 'E' }] });
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    const w = context(engine).world;
+    const width = w.terrain[0].length;
+    w.edgeMask = new Uint8Array(width * w.terrain.length);
+    w.edgeMask[ROOM_ROW * width + BALL_X] |= CELL_EDGE_BITS.S;
+    engine.tick();
+    expect(engine.getEntities().some((e) => e.type === 'bug')).toBe(true);
+    expect(ballOf(engine)).toBeDefined();
   });
 });

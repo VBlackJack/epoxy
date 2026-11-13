@@ -1084,6 +1084,8 @@ function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): bool
     eraseSplash(w, monster.x + vec.dx, monster.y + vec.dy);
   }
   // CC2 engine: a rolling ball bumped by the probe blows up with the actor that probed it (the entry test below does not do this).
+  // Lexy tests the canopy, thin wall, item and terrain layers before the actor layer: a ball is bumped only once those admit the monster.
+  if (!canMonsterEnter(w, monster, wanted, true, true, true)) return false;
   bumpRollingBall(w, monster, wanted);
   if (w.removedUids.has(monster.uid)) return false;
   return canMonsterEnter(w, monster, wanted, false, true, true);
