@@ -112,7 +112,7 @@ import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
 import { AimMode, turnDirectionForChord } from './ui/aimInput';
-import { HeldKeys } from './ui/heldKeys';
+import { HeldKeys, supportsHeldMove } from './ui/heldKeys';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -799,7 +799,7 @@ class EpoxyApplication {
     } else if (this.heldDirection) {
       this.clearAutoMove();
       // An engine without holds is told again every tick, as it always was.
-      if (!this.engine.holdPlayerDirection) this.engine.attemptPlayerMove(this.heldDirection);
+      if (!this.engine.holdPlayerDirection) this.sendHeldMove(this.heldDirection, true);
     } else if (this.autoMoveQueue.length > 0) {
       const nextDir = this.autoMoveQueue[0];
       // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
@@ -1693,7 +1693,7 @@ class EpoxyApplication {
   }
 
   /** Starts a held move from any input source (keys, d-pad, swipe). */
-  private beginHeldMove(dir: Direction): void {
+  private beginHeldMove(dir: Direction, fromKeyboard = false): void {
     this.clearAutoMove();
     if (this.aimMode.isOn() && this.turnsInPlace()) {
       this.heldDirection = null;
@@ -1702,6 +1702,16 @@ class EpoxyApplication {
       return;
     }
     this.heldDirection = dir;
+    this.sendHeldMove(dir, fromKeyboard);
+  }
+
+  /** Sends the move: the whole keyboard set when the engine takes it, otherwise the single direction as ever. */
+  private sendHeldMove(dir: Direction, keyboardOwns: boolean): void {
+    const dirs = this.heldKeys.directions();
+    if (keyboardOwns && dirs.length > 0 && supportsHeldMove(this.engine)) {
+      this.engine.attemptPlayerMoveHeld(dirs);
+      return;
+    }
     this.engine.attemptPlayerMove(dir);
   }
 
@@ -1718,7 +1728,7 @@ class EpoxyApplication {
     // Aiming turns in place without walking: the key must not join the held set.
     const aiming = this.aimMode.isOn() && this.turnsInPlace();
     if (!aiming) this.heldKeys.press(e.code, dir);
-    this.beginHeldMove(dir);
+    this.beginHeldMove(dir, true);
   }
 
   /** Click or tap on the board: stop a replay, or plan a path to the tile. */
