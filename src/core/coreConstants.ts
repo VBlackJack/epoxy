@@ -329,6 +329,9 @@ export const ROLLING_BALL_PATTERN = 'rolling_ball';
 /** Most tools a CC2 entity (ghost, rover) holds at once; taking another drops the oldest on the cell (Lexy game.js:3245-3256). */
 export const CC2_ENTITY_TOOL_CAPACITY = 4;
 
+/** Most tools the CC2 player's belt holds; taking another pushes the oldest out onto the cell (Lexy game.js:3237-3275). */
+export const CC2_TOOL_BELT_CAPACITY = 4;
+
 /**
  * Entity passes between the blue button press and the tank turning around, on a classic-rules level counted from the passes
  * begun before the press, whoever pressed. Measured against the reference engine

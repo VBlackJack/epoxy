@@ -499,7 +499,9 @@ export class GameEngine {
           .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
           .map(([id, count]) => `${id}x${count}`)
           .join('+'),
-        [...p.boots].sort().join('+')
+        [...p.boots].sort().join('+'),
+        p.belt !== undefined && p.belt.length > 0 ? p.belt.join('+') : '',
+        p.softPadDue === true ? 'f' : ''
       ].join(',');
     return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
@@ -867,6 +869,8 @@ export class GameEngine {
       ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
       ...(p.teleportExit !== undefined ? { teleportExit: p.teleportExit } : {}),
       ...(p.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(p.cc3dArrival) } : {}),
+      ...(p.belt !== undefined && p.belt.length > 0 ? { belt: [...p.belt] } : {}),
+      ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -889,6 +893,8 @@ export class GameEngine {
       ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
       ...(snap.teleportExit !== undefined ? { teleportExit: snap.teleportExit } : {}),
       ...(snap.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(snap.cc3dArrival) } : {}),
+      ...(snap.belt !== undefined ? { belt: [...snap.belt] } : {}),
+      ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }

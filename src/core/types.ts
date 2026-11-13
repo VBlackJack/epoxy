@@ -1032,6 +1032,12 @@ export interface CampaignGuardConfig {
   maxSokobanSimilarity: number;
 }
 
+/** Per-character rules of the CC2 engine. */
+export interface Cc2CharactersConfig {
+  /** The key item each character never spends on a door of its colour (Chip: green, Melinda: yellow). */
+  keptKeyByCharacter: Partial<Record<PlayerCharacter, string>>;
+}
+
 export interface GameConfig {
   grid: GridConfig;
   graphics?: GraphicsConfig;
@@ -1049,6 +1055,8 @@ export interface GameConfig {
   levelText: LevelTextConfig;
   share: ShareConfig;
   playtest: PlaytestConfig;
+  /** Rules that differ per character on a CC2-engine level. */
+  cc2Characters?: Cc2CharactersConfig;
   locales: {
     supported: string[];
     default: string;
@@ -1325,9 +1333,16 @@ export interface TileDefinition {
   flameTogglesTo?: string;
   /** Terrain this one flips to under a CC2 gray area button (a force floor turns round); absent: the button leaves it alone. */
   grayFlipsTo?: string;
+  /**
+   * CC2 engine only: a wire end touching this tile powers it, and on the rising edge it flips (a force floor reverses
+   * through grayFlipsTo, a swivel door turns clockwise through swivelTurns). Has no effect on other levels.
+   */
+  flipsOnPower?: boolean;
   isTeleporter?: boolean;
   /** CC2 only: a teleporter whose jump happens at the start of the step of a monster that stands on it (the green pad: its destination is drawn then); the others jump when the step ends. */
   teleportJumpsAtStepStartCc2?: boolean;
+  /** CC2 engine only: a teleporter whose exit the player may decide himself at his next decision (the red and yellow pads); the plain pads force the exit. */
+  teleportSoftCc2?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
   /**
@@ -2169,6 +2184,8 @@ export interface Cc2LevelData {
   coverage: Cc2Coverage;
   /** The option byte that steers the blobs (0 to 255); absent means 1, the default of Lexy's Labyrinth. */
   blobBehavior?: number;
+  /** OPTN byte 23 (use_cc1_boots): the level plays with the CC1 tool belt rules, so the four-tool belt is off. Absent means unset (P parses it). */
+  useCc1Boots?: boolean;
 }
 
 /** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */
@@ -2324,6 +2341,8 @@ export interface RuntimeEntity {
   pendingSteer?: Direction;
   /** A steered tank of a CC2-engine level: the first entity pass at which `pendingSteer` may be taken; absent with no pending steer or when it may be taken at once. */
   pendingSteerDue?: number;
+  /** CC2-engine level only: the entity still stands on the cell it was loaded on and has made no decision elsewhere; set at load, cleared on its first decision away from that cell. Absent otherwise. */
+  atLoadCell?: true;
 }
 
 /** What a step of the player onto a cell does when it ends, on a converted CC3D level or a CC2-engine level (see PlayerState.cc3dArrival). */
@@ -2340,6 +2359,8 @@ export interface Cc3dPlayerArrival {
   pulse?: GridPoint;
   /** CC2 engine: the brown button stepped onto: it is held for the tick when the step ends, even if the player leaves at once. */
   brown?: GridPoint;
+  /** CC2 engine: the bomb stepped onto: it goes off when the step ends. */
+  bomb?: GridPoint;
 }
 
 /**
@@ -2395,6 +2416,14 @@ export interface PlayerState {
    * several has its own, and a transmogrifier switches only the player that arrives on it.
    */
   character?: PlayerCharacter;
+  /**
+   * CC2-engine level only: the tool belt, tool item ids in pick-up order (oldest first), duplicates allowed. It is the
+   * source of truth for the belt order and holds at most CC2_TOOL_BELT_CAPACITY tools. Absent on every other level and
+   * while empty; snapshots deep copy it.
+   */
+  belt?: string[];
+  /** CC2-engine level only: the player stands on a soft pad (red or yellow teleporter) and decides his exit at his next decision. Set only while due. */
+  softPadDue?: true;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2458,6 +2487,10 @@ export interface PlayerSnapshot {
   cc3dArrival?: Cc3dPlayerArrival;
   /** The player's character; written only on a level with several players, where each has its own. */
   character?: PlayerCharacter;
+  /** The player's belt; written only when it holds a tool. */
+  belt?: string[];
+  /** The player's softPadDue; written only while due. */
+  softPadDue?: true;
 }
 
 export interface UndoSnapshot {

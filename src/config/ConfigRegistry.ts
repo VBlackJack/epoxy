@@ -35,6 +35,7 @@ import {
   ensureUniqueLevelIds,
   findColorChannelConfigErrors,
   findLaserConfigErrors,
+  findCc2CharacterConfigErrors,
   findCharacterItemConfigErrors,
   findSwivelConfigErrors,
   findRailConfigErrors,
@@ -387,6 +388,10 @@ class ConfigRegistryService {
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
+    }
+    const cc2CharacterErrors = findCc2CharacterConfigErrors(bundle.game, bundle.tiles.tiles);
+    if (cc2CharacterErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, cc2CharacterErrors.join('; '));
     }
     const laserErrors = findLaserConfigErrors(bundle.tiles.tiles);
     if (laserErrors.length > 0) {

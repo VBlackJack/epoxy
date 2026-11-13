@@ -742,6 +742,12 @@
       "endless_2"
     ]
   },
+  "cc2Characters": {
+    "keptKeyByCharacter": {
+      "chip": "key_green",
+      "melinda": "key_yellow"
+    }
+  },
   "locales": {
     "supported": [
       "fr",

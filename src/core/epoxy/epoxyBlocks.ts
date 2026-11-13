@@ -527,11 +527,25 @@ function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
   settleBlockArrival(ctx, ahead, ahead.dir, true);
 }
 
+/**
+ * What one block step reports to the entity loop. `refusedOnForce` is set when the block stood on a force floor and its
+ * slide was refused: the caller may collect such blocks in a local list and try them once more after the pass (a block
+ * behind another one on a force floor follows it in the same tic). It is never stored on the world.
+ */
+export interface BlockStepResult {
+  refusedOnForce?: true;
+}
+
+/** The result of a block step that was not refused on a force floor. */
+const BLOCK_STEP_DONE: BlockStepResult = Object.freeze({});
+/** The result of a block step whose slide was refused on a force floor. */
+const BLOCK_STEP_REFUSED_ON_FORCE: BlockStepResult = Object.freeze({ refusedOnForce: true as const });
+
 /** Advances one block of the entity loop by a tick: a block moves only while it slides. */
-export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void {
+export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): BlockStepResult {
   const w = ctx.world;
   // A block whose step already ended this pass (see settleAheadEarly) has had its turn.
-  if (usesCc2Engine(w.level) && w.turnSpent.get(entity.uid) === w.ccMonsterClock) return;
+  if (usesCc2Engine(w.level) && w.turnSpent.get(entity.uid) === w.ccMonsterClock) return BLOCK_STEP_DONE;
   // A pushed CC3D block finishing its step: the cell acts on it when the step ends.
   if (entity.arrivalTicks !== undefined) {
     entity.arrivalTicks--;
@@ -540,12 +554,12 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
       delete entity.arrivalTicks;
       settleBlockArrival(ctx, entity, entity.dir, true);
     }
-    return;
+    return BLOCK_STEP_DONE;
   }
-  if (!entity.isSliding) return;
+  if (!entity.isSliding) return BLOCK_STEP_DONE;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
-    return;
+    return BLOCK_STEP_DONE;
   }
   const tile = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]);
   const slideDir = entity.dir;
@@ -557,13 +571,13 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   // (the native blocks keep crushing him). Cc3dSimulation.forceStep: a refused slide on ice ends (no bounce); on a force floor the block keeps its drift and tries again each tick, in the direction it took on arrival (as the CC3D drift).
   if (ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall === true && playerAtCell(w, nx, ny) !== undefined) {
     if (tile.slideType !== 'force') entity.isSliding = false;
-    return;
+    return tile.slideType === 'force' ? BLOCK_STEP_REFUSED_ON_FORCE : BLOCK_STEP_DONE;
   }
 
   if (usesCc2Engine(w.level)) settleAheadEarly(ctx, nx, ny);
   if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
     // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
-    if (!w.player.alive) return;
+    if (!w.player.alive) return BLOCK_STEP_DONE;
   }
 
   // A sliding block of the CC3D kind crushes the monster in its way and goes on into its cell, wherever it could enter
@@ -581,13 +595,13 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
     AudioManager.playSfx('bomb');
     ctx.emitVisual('explosion', nx, ny);
     moveBlockTo(ctx, entity, nx, ny, slideDir);
-    return;
+    return BLOCK_STEP_DONE;
   }
 
   if (isCanBlockEnter(w, entity, nx, ny, slideDir)) {
     // CC2 engine: a block sliding off ice or a force floor onto a plain cell takes a full step; that cell acts at its end.
     moveBlockTo(ctx, entity, nx, ny, slideDir, true, usesCc2Engine(w.level) && arrivesAtStepEnd(w, nx, ny));
-    return;
+    return BLOCK_STEP_DONE;
   }
   // A slide that runs into an appearing wall any mover reveals shows it.
   const refusal: PushRefusal = {};
@@ -608,4 +622,5 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): void
   } else {
     entity.isSliding = false;
   }
+  return tile.slideType === 'force' ? BLOCK_STEP_REFUSED_ON_FORCE : BLOCK_STEP_DONE;
 }
