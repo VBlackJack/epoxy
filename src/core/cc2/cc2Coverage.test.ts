@@ -181,3 +181,29 @@ describe('worstVerdict', () => {
     expect(worstVerdict('lost', 'exact')).toBe('lost');
   });
 });
+
+describe('wave 6 known differences', () => {
+  it('says the bowling ball is a rolling actor on a CC2-engine level, with the bump limit', () => {
+    const reason = CC2_COVERAGE.bowling_ball.reason;
+    expect(CC2_COVERAGE.bowling_ball.level).toBe('approx');
+    expect(reason).toMatch(/rolling ball actor/);
+    expect(reason).toMatch(/pushed block and a teleport exit probe never bump/);
+    expect(reason).not.toMatch(/range and what it breaks differ/);
+  });
+
+  it('says the green pad is modelled, keeps its step-start jump, and that blocks keep theirs', () => {
+    const reason = CC2_COVERAGE.teleport_green.reason;
+    expect(reason).toMatch(/green_teleports_can_fail/);
+    expect(reason).toMatch(/generator and that failure are modelled/);
+    expect(reason).toMatch(/start of its step/);
+    expect(reason).toMatch(/block keeps that step-start jump/);
+    expect(reason).not.toMatch(/is not modelled/);
+  });
+
+  it('says only the player takes a yellow pad, which Epoxy now plays', () => {
+    const reason = CC2_COVERAGE.teleport_yellow.reason;
+    expect(reason).toMatch(/only the player takes a yellow pad/);
+    expect(reason).toMatch(/monsters with pickup priority/);
+    expect(reason).not.toMatch(/which Epoxy cannot do/);
+  });
+});

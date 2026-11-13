@@ -102,7 +102,7 @@ export const TERRAIN_MAP: ReadonlyMap<number, Cc2TileMapping> = new Map<number, 
   // The CC2 red pad has its own exit order; a wire that reaches it places its off form (see WIRED_TELEPORT_RED_OFF); the player override is not modelled (teleport_red).
   [0x10, same('teleport_red_cc2', 'teleport_red')],
   [0x11, same('teleport_blue')],
-  // The yellow pad exits forward only, like the Epoxy forward pad (shared with CC3D); its pick-up as an item is not modelled.
+  // The yellow pad exits forward only, like the Epoxy forward pad (shared with CC3D); a level with several of them lets the player pick one up as an item (teleport_yellow_item).
   [0x12, same('teleport_forward', 'teleport_yellow')],
   // The green pad picks its destination at random, from a seeded generator.
   [0x13, same('teleport_random', 'teleport_green')],
