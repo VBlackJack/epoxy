@@ -240,6 +240,29 @@ describe('two keys on a CC2-engine level', () => {
   });
 });
 
+describe('two keys on a force floor', () => {
+  const forceRoom = (): GameEngine => load({ dir: 'S', entities: [mirror(START_X + 3, START_Y)], terrain: { [`${START_X},${START_Y}`]: 'force_n' } });
+
+  it('refuses a player carried without permission: no turn, no mirror move, no record, no undo step', () => {
+    const engine = forceRoom();
+    const mirrorBefore = cellOfEntity(engine, 'mirror_chip');
+    const dirBefore = engine.getPlayer().dir;
+    engine.getPlayer().forcePermission = false;
+    expect(engine.attemptPlayerMoveHeld!(['N', 'E'])).toBe(false);
+    expect(engine.getPlayer().dir).toBe(dirBefore);
+    expect(cellOfEntity(engine, 'mirror_chip')).toBe(mirrorBefore);
+    expect(engine.getTimedMoveHistory()).toHaveLength(0);
+    expect(undoCount(engine)).toBe(0);
+  });
+
+  it('plays the hold as ever once the player has the permission', () => {
+    const engine = forceRoom();
+    engine.getPlayer().forcePermission = true;
+    expect(engine.attemptPlayerMoveHeld!(['N', 'E'])).toBe(true);
+    expect(engine.getTimedMoveHistory()).toHaveLength(1);
+  });
+});
+
 describe('two keys off the CC2 engine', () => {
   it('plays the most recent key exactly as attemptPlayerMove does', () => {
     const held = load({ entities: [block(START_X, START_Y + 1)] }, 'native');

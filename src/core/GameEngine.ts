@@ -1012,6 +1012,10 @@ export class GameEngine {
     if (player.moveCooldown > 0 || player.teleportExit !== undefined || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
       return false;
     }
+    // The force-floor refusal of attemptPlayerMove: a player still being carried has no choice yet, so nothing turns.
+    if (this.w.ccRules && player.forcePermission !== true && isCarriedByForceFloor(this.w, ConfigRegistry.getTile(this.w.terrain[player.y][player.x]))) {
+      return false;
+    }
     const order = resolveCc2HeldOrder(keys, player.dir);
     // A player in a closed trap only turns: the first key of the order decides, as one key would.
     if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
