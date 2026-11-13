@@ -17,12 +17,13 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
+import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, STEER_MONSTERS_ACTION, CC_BLOCK_SLIDE_COOLDOWN_TICKS, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
 import { usesCc2Engine } from './ccRules';
 import { forceCycleArrival } from './epoxyForceCycle';
+import { markYellowButtonArrival } from './epoxySteering';
 import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
@@ -433,6 +434,12 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   }
 
   notePulseArrival(w, destX, destY, block);
+
+  // CC2 engine: a block arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
+  if (tile.buttonAction === STEER_MONSTERS_ACTION && usesCc2Engine(w.level)) {
+    const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+    markYellowButtonArrival(w, dir, passesCounted + block.cooldownTicks + 1);
+  }
 
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
   if (tile.buttonAction && tile.buttonWorkedBy !== 'player') {
