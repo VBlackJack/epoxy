@@ -52,6 +52,9 @@ import {
  */
 export const CC2_SPLASH_BLOCK_PASSES = 5;
 
+/** Id prefix of the arrow blocks, which stand for the CC2 frame block. */
+const ARROW_BLOCK_PREFIX = 'arrow_block';
+
 /** The block type the CC2 item bar (blocksDirtBlock) applies to. */
 const CC2_DIRT_BLOCK_TYPE = DIRT_BLOCK_ENTITY_ID;
 
@@ -412,7 +415,9 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (tile.hazard === 'water') {
     if (usesCc2Engine(w.level)) leaveBlockSplash(w, destX, destY, false);
-    const filled = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    // CC2 engine: water that swallows a frame (arrow) block becomes floor, not dirt (Lexy water.on_arrive).
+    const frameFloor = usesCc2Engine(w.level) && block.type.startsWith(ARROW_BLOCK_PREFIX);
+    const filled = frameFloor ? FLOOR_TILE_ID : blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
     // On a CC2-engine level the fill is the CC2 form of that tile when it has one (CC2 dirt stops only the dirt block).
     w.terrain[destY][destX] = (usesCc2Engine(w.level) ? ConfigRegistry.getTile(filled).cc2Twin : undefined) || filled;
     removeEntity(w, block.uid);
