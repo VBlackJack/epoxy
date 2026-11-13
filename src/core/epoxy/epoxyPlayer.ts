@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC2_SLAP_REVEALED_TILE_IDS, DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
@@ -31,7 +31,9 @@ import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
+import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
+import { explodeRollingBall, isRollingBall } from './epoxyRollingBall';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -330,8 +332,9 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   let entityAtTarget = getEntityAt(w, targetX, targetY);
   let wardSpent = false;
-  // A helmet shields from monster contact and the monster keeps its cell: the player is simply blocked.
-  if (entityAtTarget?.kind === 'monster' && shieldedFromContact(w.player)) {
+  // A helmet shields from monster contact and the monster keeps its cell: the player is simply blocked (a rolling ball kills through it).
+  const killsShielded = entityAtTarget !== undefined && ConfigRegistry.getEntityDef(entityAtTarget.type)?.killsShieldedPlayer === true;
+  if (entityAtTarget?.kind === 'monster' && shieldedFromContact(w.player) && !killsShielded) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -376,7 +379,9 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       leaveCell(w, w.player.x, w.player.y, { leavingPlayer: w.player });
       w.player.x = targetX;
       w.player.y = targetY;
-      killPlayer(ctx, 'hud.messages.death_monster', 'death');
+      killPlayer(ctx, killsShielded ? STONE_DEATH_REASON_KEY : 'hud.messages.death_monster', 'death');
+      // A rolling ball that a player walks into blows up with him (Lexy rolling_ball.on_bumped), helmet or not.
+      if (isRollingBall(entityAtTarget)) explodeRollingBall(ctx, entityAtTarget);
       return true;
     }
   }
@@ -420,8 +425,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       const behindTile = ConfigRegistry.getTile(behindTileId);
       const lockedOnPlate =
         (behindTile.plateColor !== undefined && entityPressesPlate(blockBehind.type, 'block', behindTile.plateColor)) ||
-        behindTile.signalSource === 'held' ||
-        behindTile.buttonAction === 'hold_trap' ||
+        isHeldSignalButton(behindTile) ||
         behindTileId === BLOCK_TARGET_TILE_ID;
       if (!lockedOnPlate) {
         attemptPushBlock(ctx, blockBehind, dir, false);

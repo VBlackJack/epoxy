@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
-import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
+import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec, TileDefinition } from '../types';
 import {
   BUTTON_ORANGE_CC2_TILE_ID,
   DYNAMITE_FIRE_TILE_ID,
@@ -114,6 +114,15 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
 
 /** Tile id of the pink button: the only held source CC2 reads from an actor at rest (Lexy button_pink is_emitting). */
 const PINK_BUTTON_TILE_ID = SIGNAL_PLATE_TILE_ID;
+/** The button action of a brown button (it holds a trap open while pressed). */
+const BROWN_BUTTON_ACTION = 'hold_trap';
+/** The signal source kind of a button that an actor holds down by standing on it (the orange and pink ones). */
+const HELD_SIGNAL_SOURCE = 'held';
+
+/** True for a tile an actor holds down by standing on it: a held signal source (orange, pink) or a brown trap button. */
+export function isHeldSignalButton(tile: TileDefinition): boolean {
+  return tile.signalSource === HELD_SIGNAL_SOURCE || tile.buttonAction === BROWN_BUTTON_ACTION;
+}
 
 /**
  * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
@@ -130,6 +139,15 @@ function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
  * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
+  const occupied = actorsOccupyCell(w, x, y, phase);
+  // CC2 engine: a button an actor was removed from in place with no departure (a rolling ball that blew up on it) reads
+  // the opposite of what stands on it, for good: an exclusive or with the toggled set (Lexy add_press without remove_press).
+  if (!usesCc2Engine(w.level) || w.cc2ToggledButtonCells.length === 0) return occupied;
+  return occupied !== w.cc2ToggledButtonCells.includes(y * mapWidth(w) + x);
+}
+
+/** What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). */
+function actorsOccupyCell(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
   const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
   const player = playerAtCell(w, x, y);
   if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
@@ -230,14 +248,18 @@ function isButtonLinkedSink(w: EpoxyWorld, runtime: SignalRuntime, sinkCell: num
 }
 
 /**
- * Records every wired sink as off, except one fed by a button link. Lexy starts every circuit off (recalculate_circuitry),
- * so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0, a door or a flame jet
- * follows. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no link leaves a
- * sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
+ * Records every wired sink as off, except a sink fed by a button link and a wired trap. Lexy starts every circuit off
+ * (recalculate_circuitry), so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0,
+ * a door or a flame jet follows. A wired trap whose wire is on at load is open from the start (no edge fires for a trap), so
+ * it keeps the primed state. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no
+ * link leaves a sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
  */
 function startWiredSinksOff(w: EpoxyWorld, runtime: SignalRuntime): void {
   for (const index of runtime.network.sinkIndexes) {
-    if (!isButtonLinkedSink(w, runtime, runtime.network.nodes[index].cell)) runtime.state.lastOutputs[index] = false;
+    const cell = runtime.network.nodes[index].cell;
+    // A wired trap whose wire is on at load is open from the start: its monster may leave in tick 0 (no edge fires for a trap).
+    if (ConfigRegistry.getTile(w.terrain[Math.floor(cell / mapWidth(w))][cell % mapWidth(w)]).wiredTrap === true) continue;
+    if (!isButtonLinkedSink(w, runtime, cell)) runtime.state.lastOutputs[index] = false;
   }
 }
 
@@ -412,4 +434,26 @@ export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | un
   runtime.carry = new Set(pulses?.carry ?? []);
   runtime.areaPending = new Set(pulses?.area ?? []);
   runtime.lit = new Set(pulses?.lit ?? []);
+}
+
+/**
+ * CC2 engine: marks the button on the cell (`x`, `y`) as held with no actor on it, in the world set of such buttons (cell indices
+ * kept ascending). Called when an actor is removed in place on an orange or brown button with no departure (a rolling ball that
+ * blew up there, the actor it killed). An orange button toggles (an exclusive or: a second removal releases it); a brown button
+ * counts presses (Lexy add_press without remove_press), so a second removal never releases it. Does nothing on any other level.
+ * Returns true when the cell is held afterwards.
+ */
+export function toggleHeldButton(w: EpoxyWorld, x: number, y: number): boolean {
+  if (!usesCc2Engine(w.level)) return false;
+  const cell = y * mapWidth(w) + x;
+  const held = w.cc2ToggledButtonCells;
+  const at = held.indexOf(cell);
+  if (at >= 0) {
+    if (ConfigRegistry.getTile(w.terrain[y]?.[x]).buttonAction === BROWN_BUTTON_ACTION) return true;
+    held.splice(at, 1);
+    return false;
+  }
+  held.push(cell);
+  held.sort((a, b) => a - b);
+  return true;
 }

@@ -17,11 +17,9 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { CC2_ROLLING_BALL_STEP_TICKS, FLOOR_TILE_ID, STONE_DEATH_REASON_KEY, STONE_SHOT_PAYLOAD, reflectOnMirror } from '../coreConstants';
+import { FLOOR_TILE_ID, STONE_DEATH_REASON_KEY, STONE_SHOT_PAYLOAD, reflectOnMirror } from '../coreConstants';
 import { Direction, PlayerState, RuntimeEntity, Shot, ShotEffect } from '../types';
-import { usesCc2Engine } from './ccRules';
 import { isLitChargeItem } from './epoxyCharges';
-import { rollingBallPicksUp } from './epoxyMonsters';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -68,15 +66,8 @@ export function shotsStateKey(shots: readonly Shot[] | undefined): string {
   return `S${shots.map((s) => `${s.x},${s.y},${s.dir},${s.cooldown}${s.payload === undefined ? '' : `,${s.payload}`}`).sort().join(';')}`;
 }
 
-/** Whether this shot is the thrown stone of a level on the CC2 engine, which rolls like the CC2 bowling ball. */
-function isCc2Ball(w: EpoxyWorld, payload: Shot['payload']): boolean {
-  return payload === STONE_SHOT_PAYLOAD && usesCc2Engine(w.level);
-}
-
 /** Ticks the shot takes to cross one cell: a thrown stone has its own pace, a launcher shot the level's. */
 function shotStepTicksOf(w: EpoxyWorld, payload: Shot['payload']): number {
-  // On the CC2 engine the thrown ball is an actor at the walking pace of the classic monsters.
-  if (isCc2Ball(w, payload)) return CC2_ROLLING_BALL_STEP_TICKS;
   return payload === undefined ? w.shotStepTicks : Math.max(MIN_STEP_TICKS, ConfigRegistry.getGame().timing.hurlStepTicks);
 }
 
@@ -144,11 +135,6 @@ function enterCell(ctx: EpoxyContext, fromX: number, fromY: number, dir: Directi
 
   const itemId = w.items[ny][nx];
   // A lit blast charge lets a shot through, as it lets a creature or a block through.
-  if (itemId && !isLitChargeItem(itemId) && isCc2Ball(w, payload) && ConfigRegistry.getTile(itemId).hazard !== 'bomb') {
-    // The CC2 ball rolls over an item, taking it when a rolling ball picks it up (tools, keys but the red one, score bonuses).
-    if (rollingBallPicksUp(itemId)) w.items[ny][nx] = null;
-    return { flies: true, dir };
-  }
   if (itemId && !isLitChargeItem(itemId)) {
     if (ConfigRegistry.getTile(itemId).hazard === 'bomb') {
       w.items[ny][nx] = null;
@@ -240,8 +226,6 @@ export function canThrowStone(w: EpoxyWorld, x: number, y: number, dir: Directio
   const entity = getEntityAt(w, nx, ny);
   if (entity) return shotEffectOf(entity) !== 'stop';
   const itemId = w.items[ny][nx];
-  // The CC2 ball rolls over any item.
-  if (usesCc2Engine(w.level)) return true;
   return !itemId || isLitChargeItem(itemId) || ConfigRegistry.getTile(itemId).hazard === 'bomb';
 }
 
@@ -261,8 +245,7 @@ export function throwStone(ctx: EpoxyContext): void {
     x: x + vec.dx,
     y: y + vec.dy,
     dir: entry.dir,
-    // The CC2 ball spends a whole step entering the first cell, counted from the drop.
-    cooldown: w.inTick || usesCc2Engine(w.level) ? stepTicks : stepTicks - 1,
+    cooldown: w.inTick ? stepTicks : stepTicks - 1,
     payload: STONE_SHOT_PAYLOAD
   });
 }

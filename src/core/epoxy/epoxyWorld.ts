@@ -213,6 +213,18 @@ export interface EpoxyWorld {
    * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
    */
   cc2BrownHeld?: number[];
+  /**
+   * CC2 engine: the cell indices (ascending) of the buttons that count as held although no actor stands on them, because a
+   * rolling ball blew up on one (an orange button toggles, an exclusive or: a second ball on the cell releases it; a brown button counts presses, so it stays held). Empty on every other
+   * level; reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while non-empty.
+   */
+  cc2ToggledButtonCells: number[];
+  /**
+   * CC2 engine: true when the level had more than one yellow teleporter at load, so a yellow pad is an item a player picks up
+   * and sets down again (the pad list is then read live). Decided once by startLevelWorld and constant for the load; false
+   * on every other level.
+   */
+  cc2YellowPadsAreItems: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -328,6 +340,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     cc2PlayerView: undefined,
     ccGenerators: null,
     cc2DeferredSinkEdges: [],
+    cc2ToggledButtonCells: [],
+    cc2YellowPadsAreItems: false,
     ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
     ccArrivals: [],
@@ -387,7 +401,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.underlays = underlayMap(w.level);
   // The cells that hold a trap, or hide one under a removable top that may be gone later (read to fill the latch).
   w.trapCells = [];
-  if (w.cc3dPace) {
+  if (w.cc3dPace || usesCc2Engine(w.level)) {
     w.level.terrain.forEach((row, y) =>
       row.forEach((id, x) => {
         const hidden = underlayAt(w.underlays, row.length, x, y);
@@ -726,7 +740,8 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
 
 /**
  * The search key of the rule state a CC2-engine level keeps beyond the grid and that changes what happens next: the blob
- * modifier, the sink edges deferred to the next tick, and the pending steer of each yellow tank. Empty when none is set.
+ * modifier, the sink edges deferred to the next tick, the pending steer of each yellow tank, the buttons a rolling ball
+ * toggled, the teleports waiting for the turn of their monster, and the tools and keys held by the actors. Empty when none is set.
  */
 export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const parts: string[] = [];
@@ -736,6 +751,14 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
+  if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
+  // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
+  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due}`);
+  if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
+  const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
+  if (tools.length > 0) parts.push(`t${tools.join(',')}`);
+  const keys = w.entities.filter((e) => e.heldKeys !== undefined && e.heldKeys.length > 0).map((e) => `${e.uid}:${(e.heldKeys as string[]).join('+')}`);
+  if (keys.length > 0) parts.push(`k${keys.join(',')}`);
   return parts.join(';');
 }
 
@@ -963,8 +986,12 @@ function isWiredTrapPowered(w: EpoxyWorld, tx: number, ty: number): boolean {
 
 /** Computes the latch of a converted CC3D level from the world as it stands (at level start, at the end of each tick, after an undo). */
 export function refreshTrapLatch(w: EpoxyWorld): void {
-  if (!w.cc3dPace || w.trapCells.length === 0) {
+  if (w.trapCells.length === 0) {
     w.trapLatch = null;
+    return;
+  }
+  if (!w.cc3dPace) {
+    w.trapLatch = usesCc2Engine(w.level) ? latchPoweredWiredTraps(w) : null;
     return;
   }
   w.trapLatch = null;
@@ -972,6 +999,26 @@ export function refreshTrapLatch(w: EpoxyWorld): void {
   const width = mapWidth(w);
   for (const index of w.trapCells) latch.set(index, isCellClosedTrap(w, index % width, Math.floor(index / width)));
   w.trapLatch = latch;
+}
+
+/**
+ * CC2 engine: the latch of the wired traps whose signal is on at the tick-phase settle, each latched open. Lexy runs its wire
+ * phase after the decisions, so a trap that rose stays open for the next decisions; the settle that follows the player's move
+ * must not close it again before the trapped monster decides. Any other trap, and a wired trap that is off here, keeps its live
+ * state; null when no wired trap is powered.
+ */
+function latchPoweredWiredTraps(w: EpoxyWorld): Map<number, boolean> | null {
+  w.trapLatch = null;
+  let latch: Map<number, boolean> | null = null;
+  const width = mapWidth(w);
+  for (const index of w.trapCells) {
+    const tx = index % width;
+    const ty = Math.floor(index / width);
+    if (ConfigRegistry.getTile(w.terrain[ty]?.[tx]).wiredTrap !== true || !isWiredTrapPowered(w, tx, ty)) continue;
+    latch ??= new Map<number, boolean>();
+    latch.set(index, false);
+  }
+  return latch;
 }
 
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
@@ -1005,6 +1052,9 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
   if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
+  // CC2 engine: a brown button an actor was removed from in place with no departure stays pressed for good (Lexy add_press without remove_press).
+  // The set stays empty off the CC2 engine (see toggleHeldButton).
+  if (w.cc2ToggledButtonCells?.includes(by * mapWidth(w) + bx)) return true;
   // On a converted CC3D level the player works a brown button only at rest, like everything else.
   // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
   const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;

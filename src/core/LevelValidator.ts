@@ -404,6 +404,23 @@ export function unsupportedMechanicIds(level: Pick<CompiledLevel, 'terrain' | 'i
   return [...found].sort();
 }
 
+/** The ids (terrain, items, underlays, entities, clone templates) only the engine may create, which a level file must not hold: sorted and unique. */
+export function runtimeOnlyIds(level: Pick<CompiledLevel, 'terrain' | 'items' | 'entities'> & Partial<Pick<CompiledLevel, 'underlays' | 'cloneLinks'>>): string[] {
+  const found = new Set<string>();
+  const addTile = (id: string | null | undefined): void => {
+    if (id && ConfigRegistry.getTile(id).runtimeOnly === true) found.add(id);
+  };
+  const addEntity = (type: string): void => {
+    if (ConfigRegistry.getEntityDef(type)?.runtimeOnly === true) found.add(type);
+  };
+  for (const row of level.terrain) row.forEach(addTile);
+  for (const row of level.items) row.forEach(addTile);
+  for (const under of level.underlays ?? []) addTile(under.terrain);
+  for (const entity of level.entities) addEntity(entity.type);
+  for (const link of level.cloneLinks ?? []) addEntity(link.templateType);
+  return [...found].sort();
+}
+
 export class LevelValidator {
   /**
    * Checks a level. `solutionWins` is the replay of the stored solution: when it confirms the
@@ -486,6 +503,16 @@ export class LevelValidator {
           }
         }
       }
+    }
+
+    // An id only the engine creates (a rolling ball, a picked-up yellow pad) has no place in a level file.
+    const runtimeOnly = runtimeOnlyIds(level);
+    if (runtimeOnly.length > 0) {
+      issues.push({
+        severity: 'error',
+        i18nKey: 'validator.issues.runtime_only.label',
+        params: { [MECHANICS_PARAM]: runtimeOnly.join(MECHANICS_SEPARATOR) }
+      });
     }
 
     // A reserved id of a mechanic Epoxy does not play makes the level unplayable as imported: say which ones.

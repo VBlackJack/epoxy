@@ -65,6 +65,7 @@ import {
 } from './cc3dPainters';
 import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonsterDot } from './cc2Marks';
 import {
+  CC2_ENTITY_ITEM_ART,
   CC2_ITEM_VARIANTS,
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
@@ -6001,6 +6002,12 @@ export class PixelRenderer {
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      return;
+    }
+    // The rolling ball is the bowling ball item rolling: Runeward draws it by its entity painter (the item painter on the cell), every other style with the art of that item.
+    const itemArt = CC2_ENTITY_ITEM_ART[type];
+    if (itemArt !== undefined) {
+      this.drawItem(ctx, itemArt, x, y, size);
       return;
     }
     // A mirror player is the player seen through glass: the player skin, Melinda's bow for her mirror, a pale dot.

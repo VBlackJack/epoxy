@@ -155,7 +155,7 @@ describe('one palette entry per variant family', () => {
   it('offers a single no-sign entry in the Items tab and every other tile as before', () => {
     open(room());
     openTab(ITEMS_CATEGORY);
-    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === ITEMS_CATEGORY && tile.litCharge !== true);
+    const tiles = Object.values(ConfigRegistry.getTiles().tiles).filter((tile) => tile.category === ITEMS_CATEGORY && tile.litCharge !== true && tile.runtimeOnly !== true);
     const entries = paletteTilesOf(tiles, ITEMS_CATEGORY, new Map());
     const members = membersOf(NO_SIGN_FAMILY, ITEMS_CATEGORY);
     expect(members.length).toBeGreaterThan(1);

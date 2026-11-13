@@ -20,6 +20,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   CC_BLOB_BUTTON_DELAY_PASSES,
+  EMULATE_CYCLE_PATTERN,
   CC_BLOB_TYPE,
   STEER_MONSTERS_ACTION,
   CC_MONSTER_BUTTON_DELAY_PASSES,
@@ -46,6 +47,7 @@ import {
   PHASE_LINE_PATTERN,
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
+  STONE_DEATH_REASON_KEY,
   teethMayDecide,
   TURTLE_TILE_ID
 } from '../coreConstants';
@@ -62,6 +64,7 @@ import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
 import { absorbMonsterContact, shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
+import { bumpRollingBall, checkBallWay, isRollingBallDef } from './epoxyRollingBall';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -98,7 +101,7 @@ export function updateEntities(ctx: EpoxyContext): void {
   }
   w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
-    if (w.ccRules) planClassicDecisions(ctx);
+    if (w.ccRules && !planClassicDecisions(ctx)) return;
     runEntityPass(ctx);
   } finally {
     w.ccPassOpen = false;
@@ -116,6 +119,10 @@ export function updateEntities(ctx: EpoxyContext): void {
 function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
   const w = ctx.world;
   if (!usesCc2Engine(w.level)) return applyQueuedArrivals(ctx);
+  // A teleport waits for its monster's own turn (applied there); one whose monster is gone is void.
+  if (w.ccArrivals.some((a) => a.teleport === true)) {
+    w.ccArrivals = w.ccArrivals.filter((a) => a.teleport !== true || w.entities.some((e) => e.uid === a.uid));
+  }
   w.cc2BeforePass = true;
   try {
     return applyQueuedArrivals(ctx);
@@ -133,7 +140,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
-  const isDue = (a: { uid: number; due: number }): boolean => a.due <= pass && (ownerUid === undefined || a.uid === ownerUid);
+  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster.
+  const cc2 = usesCc2Engine(w.level);
+  const isDue = (a: CcArrival): boolean =>
+    a.due <= pass && (ownerUid === undefined || a.uid === ownerUid) && (!cc2 || (a.teleport === true) === (ownerUid !== undefined));
   const due = w.ccArrivals.filter(isDue);
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
@@ -147,7 +157,7 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
         continue;
       }
       if (arrival.teleport === true) {
-        if (!applyQueuedTeleport(ctx, monster, arrival, pass)) return false;
+        if (!(cc2 ? applyStepEndTeleport(ctx, monster) : applyQueuedTeleport(ctx, monster, arrival, pass))) return false;
         continue;
       }
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
@@ -186,6 +196,16 @@ function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival:
   return true;
 }
 
+/**
+ * CC2 engine: a monster whose step ended on a teleporter (not the green one) goes through in its own turn of that pass: it
+ * stands on the destination pad, and its next decision is the forced exit (see stepMonsterCore). The countdown is left as it
+ * is: it reaches 0 in this very pass. Returns false when the arrival killed the player.
+ */
+function applyStepEndTeleport(ctx: EpoxyContext, monster: RuntimeEntity): boolean {
+  if (!ctx.teleportEntity(monster, monster.x, monster.y, monster.dir, true)) return true;
+  return resolveMonsterArrival(ctx, monster, false);
+}
+
 /** A converted CC3D level fires a press in its monster's own turn: a press whose monster is gone is void. */
 function dropOrphanArrivals(w: EpoxyWorld): void {
   if (w.ccArrivals.length === 0) return;
@@ -195,22 +215,30 @@ function dropOrphanArrivals(w: EpoxyWorld): void {
 /**
  * Classic rules, decision pass: every classic monster that is ready decides its way now, the entities taken in reverse
  * list order; the movement pass (also in reverse order) then tries each decided step once. A monster boxed in plans the
- * way it was turned to face, and tries it when its turn to move comes.
+ * way it was turned to face, and tries it when its turn to move comes. Returns false when a decision killed the player
+ * (a rolling ball blowing up on him), and the pass then stops.
  */
-function planClassicDecisions(ctx: EpoxyContext): void {
+function planClassicDecisions(ctx: EpoxyContext): boolean {
   const w = ctx.world;
   w.ccPlans.clear();
   const clock = w.ccMonsterClock;
   // A fireball melting an ice block removes it from the list while the pass runs: the pass walks the list as it was.
   const decisionOrder = w.entities.slice();
+  // Uids are never reused, so a change in the removed set tells that an actor was removed during the pass.
+  const removedAtStart = w.removedUids.size;
+  const removedDuringPass = (entity: RuntimeEntity): boolean => w.removedUids.size !== removedAtStart && !w.entities.includes(entity);
   for (let i = decisionOrder.length - 1; i >= 0; i--) {
     const entity = decisionOrder[i];
+    // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
+    if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
       planYellowTank(w, entity, clock);
       continue;
     }
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
+    // CC2 engine: a monster a teleporter put on its pad leaves by the forced exit as its next decision: no way is drawn for it.
+    if (entity.teleportExit !== undefined && usesCc2Engine(w.level)) continue;
     if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
@@ -221,20 +249,36 @@ function planClassicDecisions(ctx: EpoxyContext): void {
       w.ccPlans.set(entity.uid, entity.dir);
       continue;
     }
-    let plan = chooseMonsterDirection(w, entity, def);
+    // CC2 engine: a rover decides with the behaviour it imitates, and each decision is counted here, once; its step
+    // does not count it again. A decision on a sliding floor is not one (Lexy decides nothing while an actor slides).
+    const cc2 = usesCc2Engine(w.level);
+    const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
+    const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+    // A rover imitating teeth chases only in the teeth window and decides nothing otherwise: it waits and decides again next tick.
+    const behaviourType = behaviour?.id ?? entity.type;
+    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2)) {
+      w.ccPlans.set(entity.uid, null);
+      continue;
+    }
+    let plan = chooseMonsterDirection(w, entity, behaviour);
     // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
       if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
     }
-    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
+    if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
     // CC2 engine: every monster decides first and moves after (Lexy game.js:960-1074), so a monster on a force floor plans the
     // forced way even when the cell ahead is held by a monster that leaves it earlier in this pass; the move is tried in its turn.
     if (plan === null && usesCc2Engine(w.level)) plan = blockedForcedPlan(w, entity, def);
+    // A rolling ball judges the way at its decision: what blocks it is killed or it blows up, there and then.
+    if (isRollingBallDef(def) && !checkBallWay(ctx, entity, plan ?? entity.dir)) return false;
+    // The entity may be gone by now (the ball blew up, or the monster probed one).
+    if (removedDuringPass(entity)) continue;
     w.ccPlans.set(entity.uid, plan);
   }
+  return true;
 }
 
 /**
@@ -290,6 +334,10 @@ function runEntityPass(ctx: EpoxyContext): void {
       // acted on the old state of what the button works.
       if (!applyQueuedArrivals(ctx, entity.uid, clock)) return;
       if (w.removedUids.has(entity.uid)) continue;
+    } else if (w.ccRules && w.ccArrivals.length > 0 && usesCc2Engine(w.level)) {
+      // CC2 engine: the teleport that ends the step of this monster happens in its own turn.
+      if (!applyQueuedArrivals(ctx, entity.uid, clock)) return;
+      if (w.removedUids.has(entity.uid)) continue;
     }
 
     // Entities sitting directly on a clone machine act as templates and do not move on their own
@@ -333,6 +381,14 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
     }
   }
   return alive;
+}
+
+/**
+ * Runs a classic step of `entity` now, outside the entity pass (the first step of a rolling ball that is set down). The caller set the
+ * way in `w.ccPlans`. Returns false when the player was killed.
+ */
+export function stepClassicMonsterOutOfTurn(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
+  return stepClassicMonster(ctx, entity, ctx.world.ccMonsterClock);
 }
 
 /**
@@ -427,13 +483,17 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // A rover decides each step with the behaviour of the monster it is imitating just now. Each decision is counted,
   // except while it slides (Lexy decides nothing then).
   const sliding = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType !== undefined;
-  const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
+  // On a CC2-engine level the decision pass has already counted a rover's decision (it holds a plan): not counted twice.
+  const behaviour = sliding || w.ccPlans.has(entity.uid) ? emulatedDef(entity, def) : advanceEmulation(entity, def);
   let chosenDir: Direction | null;
   // A monster a teleporter put on its destination pad leaves by a forced step; a blocked exit lets it decide normally.
   const exitDir = entity.teleportExit;
   delete entity.teleportExit;
   if (exitDir !== undefined && canStep(w, entity, exitDir)) {
     chosenDir = exitDir;
+  } else if (exitDir !== undefined && usesCc2Engine(w.level)) {
+    // CC2 engine: a blocked forced exit spends this decision (nothing is drawn); the monster decides normally on the next one.
+    chosenDir = null;
   } else if (w.ccPlans.has(entity.uid)) {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
@@ -447,10 +507,17 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     } else {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
+      // A rolling ball whose step is refused when it is tried blows up as at its decision (what moved in is killed).
+      if (plan !== null && isRollingBallDef(def)) {
+        if (!checkBallWay(ctx, entity, plan)) return false;
+        if (!w.entities.includes(entity)) return true;
+      }
     }
   } else {
     chosenDir = chooseMonsterDirection(w, entity, behaviour);
   }
+  // CC2 engine: a monster that probed a rolling ball was blown up with it: it takes no step.
+  if (!w.entities.includes(entity)) return true;
   if (!chosenDir) {
     // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
     // A monster that draws its way at random (the CC3D omni) draws again next tick when the draw is blocked.
@@ -555,10 +622,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (touched !== undefined) {
     // A helmet shields from the contact. A step, a teleport exit and a clone exit all probe canMonsterEnter first
     // and refuse a helmeted player's cell, so this only backs up an arrival that skipped the probe: the player lives.
-    if (shieldedFromContact(touched)) return true;
+    // A rolling ball is the exception: a helmet does not protect from it.
+    const killsShielded = def?.killsShieldedPlayer === true;
+    if (shieldedFromContact(touched) && !killsShielded) return true;
     // A ward destroys the monster that touches the player; the player lives.
     if (withPlayer(w, touched, () => absorbMonsterContact(w, entity.uid))) return true;
-    killPlayerAt(ctx, touched, 'hud.messages.death_monster', 'death');
+    killPlayerAt(ctx, touched, killsShielded ? STONE_DEATH_REASON_KEY : 'hud.messages.death_monster', 'death');
     return false;
   }
 
@@ -569,11 +638,14 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   }
 
   openPassedTile(w, def, nx, ny);
+  openDoorWithHeldKey(w, entity, nx, ny);
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   // A ghost or a rover takes the keys and tools it walks over (the item leaves the map); a bomb is judged below.
+  // A rolling ball takes the score bonuses too, and so does a rover on a CC2-engine level (Lexy defs.js 118-125, normal pickup priority).
   if (def?.picksUpItems === true) {
     const lying = w.items[ny][nx];
-    if (lying && monsterPicksUp(lying)) {
+    const takesBonuses = isRollingBallDef(def) || (usesCc2Engine(w.level) && def.movementPattern === EMULATE_CYCLE_PATTERN);
+    if (lying && (takesBonuses ? rollingBallPicksUp(lying) : monsterPicksUp(lying))) {
       w.items[ny][nx] = null;
       if (usesCc2Engine(w.level)) holdTool(w, entity, nx, ny, lying);
     }
@@ -656,6 +728,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster' && !destTile.teleportJumpsAtStepStartCc2) {
+    // CC2 engine: the monster goes through in its own turn of the pass where its step ends, not when it starts. The green pad
+    // (which draws its destination) keeps the jump at the start of the step, as do blocks.
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+    return true;
+  }
   if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && w.cc3dPace && w.inTick && entity.kind === 'monster') {
     // CC3D moves the monster when its step ends; blocks keep the immediate jump.
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
@@ -680,8 +758,29 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
   return ((def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS) + 1) * slowdown - 1;
 }
 
-/** The collectible kind that an entity takes but never holds: keys are not tools. */
+/** The collectible kind that an entity takes but never holds as a tool: keys are not tools. */
 const TOOL_EXCLUDED_COLLECTIBLE = 'key';
+
+/** The collectible kind of a score bonus: a ball that takes one holds nothing. */
+const SCORE_BONUS_COLLECTIBLE = 'bonus';
+
+/** Whether the entity holds the key a door needs (a rolling ball opens the door of a key it took). */
+function holdsKeyOf(entity: RuntimeEntity, tile: TileDefinition): boolean {
+  return tile.requiredKey !== undefined && entity.heldKeys?.includes(tile.requiredKey) === true;
+}
+
+/** A monster that holds the key of the door it arrives on opens it: the key is used up (a green one is not) and the door becomes what it hid. */
+function openDoorWithHeldKey(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number): void {
+  const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (!holdsKeyOf(entity, tile) || entity.heldKeys === undefined) return;
+  if (tile.consumesKey) {
+    entity.heldKeys.splice(entity.heldKeys.indexOf(tile.requiredKey as string), 1);
+    if (entity.heldKeys.length === 0) delete entity.heldKeys;
+  }
+  w.terrain[y][x] = takeRevealedTerrain(w, x, y) ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
+  w.beamDirty = true;
+  AudioManager.playSfx('door');
+}
 
 /** Whether the tools an entity holds include the one that protects against the hazard of this tile (flippers on water, fire boots on fire). */
 function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean {
@@ -698,7 +797,14 @@ function holdsProtection(w: EpoxyWorld, entity: RuntimeEntity): boolean {
  * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). Keys are taken but never held.
  */
 function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): void {
-  if (ConfigRegistry.getTile(itemId).collectible === TOOL_EXCLUDED_COLLECTIBLE) return;
+  const collectible = ConfigRegistry.getTile(itemId).collectible;
+  if (collectible === TOOL_EXCLUDED_COLLECTIBLE) {
+    // A rolling ball keeps the keys it takes: they open the doors it rolls into.
+    if (isRollingBallDef(ConfigRegistry.getEntityDef(entity.type))) (entity.heldKeys ??= []).push(itemId);
+    return;
+  }
+  // A score bonus is taken and gone: it is no tool.
+  if (collectible === SCORE_BONUS_COLLECTIBLE) return;
   const held = entity.heldTools ?? [];
   held.push(itemId);
   if (held.length > CC2_ENTITY_TOOL_CAPACITY) w.items[y][x] = held.shift() ?? null;
@@ -977,6 +1083,11 @@ function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): bool
     const vec = DIRECTION_VECTORS[wanted];
     eraseSplash(w, monster.x + vec.dx, monster.y + vec.dy);
   }
+  // CC2 engine: a rolling ball bumped by the probe blows up with the actor that probed it (the entry test below does not do this).
+  // Lexy tests the canopy, thin wall, item and terrain layers before the actor layer: a ball is bumped only once those admit the monster.
+  if (!canMonsterEnter(w, monster, wanted, true, true, true)) return false;
+  bumpRollingBall(w, monster, wanted);
+  if (!w.entities.includes(monster)) return false;
   return canMonsterEnter(w, monster, wanted, false, true, true);
 }
 
@@ -1028,7 +1139,9 @@ export function canMonsterEnter(
   const passesTile =
     def?.passesTiles?.includes(destTileId) === true ||
     (def?.entersBarredTiles?.includes(destTileId) === true && !(destTile.requiresAllChips === true && w.chipsRemaining > 0)) ||
-    (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID);
+    (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID) ||
+    // A door whose key the monster holds lets it in (a rolling ball that took the key).
+    holdsKeyOf(monster, destTile);
   // A tile that bars some monsters (the CC2 turtle bars fireballs) refuses the ones it lists, and a ghost its own list.
   if (destTile.barsMonsters?.includes(monster.type) === true) return false;
   // A tile that admits only some monsters (the CC2 pop-up wall) refuses the others, whatever else lets them in.
@@ -1055,8 +1168,8 @@ export function canMonsterEnter(
     return false;
   }
 
-  // A player in a helmet is not hurt by a monster, so the monster is simply stopped at the player's cell.
-  if (shieldedPlayerAt(w, nx, ny)) return false;
+  // A player in a helmet is not hurt by a monster, so the monster is simply stopped at the player's cell (a rolling ball is no such monster).
+  if (def?.killsShieldedPlayer !== true && shieldedPlayerAt(w, nx, ny)) return false;
 
   if (ignoreOccupant) return true;
   const occupant = getEntityAt(w, nx, ny);
@@ -1077,7 +1190,7 @@ export function monsterPicksUp(itemId: string): boolean {
 
 /** Whether a CC2 rolling ball takes this item as it rolls over it: what a picking monster takes, and the score bonuses flagged for it. */
 export function rollingBallPicksUp(itemId: string): boolean {
-  return monsterPicksUp(itemId) || ConfigRegistry.getTile(itemId).rollingBallTakesCc2 === true;
+  return monsterPicksUp(itemId) || ConfigRegistry.getTile(itemId).takenByNormalPickupCc2 === true;
 }
 
 /**

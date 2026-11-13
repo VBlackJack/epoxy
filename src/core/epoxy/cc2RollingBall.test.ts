@@ -20,9 +20,12 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { CC2_ROLLING_BALL_STEP_TICKS, STONE_ITEM_ID } from '../coreConstants';
+import { ccStepTicks, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel } from '../types';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 const STONE = STONE_ITEM_ID;
 const SIZE = 13;
@@ -40,6 +43,9 @@ const FAR_CORNER = SIZE - 2;
 beforeEach(() => {
   loadTestConfigs();
 });
+
+/** Ticks a rolling ball takes to cross one cell: the step ticks of its cadence (read from the monster definition). */
+const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ID);
 
 function room(cc2: boolean, items: Array<[number, number, string]> = []): CompiledLevel {
   const terrain = Array.from({ length: SIZE }, (_, y) =>
@@ -79,14 +85,19 @@ function itemAt(engine: GameEngine, x: number, y: number): string | null {
   return engine.getItems()[y][x];
 }
 
+/** The rolling ball a CC2 drop sets rolling: an actor, not a shot. */
+function ballOf(engine: GameEngine) {
+  return engine.getEntities().find((e) => e.type === ROLLING_BALL_ID);
+}
+
 describe('CC2 rolling ball: items', () => {
   for (const id of TAKEN_ITEMS) {
     it(`rolls over ${id} and takes it`, () => {
       const engine = thrower(true, [[ITEM_X, LANE_Y, id]]);
       expect(engine.dropItem(STONE)).toBe(true);
-      tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+      tickN(engine, stepTicks() * FLIGHT_STEPS);
       expect(itemAt(engine, ITEM_X, LANE_Y)).toBeNull();
-      expect(engine.getShots()?.length).toBeGreaterThan(0);
+      expect(ballOf(engine)).toBeDefined();
     });
   }
 
@@ -94,9 +105,9 @@ describe('CC2 rolling ball: items', () => {
     it(`rolls over ${id} and leaves it`, () => {
       const engine = thrower(true, [[ITEM_X, LANE_Y, id]]);
       expect(engine.dropItem(STONE)).toBe(true);
-      tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+      tickN(engine, stepTicks() * FLIGHT_STEPS);
       expect(itemAt(engine, ITEM_X, LANE_Y)).toBe(id);
-      expect(engine.getShots()?.length).toBeGreaterThan(0);
+      expect(ballOf(engine)).toBeDefined();
     });
   }
 
@@ -108,9 +119,9 @@ describe('CC2 rolling ball: items', () => {
   it('still sets off a bomb', () => {
     const engine = thrower(true, [[ITEM_X, LANE_Y, 'bomb']]);
     expect(engine.dropItem(STONE)).toBe(true);
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+    tickN(engine, stepTicks() * FLIGHT_STEPS);
     expect(itemAt(engine, ITEM_X, LANE_Y)).toBeNull();
-    expect(engine.getShots()).toEqual([]);
+    expect(ballOf(engine)).toBeUndefined();
   });
 
   it('is stopped by an item on a native level, and refused at once when the item is next to the player', () => {
@@ -128,13 +139,13 @@ describe('CC2 rolling ball: pace', () => {
   it('spends a whole step on the first cell after the drop, then crosses one cell per step', () => {
     const engine = thrower(true);
     expect(engine.dropItem(STONE)).toBe(true);
-    const shotX = (): number => engine.getShots()?.[0].x as number;
+    const shotX = (): number => ballOf(engine)?.x as number;
     const startX = shotX();
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS);
+    tickN(engine, stepTicks());
     expect(shotX()).toBe(startX);
     tickN(engine, 1);
     expect(shotX()).toBe(startX + 1);
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS - 1);
+    tickN(engine, stepTicks() - 1);
     expect(shotX()).toBe(startX + 1);
     tickN(engine, 1);
     expect(shotX()).toBe(startX + 2);

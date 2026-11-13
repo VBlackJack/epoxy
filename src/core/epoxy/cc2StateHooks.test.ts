@@ -26,9 +26,12 @@ import { findCharacterItemConfigErrors } from '../../config/ConfigValidation';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
-import { CC2_ENTITY_TOOL_CAPACITY, CC2_ROLLING_BALL_STEP_TICKS, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES } from '../coreConstants';
+import { CC2_ENTITY_TOOL_CAPACITY, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES, ccStepTicks, followsCcCadence, registerCcCadenceLookup } from '../coreConstants';
 import { monsterPicksUp, rollingBallPicksUp } from './epoxyMonsters';
 import type { CompiledLevel, TileDefinition } from '../types';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -121,24 +124,39 @@ describe('pickup predicates', () => {
 });
 
 describe('rolling ball pace', () => {
-  it('walks at the classic monster pace', () => {
-    expect(CC2_ROLLING_BALL_STEP_TICKS).toBe(CC_MONSTER_STEP_TICKS);
+  it('walks at the classic monster pace, by the default step ticks of the cadence', () => {
+    expect(ConfigRegistry.getEntityDef(ROLLING_BALL_ID)?.ccStepTicks).toBeUndefined();
+    expect(ccStepTicks(ROLLING_BALL_ID)).toBe(CC_MONSTER_STEP_TICKS);
+    expect(followsCcCadence(ROLLING_BALL_ID, true)).toBe(true);
   });
 });
 
-describe('validation of rollingBallTakesCc2', () => {
+describe('cadence lookup', () => {
+  it('throws a clear error when the monster definitions were not registered', () => {
+    registerCcCadenceLookup(null);
+    try {
+      expect(() => followsCcCadence('glider', false)).toThrow(/registerCcCadenceLookup/);
+      expect(() => ccStepTicks('glider')).toThrow(/registerCcCadenceLookup/);
+    } finally {
+      registerCcCadenceLookup((type) => ConfigRegistry.getEntityDef(type));
+    }
+    expect(followsCcCadence('glider', false)).toBe(true);
+  });
+});
+
+describe('validation of takenByNormalPickupCc2', () => {
   const tile = (fields: Partial<TileDefinition>): Record<string, TileDefinition> => ({
     probe: { id: 'probe', category: 'items', layer: 'item', i18nKey: 'x', ...fields } as TileDefinition
   });
 
   it('accepts a boolean on a bonus item', () => {
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', rollingBallTakesCc2: true }))).toEqual([]);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', takenByNormalPickupCc2: true }))).toEqual([]);
   });
 
   it('refuses a non-boolean value and an item that is no bonus', () => {
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', rollingBallTakesCc2: 'yes' as unknown as boolean }))).toHaveLength(1);
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'chip', rollingBallTakesCc2: true }))).toHaveLength(1);
-    expect(findCharacterItemConfigErrors(tile({ rollingBallTakesCc2: true }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', takenByNormalPickupCc2: 'yes' as unknown as boolean }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'chip', takenByNormalPickupCc2: true }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ takenByNormalPickupCc2: true }))).toHaveLength(1);
   });
 
   it('leaves the shipped config valid', () => {

@@ -30,6 +30,7 @@ import {
   SIGNAL_LINKS_PER_CELL_MAX,
   EXTRA_PLAYERS_MAX,
   PHASE_LINE_PATTERN,
+  ROLLING_BALL_PATTERN,
   STATIONARY_PATTERN,
   STEER_MONSTERS_ACTION,
   SUNK_BLOCK_TILE_ID
@@ -1225,9 +1226,9 @@ export function findCharacterItemConfigErrors(tiles: Record<string, TileDefiniti
       else if (other === undefined || other.layer !== 'item') errors.push(`${id}.itemTogglesTo: ${tile.itemTogglesTo} is not an item`);
       else if (other.itemTogglesTo !== id) errors.push(`${id}.itemTogglesTo: ${other.id} does not toggle back to ${id}`);
     }
-    if (tile.rollingBallTakesCc2 !== undefined) {
-      if (typeof tile.rollingBallTakesCc2 !== 'boolean') errors.push(`${id}.rollingBallTakesCc2: expected a boolean`);
-      if (tile.collectible !== 'bonus') errors.push(`${id}.rollingBallTakesCc2: only a bonus item (collectible "bonus") has this field`);
+    if (tile.takenByNormalPickupCc2 !== undefined) {
+      if (typeof tile.takenByNormalPickupCc2 !== 'boolean') errors.push(`${id}.takenByNormalPickupCc2: expected a boolean`);
+      if (tile.collectible !== 'bonus') errors.push(`${id}.takenByNormalPickupCc2: only a bonus item (collectible "bonus") has this field`);
     }
     if (tile.countsAsChip !== undefined && tile.collectible !== 'chip') errors.push(`${id}.countsAsChip: only a chip item can count as a chip`);
     if (tile.blastProof !== undefined && tile.layer !== 'terrain') errors.push(`${id}.blastProof: only terrain can resist a blast`);
@@ -1727,6 +1728,7 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
   EMULATE_CYCLE_PATTERN,
   RANDOM_DRAW_PATTERN,
   FORWARD_ELSE_DRAW_PATTERN,
+  ROLLING_BALL_PATTERN,
   'left_skew',
   'right_skew',
   'tank_march',
@@ -1734,6 +1736,18 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
 ];
 /** Who may work a button, as a tile declares it. */
 const BUTTON_WORKERS: readonly string[] = ['player'];
+
+/** Problems of the stone items that become an actor when set down (CC2): the id must name a monster, and only a stone item has the field. Each entry names the tile. */
+export function findDroppedActorConfigErrors(tiles: Record<string, TileDefinition>, entities: Record<string, EntityDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.dropsAsActorCc2 === undefined) continue;
+    const actor = typeof tile.dropsAsActorCc2 === 'string' ? entities[tile.dropsAsActorCc2] : undefined;
+    if (actor === undefined || actor.kind !== 'monster') errors.push(`${tile.id}.dropsAsActorCc2: expected the id of a monster`);
+    if (tile.collectible !== 'stone') errors.push(`${tile.id}.dropsAsActorCc2: only a stone item (collectible "stone") has this field`);
+  }
+  return errors;
+}
 
 /**
  * Problems of the steering fields. A tile: buttonWorkedBy is a known worker and sits on a button. An
@@ -1765,6 +1779,16 @@ export function findSteeringConfigErrors(
         errors.push(`${id}.steeredBy: no tile carries the button action "${entity.steeredBy}"`);
       }
     }
+    for (const flag of ['runtimeOnly', 'ccCadence', 'cc2Cadence', 'killsShieldedPlayer'] as const) {
+      if (entity[flag] === undefined) continue;
+      if (entity[flag] !== true) errors.push(`${id}.${flag}: expected true`);
+      if (entity.kind !== 'monster') errors.push(`${id}.${flag}: only a monster has this field`);
+    }
+    if (entity.ccStepTicks !== undefined) {
+      if (!Number.isInteger(entity.ccStepTicks) || entity.ccStepTicks < 1) errors.push(`${id}.ccStepTicks: expected a whole number of at least 1`);
+      if (entity.ccCadence !== true && entity.cc2Cadence !== true) errors.push(`${id}.ccStepTicks: only a monster on the classic cadence has this field`);
+    }
+    if (entity.runtimeOnly === true && entity.epoxyOnly !== true) errors.push(`${id}.runtimeOnly: a runtime-only entity is epoxyOnly`);
     if (entity.pushesBlocks !== undefined) {
       if (typeof entity.pushesBlocks !== 'boolean') errors.push(`${id}.pushesBlocks: expected a boolean`);
       if (entity.kind !== 'monster') errors.push(`${id}.pushesBlocks: only a monster pushes blocks`);
@@ -2061,18 +2085,30 @@ export function findChargeConfigErrors(tiles: Record<string, TileDefinition>): s
 /**
  * Problems of the pocket gate fields: a gate (collectible "gate") names the terrain it turns the floor into, which
  * must be a teleporter flagged portableTeleporter; only a gate names such a terrain, and the flag is for teleporters
- * only. Each entry names the tile.
+ * only. The one exception is the picked-up yellow pad of a CC2 level (cc2YellowPadItem, a runtime-only gate), which
+ * drops as a plain terrain teleporter that is not flagged portableTeleporter. Each entry names the tile.
  */
 export function findGateConfigErrors(tiles: Record<string, TileDefinition>): string[] {
   const errors: string[] = [];
   for (const tile of Object.values(tiles)) {
     if (tile.collectible === 'gate') {
       const pad = typeof tile.dropsAsTerrain === 'string' ? tiles[tile.dropsAsTerrain] : undefined;
-      if (pad?.portableTeleporter !== true || pad.isTeleporter !== true || pad.layer !== 'terrain') {
+      const yellowPadItem = tile.cc2YellowPadItem === true && tile.runtimeOnly === true;
+      if ((pad?.portableTeleporter !== true && !yellowPadItem) || pad?.isTeleporter !== true || pad.layer !== 'terrain') {
         errors.push(`${tile.id}.dropsAsTerrain: expected the id of a terrain teleporter flagged portableTeleporter`);
       }
     } else if (tile.dropsAsTerrain !== undefined) {
       errors.push(`${tile.id}.dropsAsTerrain: only a pocket gate (collectible "gate") may name the terrain it drops as`);
+    }
+    if (tile.cc2YellowPadItem !== undefined) {
+      if (tile.cc2YellowPadItem !== true) errors.push(`${tile.id}.cc2YellowPadItem: expected true`);
+      if (tile.collectible !== 'gate') errors.push(`${tile.id}.cc2YellowPadItem: only a gate item has this field`);
+      if (tile.runtimeOnly !== true) errors.push(`${tile.id}.cc2YellowPadItem: the picked-up yellow pad is runtime-only`);
+    }
+    if (tile.runtimeOnly !== undefined && tile.runtimeOnly !== true) errors.push(`${tile.id}.runtimeOnly: expected true`);
+    if (tile.teleportJumpsAtStepStartCc2 !== undefined) {
+      if (tile.teleportJumpsAtStepStartCc2 !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: expected true`);
+      if (tile.isTeleporter !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: only a teleporter has this field`);
     }
     if (tile.portableTeleporter === undefined) continue;
     if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);

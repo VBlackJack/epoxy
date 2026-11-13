@@ -1230,12 +1230,24 @@ export interface TileDefinition {
   dropsAs?: string;
   /** A pocket gate: the terrain tile it turns the player's floor cell into when dropped. */
   dropsAsTerrain?: string;
+  /**
+   * CC2 only: the item a yellow teleporter becomes when the level had more than one at load (a pad that can be picked up and
+   * set down again). A gate item that drops as `teleport_forward`; the pad it drops as need not be flagged portableTeleporter.
+   */
+  cc2YellowPadItem?: boolean;
+  /** CC2 only: the id of the actor (an entity of kind monster) this stone item becomes when a player sets it down on a CC2-engine level, in place of being thrown. */
+  dropsAsActorCc2?: string;
+  /** A tile only the engine creates (a pad picked up in a CC2 level): never offered by the editor palette, and refused in a level file. */
+  runtimeOnly?: boolean;
   /** A lit blast charge: set on the item a dropped charge becomes, which blocks nothing and cannot be picked up. */
   litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
   scoreBonus?: number;
-  /** CC2 only: a score bonus (collectible "bonus") that a rolling ball takes as it rolls over the cell. */
-  rollingBallTakesCc2?: boolean;
+  /**
+ * CC2 only: a score bonus (collectible "bonus") that an actor with the normal pickup priority takes as it passes. The rolling
+ * ball (rollingBallPicksUp) and, on a CC2-engine level, the rover read it.
+ */
+  takenByNormalPickupCc2?: boolean;
   /** Factor applied to the level score at the exit when the item is picked up. */
   scoreMultiplier?: number;
   /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
@@ -1314,6 +1326,8 @@ export interface TileDefinition {
   /** Terrain this one flips to under a CC2 gray area button (a force floor turns round); absent: the button leaves it alone. */
   grayFlipsTo?: string;
   isTeleporter?: boolean;
+  /** CC2 only: a teleporter whose jump happens at the start of the step of a monster that stands on it (the green pad: its destination is drawn then); the others jump when the step ends. */
+  teleportJumpsAtStepStartCc2?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
   /**
@@ -1473,6 +1487,16 @@ export interface EntityDefinition {
   wakesTo?: string;
   /** The Epoxy engine alone plays this entity: Lynx and CC3D rulesets and the .DAT format refuse it. */
   epoxyOnly?: boolean;
+  /** An entity only the engine creates (the rolling ball): never offered by the editor palette, never placed by a level. */
+  runtimeOnly?: boolean;
+  /** The classic cadence (see coreConstants): this monster follows it on every level that plays the classic rules. */
+  ccCadence?: boolean;
+  /** The classic cadence on a level played by the CC2 engine only (CC2 gives these monsters the classic step). */
+  cc2Cadence?: boolean;
+  /** Ticks of one classic-cadence step of this monster; absent means the standard classic step. */
+  ccStepTicks?: number;
+  /** A monster whose contact kills a player although a helmet shield (shieldsFromContact) would protect from other monsters. */
+  killsShieldedPlayer?: boolean;
   turnOrder?: RelativeTurn[];
   immuneToWater?: boolean;
   immuneToFire?: boolean;
@@ -2275,6 +2299,8 @@ export interface RuntimeEntity {
   isSliding: boolean;
   /** CC2 only: the tool item ids this entity picked up, oldest first, at most CC2_ENTITY_TOOL_CAPACITY (keys are never held). Set only when non-empty; snapshots copy the array. */
   heldTools?: string[];
+  /** CC2 only: the key item ids this entity (a rolling ball) picked up, oldest first. Set only when non-empty; snapshots copy the array. */
+  heldKeys?: string[];
   /** A CC3D block the player pushed, still finishing its step: the ticks left before its cell acts on it. */
   arrivalTicks?: number;
   /** Snappy and nibble of a converted CC3D level: the ticks left of the rest after a step they chose (or a blocked try), in which they decide nothing; runs beside the step and outlasts a slide. */
@@ -2495,6 +2521,8 @@ export interface UndoSnapshot {
   cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
   /** The ascending cell indices of the brown buttons held by CC2-engine players' steps; written only while one is held, absent otherwise. */
   cc2BrownHeld?: number[];
+  /** The ascending cell indices of the buttons a rolling ball toggled (a button held by an actor that was removed); written only while one is toggled, absent otherwise. */
+  cc2ToggledButtonCells?: number[];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */

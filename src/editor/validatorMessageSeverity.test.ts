@@ -57,7 +57,7 @@ const EMITTED_SEVERITY: Record<string, Severity> = {
   cc3d_toggle_control_no_door: WARN, cc3d_plate_no_door: WARN, cc3d_golem_control_no_golem: WARN,
   cc3d_laser_controller_no_shooter: WARN, cc3d_key_no_door: WARN, cc3d_single_teleport: WARN,
   cc3d_start_on_blocker: WARN, cc3d_start_on_hazard: WARN,
-  cc2_unsupported: ERR
+  cc2_unsupported: ERR, runtime_only: ERR
 };
 
 const RUNTIME_SEVERITY_KEYS = ['unreachable_chips_proven', 'unreachable_exit_proven'];

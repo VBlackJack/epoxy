@@ -1151,13 +1151,25 @@
       "collectible": "gate",
       "dropsAsTerrain": "pocket_gate_pad"
     },
+    "teleport_yellow_item": {
+      "id": "teleport_yellow_item",
+      "category": "items",
+      "layer": "item",
+      "i18nKey": "tiles.teleport_yellow_item.name",
+      "laserTransparent": true,
+      "collectible": "gate",
+      "dropsAsTerrain": "teleport_forward",
+      "cc2YellowPadItem": true,
+      "runtimeOnly": true
+    },
     "hurl_stone": {
       "id": "hurl_stone",
       "category": "items",
       "layer": "item",
       "i18nKey": "tiles.hurl_stone.name",
       "laserTransparent": true,
-      "collectible": "stone"
+      "collectible": "stone",
+      "dropsAsActorCc2": "rolling_ball"
     },
     "toll_token": {
       "id": "toll_token",
@@ -1245,7 +1257,7 @@
       "laserTransparent": true,
       "collectible": "bonus",
       "scoreBonus": 10,
-      "rollingBallTakesCc2": true,
+      "takenByNormalPickupCc2": true,
       "blocksDirtBlock": true
     },
     "score_100": {
@@ -1256,7 +1268,7 @@
       "laserTransparent": true,
       "collectible": "bonus",
       "scoreBonus": 100,
-      "rollingBallTakesCc2": true,
+      "takenByNormalPickupCc2": true,
       "blocksDirtBlock": true
     },
     "score_1000": {
@@ -1267,7 +1279,7 @@
       "laserTransparent": true,
       "collectible": "bonus",
       "scoreBonus": 1000,
-      "rollingBallTakesCc2": true,
+      "takenByNormalPickupCc2": true,
       "blocksDirtBlock": true
     },
     "score_2x": {
@@ -1278,7 +1290,7 @@
       "laserTransparent": true,
       "collectible": "bonus",
       "scoreMultiplier": 2,
-      "rollingBallTakesCc2": true,
+      "takenByNormalPickupCc2": true,
       "blocksDirtBlock": true
     },
     "stopwatch_bonus": {
@@ -3011,6 +3023,7 @@
       "isTeleporter": true,
       "teleportGroup": "random",
       "teleportExitOrder": "random",
+      "teleportJumpsAtStepStartCc2": true,
       "colorKey": "green"
     },
     "teleport_red_cc2": {

@@ -323,8 +323,8 @@ export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
  */
 export const CC_MONSTER_STEP_TICKS = 4;
 
-/** Ticks a CC2 rolling ball takes to cross one cell: the walking pace of the classic monsters (Lexy rolling_ball movement_speed 4, tiletypes.js:3231). */
-export const CC2_ROLLING_BALL_STEP_TICKS = CC_MONSTER_STEP_TICKS;
+/** Movement pattern of the CC2 rolling ball: it rolls straight on and follows the floor, and a blocked ball is spent (it blows up). */
+export const ROLLING_BALL_PATTERN = 'rolling_ball';
 
 /** Most tools a CC2 entity (ghost, rover) holds at once; taking another drops the oldest on the cell (Lexy game.js:3245-3256). */
 export const CC2_ENTITY_TOOL_CAPACITY = 4;
@@ -392,23 +392,45 @@ export const CC_QUEUED_TANK_TURN_DELAY_PASSES = 1;
  */
 export const CC_TELEPORT_SLIDE_WAIT_TICKS = 2;
 
-/** Ticks a classic blob step lasts (a blob covers a cell at half the speed of the other monsters). */
-export const CC_BLOB_STEP_TICKS = 8;
-
 /** The classic monsters that follow the cadence above; any other monster keeps its own move interval. */
 export const CC_BLOB_TYPE = 'blob';
 export const CC_WALKER_TYPE = 'walker';
 export const CC_TEETH_TYPE = 'teeth';
-export const CC_CADENCE_TYPES: readonly string[] = ['bug', 'paramecium', 'pink_ball', 'walker', 'glider', 'fireball', 'tank', CC_TEETH_TYPE, CC_BLOB_TYPE];
 
 /** The timid teeth and the ghost: they follow the classic cadence on a CC2-engine level only (CC2 gives them the classic step). */
 export const CC_TIMID_TEETH_TYPE = 'timid_teeth';
 export const CC_GHOST_TYPE = 'ghost';
-export const CC2_EXTRA_CADENCE_TYPES: readonly string[] = [CC_TIMID_TEETH_TYPE, CC_GHOST_TYPE];
 
-/** True when `type` follows the classic cadence; `cc2Engine` adds the CC2-only types (timid teeth, ghost). */
+/** The cadence fields of a monster definition (monsters.json): which monsters follow the classic cadence, and the ticks of a step. */
+export interface CcCadenceFields {
+  /** Follows the classic cadence on every level that plays the classic rules. */
+  ccCadence?: boolean;
+  /** Follows the classic cadence on a level played by the CC2 engine only. */
+  cc2Cadence?: boolean;
+  /** Ticks of one classic step; absent means CC_MONSTER_STEP_TICKS. */
+  ccStepTicks?: number;
+}
+
+/** Looks up the cadence fields of a monster type; registered by the config registry, which owns the monster definitions. */
+export type CcCadenceLookup = (type: string) => CcCadenceFields | undefined;
+
+let ccCadenceLookup: CcCadenceLookup | null = null;
+
+/** Hands this module the monster definitions (the config registry calls it once); null clears it. */
+export function registerCcCadenceLookup(lookup: CcCadenceLookup | null): void {
+  ccCadenceLookup = lookup;
+}
+
+/** The cadence lookup the config registry registered; throws when none is (the cadence cannot be told without the monster definitions). */
+function cadenceFieldsOf(type: string): CcCadenceFields | undefined {
+  if (ccCadenceLookup === null) throw new Error(`The cadence of "${type}" was asked before the monster definitions were registered (see registerCcCadenceLookup)`);
+  return ccCadenceLookup(type);
+}
+
+/** True when `type` follows the classic cadence; `cc2Engine` adds the types that follow it on a CC2-engine level only (timid teeth, ghost). */
 export function followsCcCadence(type: string, cc2Engine: boolean): boolean {
-  return CC_CADENCE_TYPES.includes(type) || (cc2Engine && CC2_EXTRA_CADENCE_TYPES.includes(type));
+  const fields = cadenceFieldsOf(type);
+  return fields?.ccCadence === true || (cc2Engine && fields?.cc2Cadence === true);
 }
 
 /** True for monsters that decide only in the active half of the teeth cycle; the timid teeth do so on a CC2-engine level only. */
@@ -435,7 +457,7 @@ export const CC3D_RESTING_TYPES: readonly string[] = ['snappy', 'nibble'];
 
 /** Ticks one step of a classic monster lasts; the blob steps at half the speed of the others. */
 export function ccStepTicks(type: string): number {
-  return type === CC_BLOB_TYPE ? CC_BLOB_STEP_TICKS : CC_MONSTER_STEP_TICKS;
+  return cadenceFieldsOf(type)?.ccStepTicks ?? CC_MONSTER_STEP_TICKS;
 }
 
 /** Teeth decide only during the first CC_TEETH_ACTIVE_TICKS ticks of each CC_TEETH_CYCLE_TICKS cycle (they move at half rate). */

@@ -194,7 +194,7 @@ describe('format 14 coverage verdicts', () => {
   it('states the known gaps of the other new ids', () => {
     expect(CC2_COVERAGE.teleport_green.level).toBe('approx');
     expect(CC2_COVERAGE.teleport_green.reason).toMatch(/green_teleports_can_fail/);
-    expect(CC2_COVERAGE.teleport_green.reason).toMatch(/Epoxy seeded stream/);
+    expect(CC2_COVERAGE.teleport_green.reason).toMatch(/walker generator of the level/);
     expect(CC2_COVERAGE.wired_flame_jet.reason).toMatch(/once when its signal rises/);
     expect(CC2_COVERAGE.slime.level).toBe('approx');
     expect(CC2_COVERAGE.slime.reason).toMatch(/boulder/);

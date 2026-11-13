@@ -1996,6 +1996,9 @@
       },
       "cc2_unsupported": {
         "label": "Error: the level uses CC2 mechanics Epoxy does not play yet: {mechanics}."
+      },
+      "runtime_only": {
+        "label": "Error: the level holds elements that only the game creates while it plays, and that a level cannot contain: {mechanics}."
       }
     }
   },
@@ -4884,6 +4887,12 @@
         "label": "Pick it up, then set it down on plain floor where you want. The pads you set down link with each other: step onto one and you come out of another. A single pad does nothing, and a pad stays where it is."
       }
     },
+    "teleport_yellow_item": {
+      "name": "Yellow Teleporter (picked up)",
+      "desc": {
+        "label": "A yellow teleporter picked up on a Chip's Challenge 2 level that has several of them. Set down on plain floor, it becomes a forward teleporter again. It cannot be placed in the editor."
+      }
+    },
     "pocket_gate_pad": {
       "name": "Pocket Gate (placed)",
       "desc": {
@@ -6072,6 +6081,12 @@
       "name": "Ghost (Passes Walls)",
       "desc": {
         "label": "Goes straight on, else turns left, right or back. It walks through walls, doors, sockets and thin walls, but not through steel walls, clone machines or water. Ice, force floors, rails, traps, bombs, fire and slime do not affect it; it walks over items without picking them up and works the buttons it crosses. It kills on contact."
+      }
+    },
+    "rolling_ball": {
+      "name": "Rolling Ball",
+      "desc": {
+        "label": "A bowling ball set down by the player on a level of the Chip's Challenge 2 engine: it rolls straight on, follows the floor like a monster and blows up when it is blocked. It cannot be placed in the editor."
       }
     },
     "rover": {

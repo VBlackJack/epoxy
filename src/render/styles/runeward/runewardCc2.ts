@@ -26,7 +26,7 @@ import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonster
 import { completePose } from './runewardCharacter';
 import { runewardClockMs, type RunewardPaintEnv } from './runewardEnv';
 import { paintMage } from './runewardPainters';
-import { CC2_ITEM_VARIANTS, CC2_TERRAIN_VARIANTS, drawsMark, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
+import { CC2_ENTITY_ITEM_ART, CC2_ITEM_VARIANTS, CC2_TERRAIN_VARIANTS, drawsMark, paintCc2Mark, runewardMarkColours } from '../../cc2Variants';
 import type { RunewardEntityPainter, RunewardItemPainter, RunewardTilePainter } from './runewardTiles';
 
 /** The look-alike tiles over the painters of the tiles they resemble; a base without a painter leaves its look-alike out. */
@@ -147,6 +147,17 @@ export function variantEntityPainters(base: Readonly<Record<string, RunewardEnti
       const fill = dotFill(variant.dot, art);
       paintMonsterDot(ctx, x, y, size, { fill, edge, ink: fill });
     };
+  }
+  return painters;
+}
+
+/** The runtime-only actors drawn as an item (the rolling ball): the Runeward painter of that item, on the cell the actor stands on. */
+export function itemEntityPainters(base: Readonly<Record<string, RunewardItemPainter>>): Record<string, RunewardEntityPainter> {
+  const painters: Record<string, RunewardEntityPainter> = {};
+  for (const [id, itemId] of Object.entries(CC2_ENTITY_ITEM_ART)) {
+    const under = base[itemId];
+    if (under === undefined) continue;
+    painters[id] = (ctx, _dir, x, y, size, env) => under(ctx, x, y, size, env);
   }
   return painters;
 }

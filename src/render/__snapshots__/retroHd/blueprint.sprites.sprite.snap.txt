@@ -15,6 +15,7 @@ item ward tick=3 8517400e885a270f
 item charge tick=3 619c5b832259105d
 item charge_lit tick=3 47d19b2d2b6a15c6
 item pocket_gate tick=3 442dace9355df5ce
+item teleport_yellow_item tick=3 6b54fb0a021ee37a
 item hurl_stone tick=3 e065de420ca0723f
 item toll_token tick=3 775ab968d7581c6f
 item bomb tick=3 5a946deb9e19facc
@@ -226,6 +227,10 @@ entity ghost dir=N tick=3 137d722023b789ce
 entity ghost dir=E tick=3 b45923490f425abb
 entity ghost dir=S tick=3 d40f3205449e3b16
 entity ghost dir=W tick=3 69abbf1ec8ef721e
+entity rolling_ball dir=N tick=3 63c2132e55cfe70e
+entity rolling_ball dir=E tick=3 8a15b10422251633
+entity rolling_ball dir=S tick=3 7a876003836bf2a1
+entity rolling_ball dir=W tick=3 1e7ce00e62207828
 entity rover dir=N tick=3 85963cbd1ae0a023
 entity rover dir=E tick=3 81e2c3ba8ab03d04
 entity rover dir=S tick=3 ffca3769a6de4fdb
@@ -327,6 +332,7 @@ item ward tick=13 04652d35fc45320b
 item charge tick=13 34006a92a17be71a
 item charge_lit tick=13 a21050f59805405f
 item pocket_gate tick=13 3d728067566a3454
+item teleport_yellow_item tick=13 0c71d8a76a09239e
 item hurl_stone tick=13 c30bb7edfb73578b
 item toll_token tick=13 558feb897ab65591
 item bomb tick=13 a49ed3fce1d8e7ee
@@ -538,6 +544,10 @@ entity ghost dir=N tick=13 9deb1df232211749
 entity ghost dir=E tick=13 15f5cc4175b0e1a0
 entity ghost dir=S tick=13 ec0ed746c1fbdc0d
 entity ghost dir=W tick=13 4de2ce15d98cccf1
+entity rolling_ball dir=N tick=13 d4f95dbf7277f113
+entity rolling_ball dir=E tick=13 40f1a4516e303bb5
+entity rolling_ball dir=S tick=13 0a32a2fc88e16377
+entity rolling_ball dir=W tick=13 30e8f926205d8d28
 entity rover dir=N tick=13 9b6f2be0376cda1d
 entity rover dir=E tick=13 327a9ac93d708552
 entity rover dir=S tick=13 db5558131a4ea9c0

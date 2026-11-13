@@ -66,9 +66,16 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   railroad_sign: { base: 'boots_fire', mark: 'rail' },
   lightning_bolt: { base: 'boots_speed', mark: 'bolt' },
   dynamite: { base: 'charge', mark: 'dynamite' },
-  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' }
+  dynamite_lit: { base: 'charge_lit', mark: 'dynamite' },
+  // The yellow pad picked up in a CC2 level: the pocket gate (a pad that is carried) with the forward mark of the yellow pad.
+  teleport_yellow_item: { base: 'pocket_gate', mark: 'forward' }
 ,
   ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
+};
+
+/** Runtime-only actors drawn as an item: the rolling ball is the bowling ball item (the hurl stone) on the move. Runeward paints it through its entity painter, the other styles through drawItem; both end in the item art. */
+export const CC2_ENTITY_ITEM_ART: Readonly<Record<string, string>> = {
+  rolling_ball: 'hurl_stone'
 };
 
 /** Terrain drawn as another terrain with a mark. */
