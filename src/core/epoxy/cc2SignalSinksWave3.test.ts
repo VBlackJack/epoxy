@@ -65,6 +65,18 @@ function load(level: CompiledLevel): GameEngine {
 }
 
 const jetAt = (engine: GameEngine): string => engine.getTerrain()[ROW][JET_X];
+const MAX_WAIT_TICKS = 40;
+/** Walks one step east, waiting out the cooldown of the step before. */
+function stepEast(engine: GameEngine): void {
+  for (let waited = 0; waited <= MAX_WAIT_TICKS; waited++) {
+    if (engine.getPlayer().moveCooldown === 0) {
+      engine.attemptPlayerMove('E');
+      return;
+    }
+    engine.tick();
+  }
+  throw new Error('the player never became able to move');
+}
 const run = (engine: GameEngine, ticks: number): void => {
   for (let i = 0; i < ticks; i++) engine.tick();
 };
@@ -93,5 +105,32 @@ describe('CC2 engine: a wired sink starts off at load', () => {
     const engine = load(lane('cc2', PLATE, false));
     run(engine, SETTLE_TICKS);
     expect(jetAt(engine)).toBe(JET_OFF);
+  });
+});
+
+describe('a wired flame jet flips on the rising edge only on a CC2 level', () => {
+  /** The player steps onto the source (jet on), off it, and the lane settles. */
+  function overAndOff(mode: Mode, source: string): GameEngine {
+    const engine = load(lane(mode, source, false));
+    stepEast(engine);
+    run(engine, SETTLE_TICKS);
+    expect(jetAt(engine)).toBe(JET_ON);
+    stepEast(engine);
+    stepEast(engine);
+    run(engine, SETTLE_TICKS);
+    expect(engine.getPlayer().x).toBeGreaterThan(SOURCE_X);
+    return engine;
+  }
+
+  it('keeps the jet lit when the wire falls', () => {
+    expect(jetAt(overAndOff('cc2', PLATE))).toBe(JET_ON);
+  });
+
+  it('puts the jet out when the wire falls on a level that is not CC2', () => {
+    expect(jetAt(overAndOff('native', PLATE))).toBe(JET_OFF);
+  });
+
+  it('toggles a jet worked by an orange button on release too', () => {
+    expect(jetAt(overAndOff('cc2', ORANGE))).toBe(JET_OFF);
   });
 });

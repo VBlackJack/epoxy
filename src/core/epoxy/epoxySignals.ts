@@ -186,6 +186,8 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
 
 /** Tile ids of the buttons whose link to a sink is no Lexy circuit: CC2 hands an orange button its flame jet by position, not by wire. */
 const BUTTON_LINK_SOURCE_TILE_IDS: ReadonlySet<string> = new Set(['button_orange_cc2']);
+/** Tile ids of the CC2 wired flame jet: a wire lights it on a rising edge only, an orange button toggles it both ways. */
+const CC2_WIRED_FLAME_JET_TILE_IDS: ReadonlySet<string> = new Set(['flame_jet_cc2_off', 'flame_jet_cc2_on']);
 
 /**
  * Whether a sink is fed by a button link: a link into its cell whose source is a button CC2 links by position instead of
@@ -306,7 +308,8 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * launcher shoots and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile
  * check, the entity cap); a flip tile swaps to its other form. Call it after the settle and the hold doors. Stops as
  * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
- * wired flame jet), which flips on a falling edge too.
+ * wired flame jet), which flips on a falling edge too; on a CC2 level a wired flame jet flips on the rising edge only, unless an
+ * orange button works it.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[], _phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;
@@ -323,7 +326,10 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[],
     if (!edge.rising) closeOpenTrapAt(w, x, y);
     if (fires === undefined) continue;
     // A wired flip tile follows every change of its input; every other sink fires on the rising edge only.
-    // UNVERIFIED (low confidence): that a wired flame jet also flips on the falling edge is not confirmed against CC2.
+    // CC2 engine: a wired flame jet flips on the rising edge only (Lexy flame_jet on_power); one an orange button works toggles both ways.
+    if (!edge.rising && fires === 'flip_edges' && usesCc2Engine(w.level) && CC2_WIRED_FLAME_JET_TILE_IDS.has(w.terrain[y][x]) && !isButtonLinkedSink(w, runtime, edge.cell)) {
+      continue;
+    }
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
     else if (!edge.rising) continue;
     else if (fires === 'flip') flipCellAt(w, x, y);
