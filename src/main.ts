@@ -1727,7 +1727,7 @@ class EpoxyApplication {
     if (e.repeat && this.heldKeys.has(e.code)) return;
     // Aiming turns in place without walking: the key must not join the held set.
     const aiming = this.aimMode.isOn() && this.turnsInPlace();
-    if (!aiming) this.heldKeys.press(e.code, dir);
+    if (!aiming) this.heldKeys.press(e.code, dir, e.repeat);
     this.beginHeldMove(dir, true);
   }
 
@@ -1880,7 +1880,8 @@ class EpoxyApplication {
    */
   private steerWithGamepad(direction: Direction | null): void {
     if (this.engine.holdPlayerDirection) {
-      if (direction !== null && direction !== this.gamepadDirection) this.engine.attemptPlayerMove(direction);
+      // Keys held on the keyboard own the cadence: the pad does not take the move from them.
+      if (direction !== null && direction !== this.gamepadDirection && this.heldKeys.current() === null) this.engine.attemptPlayerMove(direction);
       this.gamepadDirection = direction;
     } else if (direction !== null) {
       this.engine.attemptPlayerMove(direction);
