@@ -109,6 +109,8 @@ export function engineSimulationRun(level: CompiledLevel, script: EngineScript):
           signals: engine.getSignalState?.(),
           // Undefined (and so left out of the hash) unless a pulse button has an unread arrival or a carried press.
           signalPulses: engine.getSignalPulses?.(),
+          // Undefined (and so left out of the hash) while no CC2 blob modifier is set and no wire-fired sink edge waits.
+          cc2Wave: engine.getCc2WaveState?.(),
           // Undefined (and so left out of the hash) until a cell that revealed its underlay holds its top again.
           spent: engine.getSpentRevealCells?.(),
           steps: engine.getStepsCount(),

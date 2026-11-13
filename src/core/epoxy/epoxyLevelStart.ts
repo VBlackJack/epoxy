@@ -54,6 +54,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cc2PlayerView = undefined;
   w.ccArrivals = [];
   w.ccArrivalsRunning = false;
+  // Deferred wire-fired sink edges of the last level must not fire in this one.
+  w.cc2DeferredSinkEdges = [];
   const ccCadence = usesCcRules(level);
   const cc3dLevel = !ccCadence && isConvertedCc3dLevel(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);

@@ -43,6 +43,11 @@ export interface CcGenerators {
   walkerHigh: number;
   walkerLow: number;
   main: number;
+  /**
+   * CC2 blobs only: the quarter turns added to the walker draw to pick a blob way, stepped as the level's blob behavior
+   * says. Absent on a .DAT level and until a CC2 level sets it; the undo snapshot and the simulation hash carry it only when set.
+   */
+  blobModifier?: number;
 }
 
 const byteOf = (n: number): number => ((n % BYTE_MODULUS) + BYTE_MODULUS) % BYTE_MODULUS;

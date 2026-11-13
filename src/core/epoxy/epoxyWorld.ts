@@ -24,6 +24,7 @@ import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
+import type { SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
@@ -181,6 +182,11 @@ export interface EpoxyWorld {
   cc2PlayerView: Cc2PlayerView | undefined;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
   ccGenerators: CcGenerators | null;
+  /**
+   * CC2 engine: cloner and launcher edges fired by a wire that act one tick later, oldest first (the wire phase runs after
+   * the action phase). Empty on every other level; reset when a level loads, saved with the undo snapshot, dropped when the level completes.
+   */
+  cc2DeferredSinkEdges: SignalEdge[];
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
   ccSlots: (number | null)[];
   /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */
@@ -302,6 +308,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     ccMonsterClock: 0,
     cc2PlayerView: undefined,
     ccGenerators: null,
+    cc2DeferredSinkEdges: [],
     ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
     ccArrivals: [],

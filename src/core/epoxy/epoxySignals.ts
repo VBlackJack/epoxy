@@ -195,6 +195,13 @@ function startFiringSinksOff(runtime: SignalRuntime): void {
   }
 }
 
+/** The phase a signal settle or sink fire runs in: right after the player's move, or at the end of a tick. */
+export type SignalPhase = 'move' | 'tick';
+/** Phase of the settle that follows the player's move. */
+export const SIGNAL_PHASE_MOVE: SignalPhase = 'move';
+/** Phase of the settle at the end of a tick (the default). */
+export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
+
 /**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
@@ -202,7 +209,7 @@ function startFiringSinksOff(runtime: SignalRuntime): void {
  * the signals of the same pass. Returns the edges of the sinks. Clears the pending arrivals of the pulse buttons
  * right after sampling, before the caller fires the sinks.
  */
-export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): SignalEdge[] {
+export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, _phase: SignalPhase = SIGNAL_PHASE_TICK): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
@@ -283,7 +290,7 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
  * wired flame jet), which flips on a falling edge too.
  */
-export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[], _phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;

@@ -74,6 +74,8 @@ export interface PlayEngine {
    * map. An engine without several players omits it.
    */
   swapPlayer?(): boolean;
+  /** Optional. The cycle key: the oldest pair of boots held goes to the end of the list; false when refused (not a CC2-engine level, fewer than two pairs). An engine without it omits it. */
+  cycleInventory?(): boolean;
   /**
    * Optional. Turn in place: the player faces `dir` without stepping, at no cost. False when refused (sliding, on a force floor,
    * waiting to leave a teleporter or to land from a CC3D arrival, same facing, classic or converted CC3D rules, dead,
