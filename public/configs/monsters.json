@@ -635,6 +635,7 @@
       "ignoresFloorEffects": true,
       "passesItems": true,
       "picksUpItems": true,
+      "erasesHazardWithToolCc2": true,
       "epoxyOnly": true
     },
     "rover": {

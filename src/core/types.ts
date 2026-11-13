@@ -1234,6 +1234,8 @@ export interface TileDefinition {
   litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
   scoreBonus?: number;
+  /** CC2 only: a score bonus (collectible "bonus") that a rolling ball takes as it rolls over the cell. */
+  rollingBallTakesCc2?: boolean;
   /** Factor applied to the level score at the exit when the item is picked up. */
   scoreMultiplier?: number;
   /** Seconds added to (or, negative, taken from) the time left when the item is picked up. */
@@ -1605,6 +1607,8 @@ export interface EntityDefinition {
   meltsIceBlocks?: boolean;
   /** CC2 engine: a monster that melts an ice block it bumps and then tries its next way (the fireball, Lexy ice_block.on_after_bumped). */
   meltsIceOnBumpCc2?: boolean;
+  /** CC2 engine: a monster that, holding the tool that protects from a fire it arrives on, turns the fire into floor (the ghost with fire boots, Lexy fire.on_arrive). */
+  erasesHazardWithToolCc2?: boolean;
   /** CC2 engine, on a block: water that swallows it becomes plain floor, not dirt (the frame blocks, Lexy water.on_arrive). */
   waterBecomesFloorCc2?: boolean;
   /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
@@ -2269,6 +2273,8 @@ export interface RuntimeEntity {
   dir: Direction;
   cooldownTicks: number;
   isSliding: boolean;
+  /** CC2 only: the tool item ids this entity picked up, oldest first, at most CC2_ENTITY_TOOL_CAPACITY (keys are never held). Set only when non-empty; snapshots copy the array. */
+  heldTools?: string[];
   /** A CC3D block the player pushed, still finishing its step: the ticks left before its cell acts on it. */
   arrivalTicks?: number;
   /** Snappy and nibble of a converted CC3D level: the ticks left of the rest after a step they chose (or a blocked try), in which they decide nothing; runs beside the step and outlasts a slide. */

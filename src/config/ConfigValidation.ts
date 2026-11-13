@@ -1225,6 +1225,10 @@ export function findCharacterItemConfigErrors(tiles: Record<string, TileDefiniti
       else if (other === undefined || other.layer !== 'item') errors.push(`${id}.itemTogglesTo: ${tile.itemTogglesTo} is not an item`);
       else if (other.itemTogglesTo !== id) errors.push(`${id}.itemTogglesTo: ${other.id} does not toggle back to ${id}`);
     }
+    if (tile.rollingBallTakesCc2 !== undefined) {
+      if (typeof tile.rollingBallTakesCc2 !== 'boolean') errors.push(`${id}.rollingBallTakesCc2: expected a boolean`);
+      if (tile.collectible !== 'bonus') errors.push(`${id}.rollingBallTakesCc2: only a bonus item (collectible "bonus") has this field`);
+    }
     if (tile.countsAsChip !== undefined && tile.collectible !== 'chip') errors.push(`${id}.countsAsChip: only a chip item can count as a chip`);
     if (tile.blastProof !== undefined && tile.layer !== 'terrain') errors.push(`${id}.blastProof: only terrain can resist a blast`);
     if (tile.turnsWallsTo !== undefined) {
@@ -1796,6 +1800,7 @@ const MONSTER_FLAG_FIELDS = [
   'ignoresSlidingFloors',
   'meltsIceBlocks',
   'meltsIceOnBumpCc2',
+  'erasesHazardWithToolCc2',
   'immuneToSlime',
   'entersTurtles',
   'leavesTurtlesAfloat'

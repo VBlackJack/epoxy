@@ -323,6 +323,12 @@ export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
  */
 export const CC_MONSTER_STEP_TICKS = 4;
 
+/** Ticks a CC2 rolling ball takes to cross one cell: the walking pace of the classic monsters (Lexy rolling_ball movement_speed 4, tiletypes.js:3231). */
+export const CC2_ROLLING_BALL_STEP_TICKS = CC_MONSTER_STEP_TICKS;
+
+/** Most tools a CC2 entity (ghost, rover) holds at once; taking another drops the oldest on the cell (Lexy game.js:3245-3256). */
+export const CC2_ENTITY_TOOL_CAPACITY = 4;
+
 /**
  * Entity passes between the blue button press and the tank turning around, on a classic-rules level counted from the passes
  * begun before the press, whoever pressed. Measured against the reference engine
