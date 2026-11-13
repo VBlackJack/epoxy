@@ -72,6 +72,17 @@ function takeYellowPad(w: EpoxyWorld, x: number, y: number, item: TileDefinition
   AudioManager.playSfx('item');
 }
 
+/**
+ * CC2 engine, a teleported player: the door the exit cell holds, as the tile he finds once it opens, when he holds its key
+ * (Lexy tiletypes.js _define_door: blocks unless the actor has the key, on_arrive takes it and opens the door). The exit step
+ * that follows the landing is a regular move, which spends the key and opens the door. Undefined for any other cell.
+ */
+function doorOpenedByHeldKey(w: EpoxyWorld, exitTile: TileDefinition): TileDefinition | undefined {
+  if (!usesCc2Engine(w.level) || exitTile.requiredKey === undefined) return undefined;
+  if ((w.player.keys[exitTile.requiredKey] || 0) <= 0) return undefined;
+  return ConfigRegistry.getTile(exitTile.transformsToOnUnlock || FLOOR_TILE_ID);
+}
+
 /** Quarter turns clockwise from the way a mover was facing, in the order each named exit order tries them. */
 const EXIT_TURNS: Readonly<Record<TeleportExitOrder, readonly number[]>> = {
   forward_only: [0],
@@ -261,8 +272,10 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
       const exitY = candidate.y + vec.dy;
       if (isInBounds(w, exitX, exitY)) {
         const exitTile = ConfigRegistry.getTile(w.terrain[exitY][exitX]);
+        // A door he holds the key of is open to him: the exit step after the landing spends the key.
+        const openedDoor = landOnPad ? doorOpenedByHeldKey(w, exitTile) : undefined;
         if (
-          canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
+          canPlayerEnter(w, openedDoor ?? exitTile, w.items[exitY][exitX]) &&
           (!getEntityAt(w, exitX, exitY) || exitHeldByPushableBlock(w, exitX, exitY, tryDir, landOnPad)) &&
           // Only another player bars the exit: the teleporting one stands on the source cell, which may be an exit cell too.
           [undefined, w.player].includes(playerAtCell(w, exitX, exitY)) &&
