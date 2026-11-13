@@ -112,6 +112,7 @@ import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
 import { AimMode, turnDirectionForChord } from './ui/aimInput';
+import { HeldKeys } from './ui/heldKeys';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -301,6 +302,8 @@ class EpoxyApplication {
   private currentLevelIndex: number = 0;
   private activeMode: 'play' | 'editor' = 'play';
   private heldDirection: Direction | null = null;
+  /** Direction keys currently down; owns the keyboard move, ahead of touch and gamepad. */
+  private readonly heldKeys = new HeldKeys();
   /** Phone aim toggle: while on, direction inputs turn the player instead of moving it. */
   private readonly aimMode = new AimMode(document.getElementById('touch-btn-aim') as HTMLButtonElement | null);
   /** Side of the screen the touch pad floats on in the phone full screen layout. */
@@ -778,6 +781,7 @@ class EpoxyApplication {
     const dialogOpen = isDialogOpen();
     if (dialogOpen !== this.dialogWasOpen) {
       this.dialogWasOpen = dialogOpen;
+      this.clearHeldKeys();
       // A thumb still on the glass when a dialog opens or closes must not steer: the next move needs a new touch.
       this.joystick?.requireFreshPointerDown();
     }
@@ -1701,6 +1705,22 @@ class EpoxyApplication {
     this.engine.attemptPlayerMove(dir);
   }
 
+  /** Forgets every held key; the held direction goes with them only when a key set it. */
+  private clearHeldKeys(): void {
+    if (this.heldKeys.current() === null) return;
+    this.heldKeys.clear();
+    this.heldDirection = null;
+  }
+
+  /** A move key went down: tracks it (auto-repeat of a held key is ignored) and starts the move. */
+  private pressMoveKey(e: KeyboardEvent, dir: Direction): void {
+    if (e.repeat && this.heldKeys.has(e.code)) return;
+    // Aiming turns in place without walking: the key must not join the held set.
+    const aiming = this.aimMode.isOn() && this.turnsInPlace();
+    if (!aiming) this.heldKeys.press(e.code, dir);
+    this.beginHeldMove(dir);
+  }
+
   /** Click or tap on the board: stop a replay, or plan a path to the tile. */
   private handleBoardPointer(clientX: number, clientY: number, inspect: boolean): void {
     if (this.isReplaying) {
@@ -2088,6 +2108,7 @@ class EpoxyApplication {
   private loadPlayLevel(level: CompiledLevel): void {
     this.engineSelector.forLevel(level).loadLevel(level);
     this.aimMode.set(false);
+    this.clearHeldKeys();
     this.syncSokobanSkinControl(level.winRule);
     this.syncCc2Banner(level);
   }
@@ -2368,6 +2389,7 @@ class EpoxyApplication {
 
   private switchMode(mode: 'play' | 'editor'): void {
     this.activeMode = mode;
+    this.clearHeldKeys();
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
     byId('editor-view')?.classList.toggle('hidden', isPlay);
@@ -3395,13 +3417,21 @@ class EpoxyApplication {
 
     // A key released while the window had no focus never reaches keyup.
     window.addEventListener('blur', () => {
+      this.clearHeldKeys();
       this.heldDirection = null;
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.heldDirection = null;
+      if (!document.hidden) return;
+      this.clearHeldKeys();
+      this.heldDirection = null;
     });
 
     window.addEventListener('keyup', (e) => {
+      // A released key hands the move back to the key still down, on every level.
+      if (this.heldKeys.release(e.code)) {
+        this.heldDirection = this.heldKeys.current();
+        return;
+      }
       if (
         (this.heldDirection === 'N' && kb.moveUp.includes(e.code)) ||
         (this.heldDirection === 'S' && kb.moveDown.includes(e.code)) ||
@@ -3495,6 +3525,7 @@ class EpoxyApplication {
       run(() => {
         if (e.repeat) return;
         this.clearAutoMove();
+        this.clearHeldKeys();
         this.heldDirection = null;
         this.engine.turnPlayer?.(turnDir);
       });
@@ -3504,13 +3535,13 @@ class EpoxyApplication {
     if (kb.undo.includes(e.code)) {
       run(() => this.undoMove());
     } else if (kb.moveUp.includes(e.code)) {
-      run(() => this.beginHeldMove('N'));
+      run(() => this.pressMoveKey(e, 'N'));
     } else if (kb.moveDown.includes(e.code)) {
-      run(() => this.beginHeldMove('S'));
+      run(() => this.pressMoveKey(e, 'S'));
     } else if (kb.moveLeft.includes(e.code)) {
-      run(() => this.beginHeldMove('W'));
+      run(() => this.pressMoveKey(e, 'W'));
     } else if (kb.moveRight.includes(e.code)) {
-      run(() => this.beginHeldMove('E'));
+      run(() => this.pressMoveKey(e, 'E'));
     } else if (kb.dropItem?.includes(e.code)) {
       run(() => this.dropSelectedItem());
     } else if (kb.cycleItem?.includes(e.code)) {
