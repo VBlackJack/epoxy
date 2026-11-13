@@ -32,6 +32,7 @@ import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epox
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
+import { explodeRollingBall, isRollingBall } from './epoxyRollingBall';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -378,6 +379,8 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       w.player.x = targetX;
       w.player.y = targetY;
       killPlayer(ctx, killsShielded ? STONE_DEATH_REASON_KEY : 'hud.messages.death_monster', 'death');
+      // A rolling ball that a player walks into blows up with him (Lexy rolling_ball.on_bumped), helmet or not.
+      if (isRollingBall(entityAtTarget)) explodeRollingBall(ctx, entityAtTarget);
       return true;
     }
   }

@@ -196,6 +196,8 @@ describe('CC2 rolling ball: what it runs into', () => {
     while (engine.getPlayer().moveCooldown > 0) engine.tick();
     engine.attemptPlayerMove('E');
     expect(engine.getPlayer().alive).toBe(false);
+    expect(engine.getPlayer().deathReasonKey).toBe(STONE_DEATH_REASON_KEY);
+    expect(ballOf(engine)).toBeUndefined();
   });
 });
 
