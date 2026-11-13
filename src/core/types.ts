@@ -1235,7 +1235,9 @@ export interface TileDefinition {
    * set down again). A gate item that drops as `teleport_forward`; the pad it drops as need not be flagged portableTeleporter.
    */
   cc2YellowPadItem?: boolean;
-  /** A tile only the engine creates (a pad picked up in a CC2 level): never offered by the editor palette. */
+  /** CC2 only: the id of the actor (an entity of kind monster) this stone item becomes when a player sets it down on a CC2-engine level, in place of being thrown. */
+  dropsAsActorCc2?: string;
+  /** A tile only the engine creates (a pad picked up in a CC2 level): never offered by the editor palette, and refused in a level file. */
   runtimeOnly?: boolean;
   /** A lit blast charge: set on the item a dropped charge becomes, which blocks nothing and cannot be picked up. */
   litCharge?: boolean;
@@ -1321,6 +1323,8 @@ export interface TileDefinition {
   /** Terrain this one flips to under a CC2 gray area button (a force floor turns round); absent: the button leaves it alone. */
   grayFlipsTo?: string;
   isTeleporter?: boolean;
+  /** CC2 only: a teleporter whose jump happens at the start of the step of a monster that stands on it (the green pad: its destination is drawn then); the others jump when the step ends. */
+  teleportJumpsAtStepStartCc2?: boolean;
   /** Teleporters chain only within their group; ungrouped teleporters form one network. */
   teleportGroup?: string;
   /**

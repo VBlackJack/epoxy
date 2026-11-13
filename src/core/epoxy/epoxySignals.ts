@@ -16,7 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
-import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
+import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec, TileDefinition } from '../types';
 import {
   BUTTON_ORANGE_CC2_TILE_ID,
   DYNAMITE_FIRE_TILE_ID,
@@ -116,6 +116,13 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
 const PINK_BUTTON_TILE_ID = SIGNAL_PLATE_TILE_ID;
 /** The button action of a brown button (it holds a trap open while pressed). */
 const BROWN_BUTTON_ACTION = 'hold_trap';
+/** The signal source kind of a button that an actor holds down by standing on it (the orange and pink ones). */
+const HELD_SIGNAL_SOURCE = 'held';
+
+/** True for a tile an actor holds down by standing on it: a held signal source (orange, pink) or a brown trap button. */
+export function isHeldSignalButton(tile: TileDefinition): boolean {
+  return tile.signalSource === HELD_SIGNAL_SOURCE || tile.buttonAction === BROWN_BUTTON_ACTION;
+}
 
 /**
  * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement

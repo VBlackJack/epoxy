@@ -1168,7 +1168,8 @@
       "layer": "item",
       "i18nKey": "tiles.hurl_stone.name",
       "laserTransparent": true,
-      "collectible": "stone"
+      "collectible": "stone",
+      "dropsAsActorCc2": "rolling_ball"
     },
     "toll_token": {
       "id": "toll_token",
@@ -1495,6 +1496,7 @@
       "passableByBlock": true,
       "isTeleporter": true,
       "teleportGroup": "green",
+      "teleportJumpsAtStepStartCc2": true,
       "colorKey": "green"
     },
     "pocket_gate_pad": {

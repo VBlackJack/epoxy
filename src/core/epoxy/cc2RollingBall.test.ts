@@ -20,9 +20,12 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { ROLLING_BALL_ENTITY_ID, ccStepTicks, STONE_ITEM_ID } from '../coreConstants';
+import { ccStepTicks, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel } from '../types';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 const STONE = STONE_ITEM_ID;
 const SIZE = 13;
@@ -42,7 +45,7 @@ beforeEach(() => {
 });
 
 /** Ticks a rolling ball takes to cross one cell: the step ticks of its cadence (read from the monster definition). */
-const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ENTITY_ID);
+const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ID);
 
 function room(cc2: boolean, items: Array<[number, number, string]> = []): CompiledLevel {
   const terrain = Array.from({ length: SIZE }, (_, y) =>
@@ -84,7 +87,7 @@ function itemAt(engine: GameEngine, x: number, y: number): string | null {
 
 /** The rolling ball a CC2 drop sets rolling: an actor, not a shot. */
 function ballOf(engine: GameEngine) {
-  return engine.getEntities().find((e) => e.type === ROLLING_BALL_ENTITY_ID);
+  return engine.getEntities().find((e) => e.type === ROLLING_BALL_ID);
 }
 
 describe('CC2 rolling ball: items', () => {

@@ -27,11 +27,14 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
-import { ROLLING_BALL_ENTITY_ID, ccStepTicks, STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
+import { ccStepTicks, STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Direction } from '../types';
 import { launchRollingBall } from './epoxyRollingBall';
 import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 const START_X = 2;
 const LAST_FLOOR_X = ROOM_SIZE - 2;
@@ -47,7 +50,7 @@ beforeEach(() => {
 });
 
 /** Ticks a rolling ball takes to cross one cell: the step ticks of its cadence (read from the monster definition). */
-const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ENTITY_ID);
+const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ID);
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const context = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
@@ -69,7 +72,7 @@ function tick(engine: GameEngine, count: number): void {
   for (let i = 0; i < count; i++) engine.tick();
 }
 
-const ballOf = (engine: GameEngine) => engine.getEntities().find((e) => e.type === ROLLING_BALL_ENTITY_ID);
+const ballOf = (engine: GameEngine) => engine.getEntities().find((e) => e.type === ROLLING_BALL_ID);
 
 /** Ticks until the ball has gone (or the limit), returning the ticks it took. */
 function tickUntilSpent(engine: GameEngine): number {
@@ -85,7 +88,7 @@ describe('CC2 rolling ball as an actor', () => {
     const engine = bowler({ entities: [{ type: 'lurker_dormant', x: 9, y: 9, dir: 'N' }] });
     expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
     const entities = engine.getEntities();
-    expect(entities[entities.length - 1].type).toBe(ROLLING_BALL_ENTITY_ID);
+    expect(entities[entities.length - 1].type).toBe(ROLLING_BALL_ID);
     expect(ballOf(engine)).toMatchObject({ x: START_X + 1, y: ROOM_ROW, dir: 'E', kind: 'monster' });
     expect(engine.getPlayer().keys[STONE_ITEM_ID] ?? 0).toBe(0);
     expect(engine.getShots() ?? []).toEqual([]);
@@ -184,7 +187,7 @@ describe('CC2 rolling ball: what it runs into', () => {
   it('kills a player in a helmet', () => {
     const engine = bowler({ startX: 8 });
     engine.getPlayer().boots.add(HELMET);
-    expect(launchRollingBall(context(engine), 4, ROOM_ROW, 'E' as Direction)).toBe(true);
+    expect(launchRollingBall(context(engine), 4, ROOM_ROW, 'E' as Direction, STONE_ITEM_ID)).toBe(true);
     tickUntilSpent(engine);
     expect(engine.getPlayer().alive).toBe(false);
     expect(engine.getPlayer().deathReasonKey).toBe(STONE_DEATH_REASON_KEY);

@@ -1754,6 +1754,12 @@ export function findSteeringConfigErrors(
     if (!BUTTON_WORKERS.includes(tile.buttonWorkedBy)) errors.push(`${tile.id}.buttonWorkedBy: expected "player"`);
     if (tile.buttonAction === undefined) errors.push(`${tile.id}.buttonWorkedBy: only a button has a worker`);
   }
+  for (const tile of Object.values(tiles)) {
+    if (tile.dropsAsActorCc2 === undefined) continue;
+    const actor = typeof tile.dropsAsActorCc2 === 'string' ? entities[tile.dropsAsActorCc2] : undefined;
+    if (actor === undefined || actor.kind !== 'monster') errors.push(`${tile.id}.dropsAsActorCc2: expected the id of a monster`);
+    if (tile.collectible !== 'stone') errors.push(`${tile.id}.dropsAsActorCc2: only a stone item (collectible "stone") has this field`);
+  }
   for (const entity of Object.values(entities)) {
     const { id } = entity;
     if (entity.movementPattern !== undefined && !KNOWN_MOVEMENT_PATTERNS.includes(entity.movementPattern)) {
@@ -2094,6 +2100,10 @@ export function findGateConfigErrors(tiles: Record<string, TileDefinition>): str
       if (tile.runtimeOnly !== true) errors.push(`${tile.id}.cc2YellowPadItem: the picked-up yellow pad is runtime-only`);
     }
     if (tile.runtimeOnly !== undefined && tile.runtimeOnly !== true) errors.push(`${tile.id}.runtimeOnly: expected true`);
+    if (tile.teleportJumpsAtStepStartCc2 !== undefined) {
+      if (tile.teleportJumpsAtStepStartCc2 !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: expected true`);
+      if (tile.isTeleporter !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: only a teleporter has this field`);
+    }
     if (tile.portableTeleporter === undefined) continue;
     if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);
     if (tile.isTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: only a teleporter can be portable`);

@@ -23,6 +23,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { findGateConfigErrors, findSteeringConfigErrors } from '../../config/ConfigValidation';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
@@ -30,7 +32,8 @@ import { STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { RuntimeEntity } from '../types';
 import { resolveMonsterArrival } from './epoxyMonsters';
-import { isRollingBall, launchRollingBall } from './epoxyRollingBall';
+import { droppedActorId, isRollingBall, launchRollingBall } from './epoxyRollingBall';
+import { isHeldSignalButton } from './epoxySignals';
 import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
 const LAST_FLOOR_X = ROOM_SIZE - 2;
@@ -81,7 +84,7 @@ describe('a player who walks into a ball', () => {
     engine.getPlayer().boots.add('helmet');
     const w = world(engine);
     const ctx = (engine as unknown as { ctx: EpoxyContext }).ctx;
-    expect(launchRollingBall(ctx, 4, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(ctx, 4, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     const ball = ballOf(engine) as RuntimeEntity;
     // The step toward the player was planned while the cell was free; the arrival then reaches the helmet bypass of the arrival rule.
     w.ccPlans.set(ball.uid, 'E');
@@ -116,4 +119,39 @@ describe('a ball spent at launch and the button under the player', () => {
       expect(engine.getCc2WaveState()?.toggledButtons).toEqual([ROOM_ROW * ROOM_SIZE + FACED_X]);
     });
   }
+});
+
+describe('config fields of the dropped actor and the step-start jump', () => {
+  const tiles = () => ConfigRegistry.getTiles().tiles;
+  const entities = () => ConfigRegistry.getMonsters().entities;
+
+  it('names the rolling ball as the actor the stone becomes, and validates as shipped', () => {
+    expect(droppedActorId(STONE_ITEM_ID)).toBe('rolling_ball');
+    expect(droppedActorId('chip')).toBeUndefined();
+    expect(findSteeringConfigErrors(tiles(), entities())).toEqual([]);
+    expect(findGateConfigErrors(tiles())).toEqual([]);
+  });
+
+  it('refuses an actor that is not a monster, and the field on another item', () => {
+    const stone = tiles()[STONE_ITEM_ID];
+    const bad = (patch: Record<string, unknown>) => findSteeringConfigErrors({ ...tiles(), [STONE_ITEM_ID]: { ...stone, ...patch } }, entities());
+    expect(bad({ dropsAsActorCc2: 'no_such_entity' })).toHaveLength(1);
+    expect(bad({ dropsAsActorCc2: 'dirt_block' })).toHaveLength(1);
+    expect(bad({ collectible: 'chip' })).not.toEqual([]);
+  });
+
+  it('flags the green pad as jumping at the start of a step, and only a teleporter', () => {
+    expect(tiles().teleport_green.teleportJumpsAtStepStartCc2).toBe(true);
+    expect(tiles().teleport_blue.teleportJumpsAtStepStartCc2).toBeUndefined();
+    const bad = (patch: Record<string, unknown>) => findGateConfigErrors({ ...tiles(), teleport_green: { ...tiles().teleport_green, ...patch } });
+    expect(bad({ teleportJumpsAtStepStartCc2: 'yes' })).toHaveLength(1);
+    expect(bad({ isTeleporter: undefined })).toHaveLength(1);
+  });
+
+  it('shares one predicate for a button an actor holds down', () => {
+    expect(isHeldSignalButton(tiles().button_orange_cc2)).toBe(true);
+    expect(isHeldSignalButton(tiles().button_brown)).toBe(true);
+    expect(isHeldSignalButton(tiles().floor)).toBe(false);
+    expect(isHeldSignalButton(tiles().button_green)).toBe(false);
+  });
 });

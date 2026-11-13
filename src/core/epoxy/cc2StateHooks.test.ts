@@ -26,9 +26,12 @@ import { findCharacterItemConfigErrors } from '../../config/ConfigValidation';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
-import { CC2_ENTITY_TOOL_CAPACITY, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES, ROLLING_BALL_ENTITY_ID, ccStepTicks, followsCcCadence, registerCcCadenceLookup } from '../coreConstants';
+import { CC2_ENTITY_TOOL_CAPACITY, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES, ccStepTicks, followsCcCadence, registerCcCadenceLookup } from '../coreConstants';
 import { monsterPicksUp, rollingBallPicksUp } from './epoxyMonsters';
 import type { CompiledLevel, TileDefinition } from '../types';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -122,9 +125,9 @@ describe('pickup predicates', () => {
 
 describe('rolling ball pace', () => {
   it('walks at the classic monster pace, by the default step ticks of the cadence', () => {
-    expect(ConfigRegistry.getEntityDef(ROLLING_BALL_ENTITY_ID)?.ccStepTicks).toBeUndefined();
-    expect(ccStepTicks(ROLLING_BALL_ENTITY_ID)).toBe(CC_MONSTER_STEP_TICKS);
-    expect(followsCcCadence(ROLLING_BALL_ENTITY_ID, true)).toBe(true);
+    expect(ConfigRegistry.getEntityDef(ROLLING_BALL_ID)?.ccStepTicks).toBeUndefined();
+    expect(ccStepTicks(ROLLING_BALL_ID)).toBe(CC_MONSTER_STEP_TICKS);
+    expect(followsCcCadence(ROLLING_BALL_ID, true)).toBe(true);
   });
 });
 

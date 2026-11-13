@@ -17,25 +17,27 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
-import { ROLLING_BALL_ENTITY_ID, ROLLING_BALL_PATTERN, STONE_DEATH_REASON_KEY } from '../coreConstants';
-import type { ButtonAction, Direction, EntityDefinition, PlayerState, RuntimeEntity } from '../types';
+import { ROLLING_BALL_PATTERN, STONE_DEATH_REASON_KEY } from '../coreConstants';
+import type { Direction, EntityDefinition, PlayerState, RuntimeEntity } from '../types';
 import { usesCc2Engine } from './ccRules';
-import { CC2_SPLASH_BLOCK_PASSES } from './epoxyBlocks';
+import { leaveBlockSplash } from './epoxyBlocks';
 import { canMonsterEnter, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import { railRedirect } from './epoxyRailsCc2';
-import { toggleHeldButton } from './epoxySignals';
-import { type EpoxyContext, type EpoxyWorld, getEntityAt, killPlayerAt, mapWidth, playerAtCell, removeEntity } from './epoxyWorld';
+import { isHeldSignalButton, toggleHeldButton } from './epoxySignals';
+import { type EpoxyContext, type EpoxyWorld, getEntityAt, killPlayerAt, playerAtCell, removeEntity } from './epoxyWorld';
 
 /** Ticks added to the countdown of a ball after its first step out of the player's cell: it spends a whole step there, counted from the drop. */
 const LAUNCH_EXTRA_COOLDOWN_TICKS = 1;
 /** Sound of a ball blowing up, and of the actor it kills. */
 const BALL_BLAST_SFX = 'bomb';
-/** The buttons an actor holds down by standing on them (the orange one is a held signal source, the brown one a trap hold): removed in place, the ball leaves them held (Lexy transmutes it, no on_depart). */
-const HELD_SIGNAL_SOURCE = 'held';
-const HELD_BUTTON_ACTIONS: readonly ButtonAction[] = ['hold_trap'];
 
 /** What stops a rolling ball: an actor (a block, a monster or a player) it kills as it blows up, or the terrain. */
 type BallBlocker = { entity: RuntimeEntity } | { player: PlayerState } | 'terrain';
+
+/** The id of the actor an item becomes when a player sets it down on a CC2-engine level (the dropsAsActorCc2 of its tile), or undefined for an item that stays an item. */
+export function droppedActorId(itemId: string): string | undefined {
+  return ConfigRegistry.getTile(itemId).dropsAsActorCc2;
+}
 
 /** True for the definition of the CC2 rolling ball. */
 export function isRollingBallDef(def: EntityDefinition | undefined): boolean {
@@ -47,19 +49,9 @@ export function isRollingBall(entity: RuntimeEntity): boolean {
   return isRollingBallDef(ConfigRegistry.getEntityDef(entity.type));
 }
 
-/** CC2 engine: leaves the blast of an explosion on the cell, which bars the real player for a few entity passes (as a block a bomb destroyed does). */
-function leaveBlast(w: EpoxyWorld, x: number, y: number): void {
-  const cell = y * mapWidth(w) + x;
-  w.blockSplashes.set(cell, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
-  w.blockExplosions.add(cell);
-}
-
-/** An actor removed in place from a button that an actor holds down leaves it held: no release runs (Lexy: the tile becomes an animation). */
+/** An actor removed in place from a button that an actor holds down leaves it held: no release runs (Lexy transmutes it, no on_depart). */
 function keepHeldButton(w: EpoxyWorld, x: number, y: number): void {
-  const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
-  if (tile.signalSource === HELD_SIGNAL_SOURCE || (tile.buttonAction !== undefined && HELD_BUTTON_ACTIONS.includes(tile.buttonAction))) {
-    toggleHeldButton(w, x, y);
-  }
+  if (isHeldSignalButton(ConfigRegistry.getTile(w.terrain[y]?.[x]))) toggleHeldButton(w, x, y);
 }
 
 /** What the ball would run into trying to roll from its cell toward `dir`, or null when the way is free. */
@@ -87,7 +79,7 @@ export function explodeRollingBall(ctx: EpoxyContext, ball: RuntimeEntity, atLau
   AudioManager.playSfx(BALL_BLAST_SFX);
   ctx.emitVisual('explosion', ball.x, ball.y);
   if (!atLaunch) {
-    leaveBlast(w, ball.x, ball.y);
+    leaveBlockSplash(w, ball.x, ball.y, true);
     keepHeldButton(w, ball.x, ball.y);
   }
 }
@@ -103,7 +95,7 @@ function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBloc
       removeEntity(w, victim.uid);
       w.beamDirty = true;
       ctx.emitVisual('explosion', victim.x, victim.y);
-      leaveBlast(w, victim.x, victim.y);
+      leaveBlockSplash(w, victim.x, victim.y, true);
       keepHeldButton(w, victim.x, victim.y);
     }
   }
@@ -142,7 +134,7 @@ export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
   w.beamDirty = true;
   AudioManager.playSfx(BALL_BLAST_SFX);
   for (const spent of [monster, ball]) {
-    leaveBlast(w, spent.x, spent.y);
+    leaveBlockSplash(w, spent.x, spent.y, true);
     keepHeldButton(w, spent.x, spent.y);
   }
 }
@@ -151,15 +143,16 @@ export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
  * The CC2 bowling ball as an actor: the `rolling_ball` monster a player sets down on a CC2-engine level. It is added at the end
  * of the entity list and leaves the cell it was set down in at once, into the cell the player faces, by the step of any
  * monster (a track, ice or a force floor does not turn this first step). A ball that cannot enter that cell is spent: an actor
- * there is killed and the ball blows up. Returns true when the ball was set down (it may be spent at once), false when this
- * level does not play the ball as an actor.
+ * there is killed and the ball blows up. `itemId` is the item set down (the actor is the one its tile names). Returns true when
+ * the ball was set down (it may be spent at once), false when this level does not play the item as an actor.
  */
-export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: Direction): boolean {
+export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: Direction, itemId: string): boolean {
   const w = ctx.world;
-  if (!usesCc2Engine(w.level)) return false;
+  const actorId = droppedActorId(itemId);
+  if (!usesCc2Engine(w.level) || actorId === undefined) return false;
   // A uid removed earlier in this pass (or before an undo) must not make the new ball look removed.
   w.removedUids.clear();
-  const ball: RuntimeEntity = { uid: w.nextEntityUid++, type: ROLLING_BALL_ENTITY_ID, kind: 'monster', x, y, dir, cooldownTicks: 0, isSliding: false };
+  const ball: RuntimeEntity = { uid: w.nextEntityUid++, type: actorId, kind: 'monster', x, y, dir, cooldownTicks: 0, isSliding: false };
   w.entities.push(ball);
   const blocker = ballBlocker(w, ball, dir);
   if (blocker !== null) {

@@ -31,6 +31,7 @@ import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
+import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { explodeRollingBall, isRollingBall } from './epoxyRollingBall';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -424,8 +425,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       const behindTile = ConfigRegistry.getTile(behindTileId);
       const lockedOnPlate =
         (behindTile.plateColor !== undefined && entityPressesPlate(blockBehind.type, 'block', behindTile.plateColor)) ||
-        behindTile.signalSource === 'held' ||
-        behindTile.buttonAction === 'hold_trap' ||
+        isHeldSignalButton(behindTile) ||
         behindTileId === BLOCK_TARGET_TILE_ID;
       if (!lockedOnPlate) {
         attemptPushBlock(ctx, blockBehind, dir, false);

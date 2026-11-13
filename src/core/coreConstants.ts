@@ -326,9 +326,6 @@ export const CC_MONSTER_STEP_TICKS = 4;
 /** Movement pattern of the CC2 rolling ball: it rolls straight on and follows the floor, and a blocked ball is spent (it blows up). */
 export const ROLLING_BALL_PATTERN = 'rolling_ball';
 
-/** Entity id of the CC2 rolling ball the bowling ball becomes when a player sets it down. */
-export const ROLLING_BALL_ENTITY_ID = 'rolling_ball';
-
 /** Most tools a CC2 entity (ghost, rover) holds at once; taking another drops the oldest on the cell (Lexy game.js:3245-3256). */
 export const CC2_ENTITY_TOOL_CAPACITY = 4;
 

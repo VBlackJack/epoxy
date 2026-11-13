@@ -59,7 +59,7 @@ const CC2_DIRT_BLOCK_TYPE = DIRT_BLOCK_ENTITY_ID;
  * CC2 engine: a block that left a splash (sunk in water) or a blast (destroyed by a bomb) on its cell, which bars the real
  * player for a few entity passes. The kind only changes the picture.
  */
-function leaveBlockSplash(w: EpoxyWorld, x: number, y: number, explosion: boolean): void {
+export function leaveBlockSplash(w: EpoxyWorld, x: number, y: number, explosion: boolean): void {
   const cell = y * mapWidth(w) + x;
   w.blockSplashes.set(cell, w.ccMonsterClock + CC2_SPLASH_BLOCK_PASSES);
   if (explosion) w.blockExplosions.add(cell);

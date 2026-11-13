@@ -82,7 +82,7 @@ import {
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
-import { launchRollingBall } from './epoxy/epoxyRollingBall';
+import { droppedActorId, launchRollingBall } from './epoxy/epoxyRollingBall';
 import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
@@ -598,7 +598,7 @@ export class GameEngine {
     }
     // A hurl stone is thrown ahead, not set down: the cell under the player does not matter. On a CC2-engine level the bowling
     // ball is set down like any item and rolls off as an actor.
-    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return usesCc2Engine(this.w.level) ? this.setDownRollingBall(itemId) : this.throwHeldStone(itemId);
+    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return usesCc2Engine(this.w.level) && droppedActorId(itemId) !== undefined ? this.setDownRollingBall(itemId) : this.throwHeldStone(itemId);
     const x = this.w.player.x;
     const y = this.w.player.y;
     if (this.w.items[y][x] !== null) {
@@ -677,7 +677,7 @@ export class GameEngine {
     } else {
       delete this.w.player.keys[itemId];
     }
-    launchRollingBall(this.ctx, x, y, dir);
+    launchRollingBall(this.ctx, x, y, dir, itemId);
     this.w.beamDirty = true;
     this.w.statusBannerKey = null;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, drop: itemId });

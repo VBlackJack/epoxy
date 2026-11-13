@@ -26,10 +26,13 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
-import { CELL_EDGE_BITS, ROLLING_BALL_ENTITY_ID } from '../coreConstants';
+import { CELL_EDGE_BITS, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import { launchRollingBall } from './epoxyRollingBall';
 import type { EpoxyContext } from './epoxyWorld';
+
+/** Id of the rolling ball entity (what the hurl stone becomes when set down on a CC2-engine level). */
+const ROLLING_BALL_ID = 'rolling_ball';
 
 const LAUNCH_X = 4;
 const BALL_X = LAUNCH_X + 1;
@@ -48,12 +51,12 @@ function load(opts: RoomOptions): GameEngine {
   return engine;
 }
 
-const ballOf = (engine: GameEngine) => engine.getEntities().find((e) => e.type === ROLLING_BALL_ENTITY_ID);
+const ballOf = (engine: GameEngine) => engine.getEntities().find((e) => e.type === ROLLING_BALL_ID);
 
 describe('CC2 rolling ball: bumped by a deciding actor', () => {
   it('dies with the tank whose decision probes its cell', () => {
     const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'tank', x: TANK_X, y: ROOM_ROW, dir: 'W' }] });
-    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toMatchObject({ x: BALL_X });
     engine.tick();
     expect(ballOf(engine)).toBeUndefined();
@@ -63,7 +66,7 @@ describe('CC2 rolling ball: bumped by a deciding actor', () => {
   it('dies with a bug that tries the ball cell as one of its preferences', () => {
     // A bug facing east tries its left (north) first: the ball is there, though the way ahead is free.
     const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'bug', x: BALL_X, y: ROOM_ROW + 1, dir: 'E' }] });
-    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     engine.tick();
     expect(ballOf(engine)).toBeUndefined();
     expect(engine.getEntities().some((e) => e.type === 'bug')).toBe(false);
@@ -71,7 +74,7 @@ describe('CC2 rolling ball: bumped by a deciding actor', () => {
 
   it('spares a tank that looks away from the ball', () => {
     const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'tank', x: TANK_X, y: ROOM_ROW, dir: 'E' }] });
-    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     engine.tick();
     expect(ballOf(engine)).toBeDefined();
     expect(engine.getEntities().some((e) => e.type === 'tank')).toBe(true);
@@ -79,7 +82,7 @@ describe('CC2 rolling ball: bumped by a deciding actor', () => {
 
   it('spares a bug whose probe of the ball cell is stopped by gravel under the ball', () => {
     const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'bug', x: BALL_X, y: ROOM_ROW + 1, dir: 'E' }] });
-    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     context(engine).world.terrain[ROOM_ROW][BALL_X] = 'gravel';
     engine.tick();
     expect(engine.getEntities().some((e) => e.type === 'bug')).toBe(true);
@@ -88,7 +91,7 @@ describe('CC2 rolling ball: bumped by a deciding actor', () => {
 
   it('spares a bug whose probe of the ball cell is stopped by a thin wall between them', () => {
     const engine = load({ mode: 'cc2', startX: FAR_X, entities: [{ type: 'bug', x: BALL_X, y: ROOM_ROW + 1, dir: 'E' }] });
-    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E')).toBe(true);
+    expect(launchRollingBall(context(engine), LAUNCH_X, ROOM_ROW, 'E', STONE_ITEM_ID)).toBe(true);
     const w = context(engine).world;
     const width = w.terrain[0].length;
     w.edgeMask = new Uint8Array(width * w.terrain.length);
