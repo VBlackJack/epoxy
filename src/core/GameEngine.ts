@@ -957,7 +957,8 @@ export class GameEngine {
     this.checkTargetsWin();
     // CC2 engine: what the step onto a cell does acts when that step ends, at the end of the tick that ran its wait out.
     // Not after an early return above (paused, time out, death), nor once the level is won.
-    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted) applyCc3dStepEnd(this.ctx);
+    // A press that ended the level or killed the player leaves nothing to record.
+    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted && !applyCc3dStepEnd(this.ctx)) return;
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }

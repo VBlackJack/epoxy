@@ -568,6 +568,7 @@ function takeChip(ctx: EpoxyContext, x: number, y: number, itemDef: TileDefiniti
  * The step has ended when its wait has run out (the slide wait while he slides). A player who died during the step takes
  * nothing. Order as in CC3D: the switch, the chip of the cell, then the jump and the item of the pad he lands on.
  * Returns false when the tick must stop (a clone press that ended the level).
+ * Used by a converted CC3D level and by a CC2-engine level (see defersStepEffects).
  */
 export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   const w = ctx.world;
@@ -805,7 +806,9 @@ function tracksCc2PlayerView(w: EpoxyWorld): boolean {
  */
 export function resetCc2PlayerView(w: EpoxyWorld, dir: Direction = w.player.dir): void {
   if (!tracksCc2PlayerView(w)) return;
-  w.cc2PlayerView = { x: w.player.x, y: w.player.y, dir, cooldown: 0, stepLength: 1 };
+  // A player taking control mid-step keeps the wait he has left; the step length is the least that wait allows.
+  const cooldown = stepCooldownOf(w.player);
+  w.cc2PlayerView = { x: w.player.x, y: w.player.y, dir, cooldown, stepLength: Math.max(1, cooldown) };
 }
 
 /** The view as it stands, or the controlled player at rest on his cell when none was taken yet. */
@@ -850,16 +853,20 @@ export function recordCc2PlayerView(w: EpoxyWorld): void {
       const dir = dx === 0 && dy < 0 ? 'N' : dx === 0 && dy > 0 ? 'S' : dy === 0 && dx > 0 ? 'E' : dy === 0 && dx < 0 ? 'W' : prev.dir;
       w.cc2PlayerView = { x: pad.x, y: pad.y, dir, cooldown, stepLength: Math.max(1, cooldown + 1), sourcePad: { ...pad } };
     } else {
-      w.cc2PlayerView = { ...prev, cooldown, sourcePad: { ...pad } };
+      w.cc2PlayerView = { ...prev, cooldown, stepLength: cooldown === 0 ? 1 : prev.stepLength, sourcePad: { ...pad } };
     }
     return;
   }
   const moved = prev.x !== p.x || prev.y !== p.y;
+  // A wait that began without displacing him (a forced step refused by the cell ahead) leaves him on his cell, not a cell behind.
+  const displaced = moved || prev.cooldown > 0;
+  const shownCooldown = displaced ? cooldown : 0;
   w.cc2PlayerView = {
     x: p.x,
     y: p.y,
     dir: p.isSliding && p.slideDir ? p.slideDir : p.dir,
-    cooldown,
-    stepLength: moved ? Math.max(1, cooldown + 1) : Math.max(prev.stepLength, cooldown)
+    cooldown: shownCooldown,
+    // At rest the step length is 1, whatever the last step was, so equivalent states are the same state.
+    stepLength: shownCooldown === 0 ? 1 : moved ? cooldown + 1 : Math.max(prev.stepLength, cooldown)
   };
 }

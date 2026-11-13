@@ -2282,7 +2282,7 @@ export interface RuntimeEntity {
   teleportExit?: Direction;
 }
 
-/** What a step of the player onto a cell does when it ends, on a converted CC3D level (see PlayerState.cc3dArrival). */
+/** What a step of the player onto a cell does when it ends, on a converted CC3D level or a CC2-engine level (see PlayerState.cc3dArrival). */
 export interface Cc3dPlayerArrival {
   /** The clone switch stepped onto: it is pressed when the step ends if the player is still on it. */
   press?: GridPoint;
@@ -2338,8 +2338,8 @@ export interface PlayerState {
    */
   teleportExit?: Direction;
   /**
-   * Converted CC3D level only: what the player's step onto a cell does when that step ends (CC3D acts on arrival, the
-   * walk is a four-tick step). Each field is set while a step is under way and cleared when it ends; absent otherwise.
+   * Converted CC3D level or CC2-engine level only: what the player's step onto a cell does when that step ends (CC3D
+   * acts on arrival, the walk is a four-tick step). Each field is set while a step is under way and cleared when it ends; absent otherwise.
    */
   cc3dArrival?: Cc3dPlayerArrival;
   /**
@@ -2390,7 +2390,7 @@ export interface PlayerSnapshot {
   forcePermission?: boolean;
   /** The player's teleportExit; written only when the player waits on a pad. */
   teleportExit?: Direction;
-  /** The player's cc3dArrival; written only while a step of a converted CC3D level is under way with something pending. */
+  /** The player's cc3dArrival; written only while a step of a converted CC3D or CC2-engine level is under way with something pending. */
   cc3dArrival?: Cc3dPlayerArrival;
   /** The player's character; written only on a level with several players, where each has its own. */
   character?: PlayerCharacter;
