@@ -19,6 +19,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { turnClockwise } from '../lynx/directions';
+import { FLOOR_TILE_ID } from '../coreConstants';
 import { Direction, GridPoint, RuntimeEntity, TeleportExitOrder, TileDefinition } from '../types';
 import { canPushBlock, isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { usesCc2Engine } from './ccRules';
@@ -50,6 +51,25 @@ function livePadsOf(w: EpoxyWorld, group: string, isPad: (tile: TileDefinition) 
     }
   }
   return pads;
+}
+
+/**
+ * The item a yellow pad becomes when a player finds no free pad to jump to, or undefined when the pad stays a pad: only on a
+ * level played by the CC2 engine that had more than one yellow pad at load (the world latch), and only for a pad that a
+ * cc2YellowPadItem tile drops as. Lexy's Labyrinth: tiletypes.js teleport_yellow, game.js allow_taking_yellow_teleporters.
+ * Only the player takes the pad this wave; a monster that finds no free pad leaves forward as before.
+ */
+function yellowPadItemOf(w: EpoxyWorld, origin: TileDefinition): TileDefinition | undefined {
+  if (!w.cc2YellowPadsAreItems || !usesCc2Engine(w.level)) return undefined;
+  return Object.values(ConfigRegistry.getTiles().tiles).find((tile) => tile.cc2YellowPadItem === true && tile.dropsAsTerrain === origin.id);
+}
+
+/** The player picks the yellow pad at (x, y) up: the cell turns to plain floor and the pad joins the counted items he holds. */
+function takeYellowPad(w: EpoxyWorld, x: number, y: number, item: TileDefinition): void {
+  w.terrain[y][x] = FLOOR_TILE_ID;
+  w.gridMutatedByMove = true;
+  w.player.keys[item.id] = (w.player.keys[item.id] || 0) + 1;
+  AudioManager.playSfx('item');
 }
 
 /** Quarter turns clockwise from the way a mover was facing, in the order each named exit order tries them. */
@@ -178,6 +198,8 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const origin = ConfigRegistry.getTile(w.terrain[y][x]);
   const group = origin.teleportGroup ?? DEFAULT_TELEPORT_GROUP;
   if (origin.portableTeleporter === true) return livePadsOf(w, group, (tile) => tile.portableTeleporter === true);
+  // A yellow pad that can be picked up: the pads are read live (a pad set down counts, a pad taken does not).
+  if (yellowPadItemOf(w, origin) !== undefined) return livePadsOf(w, group, (tile) => tile.id === origin.id);
   if (origin.relayPad !== undefined) return livePadsOf(w, group, (tile) => tile.relayPad !== undefined);
   // A powered pad may come alive after the load (its input rises), so the live pads are read from the terrain.
   if (origin.poweredTwin !== undefined) return livePadsOf(w, group, () => true);
@@ -215,7 +237,8 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
   const startIdx = teleporters.findIndex((t) => t.x === fromX && t.y === fromY);
   if (!selfPad && startIdx < 0) return false;
 
-  if (!selfPad && teleporters.length <= 1 && !isCc2Order(origin)) return false;
+  const yellowItem = selfPad ? undefined : yellowPadItemOf(w, origin);
+  if (!selfPad && teleporters.length <= 1 && !isCc2Order(origin) && yellowItem === undefined) return false;
   const candidateDirs: Direction[] =
     namedExitDirections(origin, dir) ?? (landOnPad ? [dir] : [dir, ...ORDERED_DIRECTIONS.filter((d) => d !== dir)]);
 
@@ -261,6 +284,9 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
       }
     }
   }
+  // Every other pad failed (the search reaches the entered pad last, which a yellow pad that can be picked up takes before
+  // trying its own exit): the pad is taken and the player stays where he is, with no jump and no exit step.
+  if (yellowItem !== undefined) takeYellowPad(w, fromX, fromY, yellowItem);
   return false;
 }
 
