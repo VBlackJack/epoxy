@@ -17,6 +17,8 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { GameEngine } from '../core/GameEngine';
 import { createCc2Engine } from '../core/cc2/Cc2Engine';
+import { resolveCc2HeldOrder } from '../core/epoxy/cc2HeldInput';
+import { usesCc2Engine } from '../core/epoxy/ccRules';
 import { LynxEngine } from '../core/lynx/LynxEngine';
 import type { PlayEngine } from '../core/PlayEngine';
 import type { CompiledLevel, Direction } from '../core/types';
@@ -43,7 +45,8 @@ import {
  *   (cooldown, ice, force floors). This is the closest to how a person plays. The Epoxy engine is sent a move
  *   attempt every tick with the keys held, most recent first (`attemptPlayerMoveHeld`, the two-key rules of the engine:
  *   an opposing pair held cancels all direction input, else the block slap, then the key matching the facing first,
- *   then the horizontal key, the other key as fallback); the Lynx engine is told the first held
+ *   then the horizontal key, the other key as fallback; a level without a CC2 record keeps the harness order, tried key
+ *   by key); the Lynx engine is told the first held
  *   direction each tick and falls back to the second key on a tick after the player was free to move and did not.
  * - `steps`: each key press becomes `ceil(held ticks / cadence)` steps; before each step the engine is ticked until
  *   the player is at rest. The time spent holding a key is ignored, only the sequence of moves is kept, so it
@@ -281,7 +284,7 @@ function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: numbe
 }
 
 /** Strategy `held`: offer the held keys to the engine at every tick. */
-function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEngine): Cc2ReplayResult {
+function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEngine, cc2Engine: boolean): Cc2ReplayResult {
   const lynx = engineKind === 'lynx' || engineKind === 'cc2' ? (engine as LynxEngine) : null;
   let lastX = -1;
   let lastY = -1;
@@ -317,12 +320,19 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
       lastY = engine.getPlayer().y;
       lastFree = held.length > 0 && engine.getPlayer().moveCooldown === 0 && !engine.getPlayer().isSliding;
     } else {
-      // The Epoxy engine resolves several held keys itself (CC2-engine levels); the Lynx based engines keep their own.
-      if (!swappedNow && byRecency.length > 0) {
-        const moved = engine.attemptPlayerMoveHeld
-          ? engine.attemptPlayerMoveHeld(byRecency as Direction[])
-          : engine.attemptPlayerMove(byRecency[0] as Direction);
-        if (moved) moves++;
+      // The Epoxy engine resolves several held keys itself on a CC2-engine level; the Lynx based engines keep their own.
+      if (swappedNow) {
+        // The swap key took this tick's input.
+      } else if (cc2Engine && engine.attemptPlayerMoveHeld) {
+        if (byRecency.length > 0 && engine.attemptPlayerMoveHeld(byRecency as Direction[])) moves++;
+      } else {
+        // Any other level (a .DAT import) keeps the harness resolution: the CC2 order, the other key as the fallback.
+        for (const dir of resolveCc2HeldOrder(held, engine.getPlayer().dir)) {
+          if (engine.attemptPlayerMove(dir)) {
+            moves++;
+            break;
+          }
+        }
       }
     }
     const p = engine.getPlayer();
@@ -404,7 +414,7 @@ export function checkCc2Replay(
   engine: Cc2ReplayEngine = 'epoxy'
 ): Cc2ReplayResult {
   const built = newEngine(level, replay, engine);
-  const result = strategy === 'held' ? playHeld(built, replay, engine) : playSteps(built, replay);
+  const result = strategy === 'held' ? playHeld(built, replay, engine, usesCc2Engine(level)) : playSteps(built, replay);
   return engine === 'epoxy' ? result : { ...result, unsupported: (built as LynxEngine).getUnsupportedTiles() };
 }
 
