@@ -27,12 +27,14 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
+import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC_MONSTER_STEP_TICKS } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
 const PAD = 'teleport_forward';
 const GREEN_PAD = 'teleport_random';
+const UNFLAGGED_PAD = 'teleport_green';
 const ENTRY_X = 3;
 const EXIT_PAD_X = 9;
 const FAR_X = 11;
@@ -96,6 +98,18 @@ describe('CC2 monster teleport at the end of its step', () => {
     const engine = load({}, GREEN_PAD);
     tick(engine, 1);
     expect(walker(engine)?.x).not.toBe(ENTRY_X);
+  });
+
+  it('reads the tile flag: a flagged pad jumps at the start of the step, an unflagged one waits for its end', () => {
+    const flagged = ConfigRegistry.getTile(GREEN_PAD).teleportJumpsAtStepStartCc2 === true;
+    const unflagged = ConfigRegistry.getTile(UNFLAGGED_PAD).teleportJumpsAtStepStartCc2 === true;
+    expect([flagged, unflagged]).toEqual([true, false]);
+    const stays = load({}, UNFLAGGED_PAD);
+    tick(stays, 1);
+    expect(walker(stays)?.x).toBe(ENTRY_X);
+    const jumps = load({}, GREEN_PAD);
+    tick(jumps, 1);
+    expect(walker(jumps)?.x).not.toBe(ENTRY_X);
   });
 
   it('keeps the step-start jump on a classic level that is not CC2', () => {

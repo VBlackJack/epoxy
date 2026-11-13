@@ -141,10 +141,11 @@ describe('config fields of the dropped actor and the step-start jump', () => {
     expect(bad({ collectible: 'chip' })).not.toEqual([]);
   });
 
-  it('flags the green pad as jumping at the start of a step, and only a teleporter', () => {
-    expect(tiles().teleport_green.teleportJumpsAtStepStartCc2).toBe(true);
+  it('flags the CC2 green pad (teleport_random) as jumping at the start of a step, and only a teleporter', () => {
+    expect(tiles().teleport_random.teleportJumpsAtStepStartCc2).toBe(true);
+    expect(tiles().teleport_green.teleportJumpsAtStepStartCc2).toBeUndefined();
     expect(tiles().teleport_blue.teleportJumpsAtStepStartCc2).toBeUndefined();
-    const bad = (patch: Record<string, unknown>) => findGateConfigErrors({ ...tiles(), teleport_green: { ...tiles().teleport_green, ...patch } });
+    const bad = (patch: Record<string, unknown>) => findGateConfigErrors({ ...tiles(), teleport_random: { ...tiles().teleport_random, ...patch } });
     expect(bad({ teleportJumpsAtStepStartCc2: 'yes' })).toHaveLength(1);
     expect(bad({ isTeleporter: undefined })).toHaveLength(1);
   });

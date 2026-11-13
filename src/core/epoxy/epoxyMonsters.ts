@@ -91,9 +91,6 @@ import {
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
 
-/** The exit order of the CC2 green teleporter, the one pad that keeps its jump at the start of a monster's step (its destination is drawn). */
-const CC2_STEP_START_TELEPORT_ORDER = 'random';
-
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
@@ -731,7 +728,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
-  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster' && destTile.teleportExitOrder !== CC2_STEP_START_TELEPORT_ORDER) {
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster' && !destTile.teleportJumpsAtStepStartCc2) {
     // CC2 engine: the monster goes through in its own turn of the pass where its step ends, not when it starts. The green pad
     // (which draws its destination) keeps the jump at the start of the step, as do blocks.
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
