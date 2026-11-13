@@ -54,6 +54,7 @@ import {
   findTransmogrifierConfigErrors,
   findShotConfigErrors,
   findMonsterBehaviourConfigErrors,
+  findDroppedActorConfigErrors,
   findSteeringConfigErrors,
   findFacingTurnConfigErrors,
   findSignalConfigErrors,
@@ -495,6 +496,10 @@ class ConfigRegistryService {
     const steeringErrors = findSteeringConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (steeringErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, steeringErrors.join('; '));
+    }
+    const droppedActorErrors = findDroppedActorConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
+    if (droppedActorErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.MONSTERS, droppedActorErrors.join('; '));
     }
     const behaviourErrors = findMonsterBehaviourConfigErrors(bundle.tiles.tiles, bundle.monsters.entities);
     if (behaviourErrors.length > 0) {

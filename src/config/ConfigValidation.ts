@@ -1737,6 +1737,18 @@ const KNOWN_MOVEMENT_PATTERNS: readonly string[] = [
 /** Who may work a button, as a tile declares it. */
 const BUTTON_WORKERS: readonly string[] = ['player'];
 
+/** Problems of the stone items that become an actor when set down (CC2): the id must name a monster, and only a stone item has the field. Each entry names the tile. */
+export function findDroppedActorConfigErrors(tiles: Record<string, TileDefinition>, entities: Record<string, EntityDefinition>): string[] {
+  const errors: string[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (tile.dropsAsActorCc2 === undefined) continue;
+    const actor = typeof tile.dropsAsActorCc2 === 'string' ? entities[tile.dropsAsActorCc2] : undefined;
+    if (actor === undefined || actor.kind !== 'monster') errors.push(`${tile.id}.dropsAsActorCc2: expected the id of a monster`);
+    if (tile.collectible !== 'stone') errors.push(`${tile.id}.dropsAsActorCc2: only a stone item (collectible "stone") has this field`);
+  }
+  return errors;
+}
+
 /**
  * Problems of the steering fields. A tile: buttonWorkedBy is a known worker and sits on a button. An
  * entity: movementPattern is one the engine knows; steeredBy is only on a monster and names a button
@@ -1753,12 +1765,6 @@ export function findSteeringConfigErrors(
     if (tile.buttonWorkedBy === undefined) continue;
     if (!BUTTON_WORKERS.includes(tile.buttonWorkedBy)) errors.push(`${tile.id}.buttonWorkedBy: expected "player"`);
     if (tile.buttonAction === undefined) errors.push(`${tile.id}.buttonWorkedBy: only a button has a worker`);
-  }
-  for (const tile of Object.values(tiles)) {
-    if (tile.dropsAsActorCc2 === undefined) continue;
-    const actor = typeof tile.dropsAsActorCc2 === 'string' ? entities[tile.dropsAsActorCc2] : undefined;
-    if (actor === undefined || actor.kind !== 'monster') errors.push(`${tile.id}.dropsAsActorCc2: expected the id of a monster`);
-    if (tile.collectible !== 'stone') errors.push(`${tile.id}.dropsAsActorCc2: only a stone item (collectible "stone") has this field`);
   }
   for (const entity of Object.values(entities)) {
     const { id } = entity;

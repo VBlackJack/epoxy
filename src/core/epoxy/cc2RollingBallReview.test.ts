@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
-import { findGateConfigErrors, findSteeringConfigErrors } from '../../config/ConfigValidation';
+import { findDroppedActorConfigErrors, findGateConfigErrors, findSteeringConfigErrors } from '../../config/ConfigValidation';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
@@ -129,12 +129,13 @@ describe('config fields of the dropped actor and the step-start jump', () => {
     expect(droppedActorId(STONE_ITEM_ID)).toBe('rolling_ball');
     expect(droppedActorId('chip')).toBeUndefined();
     expect(findSteeringConfigErrors(tiles(), entities())).toEqual([]);
+    expect(findDroppedActorConfigErrors(tiles(), entities())).toEqual([]);
     expect(findGateConfigErrors(tiles())).toEqual([]);
   });
 
   it('refuses an actor that is not a monster, and the field on another item', () => {
     const stone = tiles()[STONE_ITEM_ID];
-    const bad = (patch: Record<string, unknown>) => findSteeringConfigErrors({ ...tiles(), [STONE_ITEM_ID]: { ...stone, ...patch } }, entities());
+    const bad = (patch: Record<string, unknown>) => findDroppedActorConfigErrors({ ...tiles(), [STONE_ITEM_ID]: { ...stone, ...patch } }, entities());
     expect(bad({ dropsAsActorCc2: 'no_such_entity' })).toHaveLength(1);
     expect(bad({ dropsAsActorCc2: 'dirt_block' })).toHaveLength(1);
     expect(bad({ collectible: 'chip' })).not.toEqual([]);
