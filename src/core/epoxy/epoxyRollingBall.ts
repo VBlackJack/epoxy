@@ -104,6 +104,20 @@ function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBloc
 }
 
 /**
+ * A ball that does not blow up on terrain (Lexy rolling_ball.on_blocked): one that slides (on ice or a force floor), one a
+ * teleporter sent to its pad (its forced exit step) and one being released from a clone machine. It is only stopped there.
+ */
+function sparedAgainstTerrain(w: EpoxyWorld, ball: RuntimeEntity): boolean {
+  const here = ConfigRegistry.getTile(w.terrain[ball.y]?.[ball.x]);
+  return here.slideType !== undefined || ball.teleportExit !== undefined || here.isCloneMachine === true;
+}
+
+/** True when the cell the ball stands on slides it (ice or a force floor). */
+function onSlidingFloor(w: EpoxyWorld, ball: RuntimeEntity): boolean {
+  return ConfigRegistry.getTile(w.terrain[ball.y]?.[ball.x]).slideType !== undefined;
+}
+
+/**
  * The rolling ball's own check of the way it is about to roll (Lexy rolling_ball.on_blocked): an actor in the way is killed and the
  * ball blows up, also while it slides; terrain in the way blows it up unless it slides (on ice or a force floor it only bounces
  * or stops). Called at its decision and again when its step is tried. Returns false when the player was killed.
@@ -112,7 +126,7 @@ export function checkBallWay(ctx: EpoxyContext, ball: RuntimeEntity, dir: Direct
   const w = ctx.world;
   const blocker = ballBlocker(w, ball, dir);
   if (blocker === null) return true;
-  if (blocker === 'terrain' && ConfigRegistry.getTile(w.terrain[ball.y]?.[ball.x]).slideType !== undefined) return true;
+  if (blocker === 'terrain' && sparedAgainstTerrain(w, ball)) return true;
   return settleBlocked(ctx, ball, blocker, false);
 }
 
@@ -156,6 +170,12 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   w.entities.push(ball);
   const blocker = ballBlocker(w, ball, dir);
   if (blocker !== null) {
+    if (blocker === 'terrain' && onSlidingFloor(w, ball)) {
+      // Set down on a sliding floor against terrain it does not blow up on, it cannot leave: it is erased, with no sound and no blast (Lexy game.js drop_item).
+      removeEntity(w, ball.uid);
+      w.beamDirty = true;
+      return true;
+    }
     settleBlocked(ctx, ball, blocker, true);
     return true;
   }

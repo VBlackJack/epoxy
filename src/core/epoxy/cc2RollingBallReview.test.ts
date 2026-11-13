@@ -32,7 +32,7 @@ import { STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { RuntimeEntity } from '../types';
 import { resolveMonsterArrival } from './epoxyMonsters';
-import { droppedActorId, isRollingBall, launchRollingBall } from './epoxyRollingBall';
+import { checkBallWay, droppedActorId, isRollingBall, launchRollingBall } from './epoxyRollingBall';
 import { isHeldSignalButton } from './epoxySignals';
 import { cc2HiddenStateKey, type EpoxyContext, type EpoxyWorld } from './epoxyWorld';
 
@@ -168,5 +168,55 @@ describe('the search key of a teleport waiting for its monster', () => {
     expect(cc2HiddenStateKey(w)).toBe(empty);
     w.ccArrivals.splice(0, 1, { uid: 7, x: 3, y: ROOM_ROW, teleport: true, due: 5 });
     expect(cc2HiddenStateKey(w)).not.toBe(waiting);
+  });
+});
+
+describe('a ball that does not blow up on terrain', () => {
+  it('is erased with no sound and no blast when set down on ice against a wall', () => {
+    const engine = bowler({ startX: LAST_FLOOR_X, terrain: { [`${LAST_FLOOR_X},${ROOM_ROW}`]: 'ice' } });
+    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(ballOf(engine)).toBeUndefined();
+    expect(world(engine).blockSplashes.size).toBe(0);
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.getPlayer().keys[STONE_ITEM_ID] ?? 0).toBe(0);
+  });
+
+  it('leaves no blast when it is spent against a wall as it is set down on plain floor', () => {
+    const engine = bowler({ startX: LAST_FLOOR_X });
+    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(ballOf(engine)).toBeUndefined();
+    expect(world(engine).blockSplashes.size).toBe(0);
+  });
+
+  /** A ball on the last floor cell of the row, facing the wall, with the given terrain under it. */
+  function ballAtWall(terrain?: string): { engine: GameEngine; ball: RuntimeEntity } {
+    const engine = bowler({ terrain: terrain === undefined ? {} : { [`${LAST_FLOOR_X},${ROOM_ROW}`]: terrain } });
+    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    const ball = ballOf(engine) as RuntimeEntity;
+    ball.x = LAST_FLOOR_X;
+    ball.y = ROOM_ROW;
+    ball.dir = 'E';
+    return { engine, ball };
+  }
+
+  const ctxOf = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
+
+  it('blows up against terrain on plain floor', () => {
+    const { engine, ball } = ballAtWall();
+    expect(checkBallWay(ctxOf(engine), ball, 'E')).toBe(true);
+    expect(ballOf(engine)).toBeUndefined();
+  });
+
+  it('is spared against terrain when a teleporter sent it to its pad', () => {
+    const { engine, ball } = ballAtWall();
+    ball.teleportExit = 'E';
+    expect(checkBallWay(ctxOf(engine), ball, 'E')).toBe(true);
+    expect(ballOf(engine)).toBe(ball);
+  });
+
+  it('is spared against terrain while it is released from a clone machine', () => {
+    const { engine, ball } = ballAtWall('clone_machine');
+    expect(checkBallWay(ctxOf(engine), ball, 'E')).toBe(true);
+    expect(ballOf(engine)).toBe(ball);
   });
 });
