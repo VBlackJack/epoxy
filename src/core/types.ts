@@ -1243,7 +1243,10 @@ export interface TileDefinition {
   litCharge?: boolean;
   /** Points added to the score when the item is picked up. */
   scoreBonus?: number;
-  /** CC2 only: a score bonus (collectible "bonus") that an actor picking up normally (a rolling ball, a rover) takes as it passes. */
+  /**
+ * CC2 only: a score bonus (collectible "bonus") that an actor with the normal pickup priority takes as it passes. At this point
+ * only the rolling ball reads it (rollingBallPicksUp); the rover reads it once it follows the same rule.
+ */
   takenByNormalPickupCc2?: boolean;
   /** Factor applied to the level score at the exit when the item is picked up. */
   scoreMultiplier?: number;

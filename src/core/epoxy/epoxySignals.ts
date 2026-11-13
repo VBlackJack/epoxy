@@ -248,10 +248,11 @@ function isButtonLinkedSink(w: EpoxyWorld, runtime: SignalRuntime, sinkCell: num
 }
 
 /**
- * Records every wired sink as off, except one fed by a button link. Lexy starts every circuit off (recalculate_circuitry),
- * so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0, a door or a flame jet
- * follows. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no link leaves a
- * sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
+ * Records every wired sink as off, except a sink fed by a button link and a wired trap. Lexy starts every circuit off
+ * (recalculate_circuitry), so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0,
+ * a door or a flame jet follows. A wired trap whose wire is on at load is open from the start (no edge fires for a trap), so
+ * it keeps the primed state. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no
+ * link leaves a sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
  */
 function startWiredSinksOff(w: EpoxyWorld, runtime: SignalRuntime): void {
   for (const index of runtime.network.sinkIndexes) {
