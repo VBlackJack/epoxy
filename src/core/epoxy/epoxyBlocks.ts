@@ -66,6 +66,11 @@ function leaveBlockSplash(w: EpoxyWorld, x: number, y: number, explosion: boolea
   else w.blockExplosions.delete(cell);
 }
 
+/** CC2 engine: leaves a water splash on the cell, as a block sunk in water does; for rules outside this file (a teleporting or sunk mover). */
+export function leaveSplash(w: EpoxyWorld, x: number, y: number): void {
+  leaveBlockSplash(w, x, y, false);
+}
+
 /** Whether a splash a block left in water still bars the real player from this cell. */
 export function splashBarsPlayer(w: EpoxyWorld, x: number, y: number): boolean {
   if (w.blockSplashes.size === 0) return false;
@@ -407,7 +412,9 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
 
   if (tile.hazard === 'water') {
     if (usesCc2Engine(w.level)) leaveBlockSplash(w, destX, destY, false);
-    const filled = blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
+    // CC2 engine: water that swallows a frame (arrow) block becomes floor, not dirt (Lexy water.on_arrive).
+    const frameFloor = usesCc2Engine(w.level) && blockDef?.waterBecomesFloorCc2 === true;
+    const filled = frameFloor ? FLOOR_TILE_ID : blockDef?.waterTransformsTo || tile.blockTransformsTo || SUNK_BLOCK_TILE_ID;
     // On a CC2-engine level the fill is the CC2 form of that tile when it has one (CC2 dirt stops only the dirt block).
     w.terrain[destY][destX] = (usesCc2Engine(w.level) ? ConfigRegistry.getTile(filled).cc2Twin : undefined) || filled;
     removeEntity(w, block.uid);

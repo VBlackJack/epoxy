@@ -25,7 +25,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": ["FORWARD"]
+      "pushArrows": ["FORWARD"],
+      "waterBecomesFloorCc2": true
     },
     "arrow_block_line": {
       "id": "arrow_block_line",
@@ -39,7 +40,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": ["FORWARD", "BACK"]
+      "pushArrows": ["FORWARD", "BACK"],
+      "waterBecomesFloorCc2": true
     },
     "arrow_block_corner": {
       "id": "arrow_block_corner",
@@ -53,7 +55,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": ["FORWARD", "RIGHT"]
+      "pushArrows": ["FORWARD", "RIGHT"],
+      "waterBecomesFloorCc2": true
     },
     "arrow_block_tee": {
       "id": "arrow_block_tee",
@@ -67,7 +70,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": ["FORWARD", "LEFT", "RIGHT"]
+      "pushArrows": ["FORWARD", "LEFT", "RIGHT"],
+      "waterBecomesFloorCc2": true
     },
     "arrow_block_cross": {
       "id": "arrow_block_cross",
@@ -81,7 +85,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": ["FORWARD", "LEFT", "RIGHT", "BACK"]
+      "pushArrows": ["FORWARD", "LEFT", "RIGHT", "BACK"],
+      "waterBecomesFloorCc2": true
     },
     "ice_block": {
       "id": "ice_block",
@@ -355,7 +360,8 @@
       "avoidsFire": false,
       "flying": true,
       "transmogrifiesTo": "glider",
-      "transmogrifiesToCc2": "bug"
+      "transmogrifiesToCc2": "bug",
+      "meltsIceOnBumpCc2": true
     },
     "tank": {
       "id": "tank",
@@ -663,7 +669,8 @@
       "waterTransformsTo": "dirt",
       "destroyedByFire": false,
       "destroyedByBomb": true,
-      "pushArrows": []
+      "pushArrows": [],
+      "waterBecomesFloorCc2": true
     },
     "mirror_chip": {
       "id": "mirror_chip",

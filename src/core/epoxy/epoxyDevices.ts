@@ -152,13 +152,15 @@ function markTanksToTurn(w: EpoxyWorld, atStepEnd: boolean): void {
 
 /**
  * Start of an entity pass of a classic-rules level: a marked tank whose pass has come turns around if it is at rest;
- * a tank in the middle of a step ignores the press. The mark is spent either way. A press made later in the same
+ * a tank in the middle of a step ignores the press (on the CC2 engine it keeps the mark until it decides again). The mark is spent either way. A press made later in the same
  * pass marks the tank again for a later pass, as the reference engine does (its flag is toggled after the tank turned).
  */
 export function turnMarkedTanks(w: EpoxyWorld): void {
   const pass = w.ccMonsterClock;
   for (const ent of w.entities) {
     if (ent.tankTurn === undefined || ent.tankTurn > pass) continue;
+    // CC2 engine: a tank in the middle of a step keeps the mark until its next decision (Lexy keeps pending_reverse), and turns then.
+    if (usesCc2Engine(w.level) && ent.cooldownTicks > 0) continue;
     delete ent.tankTurn;
     // A creature that is no tank any more (transmogrified) keeps no mark.
     if (!ConfigRegistry.getEntityDef(ent.type)?.reversedByButton) continue;
@@ -471,6 +473,9 @@ export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean
   return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir);
 }
 
+/** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
+const CC2_CLONE_BEFORE_PASS_TICKS = 1;
+
 /**
  * Spawns a copy of the template in front of the cloner, using the same
  * entry rules as a regular monster step or block push, so a clone never
@@ -549,10 +554,17 @@ export function spawnFromCloner(
     ...initialEmulationState(def)
   };
   addClonedEntity(w, spawned);
+  // CC2 engine: a creature let out before the entity pass of the tick (a clone press the player's step end made) is counted
+  // down by that pass at once. The original runs that creature's step out of turn, ahead of the others, which shortens its
+  // step relative to the timing Epoxy gives a clone made during the pass; one tick more makes up for it.
+  const beforePass = usesCc2Engine(w.level) && w.cc2BeforePass === true;
+  if (beforePass && spawned.kind === 'monster' && spawned.cooldownTicks > 0) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
   if (spawned.kind === 'block') {
     // CC2 engine: a cloned block takes a real step out of the cloner, unless it comes out onto a sliding tile.
     const takesStep = usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[spawnY][spawnX]).slideType === undefined;
     moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir, true, takesStep);
+    // The same for a block: its first wait is counted down by the pass that follows.
+    if (beforePass && w.entities.includes(spawned)) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
   } else {
     return resolveMonsterArrival(ctx, spawned, true);
   }

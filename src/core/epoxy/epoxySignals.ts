@@ -140,6 +140,8 @@ function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): 
     if (e.arrivalTicks !== undefined) return false;
     if (atRestOnly && !actorAtRest(e)) return false;
     if (anyActor) return true;
+    // CC2 engine: the pink button reads any actor at rest, a fireball or a glider included (Lexy button_pink is_emitting).
+    if (atRestOnly) return true;
     if (e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
     return entityPressesPlate(e.type, e.kind, ownColor);

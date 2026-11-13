@@ -255,6 +255,52 @@ function dropOldestBoots(engine: PlayEngine): void {
   if (!oldest.done) engine.dropItem(oldest.value);
 }
 
+/**
+ * The CC2 tool belt in pickup order, kept by the harness for one run: the boots and the counted tools such as dynamite
+ * or stones. The drop key puts down its oldest tool and the cycle key sends that tool to the end, as Lexy's drop_item
+ * and cycle_inventory do. Keys are not tools, and a toll token or bribe stays off the belt: the engine never sets one
+ * down, so a bribe at the head would block every later drop (Lexy does drop a bribe; the belt capacity is not modelled).
+ */
+class ToolBelt {
+  private order: string[] = [];
+
+  /** Brings the belt in line with what the player holds: tools put down or spent leave, new pickups join at the end. */
+  private sync(engine: PlayEngine): void {
+    const player = engine.getPlayer();
+    const held: string[] = [...player.boots];
+    for (const [id, count] of Object.entries(player.keys ?? {})) {
+      const collectible = ConfigRegistry.getTile(id).collectible;
+      if (collectible === 'key' || collectible === 'token') continue;
+      for (let i = 0; i < count; i++) held.push(id);
+    }
+    const kept: string[] = [];
+    for (const id of this.order) {
+      const at = held.indexOf(id);
+      if (at < 0) continue;
+      kept.push(id);
+      held.splice(at, 1);
+    }
+    this.order = [...kept, ...held];
+  }
+
+  /** The cycle key: the oldest tool goes to the end of the belt. */
+  cycle(engine: PlayEngine): void {
+    this.sync(engine);
+    if (this.order.length > 1) this.order.push(this.order.shift() as string);
+  }
+
+  /** The drop key: puts the oldest tool down; it leaves the belt when the engine let it go. */
+  drop(engine: PlayEngine): void {
+    this.sync(engine);
+    if (this.order.length > 0 && engine.dropItem(this.order[0])) this.order.shift();
+  }
+
+  /** Records what was picked up this tick, so that the pickup order survives until the next key press. */
+  observe(engine: PlayEngine): void {
+    this.sync(engine);
+  }
+}
+
 /** The action keys that act once per press (cycle, drop, switch player). */
 const ACTION_KEY_MASK =
   CC2_REPLAY_ACTION_BITS.drop | CC2_REPLAY_ACTION_BITS.switchPlayer | CC2_REPLAY_ACTION_BITS.cycleInventory;
@@ -265,16 +311,18 @@ const ACTION_KEY_MASK =
  * `consume` so that it does not act again until it is released; a key pressed while the player is not deciding keeps
  * waiting. Returns whether the player was switched, in which case the swap eats the input of the tick.
  */
-function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void): boolean {
+function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void, belt: ToolBelt | null): boolean {
   const player = engine.getPlayer();
   if (fresh === 0 || player.moveCooldown !== 0) return false;
   if (fresh & CC2_REPLAY_ACTION_BITS.cycleInventory) {
     consume(CC2_REPLAY_ACTION_BITS.cycleInventory);
+    belt?.cycle(engine);
     engine.cycleInventory?.();
   }
   if (fresh & CC2_REPLAY_ACTION_BITS.drop && !player.isSliding) {
     consume(CC2_REPLAY_ACTION_BITS.drop);
-    dropOldestBoots(engine);
+    if (belt) belt.drop(engine);
+    else dropOldestBoots(engine);
   }
   if (fresh & CC2_REPLAY_ACTION_BITS.switchPlayer) {
     consume(CC2_REPLAY_ACTION_BITS.switchPlayer);
@@ -296,16 +344,19 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
   let moves = 0;
   // Action keys act once per press: a bit is released while the key is up and consumed by the press that acts.
   let released: number = ACTION_KEY_MASK;
+  // The tool belt of the CC2 engine; any other level keeps dropping the oldest pair of boots.
+  const belt = cc2Engine && !lynx ? new ToolBelt() : null;
   for (let tick = 0; tick < total; tick++) {
     // Past the replay end the Epoxy engine keeps holding the last input, as the reference player does; the Lynx based engines release.
     const tickKeys = tick < keys.length ? keys[tick] : !lynx && keys.length > 0 ? keys[keys.length - 1] : 0;
     const held = heldDirections(tickKeys);
     let swappedNow = false;
+    belt?.observe(engine);
     if (!lynx) {
       released |= ~tickKeys & ACTION_KEY_MASK;
       swappedNow = playActionKeys(engine, tickKeys & released, (consumed) => {
         released &= ~consumed;
-      });
+      }, belt);
     }
     for (const dir of DIRECTIONS) if (!held.includes(dir)) down.delete(dir);
     for (const dir of held) if (!down.has(dir)) down.set(dir, tick);

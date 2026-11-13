@@ -53,7 +53,7 @@ import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
 import { isCc2YellowTank, markYellowButtonArrival } from './epoxySteering';
 import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerTurn } from './ccGenerators';
-import { attemptPushBlock, canPushBlock, eraseSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
+import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -91,7 +91,7 @@ export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
   if (w.ccRules) {
-    if (!applyQueuedArrivals(ctx)) return;
+    if (!applyQueuedPassStartArrivals(ctx)) return;
   } else if (w.cc3dPace) {
     dropOrphanArrivals(w);
   }
@@ -105,6 +105,21 @@ export function updateEntities(ctx: EpoxyContext): void {
     w.entityPassSeen.clear();
     w.turnSpent.clear();
     pruneSplashes(w);
+  }
+}
+
+/**
+ * CC2 engine: the queued presses applied at the start of an entity pass close the previous tick, so a clone machine they
+ * trigger counts the clone down one tick longer (w.cc2BeforePass). Other levels apply them as before.
+ */
+function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  if (!usesCc2Engine(w.level)) return applyQueuedArrivals(ctx);
+  w.cc2BeforePass = true;
+  try {
+    return applyQueuedArrivals(ctx);
+  } finally {
+    w.cc2BeforePass = undefined;
   }
 }
 
@@ -185,8 +200,10 @@ function planClassicDecisions(ctx: EpoxyContext): void {
   const w = ctx.world;
   w.ccPlans.clear();
   const clock = w.ccMonsterClock;
-  for (let i = w.entities.length - 1; i >= 0; i--) {
-    const entity = w.entities[i];
+  // A fireball melting an ice block removes it from the list while the pass runs: the pass walks the list as it was.
+  const decisionOrder = w.entities.slice();
+  for (let i = decisionOrder.length - 1; i >= 0; i--) {
+    const entity = decisionOrder[i];
     if (isCc2YellowTank(w, entity)) {
       planYellowTank(w, entity, clock);
       continue;
@@ -822,7 +839,10 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   for (const rel of turnOrder) {
     const candidateDir = applyRelativeTurn(monster.dir, rel);
     // A monster that melts ice spends its step melting the ice block it would otherwise enter.
-    if (def.meltsIceBlocks === true && meltIceBlockAhead(w, monster, candidateDir)) return null;
+    if (def.meltsIceOnBumpCc2 === true && usesCc2Engine(w.level)) {
+      // CC2 engine (Lexy ice_block.on_after_bumped): a fireball that bumps an ice block melts it, and tries its next way.
+      if (meltIceBlockAhead(w, monster, candidateDir, true)) continue;
+    } else if (def.meltsIceBlocks === true && meltIceBlockAhead(w, monster, candidateDir, false)) return null;
     if (canStep(w, monster, candidateDir)) {
       return candidateDir;
     }
@@ -855,18 +875,23 @@ function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, gen
 /**
  * Melts the block of ice in the cell a monster tries to enter: the block is removed and, when the cell is plain floor,
  * the floor becomes what the block melts into (water). Returns whether a block was melted. Only a block at rest melts.
+ * CC2 engine: the block melts whatever its motion, only on floor (a no-sign counts as floor; any other terrain leaves the
+ * block as it is), and leaves a splash that bars the player.
  */
-function meltIceBlockAhead(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction): boolean {
+function meltIceBlockAhead(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction, cc2: boolean): boolean {
   const vec = DIRECTION_VECTORS[dir];
   const nx = monster.x + vec.dx;
   const ny = monster.y + vec.dy;
   if (!isInBounds(w, nx, ny) || isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
   const block = getEntityAt(w, nx, ny);
-  if (block === undefined || block.kind !== 'block' || block.isSliding) return false;
+  if (block === undefined || block.kind !== 'block' || (block.isSliding && !cc2)) return false;
   const melted = ConfigRegistry.getEntityDef(block.type)?.meltsInFireTo;
   if (melted === undefined) return false;
-  if (w.terrain[ny][nx] === FLOOR_TILE_ID) w.terrain[ny][nx] = melted;
+  const terrainId = w.terrain[ny][nx];
+  if (cc2 && terrainId !== FLOOR_TILE_ID && ConfigRegistry.getTile(terrainId).forbiddenItem === undefined) return false;
+  if (cc2 || terrainId === FLOOR_TILE_ID) w.terrain[ny][nx] = melted;
   removeEntity(w, block.uid);
+  if (cc2) leaveSplash(w, nx, ny);
   AudioManager.playSfx('splash');
   return true;
 }

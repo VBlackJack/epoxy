@@ -804,6 +804,8 @@ class EpoxyApplication {
       const nextDir = this.autoMoveQueue[0];
       // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
       const epoxy = this.epoxyEngine();
+      // A CC2 step that just ended has its effects pending until the next tick: the safety check must see them.
+      epoxy?.flushPendingStepEnd();
       const stepSafe = epoxy && !epoxy.getPlayer().isSliding && epoxy.getPlayer().moveCooldown === 0
         ? Pathfinder.isNextStepSafe(epoxy, nextDir, this.autoMoveQueue.length === 1)
         : true;
@@ -820,6 +822,8 @@ class EpoxyApplication {
       }
     }
     this.engine.tick();
+    // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
+    this.epoxyEngine()?.flushPendingStepEnd();
     this.renderer.incrementFrame();
     this.updateHUD();
     this.watchBlockPuzzles();

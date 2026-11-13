@@ -26,7 +26,8 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
-import type { CompiledLevel } from '../types';
+import { OPPOSITE_DIRECTION } from '../coreConstants';
+import type { CompiledLevel, Direction } from '../types';
 import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
@@ -59,7 +60,12 @@ describe('CC2 engine: a blue button pressed at step end', () => {
     expect(markOf(engine)).toBeUndefined();
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
-    expect(markOf(engine)).toBe(world(engine).ccMonsterClock);
+    // The press acts at the start of the next tick, before its entity pass: the mark is due at that very pass, which spends it.
+    expect(markOf(engine)).toBeUndefined();
+    const dirBefore = world(engine).entities.find((e) => e.type === TANK)?.dir as Direction;
+    engine.tick();
+    expect(markOf(engine)).toBeUndefined();
+    expect(world(engine).entities.find((e) => e.type === TANK)?.dir).toBe(OPPOSITE_DIRECTION[dirBefore]);
   });
 
   it('keeps the calibrated delay for a press at the start of the step on a DAT-style level', () => {

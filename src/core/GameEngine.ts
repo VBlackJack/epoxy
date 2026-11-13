@@ -576,7 +576,7 @@ export class GameEngine {
    * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    if (!this.beginInput()) return false;
     if (!itemId || !this.holdsItem(itemId)) {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
       return false;
@@ -789,6 +789,7 @@ export class GameEngine {
       ...(this.w.ccGenerators?.blobModifier !== undefined ? { ccBlobModifier: this.w.ccGenerators.blobModifier } : {}),
       // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
+      ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -893,6 +894,7 @@ export class GameEngine {
       else delete this.w.ccGenerators.blobModifier;
     }
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
+    this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -916,10 +918,49 @@ export class GameEngine {
     this.w.beamDirty = true;
   }
 
+  /**
+   * CC2 engine: acts on what the player's step left pending once it has ended (see applyCc3dStepEnd). Called at the start of
+   * every entry point that consumes input, so the effects of a step act when the next tick or input begins (the original
+   * runs them in the first frame of the tick after the wait ran out). Idempotent: nothing is pending the second time. The
+   * entity pass that follows is the one that closes the previous tick, which w.cc2BeforePass tells a clone machine.
+   * Returns false when the effects ended the level or killed the player.
+   */
+  private flushCc2StepEnd(): boolean {
+    const w = this.w;
+    if (!usesCc2Engine(w.level) || w.cc3dPace || w.player.cc3dArrival === undefined) return w.player.alive && !w.levelCompleted;
+    w.cc2BeforePass = true;
+    try {
+      applyCc3dStepEnd(this.ctx);
+    } finally {
+      w.cc2BeforePass = undefined;
+    }
+    // The pending effects may have moved him (a teleporter jump): where he appears to be as the next tick starts changes with it.
+    if (w.player.cc3dArrival === undefined) recordCc2PlayerView(w);
+    return w.player.alive && !w.levelCompleted;
+  }
+
+  /**
+   * CC2 engine: lets the step-end effects the player's finished step left pending act now instead of at the start of the
+   * next tick or input, so that what is drawn and read between ticks (HUD, renderer, click-to-move safety) is the state
+   * after them. Idempotent and equivalent to the flush the next entry point does anyway, so a replay is unchanged.
+   * A no-op on any other level, while paused, dead or once the level ended.
+   */
+  public flushPendingStepEnd(): void {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return;
+    this.flushCc2StepEnd();
+  }
+
+  /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
+  private beginInput(): boolean {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    return this.flushCc2StepEnd();
+  }
+
   public tick(): void {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) {
       return;
     }
+    if (!this.flushCc2StepEnd()) return;
 
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;
@@ -986,10 +1027,10 @@ export class GameEngine {
     // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
     refreshTrapLatch(this.w);
     this.checkTargetsWin();
-    // CC2 engine: what the step onto a cell does acts when that step ends, at the end of the tick that ran its wait out.
-    // Not after an early return above (paused, time out, death), nor once the level is won.
-    // A press that ended the level or killed the player leaves nothing to record.
-    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted && !applyCc3dStepEnd(this.ctx)) return;
+    // CC2 engine: what the step onto a cell does acts when that step ends, at the start of the next tick or input
+    // (flushCc2StepEnd); a brown button it held was held for this tick only.
+    // Cleared at the tick end, so a held button is only ever visible between an input (or flush) and the tick.
+    this.w.cc2BrownHeld = undefined;
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }
@@ -1003,6 +1044,7 @@ export class GameEngine {
    */
   public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     if (dirs.length === 0) return false;
+    if (!this.beginInput()) return false;
     const keys = dirs.filter((d, i) => dirs.indexOf(d) === i);
     if (!usesCc2Engine(this.w.level) || this.w.cc3dPace || keys.length === 1) return this.attemptPlayerMove(dirs[0]);
     if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
@@ -1069,9 +1111,7 @@ export class GameEngine {
   }
 
   public attemptPlayerMove(dir: Direction): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) {
-      return false;
-    }
+    if (!this.beginInput()) return false;
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
@@ -1170,7 +1210,7 @@ export class GameEngine {
    * recorded solution replays it.
    */
   public swapPlayer(): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
+    if (!this.beginInput() || this.w.parked.length === 0) return false;
     this.saveUndoSnapshot();
     rotatePlayers(this.w);
     resetCc2PlayerView(this.w);
@@ -1186,7 +1226,7 @@ export class GameEngine {
    * solution replays it.
    */
   public cycleInventory(): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted || !usesCc2Engine(this.w.level)) return false;
+    if (!usesCc2Engine(this.w.level) || !this.beginInput()) return false;
     const boots = this.w.player.boots;
     if (boots.size < MIN_BOOTS_TO_CYCLE) return false;
     this.saveUndoSnapshot();
@@ -1201,12 +1241,14 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
    * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
-    if (blobModifier === undefined && edges.length === 0) return undefined;
+    const brownHeld = this.w.cc2BrownHeld;
+    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined) return undefined;
     return {
       ...(blobModifier !== undefined ? { blobModifier } : {}),
+      ...(brownHeld !== undefined ? { brownHeld: [...brownHeld] } : {}),
       ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
     };
   }
@@ -1220,7 +1262,7 @@ export class GameEngine {
    * recorded solution replays it; undo restores the facing through the previous snapshot and truncates the entry.
    */
   public turnPlayer(dir: Direction): boolean {
-    if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
+    if (!this.beginInput()) return false;
     if (this.w.ccRules || this.w.cc3dPace) return false;
     const player = this.w.player;
     if (player.isSliding || player.teleportExit !== undefined || player.cc3dArrival !== undefined) return false;
@@ -1339,6 +1381,7 @@ export class GameEngine {
     this.w.levelCompleted = true;
     // Nothing fires after the win: the wire-fired edges still waiting are dropped.
     this.w.cc2DeferredSinkEdges = [];
+    this.w.cc2BrownHeld = undefined;
     this.w.player.isSliding = false;
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();

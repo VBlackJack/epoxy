@@ -1795,6 +1795,7 @@ const MONSTER_FLAG_FIELDS = [
   'blockedBetweenCanopies',
   'ignoresSlidingFloors',
   'meltsIceBlocks',
+  'meltsIceOnBumpCc2',
   'immuneToSlime',
   'entersTurtles',
   'leavesTurtlesAfloat'
@@ -1818,6 +1819,10 @@ export function findMonsterBehaviourConfigErrors(
       if (entity[field] === undefined) continue;
       if (typeof entity[field] !== 'boolean') errors.push(`${id}.${field}: expected a boolean`);
       if (entity.kind !== 'monster') errors.push(`${id}.${field}: only a monster has this field`);
+    }
+    if (entity.waterBecomesFloorCc2 !== undefined) {
+      if (typeof entity.waterBecomesFloorCc2 !== 'boolean') errors.push(`${id}.waterBecomesFloorCc2: expected a boolean`);
+      if (entity.kind !== 'block') errors.push(`${id}.waterBecomesFloorCc2: only a block has this field`);
     }
     if (entity.trailTile !== undefined) {
       if (entity.kind !== 'monster') errors.push(`${id}.trailTile: only a monster leaves a trail`);

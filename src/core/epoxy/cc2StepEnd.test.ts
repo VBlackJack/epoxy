@@ -85,6 +85,9 @@ describe('CC2 engine: a chip is taken when the step onto it ends', () => {
     }
     engine.tick();
     expect(engine.getPlayer().moveCooldown).toBe(0);
+    // The effect acts in the first frame of the tick after the wait ran out: at the start of the next tick or input.
+    expect(world(engine).chipsRemaining).toBe(1);
+    engine.tick();
     expect(world(engine).chipsRemaining).toBe(0);
     expect(world(engine).items[ROOM_ROW][TARGET_X]).toBeNull();
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();

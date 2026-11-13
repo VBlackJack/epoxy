@@ -56,6 +56,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.ccArrivalsRunning = false;
   // Deferred wire-fired sink edges of the last level must not fire in this one.
   w.cc2DeferredSinkEdges = [];
+  // A brown button held by the last level must not stay held in this one.
+  w.cc2BrownHeld = undefined;
   const ccCadence = usesCcRules(level);
   const cc3dLevel = !ccCadence && isConvertedCc3dLevel(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);

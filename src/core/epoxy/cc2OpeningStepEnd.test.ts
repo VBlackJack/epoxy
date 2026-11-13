@@ -71,6 +71,8 @@ describe('CC2 engine: the socket or door being stepped into', () => {
       engine.tick();
       if (engine.getPlayer().moveCooldown > 0) expect(engine.getPlayer().cc3dArrival?.opening).toBeDefined();
     }
+    // Dropped by the step-end effects at the start of the next tick or input.
+    engine.tick();
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();
   });
 

@@ -45,6 +45,7 @@ import {
   isInBounds,
   dropExitedController,
   killPlayer,
+  mapWidth,
   leaveCell,
   leaveThroughExit,
   notePulseArrival,
@@ -187,6 +188,8 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   const bumped = bumpRevealedCell(w, targetX, targetY);
   const block = getEntityAt(w, targetX, targetY);
   if (block === undefined || block.kind !== 'block') return bumped;
+  // CC2 engine: the block on a clone machine is its template, held by the machine: the slap does not move it (Lexy cloner.traps).
+  if (usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[targetY][targetX]).isCloneMachine) return bumped;
   const pushed = attemptPushBlock(ctx, block, dir, true, false, undefined, true);
   p.dir = facing;
   return pushed || bumped;
@@ -541,7 +544,17 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     }
   }
 
-  notePulseArrival(w, x, y, null);
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && (tile.signalSource === 'toggle' || tile.signalSource === 'pulse')) {
+    // CC2 engine: a light switch or pulse source acts when the step onto it ends, if he is still on it (Lexy on_arrive).
+    cc3dArrivalOf(w.player).pulse = { x, y };
+  } else {
+    notePulseArrival(w, x, y, null);
+  }
+
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && tile.buttonAction === 'hold_trap') {
+    // CC2 engine: the brown button feels him when his step onto it ends, and is held for that tick even if he leaves at once.
+    cc3dArrivalOf(w.player).brown = { x, y };
+  }
 
   if (tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !atStepEnd) {
     // CC3D: the player works a clone switch, and CC2 any button, when the step that took him onto it ends.
@@ -629,6 +642,13 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
   delete p.cc3dArrival;
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
+  if (pending.brown !== undefined && p.x === pending.brown.x && p.y === pending.brown.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).buttonAction === 'hold_trap') {
+    // Several players can end steps on different brown buttons before the tick: each cell stays held, in ascending order.
+    const cell = p.y * mapWidth(w) + p.x;
+    const held = w.cc2BrownHeld ?? [];
+    if (!held.includes(cell)) w.cc2BrownHeld = [...held, cell].sort((a, b) => a - b);
+  }
+  if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);

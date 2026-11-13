@@ -1603,6 +1603,10 @@ export interface EntityDefinition {
    * block melts into, and the monster does not move that step (the CC3D screamers).
    */
   meltsIceBlocks?: boolean;
+  /** CC2 engine: a monster that melts an ice block it bumps and then tries its next way (the fireball, Lexy ice_block.on_after_bumped). */
+  meltsIceOnBumpCc2?: boolean;
+  /** CC2 engine, on a block: water that swallows it becomes plain floor, not dirt (the frame blocks, Lexy water.on_arrive). */
+  waterBecomesFloorCc2?: boolean;
   /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
   immuneToSlime?: boolean;
   /** A monster that steps onto turtles, which sink into water behind it when it leaves them (the CC3D monsters). */
@@ -2300,6 +2304,10 @@ export interface Cc3dPlayerArrival {
   teleport?: GridPoint & { dir: Direction };
   /** CC2 engine: the cell the player is stepping into, which stays solid for monsters until the step ends (a socket or door he opens on arrival). */
   opening?: GridPoint;
+  /** CC2 engine: the toggle or pulse source stepped onto: it acts when the step ends if the player is still on it. */
+  pulse?: GridPoint;
+  /** CC2 engine: the brown button stepped onto: it is held for the tick when the step ends, even if the player leaves at once. */
+  brown?: GridPoint;
 }
 
 /**
@@ -2479,6 +2487,8 @@ export interface UndoSnapshot {
   ccBlobModifier?: number;
   /** Wire-fired cloner and launcher edges waiting for the next tick on a CC2-engine level; written only while one waits, absent otherwise. */
   cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
+  /** The ascending cell indices of the brown buttons held by CC2-engine players' steps; written only while one is held, absent otherwise. */
+  cc2BrownHeld?: number[];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */

@@ -22,7 +22,8 @@ import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
-import { usesCcRules } from './ccRules';
+import { usesCc2Engine, usesCcRules } from './ccRules';
+import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
 import type { SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
@@ -202,6 +203,16 @@ export interface EpoxyWorld {
   ccArrivalsRunning: boolean;
   /** True while an entity pass of a classic-rules level runs (the clock already counts it); transient, never saved. */
   ccPassOpen: boolean;
+  /**
+   * CC2 engine: true while the player's step of the current tick has not run yet, so the entity pass that is running is the
+   * one that closes the previous tick. Transient: set only inside a try/finally like ccPassOpen, never saved in a snapshot.
+   */
+  cc2BeforePass?: boolean;
+  /**
+   * CC2 engine: the cell indices (ascending) of the brown buttons the players' steps ended on, held for the rest of the
+   * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
+   */
+  cc2BrownHeld?: number[];
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -695,7 +706,9 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
     ...(a.press !== undefined ? { press: { ...a.press } } : {}),
     ...(a.chip !== undefined ? { chip: { ...a.chip } } : {}),
     ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {}),
-    ...(a.opening !== undefined ? { opening: { ...a.opening } } : {})
+    ...(a.opening !== undefined ? { opening: { ...a.opening } } : {}),
+    ...(a.pulse !== undefined ? { pulse: { ...a.pulse } } : {}),
+    ...(a.brown !== undefined ? { brown: { ...a.brown } } : {})
   };
 }
 
@@ -722,6 +735,7 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
+  if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   return parts.join(';');
 }
 
@@ -732,7 +746,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}`);
   });
   return parts.join(';');
 }
@@ -870,6 +884,8 @@ export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOp
     if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y)) return;
     // A player who stays on the cell holds it up too (when a monster or a block is the one that leaves).
     if (options?.leaver !== undefined && playerAtCell(w, x, y) !== undefined) return;
+    // CC2 engine: the turtle that sinks leaves a splash on the water, which bars the player as a sunk block's does (Lexy turtle.on_depart).
+    if (usesCc2Engine(w.level)) leaveSplash(w, x, y);
   }
   w.terrain[y][x] = tile.transformsToOnLeave;
 }
@@ -977,6 +993,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
     return !specificLinks.some((l) => isButtonPressed(w, l.buttonX, l.buttonY));
   }
 
+  // CC2 engine: a brown button works only the trap it is connected to (Lexy button_brown.connection): an unlinked trap stays shut.
+  if (usesCc2Engine(w.level)) return true;
   // Unlinked trap: any held trap button releases it
   // A button hidden under a removable top is listed too, and presses nothing until the top is gone.
   return !w.holdTrapButtons.some(
@@ -985,8 +1003,12 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
+  // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
+  if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
   // On a converted CC3D level the player works a brown button only at rest, like everything else.
-  if (w.player.x === bx && w.player.y === by && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
+  // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
+  const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;
+  if (w.player.x === bx && w.player.y === by && !stepOntoPending && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
   if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.
