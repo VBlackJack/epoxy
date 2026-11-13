@@ -148,6 +148,7 @@ const NO_CANOPIES: ReadonlySet<number> = new Set();
 export function copyEntity(e: RuntimeEntity): RuntimeEntity {
   const copy = { ...e };
   if (e.heldTools !== undefined) copy.heldTools = [...e.heldTools];
+  if (e.heldKeys !== undefined) copy.heldKeys = [...e.heldKeys];
   return copy;
 }
 
@@ -797,6 +798,8 @@ export class GameEngine {
       // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
       ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
+      // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
+      ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -902,6 +905,7 @@ export class GameEngine {
     }
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
     this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
+    this.w.cc2ToggledButtonCells = snap.cc2ToggledButtonCells !== undefined ? [...snap.cc2ToggledButtonCells] : [];
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -1248,14 +1252,16 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
    * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[]; toggledButtons?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
     const brownHeld = this.w.cc2BrownHeld;
-    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined) return undefined;
+    const toggled = this.w.cc2ToggledButtonCells;
+    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined && toggled.length === 0) return undefined;
     return {
       ...(blobModifier !== undefined ? { blobModifier } : {}),
       ...(brownHeld !== undefined ? { brownHeld: [...brownHeld] } : {}),
+      ...(toggled.length > 0 ? { toggledButtons: [...toggled] } : {}),
       ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
     };
   }

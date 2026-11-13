@@ -1781,9 +1781,10 @@ export class LevelEditor {
       });
     };
 
-    // A lit charge is what a dropped charge becomes during play: it is not placed by hand.
+    // A lit charge is what a dropped charge becomes during play, and a runtime-only tile or entity (a picked-up yellow pad, the
+    // rolling ball) is made by the engine alone: none of them is placed by hand.
     // A variant family (the no signs, the counters) has one entry showing the variant in hand; a search still lists every variant.
-    const placeable = Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true);
+    const placeable = Object.values(ConfigRegistry.getTiles().tiles).filter((candidate) => candidate.category === category && candidate.litCharge !== true && candidate.runtimeOnly !== true);
     const collapse = collapseFamilies && editableRulesetOf(this.doc.ruleset) !== LYNX_RULESET;
     for (const tile of collapse ? paletteTilesOf(placeable, category, this.variantChoice) : placeable) {
       add(
@@ -1794,7 +1795,7 @@ export class LevelEditor {
       );
     }
 
-    for (const ent of Object.values(ConfigRegistry.getMonsters().entities).filter((candidate) => candidate.category === category)) {
+    for (const ent of Object.values(ConfigRegistry.getMonsters().entities).filter((candidate) => candidate.category === category && candidate.runtimeOnly !== true)) {
       // A creature or turret is drawn facing the direction control, so the palette shows what a click will place.
       add(
         { kind: 'entity', id: ent.id },

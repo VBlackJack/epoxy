@@ -413,3 +413,21 @@ export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | un
   runtime.areaPending = new Set(pulses?.area ?? []);
   runtime.lit = new Set(pulses?.lit ?? []);
 }
+
+/**
+ * CC2 engine: toggles the button on the cell (`x`, `y`) in the world set of buttons held with no actor on them (an exclusive
+ * or: a second toggle releases it). Keeps the cell indices ascending. Not called yet: the rolling ball that blows up on a
+ * button will use it. Returns true when the cell is held afterwards.
+ */
+export function toggleHeldButton(w: EpoxyWorld, x: number, y: number): boolean {
+  const cell = y * mapWidth(w) + x;
+  const held = w.cc2ToggledButtonCells;
+  const at = held.indexOf(cell);
+  if (at >= 0) {
+    held.splice(at, 1);
+    return false;
+  }
+  held.push(cell);
+  held.sort((a, b) => a - b);
+  return true;
+}

@@ -46,7 +46,7 @@ export function variantFamilyOf(tile: TileDefinition): string | null {
 
 /** The tiles of one family and category, in config order. */
 export function familyMembers(tiles: Readonly<Record<string, TileDefinition>>, family: string, category: string): TileDefinition[] {
-  return Object.values(tiles).filter((tile) => tile.category === category && tile.litCharge !== true && variantFamilyOf(tile) === family);
+  return Object.values(tiles).filter((tile) => tile.category === category && tile.litCharge !== true && tile.runtimeOnly !== true && variantFamilyOf(tile) === family);
 }
 
 /** The palette key shared by every variant of a family in a category. */

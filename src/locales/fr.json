@@ -4884,6 +4884,12 @@
         "label": "Ramassez-la, puis posez-la sur un sol nu où vous voulez. Les plaques que vous posez communiquent entre elles : marchez sur l'une et vous ressortez d'une autre. Une plaque seule ne fait rien, et une plaque posée y reste."
       }
     },
+    "teleport_yellow_item": {
+      "name": "Téléporteur jaune (ramassé)",
+      "desc": {
+        "label": "Un téléporteur jaune ramassé sur un niveau de Chip's Challenge 2 qui en compte plusieurs. Posé sur un sol nu, il redevient un téléporteur avant. Il ne se place pas dans l'éditeur."
+      }
+    },
     "pocket_gate_pad": {
       "name": "Porte de poche (posée)",
       "desc": {
@@ -6072,6 +6078,12 @@
       "name": "Fantôme (Traverse les Murs)",
       "desc": {
         "label": "Va tout droit, sinon tourne à gauche, à droite ou fait demi-tour. Il traverse les murs, les portes, les serrures et les murs fins, mais pas les murs d'acier, les machines à clones ni l'eau. La glace, les tapis de force, les rails, les pièges, les bombes, le feu et la bave n'ont aucun effet sur lui ; il passe sur les objets sans les ramasser et actionne les boutons qu'il croise. Il tue au contact."
+      }
+    },
+    "rolling_ball": {
+      "name": "Boule qui roule",
+      "desc": {
+        "label": "Une boule de bowling posée par le joueur sur un niveau du moteur de Chip's Challenge 2 : elle roule tout droit, suit le sol comme un monstre et explose quand elle est bloquée. Elle ne se place pas dans l'éditeur."
       }
     },
     "rover": {

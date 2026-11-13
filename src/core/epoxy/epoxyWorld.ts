@@ -213,6 +213,18 @@ export interface EpoxyWorld {
    * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
    */
   cc2BrownHeld?: number[];
+  /**
+   * CC2 engine: the cell indices (ascending) of the buttons that count as held although no actor stands on them, because a
+   * rolling ball blew up on one (the toggle is an exclusive or: a second ball on the cell releases it). Empty on every other
+   * level; reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while non-empty.
+   */
+  cc2ToggledButtonCells: number[];
+  /**
+   * CC2 engine: true when the level had more than one yellow teleporter at load, so a yellow pad is an item a player picks up
+   * and sets down again (the pad list is then read live). Decided once by startLevelWorld and constant for the load; false
+   * on every other level.
+   */
+  cc2YellowPadsAreItems: boolean;
   /** Ticks a shot takes per cell on this level (every launcher tile declares the same count); 0 without launchers. */
   shotStepTicks: number;
   /** The triggers wired to launchers, as the level declares them; static, empty when none. */
@@ -328,6 +340,8 @@ export function createEpoxyWorld(): EpoxyWorld {
     cc2PlayerView: undefined,
     ccGenerators: null,
     cc2DeferredSinkEdges: [],
+    cc2ToggledButtonCells: [],
+    cc2YellowPadsAreItems: false,
     ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
     ccArrivals: [],
@@ -726,7 +740,8 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
 
 /**
  * The search key of the rule state a CC2-engine level keeps beyond the grid and that changes what happens next: the blob
- * modifier, the sink edges deferred to the next tick, and the pending steer of each yellow tank. Empty when none is set.
+ * modifier, the sink edges deferred to the next tick, the pending steer of each yellow tank, the buttons a rolling ball
+ * toggled, and the tools and keys held by the actors. Empty when none is set.
  */
 export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const parts: string[] = [];
@@ -736,6 +751,11 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
+  if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
+  const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
+  if (tools.length > 0) parts.push(`t${tools.join(',')}`);
+  const keys = w.entities.filter((e) => e.heldKeys !== undefined && e.heldKeys.length > 0).map((e) => `${e.uid}:${(e.heldKeys as string[]).join('+')}`);
+  if (keys.length > 0) parts.push(`k${keys.join(',')}`);
   return parts.join(';');
 }
 

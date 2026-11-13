@@ -126,19 +126,19 @@ describe('rolling ball pace', () => {
   });
 });
 
-describe('validation of rollingBallTakesCc2', () => {
+describe('validation of takenByNormalPickupCc2', () => {
   const tile = (fields: Partial<TileDefinition>): Record<string, TileDefinition> => ({
     probe: { id: 'probe', category: 'items', layer: 'item', i18nKey: 'x', ...fields } as TileDefinition
   });
 
   it('accepts a boolean on a bonus item', () => {
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', rollingBallTakesCc2: true }))).toEqual([]);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', takenByNormalPickupCc2: true }))).toEqual([]);
   });
 
   it('refuses a non-boolean value and an item that is no bonus', () => {
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', rollingBallTakesCc2: 'yes' as unknown as boolean }))).toHaveLength(1);
-    expect(findCharacterItemConfigErrors(tile({ collectible: 'chip', rollingBallTakesCc2: true }))).toHaveLength(1);
-    expect(findCharacterItemConfigErrors(tile({ rollingBallTakesCc2: true }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'bonus', takenByNormalPickupCc2: 'yes' as unknown as boolean }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ collectible: 'chip', takenByNormalPickupCc2: true }))).toHaveLength(1);
+    expect(findCharacterItemConfigErrors(tile({ takenByNormalPickupCc2: true }))).toHaveLength(1);
   });
 
   it('leaves the shipped config valid', () => {

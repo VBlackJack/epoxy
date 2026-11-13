@@ -458,6 +458,8 @@ editor tile charge_lit closed=true 92a997e4c8f8ad3b
 editor tile charge_lit closed=false be49f9e7632cebdd
 editor tile pocket_gate closed=true 396376e499e3ba8e
 editor tile pocket_gate closed=false e953e6ffe5763dd7
+editor tile teleport_yellow_item closed=true e7eeb3092728f642
+editor tile teleport_yellow_item closed=false 03c40db0db4bc680
 editor tile hurl_stone closed=true 0c2d00828db8f92b
 editor tile hurl_stone closed=false a69597d3f2db082b
 editor tile toll_token closed=true d7efe7e7c40de26d
@@ -561,6 +563,7 @@ editor item over floor ward 8598b405e956ad86
 editor item over floor charge b0ca8b59e99e82c4
 editor item over floor charge_lit 124c142c4431d396
 editor item over floor pocket_gate 31e583037bbeea5f
+editor item over floor teleport_yellow_item b75afc3b66358360
 editor item over floor hurl_stone dfcce6aed194a83c
 editor item over floor toll_token 9f56cdcc0cd60c72
 editor item over floor bomb 36a568bd4495edef
@@ -646,6 +649,7 @@ editor entity over floor wisp 174e2bf186a7ddb9
 editor entity over floor floor_mimic 33507319506794ae
 editor entity over floor timid_teeth 3ac86cc7c7265c7e
 editor entity over floor ghost d01910478130cb2a
+editor entity over floor rolling_ball bca4aa8e3d0fa000
 editor entity over floor rover f39bf7577f8a6257
 editor entity over floor arrow_block_none 7dd7a4dfc42eb7c9
 editor entity over floor mirror_chip 4ca83abaeb3ffc3f

@@ -1077,7 +1077,7 @@ export function monsterPicksUp(itemId: string): boolean {
 
 /** Whether a CC2 rolling ball takes this item as it rolls over it: what a picking monster takes, and the score bonuses flagged for it. */
 export function rollingBallPicksUp(itemId: string): boolean {
-  return monsterPicksUp(itemId) || ConfigRegistry.getTile(itemId).rollingBallTakesCc2 === true;
+  return monsterPicksUp(itemId) || ConfigRegistry.getTile(itemId).takenByNormalPickupCc2 === true;
 }
 
 /**

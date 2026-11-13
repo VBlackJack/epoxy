@@ -20,7 +20,7 @@
  * RGBA buffer and dithers the floor shadow on it, so the rules can be tested in node.
  */
 
-import { CC2_ITEM_VARIANTS, cc2VariantOf } from './cc2Variants';
+import { CC2_ENTITY_ITEM_ART, CC2_ITEM_VARIANTS, cc2VariantOf } from './cc2Variants';
 import { SIGNAL_COUNTER_TILE_ID_PREFIX } from '../core/coreConstants';
 import { relativeTo } from '../core/lynx/directions';
 import { Direction, RelativeTurn, TileDefinition } from '../core/types';
@@ -447,7 +447,7 @@ export function retroArrowBlockLayers(pushArrows: readonly RelativeTurn[], facin
 
 /** Sprite name of a monster for a facing and walk frame. */
 export function retroMonsterSprite(type: string, dir: Direction, frame: number): string {
-  const fixed = RETRO_MONSTER_SPRITE_FIXED[type];
+  const fixed = RETRO_MONSTER_SPRITE_FIXED[type] ?? CC2_ENTITY_ITEM_ART[type];
   if (fixed !== undefined) return fixed;
   return `${RETRO_MONSTER_SPRITE_BASES[type] ?? type}_${dir}_${frame}`;
 }

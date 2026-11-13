@@ -35,6 +35,32 @@ import {
   refreshTrapLatch
 } from './epoxyWorld';
 
+/** The terrain ids a picked-up yellow pad is set down as (the pad terrain named by each cc2YellowPadItem tile). */
+function yellowPadTerrainIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const tile of Object.values(ConfigRegistry.getTiles().tiles)) {
+    if (tile.cc2YellowPadItem === true && tile.dropsAsTerrain !== undefined) ids.add(tile.dropsAsTerrain);
+  }
+  return ids;
+}
+
+/**
+ * Whether the yellow teleporters of a level are items a player picks up: only on a CC2-engine level that has more than one of
+ * them at load (a single pad stays a pad, as in the source engine). Counted on the terrain grid as the level loads, once.
+ */
+export function yellowPadsAreItems(level: Pick<CompiledLevel, 'cc2' | 'terrain'>): boolean {
+  if (!usesCc2Engine(level)) return false;
+  const padIds = yellowPadTerrainIds();
+  let pads = 0;
+  for (const row of level.terrain) {
+    for (const id of row) {
+      if (padIds.has(id)) pads += 1;
+      if (pads > 1) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Puts the play state of a level into the world of `ctx`: terrain, items and links copied, the random
  * generator seeded (from the level id unless a seed is given), entities in uid order, the player at
@@ -58,6 +84,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cc2DeferredSinkEdges = [];
   // A brown button held by the last level must not stay held in this one.
   w.cc2BrownHeld = undefined;
+  // Buttons toggled by a rolling ball of the last level must not stay held in this one.
+  w.cc2ToggledButtonCells = [];
+  w.cc2YellowPadsAreItems = yellowPadsAreItems(level);
   const ccCadence = usesCcRules(level);
   const cc3dLevel = !ccCadence && isConvertedCc3dLevel(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);

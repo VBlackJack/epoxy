@@ -498,6 +498,11 @@ tile theme=cyber_neon id=pocket_gate 452652f8fb8e5d46
 tile theme=arctic_lab id=pocket_gate a5f242a4573cc8ed
 tile theme=magma_core id=pocket_gate a99daa5bf8a0c2af
 tile theme=lynx_lcd id=pocket_gate abf3fcc9329001a5
+tile theme=default id=teleport_yellow_item 90f58cfeee20a1f4
+tile theme=cyber_neon id=teleport_yellow_item f6937504a64a98e6
+tile theme=arctic_lab id=teleport_yellow_item 3a5e877b3fb62c0a
+tile theme=magma_core id=teleport_yellow_item bbc01acad5f59e85
+tile theme=lynx_lcd id=teleport_yellow_item cf21732c12652888
 tile theme=default id=hurl_stone 327963e2abb84936
 tile theme=cyber_neon id=hurl_stone ee04f71f2236a7d4
 tile theme=arctic_lab id=hurl_stone 770c2a18993c6922

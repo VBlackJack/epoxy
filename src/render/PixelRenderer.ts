@@ -65,6 +65,7 @@ import {
 } from './cc3dPainters';
 import { MIRROR_MARK_COLOURS, MIRROR_PLAYER_ALPHA, paintMelindaBow, paintMonsterDot } from './cc2Marks';
 import {
+  CC2_ENTITY_ITEM_ART,
   CC2_ITEM_VARIANTS,
   CC2_TERRAIN_VARIANTS,
   cc2VariantOf,
@@ -5995,6 +5996,12 @@ export class PixelRenderer {
       if (drawsMark('3d', { isEditor: isEditor || !this.inFrame, importedLevel: this.frameImportedLevel })) {
         paintCc2Mark(ctx, '3d', x, y, size, paletteMarkColours(this.pal() as unknown as MarkPalette, '3d'));
       }
+      return;
+    }
+    // The rolling ball is the bowling ball item rolling: every style draws it with the art of that item.
+    const itemArt = CC2_ENTITY_ITEM_ART[type];
+    if (itemArt !== undefined) {
+      this.drawItem(ctx, itemArt, x, y, size);
       return;
     }
     const runewardEntities = this.runewardPainters();

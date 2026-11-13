@@ -92,7 +92,7 @@ import {
   findGameTunableErrors,
   InvalidLevelError
 } from './ConfigValidation';
-import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET } from '../core/coreConstants';
+import { DEFAULT_PLAYER_CHARACTER, DEFAULT_RULESET, registerCcCadenceLookup } from '../core/coreConstants';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { findGraphicsConfigErrors } from '../render/renderSettings';
 import {
@@ -1687,3 +1687,4 @@ function asArray<T>(value: T[] | undefined): T[] {
 export const ConfigRegistry = new ConfigRegistryService();
 
 registerTerrainTileLookup((id) => (ConfigRegistry.isTerrainTile(id) ? ConfigRegistry.getTile(id) : undefined));
+registerCcCadenceLookup((type) => ConfigRegistry.getEntityDef(type));

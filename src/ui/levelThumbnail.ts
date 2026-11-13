@@ -89,6 +89,7 @@ const TILE_PALETTE_KEYS: Readonly<Record<string, string>> = {
   dynamite_lit: 'bombSpark',
   pocket_gate: 'teleportRing',
   pocket_gate_pad: 'teleportRing',
+  teleport_yellow_item: 'teleportRing',
   relay_pad_dark: 'floorBorder',
   relay_pad_lit: 'teleportRing',
   hurl_stone: 'wallBase',
