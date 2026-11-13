@@ -22,7 +22,8 @@ import { cellEdgeMask, isEdgeBlockedAt } from '../EdgeRules';
 import { SeededRandom } from '../Random';
 import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
-import { usesCcRules } from './ccRules';
+import { usesCc2Engine, usesCcRules } from './ccRules';
+import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
 import type { SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
@@ -883,6 +884,8 @@ export function leaveCell(w: EpoxyWorld, x: number, y: number, options?: LeaveOp
     if (w.entities.some((e) => e !== options?.leaver && e.x === x && e.y === y)) return;
     // A player who stays on the cell holds it up too (when a monster or a block is the one that leaves).
     if (options?.leaver !== undefined && playerAtCell(w, x, y) !== undefined) return;
+    // CC2 engine: the turtle that sinks leaves a splash on the water, which bars the player as a sunk block's does (Lexy turtle.on_depart).
+    if (usesCc2Engine(w.level)) leaveSplash(w, x, y);
   }
   w.terrain[y][x] = tile.transformsToOnLeave;
 }
