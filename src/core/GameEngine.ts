@@ -82,6 +82,7 @@ import {
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
+import { launchRollingBall } from './epoxy/epoxyRollingBall';
 import { advanceShots, canThrowStone, shotsStateKey, throwStone } from './epoxy/epoxyShots';
 import { mergeBeamCells, turnTurrets, turretPhaseKey } from './epoxy/epoxyTurrets';
 import {
@@ -595,8 +596,9 @@ export class GameEngine {
       AudioManager.playSfx('blocked');
       return false;
     }
-    // A hurl stone is thrown ahead, not set down: the cell under the player does not matter.
-    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return this.throwHeldStone(itemId);
+    // A hurl stone is thrown ahead, not set down: the cell under the player does not matter. On a CC2-engine level the bowling
+    // ball is set down like any item and rolls off as an actor.
+    if (ConfigRegistry.getTile(itemId).collectible === 'stone') return usesCc2Engine(this.w.level) ? this.setDownRollingBall(itemId) : this.throwHeldStone(itemId);
     const x = this.w.player.x;
     const y = this.w.player.y;
     if (this.w.items[y][x] !== null) {
@@ -648,6 +650,38 @@ export class GameEngine {
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, drop: itemId });
     AudioManager.playSfx('item');
     this.emitVisual('item', x, y, def.colorKey || 'blue');
+    return true;
+  }
+
+  /**
+   * CC2 engine: sets the bowling ball down on the player's cell, where it becomes a rolling ball that leaves at once toward the
+   * way faced. Refused, with no tick and the ball kept, while the player is in the cooldown of a step and when the cell holds an
+   * item; never refused by what is ahead (a ball that cannot roll is spent). Returns false when nothing was set down.
+   */
+  private setDownRollingBall(itemId: string): boolean {
+    const { x, y, dir } = this.w.player;
+    if (this.w.player.moveCooldown > 0) {
+      this.w.statusBannerKey = 'hud.messages.throw_busy';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    if (this.w.items[y][x] !== null) {
+      this.w.statusBannerKey = 'hud.messages.drop_cell_occupied';
+      AudioManager.playSfx('blocked');
+      return false;
+    }
+    this.saveUndoSnapshot();
+    const left = (this.w.player.keys[itemId] || 0) - 1;
+    if (left > 0) {
+      this.w.player.keys[itemId] = left;
+    } else {
+      delete this.w.player.keys[itemId];
+    }
+    launchRollingBall(this.ctx, x, y, dir);
+    this.w.beamDirty = true;
+    this.w.statusBannerKey = null;
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, drop: itemId });
+    AudioManager.playSfx('item');
     return true;
   }
 

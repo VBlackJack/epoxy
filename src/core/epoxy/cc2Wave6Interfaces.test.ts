@@ -247,12 +247,17 @@ describe('yellow pad latch', () => {
   });
 });
 
-describe('stubs', () => {
-  it('launches no rolling ball yet', () => {
+describe('rolling ball launch', () => {
+  it('launches a rolling ball on a CC2 level, and none on any other', () => {
     const engine = load();
     const w = world(engine);
     const ctx = { world: w } as unknown as Parameters<typeof launchRollingBall>[0];
-    expect(launchRollingBall(ctx, w.player.x, w.player.y, w.player.dir)).toBe(false);
-    expect(w.entities.some((e) => e.type === ROLLING_BALL_ID)).toBe(false);
+    expect(launchRollingBall(ctx, w.player.x, w.player.y, w.player.dir)).toBe(true);
+    expect(w.entities.some((e) => e.type === ROLLING_BALL_ID)).toBe(true);
+    const native = load({ mode: 'native' });
+    const nativeWorld = world(native);
+    const nativeCtx = { world: nativeWorld } as unknown as Parameters<typeof launchRollingBall>[0];
+    expect(launchRollingBall(nativeCtx, nativeWorld.player.x, nativeWorld.player.y, nativeWorld.player.dir)).toBe(false);
+    expect(nativeWorld.entities.some((e) => e.type === ROLLING_BALL_ID)).toBe(false);
   });
 });

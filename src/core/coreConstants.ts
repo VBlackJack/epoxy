@@ -323,6 +323,12 @@ export const DEFAULT_MONSTER_MOVE_INTERVAL_TICKS = 5;
  */
 export const CC_MONSTER_STEP_TICKS = 4;
 
+/** Movement pattern of the CC2 rolling ball: it rolls straight on and follows the floor, and a blocked ball is spent (it blows up). */
+export const ROLLING_BALL_PATTERN = 'rolling_ball';
+
+/** Entity id of the CC2 rolling ball the bowling ball becomes when a player sets it down. */
+export const ROLLING_BALL_ENTITY_ID = 'rolling_ball';
+
 /** Ticks a CC2 rolling ball takes to cross one cell: the walking pace of the classic monsters (Lexy rolling_ball movement_speed 4, tiletypes.js:3231). */
 export const CC2_ROLLING_BALL_STEP_TICKS = CC_MONSTER_STEP_TICKS;
 
