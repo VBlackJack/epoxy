@@ -27,7 +27,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
-import { CC2_ROLLING_BALL_STEP_TICKS, ROLLING_BALL_ENTITY_ID, STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
+import { ROLLING_BALL_ENTITY_ID, ccStepTicks, STONE_DEATH_REASON_KEY, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Direction } from '../types';
 import { launchRollingBall } from './epoxyRollingBall';
@@ -45,6 +45,9 @@ const ORANGE_BUTTON = 'button_orange_cc2';
 beforeEach(() => {
   loadTestConfigs();
 });
+
+/** Ticks a rolling ball takes to cross one cell: the step ticks of its cadence (read from the monster definition). */
+const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ENTITY_ID);
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const context = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
@@ -93,11 +96,11 @@ describe('CC2 rolling ball as an actor', () => {
     expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
     const ballX = (): number => ballOf(engine)?.x as number;
     expect(ballX()).toBe(START_X + 1);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS);
+    tick(engine, stepTicks());
     expect(ballX()).toBe(START_X + 1);
     tick(engine, 1);
     expect(ballX()).toBe(START_X + 2);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS - 1);
+    tick(engine, stepTicks() - 1);
     expect(ballX()).toBe(START_X + 2);
     tick(engine, 1);
     expect(ballX()).toBe(START_X + 3);
@@ -205,10 +208,10 @@ describe('CC2 rolling ball: what it takes', () => {
   it('takes a blue key, opens a door of that colour and rolls on', () => {
     const engine = bowler({ items: { '4,5': 'key_blue' }, terrain: { '6,5': 'door_blue' } });
     expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS * 3);
+    tick(engine, stepTicks() * 3);
     expect(engine.getItems()[ROOM_ROW][4]).toBeNull();
     expect(ballOf(engine)?.heldKeys).toEqual(['key_blue']);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS * 2);
+    tick(engine, stepTicks() * 2);
     expect(engine.getTerrain()[ROOM_ROW][6]).toBe('floor');
     expect(ballOf(engine)?.x).toBeGreaterThanOrEqual(6);
     expect(ballOf(engine)?.heldKeys).toBeUndefined();
@@ -224,7 +227,7 @@ describe('CC2 rolling ball: what it takes', () => {
   it('leaves the red key and a chip, takes a score bonus', () => {
     const engine = bowler({ items: { '4,5': 'key_red', '5,5': 'chip', '6,5': 'score_100' } });
     expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS * 4);
+    tick(engine, stepTicks() * 4);
     expect(engine.getItems()[ROOM_ROW][4]).toBe('key_red');
     expect(engine.getItems()[ROOM_ROW][5]).toBe('chip');
     expect(engine.getItems()[ROOM_ROW][6]).toBeNull();
@@ -242,7 +245,7 @@ describe('CC2 rolling ball: a button it blows up on', () => {
   it('is left alone on a button the ball merely rolls over', () => {
     const engine = bowler({ terrain: { '3,5': ORANGE_BUTTON } });
     expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
-    tick(engine, CC2_ROLLING_BALL_STEP_TICKS * 3);
+    tick(engine, stepTicks() * 3);
     expect(engine.getCc2WaveState()?.toggledButtons).toBeUndefined();
   });
 });

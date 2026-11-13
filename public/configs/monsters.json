@@ -667,8 +667,7 @@
       "epoxyOnly": true,
       "runtimeOnly": true,
       "killsShieldedPlayer": true,
-      "cc2Cadence": true,
-      "ccStepTicks": 4
+      "cc2Cadence": true
     },
     "rover": {
       "id": "rover",

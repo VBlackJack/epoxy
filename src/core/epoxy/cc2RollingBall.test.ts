@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
-import { CC2_ROLLING_BALL_STEP_TICKS, ROLLING_BALL_ENTITY_ID, STONE_ITEM_ID } from '../coreConstants';
+import { ROLLING_BALL_ENTITY_ID, ccStepTicks, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel } from '../types';
 
@@ -40,6 +40,9 @@ const FAR_CORNER = SIZE - 2;
 beforeEach(() => {
   loadTestConfigs();
 });
+
+/** Ticks a rolling ball takes to cross one cell: the step ticks of its cadence (read from the monster definition). */
+const stepTicks = (): number => ccStepTicks(ROLLING_BALL_ENTITY_ID);
 
 function room(cc2: boolean, items: Array<[number, number, string]> = []): CompiledLevel {
   const terrain = Array.from({ length: SIZE }, (_, y) =>
@@ -89,7 +92,7 @@ describe('CC2 rolling ball: items', () => {
     it(`rolls over ${id} and takes it`, () => {
       const engine = thrower(true, [[ITEM_X, LANE_Y, id]]);
       expect(engine.dropItem(STONE)).toBe(true);
-      tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+      tickN(engine, stepTicks() * FLIGHT_STEPS);
       expect(itemAt(engine, ITEM_X, LANE_Y)).toBeNull();
       expect(ballOf(engine)).toBeDefined();
     });
@@ -99,7 +102,7 @@ describe('CC2 rolling ball: items', () => {
     it(`rolls over ${id} and leaves it`, () => {
       const engine = thrower(true, [[ITEM_X, LANE_Y, id]]);
       expect(engine.dropItem(STONE)).toBe(true);
-      tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+      tickN(engine, stepTicks() * FLIGHT_STEPS);
       expect(itemAt(engine, ITEM_X, LANE_Y)).toBe(id);
       expect(ballOf(engine)).toBeDefined();
     });
@@ -113,7 +116,7 @@ describe('CC2 rolling ball: items', () => {
   it('still sets off a bomb', () => {
     const engine = thrower(true, [[ITEM_X, LANE_Y, 'bomb']]);
     expect(engine.dropItem(STONE)).toBe(true);
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS * FLIGHT_STEPS);
+    tickN(engine, stepTicks() * FLIGHT_STEPS);
     expect(itemAt(engine, ITEM_X, LANE_Y)).toBeNull();
     expect(ballOf(engine)).toBeUndefined();
   });
@@ -135,11 +138,11 @@ describe('CC2 rolling ball: pace', () => {
     expect(engine.dropItem(STONE)).toBe(true);
     const shotX = (): number => ballOf(engine)?.x as number;
     const startX = shotX();
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS);
+    tickN(engine, stepTicks());
     expect(shotX()).toBe(startX);
     tickN(engine, 1);
     expect(shotX()).toBe(startX + 1);
-    tickN(engine, CC2_ROLLING_BALL_STEP_TICKS - 1);
+    tickN(engine, stepTicks() - 1);
     expect(shotX()).toBe(startX + 1);
     tickN(engine, 1);
     expect(shotX()).toBe(startX + 2);

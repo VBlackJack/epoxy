@@ -329,9 +329,6 @@ export const ROLLING_BALL_PATTERN = 'rolling_ball';
 /** Entity id of the CC2 rolling ball the bowling ball becomes when a player sets it down. */
 export const ROLLING_BALL_ENTITY_ID = 'rolling_ball';
 
-/** Ticks a CC2 rolling ball takes to cross one cell: the walking pace of the classic monsters (Lexy rolling_ball movement_speed 4, tiletypes.js:3231). */
-export const CC2_ROLLING_BALL_STEP_TICKS = CC_MONSTER_STEP_TICKS;
-
 /** Most tools a CC2 entity (ghost, rover) holds at once; taking another drops the oldest on the cell (Lexy game.js:3245-3256). */
 export const CC2_ENTITY_TOOL_CAPACITY = 4;
 
@@ -427,9 +424,15 @@ export function registerCcCadenceLookup(lookup: CcCadenceLookup | null): void {
   ccCadenceLookup = lookup;
 }
 
+/** The cadence lookup the config registry registered; throws when none is (the cadence cannot be told without the monster definitions). */
+function cadenceFieldsOf(type: string): CcCadenceFields | undefined {
+  if (ccCadenceLookup === null) throw new Error(`The cadence of "${type}" was asked before the monster definitions were registered (see registerCcCadenceLookup)`);
+  return ccCadenceLookup(type);
+}
+
 /** True when `type` follows the classic cadence; `cc2Engine` adds the types that follow it on a CC2-engine level only (timid teeth, ghost). */
 export function followsCcCadence(type: string, cc2Engine: boolean): boolean {
-  const fields = ccCadenceLookup?.(type);
+  const fields = cadenceFieldsOf(type);
   return fields?.ccCadence === true || (cc2Engine && fields?.cc2Cadence === true);
 }
 
@@ -457,7 +460,7 @@ export const CC3D_RESTING_TYPES: readonly string[] = ['snappy', 'nibble'];
 
 /** Ticks one step of a classic monster lasts; the blob steps at half the speed of the others. */
 export function ccStepTicks(type: string): number {
-  return ccCadenceLookup?.(type)?.ccStepTicks ?? CC_MONSTER_STEP_TICKS;
+  return cadenceFieldsOf(type)?.ccStepTicks ?? CC_MONSTER_STEP_TICKS;
 }
 
 /** Teeth decide only during the first CC_TEETH_ACTIVE_TICKS ticks of each CC_TEETH_CYCLE_TICKS cycle (they move at half rate). */

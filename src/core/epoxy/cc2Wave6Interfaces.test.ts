@@ -79,7 +79,8 @@ describe('runtime-only config', () => {
     expect(bad({ killsShieldedPlayer: 'yes' as unknown as true })).toHaveLength(1);
     expect(bad({ ccStepTicks: 0 })).toHaveLength(1);
     expect(bad({ ccStepTicks: 2.5 })).toHaveLength(1);
-    expect(bad({ ccCadence: undefined, cc2Cadence: undefined })).toHaveLength(1);
+    // The shipped ball keeps the default step ticks: the step ticks field is set here to see it refused off the classic cadence.
+    expect(bad({ ccCadence: undefined, cc2Cadence: undefined, ccStepTicks: 4 })).toHaveLength(1);
     expect(bad({ epoxyOnly: undefined })).toHaveLength(1);
     expect(bad({ kind: 'block' })).not.toEqual([]);
 

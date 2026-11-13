@@ -26,7 +26,7 @@ import { findCharacterItemConfigErrors } from '../../config/ConfigValidation';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
-import { CC2_ENTITY_TOOL_CAPACITY, CC2_ROLLING_BALL_STEP_TICKS, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES } from '../coreConstants';
+import { CC2_ENTITY_TOOL_CAPACITY, CC_MONSTER_STEP_TICKS, MONSTER_IGNORED_KEY_COLOR, MONSTER_PICKUP_COLLECTIBLES, ROLLING_BALL_ENTITY_ID, ccStepTicks, followsCcCadence, registerCcCadenceLookup } from '../coreConstants';
 import { monsterPicksUp, rollingBallPicksUp } from './epoxyMonsters';
 import type { CompiledLevel, TileDefinition } from '../types';
 
@@ -121,8 +121,23 @@ describe('pickup predicates', () => {
 });
 
 describe('rolling ball pace', () => {
-  it('walks at the classic monster pace', () => {
-    expect(CC2_ROLLING_BALL_STEP_TICKS).toBe(CC_MONSTER_STEP_TICKS);
+  it('walks at the classic monster pace, by the default step ticks of the cadence', () => {
+    expect(ConfigRegistry.getEntityDef(ROLLING_BALL_ENTITY_ID)?.ccStepTicks).toBeUndefined();
+    expect(ccStepTicks(ROLLING_BALL_ENTITY_ID)).toBe(CC_MONSTER_STEP_TICKS);
+    expect(followsCcCadence(ROLLING_BALL_ENTITY_ID, true)).toBe(true);
+  });
+});
+
+describe('cadence lookup', () => {
+  it('throws a clear error when the monster definitions were not registered', () => {
+    registerCcCadenceLookup(null);
+    try {
+      expect(() => followsCcCadence('glider', false)).toThrow(/registerCcCadenceLookup/);
+      expect(() => ccStepTicks('glider')).toThrow(/registerCcCadenceLookup/);
+    } finally {
+      registerCcCadenceLookup((type) => ConfigRegistry.getEntityDef(type));
+    }
+    expect(followsCcCadence('glider', false)).toBe(true);
   });
 });
 
