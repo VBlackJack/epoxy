@@ -24,6 +24,7 @@ import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCcRules } from './ccRules';
 import type { CcGenerators } from './ccGenerators';
+import type { SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
@@ -114,6 +115,11 @@ export interface EpoxyWorld {
    */
   blockSplashes: Map<number, number>;
   /**
+   * CC2 engine: the cells of `blockSplashes` whose entry is the blast of a block a bomb destroyed, not the splash of a block
+   * sunk in water (the two bar the player alike; only the picture differs). Always a subset of the splash cells; empty at load, saved with the undo snapshot.
+   */
+  blockExplosions: Set<number>;
+  /**
    * CC2 engine: blocks finishing a step whose turn in the running entity pass is spent (by the countdown, or by a block behind
    * them that slid into their cell), by uid, with the pass. Transient, never saved.
    */
@@ -181,6 +187,11 @@ export interface EpoxyWorld {
   cc2PlayerView: Cc2PlayerView | undefined;
   /** The walker and blob generators of a classic-rules level (a .DAT or a CC2 import); null on every native level. */
   ccGenerators: CcGenerators | null;
+  /**
+   * CC2 engine: cloner and launcher edges fired by a wire that act one tick later, oldest first (the wire phase runs after
+   * the action phase). Empty on every other level; reset when a level loads, saved with the undo snapshot, dropped when the level completes.
+   */
+  cc2DeferredSinkEdges: SignalEdge[];
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
   ccSlots: (number | null)[];
   /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */
@@ -275,6 +286,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     coveredToggleBits: 0,
     revealedCells: new Set<number>(),
     blockSplashes: new Map<number, number>(),
+    blockExplosions: new Set<number>(),
     turnSpent: new Map<number, number>(),
     swivelEntry: new Map<number, Direction>(),
     railCells: new Map<number, RailCellState>(),
@@ -302,6 +314,7 @@ export function createEpoxyWorld(): EpoxyWorld {
     ccMonsterClock: 0,
     cc2PlayerView: undefined,
     ccGenerators: null,
+    cc2DeferredSinkEdges: [],
     ccSlots: [],
     ccPlans: new Map<number, Direction | null>(),
     ccArrivals: [],
@@ -371,6 +384,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.coveredToggleBits = 0;
   w.revealedCells = new Set<number>();
   w.blockSplashes = new Map<number, number>();
+  w.blockExplosions = new Set<number>();
   w.turnSpent = new Map<number, number>();
   w.toggleParity = 0;
   w.forceCycleTurn = 0;
@@ -692,6 +706,20 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
   const v = w.cc2PlayerView;
   if (v === undefined) return '';
   return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}${v.sourcePad === undefined ? '' : `p${v.sourcePad.x}.${v.sourcePad.y}`}`;
+}
+
+/**
+ * The search key of the rule state a CC2-engine level keeps beyond the grid and that changes what happens next: the blob
+ * modifier, the sink edges deferred to the next tick, and the pending steer of each yellow tank. Empty when none is set.
+ */
+export function cc2HiddenStateKey(w: EpoxyWorld): string {
+  const parts: string[] = [];
+  const modifier = w.ccGenerators?.blobModifier;
+  if (modifier !== undefined) parts.push(`m${modifier}`);
+  if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
+  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
+  if (steers.length > 0) parts.push(`s${steers.join(',')}`);
+  return parts.join(';');
 }
 
 /** The search key of what waits on the players of a converted CC3D level: empty when nothing does. */

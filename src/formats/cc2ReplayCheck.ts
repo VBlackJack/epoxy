@@ -53,11 +53,12 @@ import {
  * best 4. A buffered tap (a press made during the move cooldown kept until it can move) and a start offset of 1 to 4
  * ticks did not win more.
  *
- * Drop is played on the Epoxy engine with the `held` strategy, on each press of the key: it puts down the oldest pair of boots held (CC2 drops
+ * Drop puts down the oldest pair of boots held (CC2 drops
  * the first tool of the toolbelt; Epoxy keeps its boots in the order they were picked up, and a toolbelt of CC2 holds
  * nothing else, so the keys are never dropped). The Lynx based engines have no drop.
  *
- * Not played: switch player and cycle inventory (reported in `ignoredKeyBits`, drop included: the `steps` strategy and the Lynx based engines do not play it), a second player.
+ * Cycle inventory, drop and switch player act once per press at the player's decision (move cooldown 0), with a latch released on key-up; a switch eats that tick's input.
+ * Not played: those three keys on the `steps` strategy and the Lynx based engines (still reported in `ignoredKeyBits`), a second player.
  */
 
 /** The engine that plays the replay. */
@@ -114,7 +115,7 @@ export interface Cc2ReplayBestResult {
   /** First strategy that won, in `CC2_REPLAY_STRATEGIES` order. */
   winner?: Cc2ReplayStrategy;
   results: Cc2ReplayResult[];
-  /** Key bits the replay uses and the check cannot play (drop, switch player, cycle inventory, player 2). */
+  /** Key bits the replay uses and the check cannot play (player 2; also drop, switch player and cycle inventory unless the held strategy on the Epoxy engine played them). */
   ignoredKeyBits: number;
   /** Sorted ids the Lynx based engines play as walls or leave out (empty for the Epoxy engine, which has none). */
   unsupported: string[];
@@ -132,11 +133,14 @@ const STABLE_TICKS = 3;
 const DEFAULT_CADENCE_TICKS = 4;
 
 const DIRECTIONS: readonly Cc2Direction[] = ['N', 'E', 'S', 'W'];
+/** The key bits no strategy plays: a second player. */
+const PLAYER_TWO_KEY_MASK = CC2_REPLAY_ACTION_BITS.player2;
+/** The key bits a strategy that ignores the action keys leaves unplayed. */
 const IGNORED_KEY_MASK =
   CC2_REPLAY_ACTION_BITS.drop |
   CC2_REPLAY_ACTION_BITS.switchPlayer |
   CC2_REPLAY_ACTION_BITS.cycleInventory |
-  CC2_REPLAY_ACTION_BITS.player2;
+  PLAYER_TWO_KEY_MASK;
 
 /** Key bits per engine tick, from the state changes of the replay: the state in force by the end of the tick's frames. */
 function keysPerTick(replay: Cc2Replay, tickCount: number): number[] {
@@ -247,6 +251,34 @@ function dropOldestBoots(engine: PlayEngine): void {
   if (!oldest.done) engine.dropItem(oldest.value);
 }
 
+/** The action keys that act once per press (cycle, drop, switch player). */
+const ACTION_KEY_MASK =
+  CC2_REPLAY_ACTION_BITS.drop | CC2_REPLAY_ACTION_BITS.switchPlayer | CC2_REPLAY_ACTION_BITS.cycleInventory;
+
+/**
+ * Plays the action keys freshly pressed this tick, at the player's decision only (move cooldown 0), as the reference
+ * player does: cycle inventory, drop (not while sliding) and switch player. A key that acts is reported through
+ * `consume` so that it does not act again until it is released; a key pressed while the player is not deciding keeps
+ * waiting. Returns whether the player was switched, in which case the swap eats the input of the tick.
+ */
+function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void): boolean {
+  const player = engine.getPlayer();
+  if (fresh === 0 || player.moveCooldown !== 0) return false;
+  if (fresh & CC2_REPLAY_ACTION_BITS.cycleInventory) {
+    consume(CC2_REPLAY_ACTION_BITS.cycleInventory);
+    engine.cycleInventory?.();
+  }
+  if (fresh & CC2_REPLAY_ACTION_BITS.drop && !player.isSliding) {
+    consume(CC2_REPLAY_ACTION_BITS.drop);
+    dropOldestBoots(engine);
+  }
+  if (fresh & CC2_REPLAY_ACTION_BITS.switchPlayer) {
+    consume(CC2_REPLAY_ACTION_BITS.switchPlayer);
+    return engine.swapPlayer?.() === true;
+  }
+  return false;
+}
+
 /** Pairs of opposing directions: when one pair is held at once, CC2 ignores all direction input. */
 const OPPOSING_PAIRS: readonly (readonly [Cc2Direction, Cc2Direction])[] = [
   ['N', 'S'],
@@ -276,14 +308,19 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
   const down = new Map<Cc2Direction, number>();
   const tracker = new BlockTracker();
   let moves = 0;
-  let dropWasDown = false;
+  // Action keys act once per press: a bit is released while the key is up and consumed by the press that acts.
+  let released: number = ACTION_KEY_MASK;
   for (let tick = 0; tick < total; tick++) {
     // Past the replay end the Epoxy engine keeps holding the last input, as the reference player does; the Lynx based engines release.
     const tickKeys = tick < keys.length ? keys[tick] : !lynx && keys.length > 0 ? keys[keys.length - 1] : 0;
     const held = heldDirections(tickKeys);
-    const dropIsDown = (tickKeys & CC2_REPLAY_ACTION_BITS.drop) !== 0;
-    if (!lynx && dropIsDown && !dropWasDown) dropOldestBoots(engine);
-    dropWasDown = dropIsDown;
+    let swappedNow = false;
+    if (!lynx) {
+      released |= ~tickKeys & ACTION_KEY_MASK;
+      swappedNow = playActionKeys(engine, tickKeys & released, (consumed) => {
+        released &= ~consumed;
+      });
+    }
     for (const dir of DIRECTIONS) if (!held.includes(dir)) down.delete(dir);
     for (const dir of held) if (!down.has(dir)) down.set(dir, tick);
     // Most recent press first; the older key is the fallback when the newer one is blocked.
@@ -299,7 +336,7 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
       lastY = engine.getPlayer().y;
       lastFree = held.length > 0 && engine.getPlayer().moveCooldown === 0 && !engine.getPlayer().isSliding;
     } else {
-      for (const dir of order) {
+      for (const dir of swappedNow ? [] : order) {
         if (engine.attemptPlayerMove(dir as Direction)) {
           moves++;
           break;
@@ -393,11 +430,13 @@ export function checkCc2Replay(
 export function checkCc2ReplayBest(level: CompiledLevel, replay: Cc2Replay, engine: Cc2ReplayEngine = 'epoxy'): Cc2ReplayBestResult {
   const results = CC2_REPLAY_STRATEGIES.map((strategy) => checkCc2Replay(level, replay, strategy, engine));
   const winner = results.find((r) => r.won);
+  // The held strategy on the Epoxy engine plays drop, switch and cycle; only a run that `steps` won, or that the Lynx based engines played, leaves them unplayed.
+  const heldPlaysActions = engine === 'epoxy' && (winner === undefined || winner.strategy === 'held');
   return {
     won: winner !== undefined,
     ...(winner ? { winner: winner.strategy } : {}),
     results,
-    ignoredKeyBits: replay.otherKeyBits & IGNORED_KEY_MASK,
+    ignoredKeyBits: replay.otherKeyBits & (heldPlaysActions ? PLAYER_TWO_KEY_MASK : IGNORED_KEY_MASK),
     unsupported: results[0]?.unsupported ?? []
   };
 }

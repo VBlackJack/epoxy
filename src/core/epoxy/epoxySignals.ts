@@ -17,7 +17,15 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import type { TerrainTileLookup } from '../../config/ConfigValidation';
 import type { ChannelColor, SignalLink, SignalNodeDef, SignalPulseState, SignalSpec } from '../types';
-import { DYNAMITE_FIRE_TILE_ID, FLOOR_TILE_ID, LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
+import {
+  BUTTON_ORANGE_CC2_TILE_ID,
+  DYNAMITE_FIRE_TILE_ID,
+  FLAME_JET_CC2_OFF_TILE_ID,
+  FLAME_JET_CC2_ON_TILE_ID,
+  FLOOR_TILE_ID,
+  LIGHTNING_BOLT_ITEM_ID,
+  SIGNAL_PLATE_TILE_ID
+} from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
@@ -104,17 +112,33 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
   };
 }
 
+/** Tile id of the pink button: the only held source CC2 reads from an actor at rest (Lexy button_pink is_emitting). */
+const PINK_BUTTON_TILE_ID = SIGNAL_PLATE_TILE_ID;
+
+/**
+ * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
+ * cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
+ */
+function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
+  return e.arrivalTicks === undefined && !e.isSliding && (e.kind === 'block' || e.cooldownTicks === 0);
+}
+
 /**
  * Whether a held source's cell is occupied the way a pressure plate asks: the player standing there, or a
  * monster or block that is not sliding and presses plates. A coloured block counts, as on a plate of its colour.
+ * On a CC2 level the pink button reads only an actor at rest: the player once he has settled (the settle right after his own
+ * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
-function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
-  if (playerAtCell(w, x, y) !== undefined) return true;
+function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
+  const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
+  const player = playerAtCell(w, x, y);
+  if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
   const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y) return false;
     // CC3D: a mob still taking its step presses nothing (Cc3dDevices isPressed asks for remaining 0).
     if (e.arrivalTicks !== undefined) return false;
+    if (atRestOnly && !actorAtRest(e)) return false;
     if (anyActor) return true;
     if (e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
@@ -160,7 +184,7 @@ function sourceBlastedAway(w: EpoxyWorld, x: number, y: number): boolean {
 }
 
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
-function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): Map<number, boolean> {
+function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, phase: SignalPhase): Map<number, boolean> {
   const width = mapWidth(w);
   const lit = new Set(w.litReceiverCells.map((cell) => cell.y * width + cell.x));
   const levels = new Map<number, boolean>();
@@ -174,26 +198,53 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
     else if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
     else if (def.sample === 'receiver') levels.set(cell, lit.has(cell));
     // A black button is powered unless something presses it.
-    else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y));
+    else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y, phase));
     // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
     else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
     // A wire floor is powered while the player stands on it holding the lightning bolt: the whole wire net it feeds is on.
     else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y));
-    else levels.set(cell, cellOccupied(w, x, y));
+    else levels.set(cell, cellOccupied(w, x, y, phase));
   }
   return levels;
 }
 
+/** Tile ids of the buttons whose link to a sink is no Lexy circuit: CC2 hands an orange button its flame jet by position, not by wire. */
+const BUTTON_LINK_SOURCE_TILE_IDS: ReadonlySet<string> = new Set([BUTTON_ORANGE_CC2_TILE_ID]);
+/** Tile ids of the CC2 wired flame jet: a wire lights it on a rising edge only, an orange button toggles it both ways. */
+const CC2_WIRED_FLAME_JET_TILE_IDS: ReadonlySet<string> = new Set([FLAME_JET_CC2_OFF_TILE_ID, FLAME_JET_CC2_ON_TILE_ID]);
+
 /**
- * Records the clone machine and launcher sinks as off. Only a settle's own edge check and the display of a powered cell
- * read a sink's stored output (no link leaves a sink, see normalizeSignalLinks), so this changes nothing but the first edge.
+ * Whether a sink is fed by a button link: a link into its cell whose source is a button CC2 links by position instead of
+ * by wire (the orange button and its flame jet). Lexy builds no circuit for such a link, so the sink has no wire edge to
+ * start from. The one decision shared by the load prime and the flame jet edge rule.
  */
-function startFiringSinksOff(runtime: SignalRuntime): void {
+function isButtonLinkedSink(w: EpoxyWorld, runtime: SignalRuntime, sinkCell: number): boolean {
+  const width = mapWidth(w);
+  return runtime.network.links.some((link) => {
+    if (link.to !== sinkCell) return false;
+    const row = w.terrain[Math.floor(link.from / width)];
+    return row !== undefined && BUTTON_LINK_SOURCE_TILE_IDS.has(row[link.from % width]);
+  });
+}
+
+/**
+ * Records every wired sink as off, except one fed by a button link. Lexy starts every circuit off (recalculate_circuitry),
+ * so a sink whose wire is on at load rises on the first settle: a cloner or launcher fires on tick 0, a door or a flame jet
+ * follows. Only a settle's own edge check and the display of a powered cell read a sink's stored output (no link leaves a
+ * sink, see normalizeSignalLinks), so this changes nothing but the first edge. Gates keep the primed state.
+ */
+function startWiredSinksOff(w: EpoxyWorld, runtime: SignalRuntime): void {
   for (const index of runtime.network.sinkIndexes) {
-    const fires = runtime.defs.get(index)?.fires;
-    if (fires === 'cloner' || fires === 'launcher') runtime.state.lastOutputs[index] = false;
+    if (!isButtonLinkedSink(w, runtime, runtime.network.nodes[index].cell)) runtime.state.lastOutputs[index] = false;
   }
 }
+
+/** The phase a signal settle or sink fire runs in: right after the player's move, or at the end of a tick. */
+export type SignalPhase = 'move' | 'tick';
+/** Phase of the settle that follows the player's move. */
+export const SIGNAL_PHASE_MOVE: SignalPhase = 'move';
+/** Phase of the settle at the end of a tick (the default). */
+export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
 
 /**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
@@ -202,15 +253,15 @@ function startFiringSinksOff(runtime: SignalRuntime): void {
  * the signals of the same pass. Returns the edges of the sinks. Clears the pending arrivals of the pulse buttons
  * right after sampling, before the caller fires the sinks.
  */
-export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false): SignalEdge[] {
+export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, phase: SignalPhase = SIGNAL_PHASE_TICK): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
-  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime), prime);
+  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime, phase), prime);
   runtime.state = result.state;
-  // CC2 engine: every circuit starts off (Lexy recalculate_circuitry), so a cloner or launcher whose source is held at load
-  // rises on the first settle and fires on tick 0. Gates and the other sinks keep the primed state, so they never flip at load.
-  if (prime && usesCc2Engine(w.level)) startFiringSinksOff(runtime);
+  // CC2 engine: every wired sink starts off (Lexy recalculate_circuitry), so one whose source is held at load rises on the first
+  // settle. A sink fed by a button link keeps the primed state, and gates keep it too.
+  if (prime && usesCc2Engine(w.level)) startWiredSinksOff(w, runtime);
   // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
   runtime.pending.clear();
   // A gray area button holds its level sinks on for this settle only: the set read now is the next settle's to replace.
@@ -281,13 +332,37 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * launcher shoots and a clone machine spawns once, with the rules of a trigger (the per-tick launcher cap, the tile
  * check, the entity cap); a flip tile swaps to its other form. Call it after the settle and the hold doors. Stops as
  * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
- * wired flame jet), which flips on a falling edge too.
+ * wired flame jet), which flips on a falling edge too; on a CC2 level a wired flame jet flips on the rising edge only, unless an
+ * orange button works it.
+ *
+ * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
+ * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
+ * `cc2DeferredSinkEdges`: one from the move phase fires at the end of the same tick (the next tick phase), one from the tick
+ * phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  */
-export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
   const width = mapWidth(w);
+  let edges = edgesNow;
+  if (usesCc2Engine(w.level)) {
+    const waiting = w.cc2DeferredSinkEdges;
+    const isActionEdge = (edge: SignalEdge): boolean => {
+      const index = runtime.network.indexOfCell.get(edge.cell);
+      const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
+      return edge.rising && (fires === 'cloner' || fires === 'launcher');
+    };
+    const deferred = edgesNow.filter(isActionEdge);
+    const immediate = edgesNow.filter((edge) => !isActionEdge(edge));
+    if (phase === SIGNAL_PHASE_TICK) {
+      w.cc2DeferredSinkEdges = deferred;
+      edges = [...waiting, ...immediate];
+    } else {
+      w.cc2DeferredSinkEdges = [...waiting, ...deferred];
+      edges = immediate;
+    }
+  }
   for (const edge of edges) {
     if (!w.player.alive || w.levelCompleted) return;
     const index = runtime.network.indexOfCell.get(edge.cell);
@@ -298,7 +373,10 @@ export function fireSignalSinks(ctx: EpoxyContext, edges: readonly SignalEdge[])
     if (!edge.rising) closeOpenTrapAt(w, x, y);
     if (fires === undefined) continue;
     // A wired flip tile follows every change of its input; every other sink fires on the rising edge only.
-    // UNVERIFIED (low confidence): that a wired flame jet also flips on the falling edge is not confirmed against CC2.
+    // CC2 engine: a wired flame jet flips on the rising edge only (Lexy flame_jet on_power); one an orange button works toggles both ways.
+    if (!edge.rising && fires === 'flip_edges' && usesCc2Engine(w.level) && CC2_WIRED_FLAME_JET_TILE_IDS.has(w.terrain[y][x]) && !isButtonLinkedSink(w, runtime, edge.cell)) {
+      continue;
+    }
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
     else if (!edge.rising) continue;
     else if (fires === 'flip') flipCellAt(w, x, y);

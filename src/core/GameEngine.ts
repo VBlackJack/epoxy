@@ -29,6 +29,7 @@ import {
   PLAYER_CHARACTER_KEY_PREFIX,
   CC3D_ARRIVAL_KEY_PREFIX,
   CC2_PLAYER_VIEW_KEY_PREFIX,
+  CC2_HIDDEN_STATE_KEY_PREFIX,
   PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
@@ -52,6 +53,8 @@ import {
   poweredSignalCellsOf,
   restoreSignalPulses,
   settleWorldSignals,
+  SIGNAL_PHASE_MOVE,
+  SIGNAL_PHASE_TICK,
   signalLinksOf
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
@@ -89,6 +92,7 @@ import {
   canPlayerEnter,
   cc3dArrivalKey,
   cc2PlayerViewKey,
+  cc2HiddenStateKey,
   copyCc2PlayerView,
   copyCc3dArrival,
   createEpoxyWorld,
@@ -108,6 +112,7 @@ import {
   CompiledLevel,
   Direction,
   GridPoint,
+  BlockSplash,
   LitCharge,
   PlayerCharacter,
   PlayerState,
@@ -125,6 +130,9 @@ import {
 
 /** Collectibles held as a count beside the keys: a key colour, a blast charge, a pocket gate and a hurl stone. */
 const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gate', 'stone', 'token']);
+
+/** Pairs of boots needed for the cycle key to change anything. */
+const MIN_BOOTS_TO_CYCLE = 2;
 
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
@@ -405,13 +413,20 @@ export class GameEngine {
    * The blast charges lit and not yet blasted, with the absolute tick each blasts at; undefined when none is lit,
    * so nothing about charges reaches a level without one or its hash.
    */
-  public getBlockSplashes(): readonly { x: number; y: number; left: number }[] | undefined {
+  public getBlockSplashes(): readonly BlockSplash[] | undefined {
     if (this.w.blockSplashes.size === 0) return undefined;
     const width = this.getMapWidth();
-    const out: { x: number; y: number; left: number }[] = [];
+    const out: BlockSplash[] = [];
     for (const [cell, until] of this.w.blockSplashes) {
       const passes = until - this.w.ccMonsterClock;
-      if (passes > 0) out.push({ x: cell % width, y: Math.floor(cell / width), left: Math.min(1, passes / CC2_SPLASH_BLOCK_PASSES) });
+      if (passes > 0) {
+        out.push({
+          x: cell % width,
+          y: Math.floor(cell / width),
+          left: Math.min(1, passes / CC2_SPLASH_BLOCK_PASSES),
+          kind: this.w.blockExplosions.has(cell) ? 'explosion' : 'splash'
+        });
+      }
     }
     return out.length > 0 ? out : undefined;
   }
@@ -448,6 +463,8 @@ export class GameEngine {
     if (usesCc2Engine(this.w.level)) {
       const view = cc2PlayerViewKey(this.w);
       if (view !== '') parts.push(`${CC2_PLAYER_VIEW_KEY_PREFIX}${view}`);
+      const hidden = cc2HiddenStateKey(this.w);
+      if (hidden !== '') parts.push(`${CC2_HIDDEN_STATE_KEY_PREFIX}${hidden}`);
     }
     return parts.join('|');
   }
@@ -761,7 +778,12 @@ export class GameEngine {
       ...(this.w.cc2PlayerView !== undefined && usesCc2Engine(this.w.level) ? { cc2PlayerView: copyCc2PlayerView(this.w.cc2PlayerView) } : {}),
       // Only a CC2-engine level with a splash still lasting has one to put back.
       ...(this.w.blockSplashes.size > 0 ? { blockSplashes: [...this.w.blockSplashes] } : {}),
+      ...(this.w.blockExplosions.size > 0 ? { blockExplosions: [...this.w.blockExplosions] } : {}),
       ...(this.w.ccGenerators !== null ? { ccGenerators: [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] as [number, number, number] } : {}),
+      // Only a CC2 level that set a blob modifier has one to put back.
+      ...(this.w.ccGenerators?.blobModifier !== undefined ? { ccBlobModifier: this.w.ccGenerators.blobModifier } : {}),
+      // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
+      ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
@@ -858,10 +880,14 @@ export class GameEngine {
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
+    this.w.blockExplosions = new Set(snap.blockExplosions ?? []);
     this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
     if (this.w.ccGenerators !== null && snap.ccGenerators !== undefined) {
       [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] = snap.ccGenerators;
+      if (snap.ccBlobModifier !== undefined) this.w.ccGenerators.blobModifier = snap.ccBlobModifier;
+      else delete this.w.ccGenerators.blobModifier;
     }
+    this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -942,11 +968,11 @@ export class GameEngine {
     this.w.inTick = false;
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
-    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
+    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK) : [];
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
-    fireSignalSinks(this.ctx, edges);
+    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK);
     // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
     // fired by a signal in this pass counts with the buttons of the pass.
     this.w.firedLaunchers.clear();
@@ -1021,13 +1047,13 @@ export class GameEngine {
     const diedInPlace = moved && this.w.cc3dPace && !mover.alive && mover.x === fromX && mover.y === fromY;
     if (moved) {
       if (!diedInPlace) lightDepartedDynamite(this.w, this.ticksElapsed);
-      const edges = this.w.signals !== undefined ? settleWorldSignals(this.w) : [];
+      const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_MOVE) : [];
       // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
       setPoweredCells(this.ctx);
       setHoldDoors(this.ctx);
       // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
       // following tick, as one fired by a button does (see the clear in tick()).
-      fireSignalSinks(this.ctx, edges);
+      fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
       this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
@@ -1072,6 +1098,38 @@ export class GameEngine {
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
     return true;
+  }
+
+  /**
+   * The cycle key (Lexy's Labyrinth cycle_inventory): the pair of boots held longest goes to the end of the list, so the
+   * next pair is the one the drop key puts down. Only on a CC2-engine level, and only with two pairs or more; false (nothing
+   * recorded, no undo step) otherwise, while paused, dead or once the level ended. One undo step, recorded so that a recorded
+   * solution replays it.
+   */
+  public cycleInventory(): boolean {
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted || !usesCc2Engine(this.w.level)) return false;
+    const boots = this.w.player.boots;
+    if (boots.size < MIN_BOOTS_TO_CYCLE) return false;
+    this.saveUndoSnapshot();
+    const oldest = boots.values().next().value as string;
+    boots.delete(oldest);
+    boots.add(oldest);
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, cycle: true });
+    return true;
+  }
+
+  /**
+   * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
+   * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
+   */
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[] } | undefined {
+    const blobModifier = this.w.ccGenerators?.blobModifier;
+    const edges = this.w.cc2DeferredSinkEdges;
+    if (blobModifier === undefined && edges.length === 0) return undefined;
+    return {
+      ...(blobModifier !== undefined ? { blobModifier } : {}),
+      ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
+    };
   }
 
   /**
@@ -1200,6 +1258,8 @@ export class GameEngine {
 
   private completeLevel(): void {
     this.w.levelCompleted = true;
+    // Nothing fires after the win: the wire-fired edges still waiting are dropped.
+    this.w.cc2DeferredSinkEdges = [];
     this.w.player.isSliding = false;
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();

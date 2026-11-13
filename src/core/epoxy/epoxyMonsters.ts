@@ -21,6 +21,7 @@ import { AudioManager } from '../../audio/AudioManager';
 import {
   CC_BLOB_BUTTON_DELAY_PASSES,
   CC_BLOB_TYPE,
+  STEER_MONSTERS_ACTION,
   CC_MONSTER_BUTTON_DELAY_PASSES,
   CC_WALKER_TYPE,
   followsCcCadence,
@@ -50,7 +51,8 @@ import {
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
-import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
+import { isCc2YellowTank, markYellowButtonArrival } from './epoxySteering';
+import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, eraseSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
@@ -185,6 +187,10 @@ function planClassicDecisions(ctx: EpoxyContext): void {
   const clock = w.ccMonsterClock;
   for (let i = w.entities.length - 1; i >= 0; i--) {
     const entity = w.entities[i];
+    if (isCc2YellowTank(w, entity)) {
+      planYellowTank(w, entity, clock);
+      continue;
+    }
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
@@ -198,6 +204,11 @@ function planClassicDecisions(ctx: EpoxyContext): void {
       continue;
     }
     let plan = chooseMonsterDirection(w, entity, def);
+    // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
+    if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
+      const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+      if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+    }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
@@ -206,6 +217,35 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     if (plan === null && usesCc2Engine(w.level)) plan = blockedForcedPlan(w, entity, def);
     w.ccPlans.set(entity.uid, plan);
   }
+}
+
+/**
+ * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
+ * ended. The way is judged now, so a tank blocked then only turns (Lexy tank_yellow decides [way, null]).
+ */
+function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void {
+  const pending = tank.pendingSteer;
+  if (tank.cooldownTicks !== 0 || pending === undefined || (tank.pendingSteerDue ?? 0) > clock) return;
+  // Lexy make_actor_decision decides nothing, and keeps the pending decision, while the actor stands on a clone
+  // machine, sits in a closed trap or slides: the steer waits for the first decision after that.
+  const def = ConfigRegistry.getEntityDef(tank.type);
+  const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+  if (here.isCloneMachine) return;
+  if (def?.ignoresFloorEffects !== true && isCellClosedTrap(w, tank.x, tank.y)) return;
+  if (!floorFree && here.slideType !== undefined) return;
+  delete tank.pendingSteer;
+  delete tank.pendingSteerDue;
+  tank.dir = pending;
+  w.ccPlans.set(tank.uid, canStep(w, tank, pending) ? pending : null);
+}
+
+/** CC2 engine: the way a monster on ice goes when its planned step `plan` is refused (turned round, then deflected by the ice corner); null elsewhere. */
+function iceBounceDirection(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined, plan: Direction): Direction | null {
+  if (!usesCc2Engine(w.level) || def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true) return null;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType !== 'ice') return null;
+  return here.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan];
 }
 
 /** The way a floor forces a monster, for the CC2 plan of a monster whose forced move is blocked right now; null when the floor does not decide for it. */
@@ -333,8 +373,16 @@ function retimeQueuedPresses(w: EpoxyWorld, entity: RuntimeEntity, first: number
 
 function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
-  // A steered monster never decides a step: it moves only when a steering pad is worked.
-  if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
+  // A steered monster never decides a step by itself. On a CC2-engine level a yellow tank takes the decision a button
+  // arrival set for it (planned in the decision pass); on any other level it moves only when a steering pad is worked.
+  const yellowTank = isCc2YellowTank(w, entity);
+  if (yellowTank) {
+    if (entity.cooldownTicks > 0) {
+      entity.cooldownTicks--;
+      return true;
+    }
+    if (!w.ccPlans.has(entity.uid)) return true;
+  } else if (ConfigRegistry.getEntityDef(entity.type)?.steeredBy !== undefined) return true;
   // A mirror player moves with the player; on its own it is only carried by the floor (ice, a force floor).
   if (ConfigRegistry.getEntityDef(entity.type)?.mirrorsCharacter !== undefined) return stepMirrorFloor(ctx, entity);
   // A sleeping lurker never moves by itself; only the player's arrival next to it changes it.
@@ -347,7 +395,7 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const def = ConfigRegistry.getEntityDef(entity.type);
   // A step lasts interval + 1 ticks (the countdown, then the move); slow-time boots stretch the whole step.
   const interval = def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS;
-  const stepTicks = w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? ccStepTicks(entity.type) : interval + 1;
+  const stepTicks = yellowTank || (w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level))) ? ccStepTicks(entity.type) : interval + 1;
   entity.cooldownTicks = stepTicks * monsterSlowdown(w) - 1;
 
   // A phasing monster (a wisp) is not held by a closed trap and touches no tile: terrain has no effect on it.
@@ -372,8 +420,12 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
     w.ccPlans.delete(entity.uid);
+    const bounce = plan !== null ? iceBounceDirection(w, entity, def, plan) : null;
     if (plan !== null && canStep(w, entity, plan)) {
       chosenDir = plan;
+    } else if (bounce !== null && canStep(w, entity, bounce)) {
+      // Lexy game.js:1164-1214: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
+      chosenDir = bounce;
     } else {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
@@ -556,6 +608,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   const cycleDir = floorFree || def?.ignoresSlidingFloors === true ? undefined : forceCycleArrival(w, destTile);
   if (cycleDir) entity.dir = cycleDir;
 
+  // CC2 engine: a monster arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
+  if (destTile.buttonAction === STEER_MONSTERS_ACTION && entity.kind === 'monster' && usesCc2Engine(w.level)) {
+    const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+    markYellowButtonArrival(w, entity.dir, passesCounted + entity.cooldownTicks + 1);
+  }
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
@@ -787,6 +844,8 @@ function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, gen
   if (monster.type === CC_WALKER_TYPE) {
     if (canStep(w, monster, monster.dir)) return monster.dir;
     monster.dir = drawWalkerTurn(generators, monster.dir);
+  } else if (usesCc2Engine(w.level)) {
+    monster.dir = drawCc2BlobDirection(generators, w.level.cc2?.blobBehavior ?? CC2_BLOB_BEHAVIOR_DEFAULT);
   } else {
     monster.dir = drawBlobDirection(generators);
   }

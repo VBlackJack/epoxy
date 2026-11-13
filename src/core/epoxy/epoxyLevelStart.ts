@@ -22,7 +22,7 @@ import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
 import { usesCc2Engine, usesCcRules } from './ccRules';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
-import { newCcGenerators } from './ccGenerators';
+import { CC2_BLOB_BEHAVIOR_DEFAULT, initialBlobModifier, newCcGenerators } from './ccGenerators';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -54,6 +54,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cc2PlayerView = undefined;
   w.ccArrivals = [];
   w.ccArrivalsRunning = false;
+  // Deferred wire-fired sink edges of the last level must not fire in this one.
+  w.cc2DeferredSinkEdges = [];
   const ccCadence = usesCcRules(level);
   const cc3dLevel = !ccCadence && isConvertedCc3dLevel(level);
   const levelSeed = seed ?? SeededRandom.seedFromString(level.id);
@@ -61,6 +63,10 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   // Every classic-rules level (a .DAT import and a CC2 import alike) draws walker and blob turns from the classic
   // generators. Calibrated against Chip's Challenge 1 and the official Chip's Challenge 2 levels.
   w.ccGenerators = ccCadence ? newCcGenerators(levelSeed) : null;
+  // A CC2 blob also draws a modifier of its own; a replay hands it over as the seed.
+  if (w.ccGenerators !== null && usesCc2Engine(level)) {
+    w.ccGenerators.blobModifier = initialBlobModifier(level.cc2?.blobBehavior ?? CC2_BLOB_BEHAVIOR_DEFAULT, levelSeed, seed !== undefined);
+  }
 
   w.entities = level.entities.map((e) => {
     const def = ConfigRegistry.getEntityDef(e.type);
@@ -71,8 +77,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       x: e.x,
       y: e.y,
       dir: e.dir,
-      // A classic-rules monster and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
-      cooldownTicks: (ccCadence && followsCcCadence(e.type, usesCc2Engine(level))) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+      // A classic-rules monster, a CC2 yellow tank and a monster of a converted CC3D level decide at tick 0; any other monster waits out its first interval.
+      cooldownTicks: (usesCc2Engine(level) && def?.steeredBy !== undefined) || (ccCadence && followsCcCadence(e.type, usesCc2Engine(level))) || (cc3dLevel && (def?.kind ?? 'monster') === 'monster') ? 0 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
       isSliding: false,
       // A turret fires, and an arrow block shows its arrows, the way it was placed; its direction stays the way it is pushed or slides.
       ...(hasEntityFacing(def) ? { facing: e.dir } : {}),

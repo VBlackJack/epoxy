@@ -152,6 +152,16 @@ export const DYNAMITE_NOT_LIT_TICK = Number.MAX_SAFE_INTEGER;
 
 /** What dynamite leaves under a creature standing on plain floor: fire, or water under an ice block. */
 export const DYNAMITE_FIRE_TILE_ID = 'fire';
+
+/** Tile id of the pink button of format 16 (the wire plate): the one held source a CC2 level reads from an actor at rest. */
+export const SIGNAL_PLATE_TILE_ID = 'signal_plate';
+/** Tile id of the held orange button of format 16: pressed by every actor standing on it. */
+export const BUTTON_ORANGE_CC2_TILE_ID = 'button_orange_cc2';
+/** Tile ids of the wired flame jet of format 16, off and lit. */
+export const FLAME_JET_CC2_OFF_TILE_ID = 'flame_jet_cc2_off';
+export const FLAME_JET_CC2_ON_TILE_ID = 'flame_jet_cc2_on';
+/** Entity id of the dirt block, the one block the CC2 item bar (blocksDirtBlock) applies to. */
+export const DIRT_BLOCK_ENTITY_ID = 'dirt_block';
 export const DYNAMITE_WATER_TILE_ID = 'water';
 export const DYNAMITE_ICE_BLOCK_TYPE = 'ice_block';
 
@@ -571,6 +581,8 @@ export const RAIL_DEFAULT_ENTRY: Direction = 'S';
 export const CC3D_ARRIVAL_KEY_PREFIX = 'ca';
 /** Prefix of the apparent player position in the runtime key of a CC2-engine level. */
 export const CC2_PLAYER_VIEW_KEY_PREFIX = 'pv';
+/** Prefix of the hidden rule state of a CC2-engine level (blob modifier, deferred sink edges, pending yellow tank steers) in the runtime key. */
+export const CC2_HIDDEN_STATE_KEY_PREFIX = 'ch';
 
 /** Prefix of the track cell state in a search state key. */
 export const RAIL_STATE_KEY_PREFIX = 'rl';

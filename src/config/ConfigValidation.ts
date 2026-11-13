@@ -572,6 +572,9 @@ export function normalizeCellHints(value: unknown, width: number, height: number
   return [...kept.values()].sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
+/** Largest value of the CC2 option byte that steers the blobs. */
+const CC2_BYTE_MAX = 255;
+
 /** Optional text fields of a level; each one is kept only when it is a string. */
 const LEVEL_TEXT_FIELDS = ['titleKey', 'customTitle', 'hintKey', 'customHint', 'author'] as const;
 
@@ -598,6 +601,7 @@ export function isCc2LevelData(value: unknown): value is Cc2LevelData {
     typeof value.file === 'string' &&
     Number.isInteger(value.order) && (value.order as number) >= 1 &&
     (value.music === undefined || typeof value.music === 'string') &&
+    (value.blobBehavior === undefined || (Number.isInteger(value.blobBehavior) && (value.blobBehavior as number) >= 0 && (value.blobBehavior as number) <= CC2_BYTE_MAX)) &&
     typeof value.gridHash === 'string' &&
     isRecord(coverage) &&
     (coverage.verdict === 'exact' || coverage.verdict === 'approx' || coverage.verdict === 'lost') &&
@@ -1241,6 +1245,10 @@ export function findCharacterItemConfigErrors(tiles: Record<string, TileDefiniti
       if (tile.layer !== 'item' && tile.floatingBlockColor === undefined) {
         errors.push(`${id}.blocksBlocks: only an item or a floating colour block tile can bar blocks`);
       }
+    }
+    if (tile.blocksDirtBlock !== undefined) {
+      if (typeof tile.blocksDirtBlock !== 'boolean') errors.push(`${id}.blocksDirtBlock: expected a boolean`);
+      if (tile.layer !== 'item') errors.push(`${id}.blocksDirtBlock: only an item can bar the dirt block`);
     }
     if (tile.characterOnly !== undefined) {
       if (!isPlayerCharacter(tile.characterOnly)) errors.push(`${id}.characterOnly: unknown character ${String(tile.characterOnly)}`);

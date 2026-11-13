@@ -17,7 +17,7 @@
 /**
  * Lexy's Labyrinth starts every circuit off (game.js recalculate_circuitry), so a cloner or launcher whose source is
  * held when the level loads rises on the first settle and fires on tick 0. Epoxy primes the network at load, which
- * hid that edge; a CC2-engine level now starts its firing sinks off. Other levels keep the primed start.
+ * hid that edge; a CC2-engine level now starts its wired sinks off. Other levels keep the primed start.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -72,8 +72,11 @@ function load(level: CompiledLevel): GameEngine {
 const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
 
 describe('CC2 engine: a cloner wired to a source held at load', () => {
-  it('clones on tick 0', () => {
+  // The edge of tick 0 is a wire edge: the clone machine acts one tick later (see cc2SignalSinksWave3.test.ts).
+  it('clones from the edge of tick 0, one tick later', () => {
     const engine = load(lane('cc2', true));
+    expect(clonesAt(engine)).toBe(0);
+    engine.tick();
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);

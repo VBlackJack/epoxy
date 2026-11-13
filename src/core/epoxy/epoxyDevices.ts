@@ -550,7 +550,9 @@ export function spawnFromCloner(
   };
   addClonedEntity(w, spawned);
   if (spawned.kind === 'block') {
-    moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir);
+    // CC2 engine: a cloned block takes a real step out of the cloner, unless it comes out onto a sliding tile.
+    const takesStep = usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[spawnY][spawnX]).slideType === undefined;
+    moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir, true, takesStep);
   } else {
     return resolveMonsterArrival(ctx, spawned, true);
   }

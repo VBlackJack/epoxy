@@ -104,6 +104,11 @@ describe('wired track switches', () => {
     throw new Error('the player never became able to move');
   }
 
+  /** Runs the ticks until the step is over: the pink button reads the player only once he is at rest. */
+  function settle(engine: GameEngine): void {
+    for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; waited++) engine.tick();
+  }
+
   function activeOf(engine: GameEngine): number | undefined {
     return engine.getRailState()?.find(([cell]) => cell === 3)?.[1];
   }
@@ -133,20 +138,24 @@ describe('wired track switches', () => {
     engine.loadLevel(level);
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
 
-    // Onto the pink button: the wire rises, the switch advances once.
+    // Onto the pink button: the wire rises once he has settled, the switch advances once.
     step(engine, 'E');
+    settle(engine);
     expect(activeOf(engine)).toBe(ACTIVE_SOUTH_EAST);
 
     // Off the button: the wire falls, the switch stays.
     step(engine, 'E');
+    settle(engine);
     expect(activeOf(engine)).toBe(ACTIVE_SOUTH_EAST);
 
     // Back onto the button: a new rising edge advances it again, back to the first segment.
     step(engine, 'W');
+    settle(engine);
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
 
     // Off again: the falling edge changes nothing.
     step(engine, 'W');
+    settle(engine);
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
   });
 

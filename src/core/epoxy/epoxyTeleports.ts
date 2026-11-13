@@ -20,7 +20,8 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { turnClockwise } from '../lynx/directions';
 import { Direction, GridPoint, RuntimeEntity, TeleportExitOrder, TileDefinition } from '../types';
-import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
+import { canPushBlock, isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
+import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter } from './epoxyMonsters';
 import {
   DEFAULT_TELEPORT_GROUP,
@@ -164,6 +165,16 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
 }
 
 /**
+ * CC2 engine, landing on the pad: an exit cell held by a block the forced exit step can push counts as open (Lexy's bump
+ * check); the step that leaves the pad pushes the block.
+ */
+function exitHeldByPushableBlock(w: EpoxyWorld, exitX: number, exitY: number, dir: Direction, landOnPad: boolean): boolean {
+  if (!landOnPad || !usesCc2Engine(w.level)) return false;
+  const held = getEntityAt(w, exitX, exitY);
+  return held?.kind === 'block' && canPushBlock(w, held, dir);
+}
+
+/**
  * Moves the player out of the next free teleporter of the same group.
  * With `landOnPad` (classic rules) the player lands ON the destination pad instead and carries the exit direction as a
  * forced step for later (`teleportExit`); a pad is then chosen by the same exit test, but a plain pad tries only the
@@ -202,7 +213,7 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
         const exitTile = ConfigRegistry.getTile(w.terrain[exitY][exitX]);
         if (
           canPlayerEnter(w, exitTile, w.items[exitY][exitX]) &&
-          !getEntityAt(w, exitX, exitY) &&
+          (!getEntityAt(w, exitX, exitY) || exitHeldByPushableBlock(w, exitX, exitY, tryDir, landOnPad)) &&
           // Only another player bars the exit: the teleporting one stands on the source cell, which may be an exit cell too.
           [undefined, w.player].includes(playerAtCell(w, exitX, exitY)) &&
           !isEdgeBlocked(w, candidate.x, candidate.y, exitX, exitY, tryDir, false, playerRailActor(w))

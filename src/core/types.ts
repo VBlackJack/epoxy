@@ -1301,6 +1301,8 @@ export interface TileDefinition {
    * a floating colour block tile, which no second block is pushed onto.
    */
   blocksBlocks?: boolean;
+  /** An item a dirt block cannot be pushed onto on a CC2-engine level (the chips, the yellow and green keys, the score bonuses and the stopwatches); other blocks still enter. */
+  blocksDirtBlock?: boolean;
   /** A tile only this character may step on as the player; for the other character it is a wall. Monsters and blocks follow their own flags. */
   characterOnly?: PlayerCharacter;
   /** Per character, the boots the player must hold to step on this tile. A character not listed needs none. */
@@ -2133,6 +2135,8 @@ export interface Cc2LevelData {
   /** Hash of the grid at import time: the source bytes are re-exported as they were only while it still matches. */
   gridHash: string;
   coverage: Cc2Coverage;
+  /** The option byte that steers the blobs (0 to 255); absent means 1, the default of Lexy's Labyrinth. */
+  blobBehavior?: number;
 }
 
 /** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */
@@ -2280,6 +2284,10 @@ export interface RuntimeEntity {
   tankTurn?: number;
   /** A monster of a converted CC3D level standing on the pad a teleporter sent it to: the way its forced fast exit step takes it next tick. */
   teleportExit?: Direction;
+  /** A steered tank of a CC2-engine level: the way a button press set it to take at its next decision; absent when none waits. */
+  pendingSteer?: Direction;
+  /** A steered tank of a CC2-engine level: the first entity pass at which `pendingSteer` may be taken; absent with no pending steer or when it may be taken at once. */
+  pendingSteerDue?: number;
 }
 
 /** What a step of the player onto a cell does when it ends, on a converted CC3D level or a CC2-engine level (see PlayerState.cc3dArrival). */
@@ -2363,6 +2371,17 @@ export interface TimedMove {
   swap?: true;
   /** True when the action is a turn in place: the player faces `dir` without stepping. */
   turn?: true;
+  /** True when the action is the cycle key: the oldest pair of boots held goes to the end of the list. */
+  cycle?: true;
+}
+
+/** What a block left on its cell that bars the real player for a few entity passes (CC2 engine): the splash of water or the blast of a bomb. */
+export type BlockSplashKind = 'splash' | 'explosion';
+
+/** A block splash as the renderer sees it: its cell, the fraction of its life left (1 fresh, toward 0 gone) and its kind. */
+export interface BlockSplash extends GridPoint {
+  left: number;
+  kind: BlockSplashKind;
 }
 
 /** A blast charge that was dropped and has not blasted yet: its cell and the absolute tick it blasts at. */
@@ -2447,8 +2466,14 @@ export interface UndoSnapshot {
   cc2PlayerView?: Cc2PlayerView;
   /** Splashes a block left in water: [cell index, entity pass it lasts until]; written only while one lasts on a CC2-engine level, absent otherwise. */
   blockSplashes?: [number, number][];
+  /** The cells of `blockSplashes` that are the blast of a block a bomb destroyed (the rest are water splashes); written only while one lasts, absent otherwise. */
+  blockExplosions?: number[];
   /** The classic walker and blob generators [walker high, walker low, main]; written only on a level made for the classic game, absent otherwise. */
   ccGenerators?: [number, number, number];
+  /** The blob modifier of the CC2 generators; written only once a CC2 level set one, absent otherwise. */
+  ccBlobModifier?: number;
+  /** Wire-fired cloner and launcher edges waiting for the next tick on a CC2-engine level; written only while one waits, absent otherwise. */
+  cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */

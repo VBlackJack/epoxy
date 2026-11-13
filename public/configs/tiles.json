@@ -1026,7 +1026,8 @@
       "i18nKey": "tiles.key_yellow.name",
       "laserTransparent": true,
       "collectible": "key",
-      "colorKey": "yellow"
+      "colorKey": "yellow",
+      "blocksDirtBlock": true
     },
     "key_green": {
       "id": "key_green",
@@ -1035,7 +1036,8 @@
       "i18nKey": "tiles.key_green.name",
       "laserTransparent": true,
       "collectible": "key",
-      "colorKey": "green"
+      "colorKey": "green",
+      "blocksDirtBlock": true
     },
     "chip": {
       "id": "chip",
@@ -1043,7 +1045,8 @@
       "layer": "item",
       "i18nKey": "tiles.chip.name",
       "laserTransparent": true,
-      "collectible": "chip"
+      "collectible": "chip",
+      "blocksDirtBlock": true
     },
     "boots_water": {
       "id": "boots_water",
@@ -1180,7 +1183,8 @@
       "laserTransparent": true,
       "collectible": "chip",
       "countsAsChip": true,
-      "itemTogglesTo": "green_bomb"
+      "itemTogglesTo": "green_bomb",
+      "blocksDirtBlock": true
     },
     "green_bomb": {
       "id": "green_bomb",
@@ -1240,7 +1244,8 @@
       "i18nKey": "tiles.score_10.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "scoreBonus": 10
+      "scoreBonus": 10,
+      "blocksDirtBlock": true
     },
     "score_100": {
       "id": "score_100",
@@ -1249,7 +1254,8 @@
       "i18nKey": "tiles.score_100.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "scoreBonus": 100
+      "scoreBonus": 100,
+      "blocksDirtBlock": true
     },
     "score_1000": {
       "id": "score_1000",
@@ -1258,7 +1264,8 @@
       "i18nKey": "tiles.score_1000.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "scoreBonus": 1000
+      "scoreBonus": 1000,
+      "blocksDirtBlock": true
     },
     "score_2x": {
       "id": "score_2x",
@@ -1267,7 +1274,8 @@
       "i18nKey": "tiles.score_2x.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "scoreMultiplier": 2
+      "scoreMultiplier": 2,
+      "blocksDirtBlock": true
     },
     "stopwatch_bonus": {
       "id": "stopwatch_bonus",
@@ -1276,7 +1284,8 @@
       "i18nKey": "tiles.stopwatch_bonus.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "timeBonusSeconds": 10
+      "timeBonusSeconds": 10,
+      "blocksDirtBlock": true
     },
     "stopwatch_penalty": {
       "id": "stopwatch_penalty",
@@ -1285,7 +1294,8 @@
       "i18nKey": "tiles.stopwatch_penalty.name",
       "laserTransparent": true,
       "collectible": "bonus",
-      "timeBonusSeconds": -10
+      "timeBonusSeconds": -10,
+      "blocksDirtBlock": true
     },
     "button_green": {
       "id": "button_green",

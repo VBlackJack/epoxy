@@ -16,6 +16,7 @@
 
 import {
   BeamCell,
+  BlockSplash,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -74,6 +75,8 @@ export interface PlayEngine {
    * map. An engine without several players omits it.
    */
   swapPlayer?(): boolean;
+  /** Optional. The cycle key: the oldest pair of boots held goes to the end of the list; false when refused (not a CC2-engine level, fewer than two pairs). An engine without it omits it. */
+  cycleInventory?(): boolean;
   /**
    * Optional. Turn in place: the player faces `dir` without stepping, at no cost. False when refused (sliding, on a force floor,
    * waiting to leave a teleporter or to land from a CC3D arrival, same facing, classic or converted CC3D rules, dead,
@@ -124,8 +127,8 @@ export interface PlayEngine {
   getHiddenLayerCells?(): ReadonlySet<number>;
   /** Optional. The blast charges lit and not yet blasted, with the tick each blasts at; undefined when none is lit. An engine without charges omits it. */
   getLitCharges?(): readonly LitCharge[] | undefined;
-  /** Optional. The splashes a block left in water that still bar the player, with the fraction of their life left (1 fresh, toward 0 gone); undefined when none. */
-  getBlockSplashes?(): readonly { x: number; y: number; left: number }[] | undefined;
+  /** Optional. The splashes a block left in water or the blasts of a block a bomb destroyed that still bar the player, with the fraction of their life left (1 fresh, toward 0 gone); undefined when none. */
+  getBlockSplashes?(): readonly BlockSplash[] | undefined;
   /** Optional. The shots in flight; undefined on a level without shot launchers. An engine without them omits it. */
   getShots?(): readonly Shot[] | undefined;
   /**
