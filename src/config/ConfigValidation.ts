@@ -1800,6 +1800,7 @@ const MONSTER_FLAG_FIELDS = [
   'ignoresSlidingFloors',
   'meltsIceBlocks',
   'meltsIceOnBumpCc2',
+  'erasesHazardWithToolCc2',
   'immuneToSlime',
   'entersTurtles',
   'leavesTurtlesAfloat'

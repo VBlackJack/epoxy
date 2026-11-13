@@ -583,6 +583,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     w.items[ny][nx] = null;
   }
 
+  // CC2: a monster that erases a hazard with the tool that protects from it (a ghost with fire boots on fire, Lexy fire.on_arrive)
+  // turns the cell into plain floor.
+  if (def?.erasesHazardWithToolCc2 === true && usesCc2Engine(w.level) && heldToolProtects(entity, destTile) && destTile.hazard === 'fire') {
+    w.terrain[ny][nx] = ConfigRegistry.getTile(FLOOR_TILE_ID).cc2Twin || FLOOR_TILE_ID;
+  }
+
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
@@ -611,7 +617,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     delete entity.tankTurn;
   }
   // A CC2 transmogrifier changes only the monster that arrives: the one kind its table names, or for a blob a kind drawn
-  // from the level random stream (drawn only here, so a level without this tile draws nothing more).
+  // by the walker byte of a CC2 level (the level random stream of a native one), drawn only here, so a level without this tile
+  // draws nothing more.
   if (!floorFree && destTile.transmogrifyTable === 'cc2') {
     const pool = def?.transmogrifiesToCc2Pool;
     if (def?.transmogrifiesToCc2 !== undefined) entity.type = def.transmogrifiesToCc2;

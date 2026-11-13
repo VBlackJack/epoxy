@@ -1607,6 +1607,8 @@ export interface EntityDefinition {
   meltsIceBlocks?: boolean;
   /** CC2 engine: a monster that melts an ice block it bumps and then tries its next way (the fireball, Lexy ice_block.on_after_bumped). */
   meltsIceOnBumpCc2?: boolean;
+  /** CC2 engine: a monster that, holding the tool that protects from a fire it arrives on, turns the fire into floor (the ghost with fire boots, Lexy fire.on_arrive). */
+  erasesHazardWithToolCc2?: boolean;
   /** CC2 engine, on a block: water that swallows it becomes plain floor, not dirt (the frame blocks, Lexy water.on_arrive). */
   waterBecomesFloorCc2?: boolean;
   /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
