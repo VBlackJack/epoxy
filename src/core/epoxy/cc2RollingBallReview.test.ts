@@ -34,7 +34,7 @@ import type { RuntimeEntity } from '../types';
 import { resolveMonsterArrival } from './epoxyMonsters';
 import { droppedActorId, isRollingBall, launchRollingBall } from './epoxyRollingBall';
 import { isHeldSignalButton } from './epoxySignals';
-import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
+import { cc2HiddenStateKey, type EpoxyContext, type EpoxyWorld } from './epoxyWorld';
 
 const LAST_FLOOR_X = ROOM_SIZE - 2;
 
@@ -153,5 +153,20 @@ describe('config fields of the dropped actor and the step-start jump', () => {
     expect(isHeldSignalButton(tiles().button_brown)).toBe(true);
     expect(isHeldSignalButton(tiles().floor)).toBe(false);
     expect(isHeldSignalButton(tiles().button_green)).toBe(false);
+  });
+});
+
+describe('the search key of a teleport waiting for its monster', () => {
+  it('holds the pending teleports only while there are some', () => {
+    const w = world(bowler());
+    const empty = cc2HiddenStateKey(w);
+    w.ccArrivals.push({ uid: 7, x: 3, y: ROOM_ROW, teleport: true, due: 4 });
+    const waiting = cc2HiddenStateKey(w);
+    expect(waiting).not.toBe(empty);
+    // A button press waiting is not a teleport: it is not part of this key.
+    w.ccArrivals.splice(0, 1, { uid: 7, x: 3, y: ROOM_ROW, action: 'hold_trap', due: 4 });
+    expect(cc2HiddenStateKey(w)).toBe(empty);
+    w.ccArrivals.splice(0, 1, { uid: 7, x: 3, y: ROOM_ROW, teleport: true, due: 5 });
+    expect(cc2HiddenStateKey(w)).not.toBe(waiting);
   });
 });

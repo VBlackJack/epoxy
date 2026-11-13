@@ -741,7 +741,7 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
 /**
  * The search key of the rule state a CC2-engine level keeps beyond the grid and that changes what happens next: the blob
  * modifier, the sink edges deferred to the next tick, the pending steer of each yellow tank, the buttons a rolling ball
- * toggled, and the tools and keys held by the actors. Empty when none is set.
+ * toggled, the teleports waiting for the turn of their monster, and the tools and keys held by the actors. Empty when none is set.
  */
 export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const parts: string[] = [];
@@ -752,6 +752,9 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
+  // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
+  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due}`);
+  if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
   const keys = w.entities.filter((e) => e.heldKeys !== undefined && e.heldKeys.length > 0).map((e) => `${e.uid}:${(e.heldKeys as string[]).join('+')}`);
