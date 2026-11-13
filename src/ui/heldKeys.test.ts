@@ -48,7 +48,7 @@ describe('HeldKeys', () => {
     const h = new HeldKeys();
     h.press('ArrowUp', 'N');
     h.press('ArrowRight', 'E');
-    h.press('ArrowUp', 'N');
+    h.press('ArrowUp', 'N', true);
     expect(h.directions()).toEqual(['E', 'N']);
   });
 
