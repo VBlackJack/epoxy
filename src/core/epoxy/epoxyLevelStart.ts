@@ -22,7 +22,7 @@ import { buildRailCells } from './epoxyRailsCc2';
 import { CompiledLevel, Direction, PlayerCharacter, PlayerState } from '../types';
 import { usesCc2Engine, usesCcRules } from './ccRules';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
-import { newCcGenerators } from './ccGenerators';
+import { CC2_BLOB_BEHAVIOR_DEFAULT, initialBlobModifier, newCcGenerators } from './ccGenerators';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -63,6 +63,10 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   // Every classic-rules level (a .DAT import and a CC2 import alike) draws walker and blob turns from the classic
   // generators. Calibrated against Chip's Challenge 1 and the official Chip's Challenge 2 levels.
   w.ccGenerators = ccCadence ? newCcGenerators(levelSeed) : null;
+  // A CC2 blob also draws a modifier of its own; a replay hands it over as the seed.
+  if (w.ccGenerators !== null && usesCc2Engine(level)) {
+    w.ccGenerators.blobModifier = initialBlobModifier(level.cc2?.blobBehavior ?? CC2_BLOB_BEHAVIOR_DEFAULT, levelSeed, seed !== undefined);
+  }
 
   w.entities = level.entities.map((e) => {
     const def = ConfigRegistry.getEntityDef(e.type);

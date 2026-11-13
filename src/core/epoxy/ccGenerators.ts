@@ -80,3 +80,46 @@ export function drawBlobDirection(g: CcGenerators): Direction {
   g.main = (Math.imul(g.main, MAIN_MULTIPLIER) + MAIN_INCREMENT) & MAIN_MASK;
   return ORDERED_DIRECTIONS[g.main >>> MAIN_DIRECTION_SHIFT];
 }
+
+/** The blob behavior option of a CC2 level when the file does not state one: four rotating patterns. */
+export const CC2_BLOB_BEHAVIOR_DEFAULT = 1;
+/** The blob behavior that starts from a fixed modifier, so every play of the level is the same. */
+export const CC2_BLOB_BEHAVIOR_FIXED = 0;
+/** The blob modifier a fresh play starts from when the level asks for the deterministic behavior. */
+export const CC2_BLOB_FIXED_MODIFIER = 0x55;
+/** The blob modifier is a byte. */
+const BLOB_MODIFIER_MASK = 0xff;
+/** The default behavior steps the modifier through this many patterns. */
+const BLOB_PATTERN_COUNT = 4;
+/** The other behaviors double the modifier and fold this mask in while it is below the limit. */
+const BLOB_FOLD_MASK = 0x1d;
+const BLOB_FOLD_LIMIT = 255;
+
+/**
+ * The modifier a CC2 level starts its blobs from. A replay carries it in its header and passes it as the seed; a fresh
+ * play of the deterministic behavior uses a fixed value; the other behaviors start from the seed of the level.
+ */
+export function initialBlobModifier(behavior: number, seed: number, fromReplay: boolean): number {
+  if (!fromReplay && behavior === CC2_BLOB_BEHAVIOR_FIXED) return CC2_BLOB_FIXED_MODIFIER;
+  return seed & BLOB_MODIFIER_MASK;
+}
+
+/** Steps the blob modifier the way the level's behavior says and stores it in the generators. */
+function stepBlobModifier(g: CcGenerators, behavior: number): number {
+  let modifier = g.blobModifier ?? CC2_BLOB_FIXED_MODIFIER;
+  if (behavior === CC2_BLOB_BEHAVIOR_DEFAULT) {
+    modifier = (modifier + 1) % BLOB_PATTERN_COUNT;
+  } else {
+    modifier *= 2;
+    if (modifier < BLOB_FOLD_LIMIT) modifier ^= BLOB_FOLD_MASK;
+    modifier &= BLOB_MODIFIER_MASK;
+  }
+  g.blobModifier = modifier;
+  return modifier;
+}
+
+/** One CC2 blob draw: the walker generator plus the stepped blob modifier, reduced to a way. Advances both. */
+export function drawCc2BlobDirection(g: CcGenerators, behavior: number): Direction {
+  const modifier = stepBlobModifier(g, behavior);
+  return ORDERED_DIRECTIONS[(drawWalkerByte(g) + modifier) % QUARTER_TURNS_PER_CIRCLE];
+}

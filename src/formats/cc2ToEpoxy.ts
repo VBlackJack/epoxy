@@ -57,7 +57,7 @@ import {
   cc2TileInfo
 } from './cc2TileTable';
 import type { Cc2Cell, Cc2File, Cc2Map, Cc2Tile } from './cc2Model';
-import { Cc2Layer, cc2Map, cc2Options, cc2Text } from './cc2Model';
+import { Cc2Layer, Cc2OptionsSection, cc2Map, cc2Options, cc2Text } from './cc2Model';
 import {
   CC2_CODE_MELINDA,
   DIRT_BLOCK_ID,
@@ -102,6 +102,8 @@ import { buildCc2Wires, decodeCc2Gate } from './cc2Wires';
 const DIRECTIONS: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const DEFAULT_ACTOR_DIR: Direction = 'S';
 const DIRECTION_MASK = 0x03;
+/** Offset of the blob behavior byte in the options section. */
+const OPTIONS_BLOB_BEHAVIOR_AT = 24;
 /** Edge and arrow bits: north 1, east 2, south 4, west 8. */
 const SIDE_BITS: readonly number[] = [0x01, 0x02, 0x04, 0x08];
 const CANOPY_BIT = 0x10;
@@ -189,6 +191,8 @@ export interface Cc2ConvertOptions {
   hint?: string;
   /** The text of each hint tile, in reading order of the tiles (row by row, left to right); tiles beyond it show the level hint. */
   hintBlocks?: readonly string[];
+  /** The blob behavior byte of the options section (0 to 255); absent when the file has none. */
+  blobBehavior?: number;
 }
 
 /** One element of a verdict list in the report. */
@@ -345,16 +349,19 @@ function assignHintBlocks(terrain: readonly (readonly string[])[], blocks: reado
 }
 
 /** Converts a whole decoded file: reads the map, the options and the texts, then converts the map. */
-export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint' | 'hintBlocks'>): Cc2ConversionResult {
+export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint' | 'hintBlocks' | 'blobBehavior'>): Cc2ConversionResult {
   const map = cc2Map(file);
   if (map === undefined) throw new Error(`CC2 converter: ${options.file} holds no decodable map`);
   const title = cc2Text(file, 'TITL')?.trim();
   const author = cc2Text(file, 'AUTH')?.trim();
   const hint = cc2HintText(file);
   const hintBlocks = cc2ClueBlocks(file);
+  const optionsSection = file.sections.find((s): s is Cc2OptionsSection => s.kind === 'options');
+  const blobBehavior = optionsSection !== undefined && optionsSection.raw.length > OPTIONS_BLOB_BEHAVIOR_AT ? optionsSection.raw[OPTIONS_BLOB_BEHAVIOR_AT] : undefined;
   return convertCc2Map(map, {
     ...options,
     timeLimit: cc2Options(file)?.timeLimit ?? 0,
+    ...(blobBehavior !== undefined ? { blobBehavior } : {}),
     ...(title ? { title } : {}),
     ...(author ? { author } : {}),
     ...(hint ? { hint } : {}),
@@ -755,7 +762,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     order: options.order,
     ...(options.music !== undefined ? { music: options.music } : {}),
     gridHash: cc2GridHash(level),
-    coverage
+    coverage,
+    ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {})
   };
 
   return {

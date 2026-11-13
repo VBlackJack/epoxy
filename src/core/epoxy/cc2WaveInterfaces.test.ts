@@ -52,7 +52,7 @@ const CC2_RECORD_FIELDS = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', orde
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
-function load(mode: 'cc2' | 'native', extra: Partial<Parameters<typeof room>[0]> = {}): GameEngine {
+function load(mode: 'cc2' | 'cc' | 'native', extra: Partial<Parameters<typeof room>[0]> = {}): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(room({ mode, ...extra }));
   return engine;
@@ -107,7 +107,7 @@ describe('deferred wire-fired sink edges', () => {
   it('start empty and read as no CC2 wave state', () => {
     const engine = load('cc2');
     expect(world(engine).cc2DeferredSinkEdges).toEqual([]);
-    expect(engine.getCc2WaveState()).toBeUndefined();
+    expect(engine.getCc2WaveState()?.deferredSinkEdges).toBeUndefined();
   });
 
   it('are reset when another level loads in the same world', () => {
@@ -137,7 +137,7 @@ describe('deferred wire-fired sink edges', () => {
   it('appear in the CC2 wave state only while non-empty', () => {
     const engine = load('cc2');
     world(engine).cc2DeferredSinkEdges = [{ cell: EDGE_CELL, rising: true }];
-    expect(engine.getCc2WaveState()).toEqual({ deferredSinkEdges: [{ cell: EDGE_CELL, rising: true }] });
+    expect(engine.getCc2WaveState()).toEqual({ blobModifier: expect.any(Number), deferredSinkEdges: [{ cell: EDGE_CELL, rising: true }] });
   });
 
   it('are dropped when the level completes', () => {
@@ -149,12 +149,15 @@ describe('deferred wire-fired sink edges', () => {
 });
 
 describe('blob modifier of the generators', () => {
-  it('is absent by default and does not reach the CC2 wave state', () => {
+  it('is absent on new generators and on a classic level, and set on load by a CC2 level', () => {
     expect(newCcGenerators(1).blobModifier).toBeUndefined();
+    const classic = load('cc');
+    expect(world(classic).ccGenerators).not.toBeNull();
+    expect(world(classic).ccGenerators?.blobModifier).toBeUndefined();
+    expect(classic.getCc2WaveState()).toBeUndefined();
     const engine = load('cc2');
-    expect(world(engine).ccGenerators).not.toBeNull();
-    expect(world(engine).ccGenerators?.blobModifier).toBeUndefined();
-    expect(engine.getCc2WaveState()).toBeUndefined();
+    expect(world(engine).ccGenerators?.blobModifier).toEqual(expect.any(Number));
+    expect(engine.getCc2WaveState()).toEqual({ blobModifier: world(engine).ccGenerators?.blobModifier });
   });
 
   it('is saved and restored by undo, and removed when the snapshot had none', () => {
@@ -168,7 +171,7 @@ describe('blob modifier of the generators', () => {
     expect(engine.undo()).toBe(true);
     expect(generators.blobModifier).toBe(BLOB_MODIFIER);
 
-    const plain = load('cc2');
+    const plain = load('cc');
     const plainGenerators = world(plain).ccGenerators;
     if (plainGenerators === null) throw new Error('a CC2 level has generators');
     expect(plain.attemptPlayerMove('E')).toBe(true);

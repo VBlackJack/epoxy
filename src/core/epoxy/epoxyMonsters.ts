@@ -50,7 +50,7 @@ import {
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
-import { CcGenerators, drawBlobDirection, drawWalkerTurn } from './ccGenerators';
+import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, eraseSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
@@ -787,6 +787,8 @@ function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, gen
   if (monster.type === CC_WALKER_TYPE) {
     if (canStep(w, monster, monster.dir)) return monster.dir;
     monster.dir = drawWalkerTurn(generators, monster.dir);
+  } else if (usesCc2Engine(w.level)) {
+    monster.dir = drawCc2BlobDirection(generators, w.level.cc2?.blobBehavior ?? CC2_BLOB_BEHAVIOR_DEFAULT);
   } else {
     monster.dir = drawBlobDirection(generators);
   }
