@@ -63,7 +63,7 @@ import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
 import { absorbMonsterContact, shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
-import { checkBallWay, isRollingBallDef } from './epoxyRollingBall';
+import { bumpRollingBall, checkBallWay, isRollingBallDef } from './epoxyRollingBall';
 import { consumeShotAt, killMonsterByShot } from './epoxyShots';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import {
@@ -206,11 +206,10 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
   const clock = w.ccMonsterClock;
   // A fireball melting an ice block removes it from the list while the pass runs: the pass walks the list as it was.
   const decisionOrder = w.entities.slice();
-  // A rolling ball that blows up at its decision takes the actor in its way with it: that one decides nothing afterwards.
-  let removedByBall = false;
   for (let i = decisionOrder.length - 1; i >= 0; i--) {
     const entity = decisionOrder[i];
-    if (removedByBall && !w.entities.includes(entity)) continue;
+    // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
+    if (w.entities.length !== decisionOrder.length && !w.entities.includes(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
       planYellowTank(w, entity, clock);
       continue;
@@ -240,13 +239,9 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // forced way even when the cell ahead is held by a monster that leaves it earlier in this pass; the move is tried in its turn.
     if (plan === null && usesCc2Engine(w.level)) plan = blockedForcedPlan(w, entity, def);
     // A rolling ball judges the way at its decision: what blocks it is killed or it blows up, there and then.
-    if (isRollingBallDef(def)) {
-      const before = w.entities.length;
-      const alive = checkBallWay(ctx, entity, plan ?? entity.dir);
-      if (w.entities.length !== before) removedByBall = true;
-      if (!alive) return false;
-      if (!w.entities.includes(entity)) continue;
-    }
+    if (isRollingBallDef(def) && !checkBallWay(ctx, entity, plan ?? entity.dir)) return false;
+    // The entity may be gone by now (the ball blew up, or the monster probed one).
+    if (w.entities.length !== decisionOrder.length && !w.entities.includes(entity)) continue;
     w.ccPlans.set(entity.uid, plan);
   }
   return true;
@@ -479,6 +474,8 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   } else {
     chosenDir = chooseMonsterDirection(w, entity, behaviour);
   }
+  // CC2 engine: a monster that probed a rolling ball was blown up with it: it takes no step.
+  if (w.removedUids.has(entity.uid)) return true;
   if (!chosenDir) {
     // Lexy re-decides every tic a blocked rover waits, so a blocked rover counts one decision per tick.
     // A monster that draws its way at random (the CC3D omni) draws again next tick when the draw is blocked.
@@ -1037,6 +1034,9 @@ function canStep(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): bool
     const vec = DIRECTION_VECTORS[wanted];
     eraseSplash(w, monster.x + vec.dx, monster.y + vec.dy);
   }
+  // CC2 engine: a rolling ball bumped by the probe blows up with the actor that probed it (the entry test below does not do this).
+  bumpRollingBall(w, monster, wanted);
+  if (w.removedUids.has(monster.uid)) return false;
   return canMonsterEnter(w, monster, wanted, false, true, true);
 }
 

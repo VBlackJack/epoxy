@@ -122,6 +122,29 @@ export function checkBallWay(ctx: EpoxyContext, ball: RuntimeEntity, dir: Direct
 }
 
 /**
+ * The rolling ball's on_bumped (Lexy tiletypes.js rolling_ball): an actor whose decision (or step) probes the cell of a ball, in
+ * whichever way it was only trying, blows up with it. Called by the probe of a monster that picks its way, not by the entry test.
+ * Only the entities are touched (no visual): the probing monster is gone from the list afterwards.
+ */
+export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: Direction): void {
+  if (!usesCc2Engine(w.level)) return;
+  const moved = ConfigRegistry.getEntityDef(monster.type)?.ignoresFloorEffects === true ? wanted : railRedirect(w, monster.x, monster.y, wanted, 'walker');
+  const vec = DIRECTION_VECTORS[moved];
+  const nx = monster.x + vec.dx;
+  const ny = monster.y + vec.dy;
+  const ball = w.entities.find((e) => e.x === nx && e.y === ny && e.uid !== monster.uid && isRollingBall(e));
+  if (ball === undefined) return;
+  removeEntity(w, monster.uid);
+  removeEntity(w, ball.uid);
+  w.beamDirty = true;
+  AudioManager.playSfx(BALL_BLAST_SFX);
+  for (const spent of [monster, ball]) {
+    leaveBlast(w, spent.x, spent.y);
+    keepHeldButton(w, spent.x, spent.y);
+  }
+}
+
+/**
  * The CC2 bowling ball as an actor: the `rolling_ball` monster a player sets down on a CC2-engine level. It is added at the end
  * of the entity list and leaves the cell it was set down in at once, into the cell the player faces, by the step of any
  * monster (a track, ice or a force floor does not turn this first step). A ball that cannot enter that cell is spent: an actor
