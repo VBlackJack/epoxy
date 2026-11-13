@@ -188,6 +188,8 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   const bumped = bumpRevealedCell(w, targetX, targetY);
   const block = getEntityAt(w, targetX, targetY);
   if (block === undefined || block.kind !== 'block') return bumped;
+  // CC2 engine: the block on a clone machine is its template, held by the machine: the slap does not move it (Lexy cloner.traps).
+  if (usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[targetY][targetX]).isCloneMachine) return bumped;
   const pushed = attemptPushBlock(ctx, block, dir, true, false, undefined, true);
   p.dir = facing;
   return pushed || bumped;
