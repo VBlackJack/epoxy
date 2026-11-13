@@ -1025,6 +1025,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
   // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
   if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
+  // CC2 engine: a brown button an actor was removed from in place with no departure stays pressed for good (Lexy add_press without remove_press).
+  if (w.cc2ToggledButtonCells.length > 0 && usesCc2Engine(w.level) && w.cc2ToggledButtonCells.includes(by * mapWidth(w) + bx)) return true;
   // On a converted CC3D level the player works a brown button only at rest, like everything else.
   // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
   const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;

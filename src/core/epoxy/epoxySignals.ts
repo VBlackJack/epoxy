@@ -130,6 +130,15 @@ function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
  * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
+  const occupied = actorsOccupyCell(w, x, y, phase);
+  // CC2 engine: a button an actor was removed from in place with no departure (a rolling ball that blew up on it) reads
+  // the opposite of what stands on it, for good: an exclusive or with the toggled set (Lexy add_press without remove_press).
+  if (!usesCc2Engine(w.level) || w.cc2ToggledButtonCells.length === 0) return occupied;
+  return occupied !== w.cc2ToggledButtonCells.includes(y * mapWidth(w) + x);
+}
+
+/** What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). */
+function actorsOccupyCell(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
   const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
   const player = playerAtCell(w, x, y);
   if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
@@ -416,10 +425,12 @@ export function restoreSignalPulses(w: EpoxyWorld, pulses: SignalPulseState | un
 
 /**
  * CC2 engine: toggles the button on the cell (`x`, `y`) in the world set of buttons held with no actor on them (an exclusive
- * or: a second toggle releases it). Keeps the cell indices ascending. Not called yet: the rolling ball that blows up on a
- * button will use it. Returns true when the cell is held afterwards.
+ * or: a second toggle releases it). Keeps the cell indices ascending. Called when an actor is removed in place on an orange
+ * or brown button with no departure (a rolling ball that blew up there, the actor it killed). Does nothing on any other
+ * level. Returns true when the cell is held afterwards.
  */
 export function toggleHeldButton(w: EpoxyWorld, x: number, y: number): boolean {
+  if (!usesCc2Engine(w.level)) return false;
   const cell = y * mapWidth(w) + x;
   const held = w.cc2ToggledButtonCells;
   const at = held.indexOf(cell);
