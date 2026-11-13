@@ -1996,6 +1996,9 @@
       },
       "cc2_unsupported": {
         "label": "Erreur : le niveau utilise des mécaniques CC2 qu'Epoxy ne joue pas encore : {mechanics}."
+      },
+      "runtime_only": {
+        "label": "Erreur : le niveau contient des éléments que seul le jeu crée pendant la partie, et qu'un niveau ne peut pas contenir : {mechanics}."
       }
     }
   },
