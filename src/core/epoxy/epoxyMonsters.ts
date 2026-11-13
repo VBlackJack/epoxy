@@ -26,6 +26,7 @@ import {
   CC_WALKER_TYPE,
   followsCcCadence,
   followsTeethPhase,
+  CC2_ENTITY_TOOL_CAPACITY,
   CC2_FLOOR_STEP_DIVISOR,
   CC2_MONSTER_PASSABLE_KEYS,
   CC2_MONSTER_PICKED_KEY,
@@ -50,7 +51,7 @@ import {
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity } from '../types';
+import { ButtonAction, CcArrival, Direction, EntityDefinition, RelativeTurn, RuntimeEntity, TileDefinition } from '../types';
 import { isCc2YellowTank, markYellowButtonArrival } from './epoxySteering';
 import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2BlobDirection, drawWalkerTurn } from './ccGenerators';
 import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
@@ -572,7 +573,10 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // A ghost or a rover takes the keys and tools it walks over (the item leaves the map); a bomb is judged below.
   if (def?.picksUpItems === true) {
     const lying = w.items[ny][nx];
-    if (lying && monsterPicksUp(lying)) w.items[ny][nx] = null;
+    if (lying && monsterPicksUp(lying)) {
+      w.items[ny][nx] = null;
+      if (usesCc2Engine(w.level)) holdTool(w, entity, nx, ny, lying);
+    }
   }
   // CC2: a monster walks over a blue key and takes it, and walks over a red key and leaves it.
   if (def?.picksUpItems !== true && entity.kind === 'monster' && usesCc2Engine(w.level) && w.items[ny][nx] === CC2_MONSTER_PICKED_KEY) {
@@ -668,13 +672,38 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
   return ((def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS) + 1) * slowdown - 1;
 }
 
+/** The collectible kind that an entity takes but never holds: keys are not tools. */
+const TOOL_EXCLUDED_COLLECTIBLE = 'key';
+
+/** Whether the tools an entity holds include the one that protects against the hazard of this tile (flippers on water, fire boots on fire). */
+function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean {
+  return tile.protectedByItem !== undefined && entity.heldTools?.includes(tile.protectedByItem) === true;
+}
+
+/** Whether the entity holds the tool that protects against the hazard of the cell it stands in (CC2 engine only). */
+function holdsProtection(w: EpoxyWorld, entity: RuntimeEntity): boolean {
+  return usesCc2Engine(w.level) && heldToolProtects(entity, ConfigRegistry.getTile(w.terrain[entity.y][entity.x]));
+}
+
+/**
+ * CC2: an entity that picks things up (a ghost, a rover) keeps the tools it takes, up to CC2_ENTITY_TOOL_CAPACITY; taking
+ * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). Keys are taken but never held.
+ */
+function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): void {
+  if (ConfigRegistry.getTile(itemId).collectible === TOOL_EXCLUDED_COLLECTIBLE) return;
+  const held = entity.heldTools ?? [];
+  held.push(itemId);
+  if (held.length > CC2_ENTITY_TOOL_CAPACITY) w.items[y][x] = held.shift() ?? null;
+  entity.heldTools = held;
+}
+
 /** The hazard of the cell a monster stands in that removes it (a bomb, water, fire, slime it is not immune to), or null. */
 function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): 'bomb' | 'splash' | 'burn' | null {
   const item = w.items[entity.y][entity.x];
   if (item && ConfigRegistry.getTile(item).hazard === 'bomb') return 'bomb';
   const hazard = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).hazard;
-  if (hazard === 'water' && !def?.immuneToWater) return 'splash';
-  if (hazard === 'fire' && !def?.immuneToFire) return 'burn';
+  if (hazard === 'water' && !def?.immuneToWater && !holdsProtection(w, entity)) return 'splash';
+  if (hazard === 'fire' && !def?.immuneToFire && !holdsProtection(w, entity)) return 'burn';
   if (hazard === 'slime' && !def?.immuneToSlime) return 'splash';
   return null;
 }
@@ -981,7 +1010,9 @@ export function canMonsterEnter(
   const passesSolid =
     def?.passesSolidTiles === true &&
     def.blockedByTiles?.includes(destTileId) !== true &&
-    (destTile.hazard === undefined || def.blockedByHazards?.includes(destTile.hazard) !== true);
+    (destTile.hazard === undefined ||
+      def.blockedByHazards?.includes(destTile.hazard) !== true ||
+      (usesCc2Engine(w.level) && heldToolProtects(monster, destTile)));
   if (def?.passesSolidTiles === true && !passesSolid) return false;
 
   // passesTiles lets a monster enter a tile it otherwise could not (undefined for every monster that exists today).
