@@ -115,7 +115,7 @@ export interface Cc2ReplayBestResult {
   /** First strategy that won, in `CC2_REPLAY_STRATEGIES` order. */
   winner?: Cc2ReplayStrategy;
   results: Cc2ReplayResult[];
-  /** Key bits the replay uses and the check cannot play (drop, switch player, cycle inventory, player 2). */
+  /** Key bits the replay uses and the check cannot play (player 2; also drop, switch player and cycle inventory unless the held strategy on the Epoxy engine played them). */
   ignoredKeyBits: number;
   /** Sorted ids the Lynx based engines play as walls or leave out (empty for the Epoxy engine, which has none). */
   unsupported: string[];
@@ -133,11 +133,14 @@ const STABLE_TICKS = 3;
 const DEFAULT_CADENCE_TICKS = 4;
 
 const DIRECTIONS: readonly Cc2Direction[] = ['N', 'E', 'S', 'W'];
+/** The key bits no strategy plays: a second player. */
+const PLAYER_TWO_KEY_MASK = CC2_REPLAY_ACTION_BITS.player2;
+/** The key bits a strategy that ignores the action keys leaves unplayed. */
 const IGNORED_KEY_MASK =
   CC2_REPLAY_ACTION_BITS.drop |
   CC2_REPLAY_ACTION_BITS.switchPlayer |
   CC2_REPLAY_ACTION_BITS.cycleInventory |
-  CC2_REPLAY_ACTION_BITS.player2;
+  PLAYER_TWO_KEY_MASK;
 
 /** Key bits per engine tick, from the state changes of the replay: the state in force by the end of the tick's frames. */
 function keysPerTick(replay: Cc2Replay, tickCount: number): number[] {
@@ -427,11 +430,13 @@ export function checkCc2Replay(
 export function checkCc2ReplayBest(level: CompiledLevel, replay: Cc2Replay, engine: Cc2ReplayEngine = 'epoxy'): Cc2ReplayBestResult {
   const results = CC2_REPLAY_STRATEGIES.map((strategy) => checkCc2Replay(level, replay, strategy, engine));
   const winner = results.find((r) => r.won);
+  // The held strategy on the Epoxy engine plays drop, switch and cycle; only a run that `steps` won, or that the Lynx based engines played, leaves them unplayed.
+  const heldPlaysActions = engine === 'epoxy' && (winner === undefined || winner.strategy === 'held');
   return {
     won: winner !== undefined,
     ...(winner ? { winner: winner.strategy } : {}),
     results,
-    ignoredKeyBits: replay.otherKeyBits & IGNORED_KEY_MASK,
+    ignoredKeyBits: replay.otherKeyBits & (heldPlaysActions ? PLAYER_TWO_KEY_MASK : IGNORED_KEY_MASK),
     unsupported: results[0]?.unsupported ?? []
   };
 }

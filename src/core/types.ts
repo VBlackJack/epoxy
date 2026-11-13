@@ -1301,7 +1301,7 @@ export interface TileDefinition {
    * a floating colour block tile, which no second block is pushed onto.
    */
   blocksBlocks?: boolean;
-  /** An item a dirt block cannot be pushed onto on a CC2-engine level (the chips, the yellow and green keys, the stopwatches); other blocks still enter. */
+  /** An item a dirt block cannot be pushed onto on a CC2-engine level (the chips, the yellow and green keys, the score bonuses and the stopwatches); other blocks still enter. */
   blocksDirtBlock?: boolean;
   /** A tile only this character may step on as the player; for the other character it is a wall. Monsters and blocks follow their own flags. */
   characterOnly?: PlayerCharacter;

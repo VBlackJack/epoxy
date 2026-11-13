@@ -196,9 +196,20 @@ describe('checkCc2Replay', () => {
       [0, CC2_REPLAY_ACTION_BITS.drop | E],
       [2 * STEP_FRAMES, 0]
     ]);
-    const best = checkCc2ReplayBest(level, replay);
+    const best = checkCc2ReplayBest(level, replay, 'lynx');
     expect(best.won).toBe(true);
     expect(best.ignoredKeyBits).toBe(CC2_REPLAY_ACTION_BITS.drop);
+  });
+
+  it('does not list the action keys the held strategy plays, and keeps the second player listed', () => {
+    const level = levelOf(3, 1, [terrain(2, 0, CODE_EXIT)]);
+    const replay = replayOf([
+      [0, CC2_REPLAY_ACTION_BITS.drop | CC2_REPLAY_ACTION_BITS.player2 | E],
+      [2 * STEP_FRAMES, 0]
+    ]);
+    const best = checkCc2ReplayBest(level, replay);
+    expect(best.winner).toBe('held');
+    expect(best.ignoredKeyBits).toBe(CC2_REPLAY_ACTION_BITS.player2);
   });
 });
 
