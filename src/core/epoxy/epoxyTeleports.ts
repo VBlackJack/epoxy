@@ -22,6 +22,7 @@ import { turnClockwise } from '../lynx/directions';
 import { Direction, GridPoint, RuntimeEntity, TeleportExitOrder, TileDefinition } from '../types';
 import { canPushBlock, isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
 import { usesCc2Engine } from './ccRules';
+import { drawWalkerByte } from './ccGenerators';
 import { canMonsterEnter } from './epoxyMonsters';
 import {
   DEFAULT_TELEPORT_GROUP,
@@ -73,17 +74,43 @@ function isCc2Order(origin: TileDefinition): boolean {
 }
 
 /**
+ * The pads a green teleporter of the Chip's Challenge 2 engine tries, as Lexy's Labyrinth plays it with the Steam
+ * compatibility ("green_teleports_can_fail"): the pad is drawn among the others, then the side (two draws of the walker
+ * generator), but only the pads that hold no actor are searched, the entered pad included and last. The search runs from
+ * the drawn index to the end of that list and never wraps, so a drawn pad past a clogged one can leave nothing to try
+ * (the mover then leaves its own pad forward).
+ */
+function cc2GreenPlan(w: EpoxyWorld, origin: TileDefinition, others: readonly GridPoint[], self: GridPoint): PadAttempt[] {
+  const generators = w.ccGenerators;
+  if (generators === null) return [];
+  const drawnIndex = drawWalkerByte(generators) % others.length;
+  const drawn = ORDERED_DIRECTIONS[drawWalkerByte(generators) % ORDERED_DIRECTIONS.length];
+  const dirs = namedExitDirections(origin, drawn) ?? [drawn];
+  const unclogged = [...others, self].filter(
+    (pad) => pad === self || (getEntityAt(w, pad.x, pad.y) === undefined && playerAtCell(w, pad.x, pad.y) === undefined)
+  );
+  const start = drawnIndex % unclogged.length;
+  const lastIndex = unclogged.length - 1;
+  const plan: PadAttempt[] = [];
+  // The last entry is the entered pad: it is only ever left forward, by the caller.
+  for (let index = start; index < lastIndex; index++) plan.push({ pad: unclogged[index], dirs });
+  return plan;
+}
+
+/**
  * The pads a Chip's Challenge 2 teleporter tries, in order, as Lexy's Labyrinth searches them: the ring of its group read
  * forward from the pad after the one entered, the entered pad last (it is only left forward). A lone pad leaves forward
- * and draws nothing. The green ('random') pad draws one pad among the others and then one side (both from the level
- * generator, and only now that the pad is used), and tries that side, then right, back and left; the red pad tries every
+ * and draws nothing. The green ('random') pad draws one pad among the others and then one side (both from the walker
+ * generator of a CC2 level, the level generator of a native one, and only now that the pad is used), and tries that side, then right, back and left; the red pad tries every
  * pad forward, right, back, left of the facing of the mover.
  */
 function cc2PadPlan(w: EpoxyWorld, origin: TileDefinition, teleporters: readonly GridPoint[], startIdx: number, facing: Direction): PadAttempt[] {
   const self = teleporters[startIdx];
   const others = teleporters.map((_, i) => teleporters[(startIdx + 1 + i) % teleporters.length]).slice(0, -1);
   const plan: PadAttempt[] = [];
-  if (origin.teleportExitOrder === 'random' && others.length > 0) {
+  if (origin.teleportExitOrder === 'random' && others.length > 0 && usesCc2Engine(w.level) && w.ccGenerators !== null) {
+    plan.push(...cc2GreenPlan(w, origin, others, self));
+  } else if (origin.teleportExitOrder === 'random' && others.length > 0) {
     const first = w.rng.nextInt(0, others.length - 1);
     const drawn = ORDERED_DIRECTIONS[w.rng.nextInt(0, ORDERED_DIRECTIONS.length - 1)];
     const dirs = namedExitDirections(origin, drawn) ?? [drawn];
