@@ -476,8 +476,17 @@ export const SHA256_HEX_LENGTH = 64;
 /** Rules version of native Epoxy levels; bump it when a change alters how recorded moves play out. */
 export const NATIVE_RULES_VERSION = 1;
 
-/** Rules version of Epoxy levels played with the classic Chip's Challenge timing; bumping it drops their stored replays. */
+/**
+ * Rules version of .DAT and native classic Epoxy levels played with the classic Chip's Challenge timing; bumping it drops
+ * their stored replays. CC2 imports are versioned by CC2_RULES_VERSION.
+ */
 export const CC_RULES_VERSION = 9;
+
+/**
+ * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
+ * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
+ */
+export const CC2_RULES_VERSION = 1;
 
 /** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
 export const LYNX_RULES_VERSION = 1;

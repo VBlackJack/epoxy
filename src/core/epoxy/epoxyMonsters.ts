@@ -28,12 +28,10 @@ import {
   CC2_FLOOR_STEP_DIVISOR,
   CC2_MONSTER_PASSABLE_KEYS,
   CC2_MONSTER_PICKED_KEY,
-  CC_TEETH_ACTIVE_TICKS,
   CC3D_MONSTER_FLOOR_STEP_TICKS,
   CC3D_MONSTER_STEP_TICKS,
   CC3D_REST_PHASE_TICKS,
   CC3D_RESTING_TYPES,
-  CC_TEETH_CYCLE_TICKS,
   ccStepTicks,
   CHASE_PLAYER_PATTERN,
   DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
@@ -46,6 +44,7 @@ import {
   PHASE_LINE_PATTERN,
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
+  teethMayDecide,
   TURTLE_TILE_ID
 } from '../coreConstants';
 import { cellHasCanopy } from '../EdgeRules';
@@ -77,6 +76,7 @@ import {
   monsterSlowdown,
   notePulseArrival,
   playerCharacterOf,
+  playersOf,
   removeEntity,
   playerAtCell,
   takeRevealedTerrain,
@@ -187,7 +187,7 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     const entity = w.entities[i];
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
-    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) continue;
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
     const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
@@ -201,8 +201,19 @@ function planClassicDecisions(ctx: EpoxyContext): void {
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
+    // CC2 engine: every monster decides first and moves after (Lexy game.js:960-1074), so a monster on a force floor plans the
+    // forced way even when the cell ahead is held by a monster that leaves it earlier in this pass; the move is tried in its turn.
+    if (plan === null && usesCc2Engine(w.level)) plan = blockedForcedPlan(w, entity, def);
     w.ccPlans.set(entity.uid, plan);
   }
+}
+
+/** The way a floor forces a monster, for the CC2 plan of a monster whose forced move is blocked right now; null when the floor does not decide for it. */
+function blockedForcedPlan(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
+  if (def === undefined || def.movementPattern === PHASE_LINE_PATTERN || def.ignoresSlidingFloors === true || def.ignoresFloorEffects === true) return null;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType !== 'force' || here.forceCycle === true || here.forceDirection === undefined || here.forceDirection === 'RANDOM') return null;
+  return here.forceDirection;
 }
 
 function runEntityPass(ctx: EpoxyContext): void {
@@ -246,7 +257,7 @@ function runEntityPass(ctx: EpoxyContext): void {
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && clock % CC_TEETH_CYCLE_TICKS >= CC_TEETH_ACTIVE_TICKS) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level))) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -619,11 +630,29 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
 }
 
+function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {
+  return playersOf(w).some((p) => p.cc3dArrival?.opening?.x === x && p.cc3dArrival.opening.y === y);
+}
+
+/**
+ * The point teeth aim at. On a CC2-engine level, once a tick has recorded the player's view, it is his apparent position
+ * (the cell he is stepping out of, or the source pad of a teleport, plus the share of the step still to run), not his cell
+ * (Lexy pursue_player, visual_position); otherwise the player's cell.
+ */
+function chaseTarget(w: EpoxyWorld): { x: number; y: number } {
+  const view = w.cc2PlayerView;
+  if (view === undefined || !usesCc2Engine(w.level)) return { x: w.player.x, y: w.player.y };
+  const base = view.sourcePad ?? view;
+  const left = view.stepLength > 0 ? Math.min(1, Math.max(0, view.cooldown / view.stepLength)) : 0;
+  const vec = DIRECTION_VECTORS[view.dir];
+  return { x: base.x - vec.dx * left, y: base.y - vec.dy * left };
+}
+
 /**
  * The direction a monster steps in, or null. `def` is the definition whose behaviour decides: the monster's own,
  * or for a rover the one it is imitating just now (the monster's own definition still rules what it may enter).
  */
-function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
+export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
   if (!def) return null;
 
   // A phasing monster ignores the tile it stands on: no sliding, no forcing, no turning floor.
@@ -665,8 +694,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
   }
 
   if (def.movementPattern === CHASE_PLAYER_PATTERN || def.movementPattern === FLEE_PLAYER_PATTERN) {
-    const dx = w.player.x - monster.x;
-    const dy = w.player.y - monster.y;
+    const target = chaseTarget(w);
+    const dx = target.x - monster.x;
+    const dy = target.y - monster.y;
     const candidates: Direction[] = [];
     // On a tie the classic rules (Lynx teeth) go vertical first; Epoxy's own rules go horizontal first.
     if (w.ccRules ? Math.abs(dx) > Math.abs(dy) : Math.abs(dx) >= Math.abs(dy)) {
@@ -685,8 +715,9 @@ function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, def: Enti
     for (const c of candidates) {
       if (canStep(w, monster, c)) return c;
     }
-    // Classic teeth boxed in turn to face their first choice (every classic-rules level, CC2 imports included).
-    if (w.ccRules && candidates.length > 0 && followsCcCadence(monster.type, usesCc2Engine(w.level))) monster.dir = candidates[0];
+    // Classic teeth boxed in turn to face their first choice; on a CC2-engine level they take the last choice, as every actor does
+    // (Lexy game.js:1770-1774), and the move is tried in their turn through the plan (the facing).
+    if (w.ccRules && candidates.length > 0 && followsCcCadence(monster.type, usesCc2Engine(w.level))) monster.dir = usesCc2Engine(w.level) ? candidates[candidates.length - 1] : candidates[0];
     return null;
   }
 
@@ -855,6 +886,9 @@ export function canMonsterEnter(
   const def = ConfigRegistry.getEntityDef(monster.type);
   if (def?.ignoresCellEdges !== true && isEdgeBlocked(w, monster.x, monster.y, nx, ny, dir)) return false;
   if (canopyStopsStep(w, def, monster.x, monster.y, nx, ny)) return false;
+  // CC2 engine: the cell a player is stepping into (a socket or door he opens on arrival) stays as it was for the monsters until
+  // his step ends; a ghost, which passes solid tiles, is not held (Lexy tiletypes.js:43-45, 3510-3517).
+  if (def?.passesSolidTiles !== true && usesCc2Engine(w.level) && isPlayerOpening(w, nx, ny)) return false;
 
   const destTileId = w.terrain[ny][nx];
   const destTile = ConfigRegistry.getTile(destTileId);

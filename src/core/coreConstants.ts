@@ -426,6 +426,14 @@ export function ccStepTicks(type: string): number {
 export const CC_TEETH_CYCLE_TICKS = 8;
 export const CC_TEETH_ACTIVE_TICKS = 4;
 
+/** CC2-engine levels: the teeth cycle is shifted by this many ticks (Lexy step_parity 5), so they decide when (tick + 5) mod 8 < 4. */
+export const CC2_TEETH_PHASE_OFFSET = 5;
+
+/** Whether teeth (and timid teeth) may decide at monster clock `clock`; a CC2-engine level shifts the cycle by CC2_TEETH_PHASE_OFFSET. */
+export function teethMayDecide(clock: number, cc2: boolean): boolean {
+  return (clock + (cc2 ? CC2_TEETH_PHASE_OFFSET : 0)) % CC_TEETH_CYCLE_TICKS < CC_TEETH_ACTIVE_TICKS;
+}
+
 /**
  * Visits a laser trace may make per cell of the map: one per direction a beam
  * can cross the cell in, which bounds every trace even on a ring of mirrors.
@@ -561,6 +569,8 @@ export const RAIL_DEFAULT_ENTRY: Direction = 'S';
 
 /** Prefix of the step-end effects waiting on the players of a converted CC3D level in a search state key; written only while one waits. */
 export const CC3D_ARRIVAL_KEY_PREFIX = 'ca';
+/** Prefix of the apparent player position in the runtime key of a CC2-engine level. */
+export const CC2_PLAYER_VIEW_KEY_PREFIX = 'pv';
 
 /** Prefix of the track cell state in a search state key. */
 export const RAIL_STATE_KEY_PREFIX = 'rl';

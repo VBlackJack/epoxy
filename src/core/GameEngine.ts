@@ -28,6 +28,7 @@ import {
   SPENT_REVEAL_KEY_PREFIX,
   PLAYER_CHARACTER_KEY_PREFIX,
   CC3D_ARRIVAL_KEY_PREFIX,
+  CC2_PLAYER_VIEW_KEY_PREFIX,
   PLAYERS_KEY_PREFIX,
   DEFAULT_PLAYER_CHARACTER,
   RAIL_STATE_KEY_PREFIX,
@@ -65,6 +66,9 @@ import {
   playerWalkCooldown,
   processPlayerSlideStep,
   applyCc3dStepEnd,
+  cc2PlayerViewOf,
+  recordCc2PlayerView,
+  resetCc2PlayerView,
   processTeleportExit,
   resumeForceCarry,
   tickParkedPlayers
@@ -84,6 +88,8 @@ import {
   revealedTerrain,
   canPlayerEnter,
   cc3dArrivalKey,
+  cc2PlayerViewKey,
+  copyCc2PlayerView,
   copyCc3dArrival,
   createEpoxyWorld,
   getEntityAt,
@@ -438,6 +444,11 @@ export class GameEngine {
     if (this.w.railCells.size > 0) parts.push(`${RAIL_STATE_KEY_PREFIX}${railStateKey(this.w)}`);
     const arrivals = cc3dArrivalKey(this.w);
     if (arrivals !== '') parts.push(`${CC3D_ARRIVAL_KEY_PREFIX}${arrivals}`);
+    // The teeth of a CC2-engine level aim at the apparent player position, so it tells search states apart.
+    if (usesCc2Engine(this.w.level)) {
+      const view = cc2PlayerViewKey(this.w);
+      if (view !== '') parts.push(`${CC2_PLAYER_VIEW_KEY_PREFIX}${view}`);
+    }
     return parts.join('|');
   }
 
@@ -746,6 +757,8 @@ export class GameEngine {
       ...(this.w.hasToggleClock ? { timerPaused: this.w.timerPaused, pausedTicks: this.w.pausedTicks } : {}),
       // Only a classic-rules level reads the entity-pass clock (the teeth cycle).
       ...(this.w.ccRules || this.w.cc3dPace ? { ccMonsterClock: this.w.ccMonsterClock } : {}),
+      // Only a CC2-engine level that has run a tick has an apparent player position.
+      ...(this.w.cc2PlayerView !== undefined && usesCc2Engine(this.w.level) ? { cc2PlayerView: copyCc2PlayerView(this.w.cc2PlayerView) } : {}),
       // Only a CC2-engine level with a splash still lasting has one to put back.
       ...(this.w.blockSplashes.size > 0 ? { blockSplashes: [...this.w.blockSplashes] } : {}),
       ...(this.w.ccGenerators !== null ? { ccGenerators: [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] as [number, number, number] } : {}),
@@ -845,6 +858,7 @@ export class GameEngine {
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
+    this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
     if (this.w.ccGenerators !== null && snap.ccGenerators !== undefined) {
       [this.w.ccGenerators.walkerHigh, this.w.ccGenerators.walkerLow, this.w.ccGenerators.main] = snap.ccGenerators;
     }
@@ -941,6 +955,12 @@ export class GameEngine {
     // A converted CC3D level recomputes its traps once, at the end of the tick (after the signals and lasers settled).
     refreshTrapLatch(this.w);
     this.checkTargetsWin();
+    // CC2 engine: what the step onto a cell does acts when that step ends, at the end of the tick that ran its wait out.
+    // Not after an early return above (paused, time out, death), nor once the level is won.
+    // A press that ended the level or killed the player leaves nothing to record.
+    if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && this.w.player.alive && !this.w.levelCompleted && !applyCc3dStepEnd(this.ctx)) return;
+    // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
+    recordCc2PlayerView(this.w);
   }
 
   public attemptPlayerMove(dir: Direction): boolean {
@@ -951,7 +971,7 @@ export class GameEngine {
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
     // switch, a jump) bars the input. It always acts at the true end of the step (see applyCc3dStepEnd), so this never sticks.
-    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || this.w.player.cc3dArrival !== undefined) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
       return false;
     }
 
@@ -986,6 +1006,8 @@ export class GameEngine {
     }
 
     this.saveUndoSnapshot();
+    // CC2 engine: the teeth of the coming tick aim at where he stands now, not at the cell this move takes him to.
+    if (usesCc2Engine(this.w.level) && this.w.cc2PlayerView === undefined) this.w.cc2PlayerView = cc2PlayerViewOf(this.w);
     this.w.gridMutatedByMove = false;
     this.w.rejectedPushMovedBlocks = false;
     // The mover may leave through an exit during the move, which hands control to the next player.
@@ -1046,6 +1068,7 @@ export class GameEngine {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
     this.saveUndoSnapshot();
     rotatePlayers(this.w);
+    resetCc2PlayerView(this.w);
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
     return true;
