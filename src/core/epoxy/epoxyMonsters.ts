@@ -20,6 +20,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   CC_BLOB_BUTTON_DELAY_PASSES,
+  EMULATE_CYCLE_PATTERN,
   CC_BLOB_TYPE,
   STEER_MONSTERS_ACTION,
   CC_MONSTER_BUTTON_DELAY_PASSES,
@@ -640,10 +641,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   openDoorWithHeldKey(w, entity, nx, ny);
   const destTile = ConfigRegistry.getTile(w.terrain[ny][nx]);
   // A ghost or a rover takes the keys and tools it walks over (the item leaves the map); a bomb is judged below.
-  // A rolling ball takes the score bonuses too.
+  // A rolling ball takes the score bonuses too, and so does a rover on a CC2-engine level (Lexy defs.js 118-125, normal pickup priority).
   if (def?.picksUpItems === true) {
     const lying = w.items[ny][nx];
-    if (lying && (isRollingBallDef(def) ? rollingBallPicksUp(lying) : monsterPicksUp(lying))) {
+    const takesBonuses = isRollingBallDef(def) || (usesCc2Engine(w.level) && def.movementPattern === EMULATE_CYCLE_PATTERN);
+    if (lying && (takesBonuses ? rollingBallPicksUp(lying) : monsterPicksUp(lying))) {
       w.items[ny][nx] = null;
       if (usesCc2Engine(w.level)) holdTool(w, entity, nx, ny, lying);
     }
