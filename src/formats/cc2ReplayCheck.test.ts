@@ -22,7 +22,7 @@ import { loadTestConfigs } from '../test/loadTestConfigs';
 import { C2M_TAGS, type Cc2RawSection } from './cc2Model';
 import { CC2_FRAMES_PER_TICK, CC2_REPLAY_ACTION_BITS, CC2_REPLAY_KEY_BITS, decodeCc2Replay } from './cc2Replay';
 import { checkCc2Replay, checkCc2ReplayBest, resolveCc2HeldOrder } from './cc2ReplayCheck';
-import { makeMap, player, put } from './cc2TestMaps';
+import { FLOOR_CODE, makeMap, player, put } from './cc2TestMaps';
 import { convertCc2Map } from './cc2ToEpoxy';
 
 const CODE_ICE = 0x03;
@@ -30,6 +30,8 @@ const CODE_WATER = 0x08;
 const CODE_FORCE_E = 0x0b;
 const CODE_EXIT = 0x14;
 const CODE_WALL = 0x02;
+const CODE_FIRE_BOOTS = 0x3d;
+const CODE_FLIPPERS = 0x3e;
 const CODE_PURPLE_WALL = 0x73;
 const STEP_FRAMES = 4 * CC2_FRAMES_PER_TICK;
 const TAP_FRAMES = CC2_FRAMES_PER_TICK;
@@ -197,6 +199,73 @@ describe('checkCc2Replay', () => {
     const best = checkCc2ReplayBest(level, replay);
     expect(best.won).toBe(true);
     expect(best.ignoredKeyBits).toBe(CC2_REPLAY_ACTION_BITS.drop);
+  });
+});
+
+describe('action keys of the held strategy on the Epoxy engine', () => {
+  const { cycleInventory, drop, switchPlayer } = CC2_REPLAY_ACTION_BITS;
+  const FRAMES_PER_TICK = CC2_FRAMES_PER_TICK;
+  /** The pickups are behind the player by tick 9; it decides again at ticks 12, 16 and 20, where it steps into the water. */
+  const FIRST_PRESS_FRAMES = 9 * FRAMES_PER_TICK;
+  const RELEASE_FRAMES = 12 * STEP_FRAMES;
+
+  /** Flippers then fire boots on the way to water: only the flippers get the player across. */
+  function waterRun() {
+    return levelOf(10, 1, [
+      put(1, 0, { code: CODE_FLIPPERS }, { code: FLOOR_CODE }),
+      put(2, 0, { code: CODE_FIRE_BOOTS }, { code: FLOOR_CODE }),
+      terrain(5, 0, CODE_WATER),
+      terrain(9, 0, CODE_EXIT)
+    ]);
+  }
+
+  it('drops the oldest pair of boots on a press', () => {
+    const replay = replayOf([[0, E], [FIRST_PRESS_FRAMES, E | drop], [RELEASE_FRAMES, 0]]);
+    expect(checkCc2Replay(waterRun(), replay, 'held').won).toBe(false);
+  });
+
+  it('cycles the inventory once per press so that the drop puts down the other pair', () => {
+    const replay = replayOf([
+      [0, E],
+      [FIRST_PRESS_FRAMES, E | cycleInventory],
+      [2 * FRAMES_PER_TICK, E | cycleInventory | drop],
+      [RELEASE_FRAMES, 0]
+    ]);
+    expect(checkCc2Replay(waterRun(), replay, 'held').won).toBe(true);
+  });
+
+  it('keeps a held cycle key from acting again until it is released', () => {
+    // The key stays down across the decision at tick 12 and the drop comes at tick 14: one cycle, the fire boots go.
+    const held = replayOf([
+      [0, E],
+      [FIRST_PRESS_FRAMES, E | cycleInventory],
+      [5 * FRAMES_PER_TICK, E | cycleInventory | drop],
+      [RELEASE_FRAMES, 0]
+    ]);
+    // The key goes up after the decision and is pressed again with the drop: the pairs are cycled back, the flippers go.
+    const released = replayOf([
+      [0, E],
+      [FIRST_PRESS_FRAMES, E | cycleInventory],
+      [4 * FRAMES_PER_TICK, E],
+      [FRAMES_PER_TICK, E | cycleInventory | drop],
+      [RELEASE_FRAMES, 0]
+    ]);
+    expect(checkCc2Replay(waterRun(), held, 'held').won).toBe(true);
+    expect(checkCc2Replay(waterRun(), released, 'held').won).toBe(false);
+  });
+
+  it('hands control to the other player on a switch press and eats that tick', () => {
+    const level = levelOf(6, 2, [terrain(5, 0, CODE_EXIT), terrain(5, 1, CODE_EXIT), terrain(1, 1, CODE_WALL), player(0, 1)]);
+    const plain = checkCc2Replay(level, replayOf(hold(E, 6)), 'held');
+    const switched = checkCc2Replay(level, replayOf([[0, E | switchPlayer], [6 * STEP_FRAMES, 0]]), 'held');
+    expect(switched.moves).toBeLessThan(plain.moves);
+    expect(switched.won).toBe(false);
+  });
+
+  it('leaves the Lynx based engines and the steps strategy unchanged', () => {
+    const replay = replayOf([[0, E], [FIRST_PRESS_FRAMES, E | cycleInventory | drop], [RELEASE_FRAMES, 0]]);
+    expect(() => checkCc2Replay(waterRun(), replay, 'held', 'lynx')).not.toThrow();
+    expect(() => checkCc2Replay(waterRun(), replay, 'steps')).not.toThrow();
   });
 });
 
