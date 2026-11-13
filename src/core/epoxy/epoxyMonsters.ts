@@ -90,6 +90,9 @@ import {
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
 
+/** The exit order of the CC2 green teleporter, the one pad that keeps its jump at the start of a monster's step (its destination is drawn). */
+const CC2_STEP_START_TELEPORT_ORDER = 'random';
+
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
@@ -118,6 +121,10 @@ export function updateEntities(ctx: EpoxyContext): void {
 function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
   const w = ctx.world;
   if (!usesCc2Engine(w.level)) return applyQueuedArrivals(ctx);
+  // A teleport waits for its monster's own turn (applied there); one whose monster is gone is void.
+  if (w.ccArrivals.some((a) => a.teleport === true)) {
+    w.ccArrivals = w.ccArrivals.filter((a) => a.teleport !== true || w.entities.some((e) => e.uid === a.uid));
+  }
   w.cc2BeforePass = true;
   try {
     return applyQueuedArrivals(ctx);
@@ -135,7 +142,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
-  const isDue = (a: { uid: number; due: number }): boolean => a.due <= pass && (ownerUid === undefined || a.uid === ownerUid);
+  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster.
+  const cc2 = usesCc2Engine(w.level);
+  const isDue = (a: CcArrival): boolean =>
+    a.due <= pass && (ownerUid === undefined || a.uid === ownerUid) && (!cc2 || (a.teleport === true) === (ownerUid !== undefined));
   const due = w.ccArrivals.filter(isDue);
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
@@ -149,7 +159,7 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
         continue;
       }
       if (arrival.teleport === true) {
-        if (!applyQueuedTeleport(ctx, monster, arrival, pass)) return false;
+        if (!(cc2 ? applyStepEndTeleport(ctx, monster) : applyQueuedTeleport(ctx, monster, arrival, pass))) return false;
         continue;
       }
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
@@ -188,6 +198,16 @@ function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival:
   return true;
 }
 
+/**
+ * CC2 engine: a monster whose step ended on a teleporter (not the green one) goes through in its own turn of that pass: it
+ * stands on the destination pad, and its next decision is the forced exit (see stepMonsterCore). The countdown is left as it
+ * is: it reaches 0 in this very pass. Returns false when the arrival killed the player.
+ */
+function applyStepEndTeleport(ctx: EpoxyContext, monster: RuntimeEntity): boolean {
+  if (!ctx.teleportEntity(monster, monster.x, monster.y, monster.dir, true)) return true;
+  return resolveMonsterArrival(ctx, monster, false);
+}
+
 /** A converted CC3D level fires a press in its monster's own turn: a press whose monster is gone is void. */
 function dropOrphanArrivals(w: EpoxyWorld): void {
   if (w.ccArrivals.length === 0) return;
@@ -216,6 +236,8 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     }
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
+    // CC2 engine: a monster a teleporter put on its pad leaves by the forced exit as its next decision: no way is drawn for it.
+    if (entity.teleportExit !== undefined && usesCc2Engine(w.level)) continue;
     if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
@@ -298,6 +320,10 @@ function runEntityPass(ctx: EpoxyContext): void {
       w.entityPassSeen.add(entity.uid);
       // CC3D fires a monster's button press inside that monster's own turn, so the monsters ahead of it in the list
       // acted on the old state of what the button works.
+      if (!applyQueuedArrivals(ctx, entity.uid, clock)) return;
+      if (w.removedUids.has(entity.uid)) continue;
+    } else if (w.ccRules && w.ccArrivals.length > 0 && usesCc2Engine(w.level)) {
+      // CC2 engine: the teleport that ends the step of this monster happens in its own turn.
       if (!applyQueuedArrivals(ctx, entity.uid, clock)) return;
       if (w.removedUids.has(entity.uid)) continue;
     }
@@ -452,6 +478,9 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   delete entity.teleportExit;
   if (exitDir !== undefined && canStep(w, entity, exitDir)) {
     chosenDir = exitDir;
+  } else if (exitDir !== undefined && usesCc2Engine(w.level)) {
+    // CC2 engine: a blocked forced exit spends this decision (nothing is drawn); the monster decides normally on the next one.
+    chosenDir = null;
   } else if (w.ccPlans.has(entity.uid)) {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
@@ -685,6 +714,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster' && destTile.teleportExitOrder !== CC2_STEP_START_TELEPORT_ORDER) {
+    // CC2 engine: the monster goes through in its own turn of the pass where its step ends, not when it starts. The green pad
+    // (which draws its destination) keeps the jump at the start of the step, as do blocks.
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+    return true;
+  }
   if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && w.cc3dPace && w.inTick && entity.kind === 'monster') {
     // CC3D moves the monster when its step ends; blocks keep the immediate jump.
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
