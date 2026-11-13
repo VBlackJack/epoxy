@@ -77,6 +77,12 @@ const CODE_FLAME_JET_OFF = 0x5f;
 const CODE_FLAME_JET_ON = 0x60;
 const CODE_PURPLE_FLOOR = 0x72;
 const CODE_PURPLE_WALL = 0x73;
+/** Force floors (north, east, south, west) and the green toggle floor and wall: tiles that flip when a wire end powers them. */
+const CODE_POWER_FLIP_FIRST = 0x0a;
+const CODE_POWER_FLIP_LAST = 0x0f;
+/** The four swivel doors. */
+const CODE_SWIVEL_FIRST = 0x48;
+const CODE_SWIVEL_LAST = 0x4b;
 
 /** Kinds of a logic gate, as the modifier names them. */
 export type Cc2GateKind = 'not' | 'and' | 'or' | 'xor' | 'latch' | 'nand' | 'diode' | 'counter' | 'unknown';
@@ -142,6 +148,7 @@ export type Cc2WireNodeKind =
   | 'trap'
   | 'flame_jet'
   | 'purple'
+  | 'power_flip'
   | 'teleport'
   | 'transmogrifier'
   | 'track';
@@ -217,7 +224,12 @@ function classify(code: number, mod: number | undefined): CellInfo | null {
     // The modifier of a clone machine holds its arrow, not wires: it takes a wire from any side.
     return { role: 'sink', kind: 'cloner', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }
-  // Green toggle walls are not wire devices in CC2 (only the green button flips them); purple walls are the wired toggles.
+  // A wire end that touches a force floor, a green toggle floor or wall or a swivel door powers it (Lexy: any tile with an
+  // on_power action): the force floor reverses, the toggle flips and the swivel turns clockwise on the rising edge. The tile
+  // takes a wire from any side (its modifier holds no wire bits that matter here).
+  if ((code >= CODE_POWER_FLIP_FIRST && code <= CODE_POWER_FLIP_LAST) || (code >= CODE_SWIVEL_FIRST && code <= CODE_SWIVEL_LAST)) {
+    return { role: 'sink', kind: 'power_flip', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
+  }
   if (code === CODE_TRAP || code === CODE_OPEN_TRAP) {
     return { role: 'sink', kind: 'trap', supported: true, mask: ALL_SIDES_MASK, tunnels: 0 };
   }

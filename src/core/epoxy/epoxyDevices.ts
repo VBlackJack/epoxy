@@ -169,7 +169,7 @@ export function turnMarkedTanks(w: EpoxyWorld): void {
 }
 
 /**
- * Flips one cell to the other form of its tile (a green toggle wall or a rail switch), as a wired signal asks on a rising
+ * Flips one cell to the other form of its tile (a green toggle wall, a rail switch, or on a CC2-engine level a force floor or a swivel door), as a wired signal asks on a rising
  * edge. The cell changes whoever stands on it, as it does under the green button. A cell whose tile has no other form
  * (it was replaced since the level loaded) is left as it is. The toggle parity of the green family is not touched: the
  * flip is per cell, and a flip tile hidden under a removable top is never wired. The lasers are retraced.
@@ -180,7 +180,10 @@ export function flipCellAt(w: EpoxyWorld, x: number, y: number): void {
     advanceRailSwitch(w, x, y);
     return;
   }
-  const next = ConfigRegistry.getTile(w.terrain[y][x]).togglesTo;
+  const here = ConfigRegistry.getTile(w.terrain[y][x]);
+  // A CC2 force floor reverses and a CC2 swivel door turns clockwise when a wire powers it (Lexy: on_power activates the tile).
+  const poweredFlip = here.flipsOnPower === true && usesCc2Engine(w.level) ? (here.grayFlipsTo ?? here.swivelTurns?.cw) : undefined;
+  const next = here.togglesTo ?? poweredFlip;
   if (next === undefined) return;
   w.terrain[y][x] = next;
   w.beamDirty = true;

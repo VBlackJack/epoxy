@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigRegistry } from './ConfigRegistry';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V17_IDS, PACK_JSON_VERSION_V18, PACK_JSON_VERSION_V18_IDS } from './constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V19, PACK_JSON_VERSION_V17_IDS, PACK_JSON_VERSION_V18, PACK_JSON_VERSION_V18_IDS } from './constants';
 import { CC2_GATE_BASE_IDS, SIGNAL_GATE_CC2_ID_SUFFIX } from '../core/coreConstants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
@@ -36,7 +36,7 @@ describe('format 18 ids', () => {
     expect(NEW_IDS).toHaveLength(17);
     expect([...PACK_JSON_VERSION_V18_IDS].sort()).toEqual([...NEW_IDS].sort());
     for (const id of NEW_IDS) expect(PACK_JSON_VERSION_V17_IDS.has(id), id).toBe(false);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
   });
 
   it('defines every new id in the shipped tiles', () => {
@@ -66,7 +66,7 @@ describe('format 18 ids', () => {
     const level = makeLevel('f18');
     level.terrain[1][1] = 'dirt_cc2';
     const file = JSON.parse(serializePack('P', [level]));
-    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V18 + 1 }), bounds(), new Set<string>(), () => 0);
+    const read = parsePackJson(JSON.stringify({ ...file, version: PACK_JSON_VERSION_V19 + 1 }), bounds(), new Set<string>(), () => 0);
     expect(read).toEqual({ ok: false, error: 'version' });
   });
 });

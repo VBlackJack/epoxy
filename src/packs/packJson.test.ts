@@ -23,7 +23,7 @@ vi.mock('../audio/AudioManager', () => ({
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import {
   PACK_JSON_FORMAT,
-  PACK_JSON_MAX_VERSION,
+  PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V19,
   PACK_JSON_VERSION,
   PACK_JSON_VERSION_CELL_EDGES,
   PACK_JSON_VERSION_LAUNCHERS,
@@ -227,7 +227,7 @@ describe('packJson', () => {
     expect(serializePack('N', [plateToDoor])).toBe(
       JSON.stringify({ format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_SIGNALS, name: 'N', levels: [plateToDoor] }, null, 2)
     );
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
     // The check reads the shipped ids by name, so it holds without a tile lookup.
     expect(usesPulseSinkFormat(pulse, null)).toBe(true);
     expect(usesPulseSinkFormat(edgeSink, null)).toBe(true);
@@ -380,7 +380,7 @@ describe('pack format 7 id gate', () => {
   });
 
   it('reads versions 7 to 18 and refuses version 19', () => {
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
     const sevenFile = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V7, name: 'x', levels: [makeLevel('a')] };
     expect(parse(JSON.stringify(sevenFile))).toMatchObject({ ok: true });
     const level = makeLevel('t');
@@ -388,7 +388,7 @@ describe('pack format 7 id gate', () => {
     const written = parse(serializePack('N', [level]));
     expect(written).toMatchObject({ ok: true });
     if (written.ok) expect(written.levels[0].items[1][1]).toBe('charge');
-    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V18 + 1, name: 'x', levels: [level] };
+    const future = { format: PACK_JSON_FORMAT, version: PACK_JSON_VERSION_V19 + 1, name: 'x', levels: [level] };
     expect(parse(JSON.stringify(future))).toEqual({ ok: false, error: 'version' });
   });
 

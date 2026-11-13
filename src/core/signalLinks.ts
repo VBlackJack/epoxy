@@ -57,6 +57,8 @@ export type SignalSinkKind = Pick<SignalNodeDef, 'color' | 'fires' | 'powers'>;
 interface SignalSinkOptions {
   /** The tile is the terrain hidden under a removable top. A flip tile or a relay pad there is never a sink (see signalSinkOf). */
   hidden?: boolean;
+  /** The level is played by the CC2 engine (it carries `cc2`): a tile that flips on power (`flipsOnPower`) is a sink there and nowhere else. */
+  cc2Engine?: boolean;
 }
 
 /**
@@ -70,13 +72,16 @@ interface SignalSinkOptions {
  * hidden one is no sink for the same reason as a hidden flip tile. A wired flip tile (a purple wall or a wired flame jet,
  * `wireTogglesTo`) flips on every change of its input, rising and falling, and a wired trap is a level sink that is open
  * while its input is on; neither is a sink when hidden, for the same reason. Either form of a CC2 powered device
- * (`poweredTwin`) is a level sink that follows its input, and is no sink when hidden either.
+ * (`poweredTwin`) is a level sink that follows its input, and is no sink when hidden either. A tile that flips on power
+ * (`flipsOnPower`: a force floor or a swivel door) is a flip sink on a CC2-engine level only (`options.cc2Engine`); on a native
+ * level it is no sink, so such a link is dropped there as it always was.
  */
 export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = {}): SignalSinkKind | null {
   if (tile.holdDoorColor !== undefined) return { color: tile.holdDoorColor };
   if (tile.shotLauncher !== undefined) return { fires: 'launcher' };
   if (tile.isCloneMachine) return { fires: 'cloner' };
   if ((tile.togglesTo !== undefined || tile.railJunction === true) && options.hidden !== true) return { fires: 'flip' };
+  if (tile.flipsOnPower === true && options.cc2Engine === true && options.hidden !== true) return { fires: 'flip' };
   if (tile.relayPad !== undefined && options.hidden !== true) return { powers: true };
   // A purple wall or a wired flame jet flips on every change of its input; a wired trap is a level sink like a relay pad.
   if (tile.wireTogglesTo !== undefined && options.hidden !== true) return { fires: 'flip_edges' };
@@ -87,7 +92,7 @@ export function signalSinkOf(tile: TileDefinition, options: SignalSinkOptions = 
 }
 
 /** The node a tile makes of its cell, or null when the tile takes no part in signals. `hidden`: the tile lies under a removable top. */
-function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false): CellNode | null {
+function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false, cc2Engine: boolean = false): CellNode | null {
   if (tile.laserReceiverGroup !== undefined) {
     return { role: 'source', def: { cell, kind: 'source', sample: 'receiver' } };
   }
@@ -101,7 +106,7 @@ function nodeOfTile(tile: TileDefinition, cell: number, hidden: boolean = false)
     else def = { cell, kind: tile.signalGate };
     return { role: 'gate', def };
   }
-  const sink = signalSinkOf(tile, { hidden });
+  const sink = signalSinkOf(tile, { hidden, cc2Engine });
   return sink === null ? null : { role: 'sink', def: { cell, kind: 'sink', ...sink } };
 }
 
@@ -111,16 +116,17 @@ function nodeAt(
   hidden: ReadonlyMap<number, string>,
   x: number,
   y: number,
-  lookup: TerrainTileLookup
+  lookup: TerrainTileLookup,
+  cc2Engine: boolean = false
 ): CellNode | null {
   const width = terrain[0]?.length ?? 0;
   const cell = y * width + x;
   const top = lookup(terrain[y][x]);
-  const topNode = top === undefined ? null : nodeOfTile(top, cell);
+  const topNode = top === undefined ? null : nodeOfTile(top, cell, false, cc2Engine);
   if (topNode !== null) return topNode;
   const under = hidden.get(cell);
   const underTile = under === undefined ? undefined : lookup(under);
-  return underTile === undefined ? null : nodeOfTile(underTile, cell, true);
+  return underTile === undefined ? null : nodeOfTile(underTile, cell, true, cc2Engine);
 }
 
 function hiddenTerrain(underlays: readonly CellUnderlay[] | null, width: number): Map<number, string> {
@@ -144,14 +150,16 @@ function validPort(value: unknown): string | undefined {
  * 16 characters is dropped alone. A pair of cells is kept once, with the smallest port (none is the smallest),
  * because a duplicate wire would change the parity of a XOR (a port that names a real port of the gate, see signalPorts.ts, makes a wire of its own). The links are sorted by source row, source
  * column, target row, then target column. A cycle is kept: the validator refuses it later. Returns null
- * when none is left.
+ * when none is left. `cc2Engine` (the level carries `cc2`) makes a tile that flips on power a valid target; a native level
+ * drops such a link.
  */
 export function normalizeSignalLinks(
   links: unknown,
   terrain: readonly (readonly string[])[],
   ruleset: unknown,
   underlays: readonly CellUnderlay[] | null = null,
-  lookup: TerrainTileLookup | null = getRegisteredTerrainLookup()
+  lookup: TerrainTileLookup | null = getRegisteredTerrainLookup(),
+  cc2Engine: boolean = false
 ): SignalLink[] | null {
   if ((isRuleset(ruleset) ? ruleset : 'epoxy') !== 'epoxy' || !Array.isArray(links)) return null;
   const height = terrain.length;
@@ -167,8 +175,8 @@ export function normalizeSignalLinks(
     const port = validPort(entry.port);
     if (port !== undefined) link.port = port;
     if (lookup !== null) {
-      const from = nodeAt(terrain, hidden, link.fromX, link.fromY, lookup);
-      const to = nodeAt(terrain, hidden, link.toX, link.toY, lookup);
+      const from = nodeAt(terrain, hidden, link.fromX, link.fromY, lookup, cc2Engine);
+      const to = nodeAt(terrain, hidden, link.toX, link.toY, lookup, cc2Engine);
       if (from === null || (from.role !== 'source' && from.role !== 'gate')) continue;
       if (to === null || (to.role !== 'gate' && to.role !== 'sink')) continue;
     }
@@ -188,10 +196,11 @@ export function normalizeSignalLinks(
  * nodes are the cells the links touch, their kinds read from the tiles through `lookup`.
  */
 export function compileSignalSpec(
-  level: Pick<CompiledLevel, 'terrain' | 'ruleset' | 'underlays' | 'signalLinks'>,
+  level: Pick<CompiledLevel, 'terrain' | 'ruleset' | 'underlays' | 'signalLinks' | 'cc2'>,
   lookup: TerrainTileLookup
 ): SignalSpec | undefined {
-  const links = normalizeSignalLinks(level.signalLinks, level.terrain, level.ruleset, level.underlays ?? null, lookup);
+  const cc2Engine = level.cc2 !== undefined;
+  const links = normalizeSignalLinks(level.signalLinks, level.terrain, level.ruleset, level.underlays ?? null, lookup, cc2Engine);
   if (links === null) return undefined;
   const width = level.terrain[0]?.length ?? 0;
   const hidden = hiddenTerrain(level.underlays ?? null, width);
@@ -199,7 +208,7 @@ export function compileSignalSpec(
   const touch = (x: number, y: number): number => {
     const cell = y * width + x;
     if (!nodes.has(cell)) {
-      const node = nodeAt(level.terrain, hidden, x, y, lookup);
+      const node = nodeAt(level.terrain, hidden, x, y, lookup, cc2Engine);
       if (node !== null) nodes.set(cell, node.def);
     }
     return cell;
@@ -260,6 +269,26 @@ export function usesFlipSinkFormat(
     const { toX, toY } = link;
     if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
     return isFlip(level.terrain[toY]?.[toX]);
+  });
+}
+
+/**
+ * True when a signal link of the level ends, in plain view, on a tile that flips on power (a force floor or a swivel door:
+ * `flipsOnPower`) of a CC2-engine level (pack format 19). An older build would drop such a link, so the file needs a format
+ * that build refuses. A native level never counts: it drops these links on load, so it never carries one. The tiles come from
+ * the lookup (the flag lives in the tile configs), so without one nothing counts.
+ */
+export function usesPowerFlipSinkFormat(
+  level: Pick<CompiledLevel, 'terrain' | 'signalLinks' | 'cc2'>,
+  lookup: TerrainTileLookup | null = getRegisteredTerrainLookup()
+): boolean {
+  if (level.cc2 === undefined || lookup === null) return false;
+  return (level.signalLinks ?? []).some((link) => {
+    if (link === null || typeof link !== 'object') return false;
+    const { toX, toY } = link;
+    if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
+    const id = level.terrain[toY]?.[toX];
+    return id !== null && id !== undefined && lookup(id)?.flipsOnPower === true;
   });
 }
 

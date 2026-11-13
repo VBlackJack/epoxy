@@ -27,11 +27,10 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ConfigLoadError, findCc2Errors } from '../../config/ConfigValidation';
 import {
   PACK_JSON_ID_SET_VERSIONS,
-  PACK_JSON_MAX_VERSION,
+  PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V19,
   PACK_JSON_VERSION_V11,
   PACK_JSON_VERSION_V12,
-  PACK_JSON_VERSION_V12_IDS,
-  PACK_JSON_VERSION_V18
+  PACK_JSON_VERSION_V12_IDS
 } from '../../config/constants';
 import { tileAvailability, entityAvailability } from '../../editor/paletteAvailability';
 import en from '../../locales/en.json';
@@ -196,7 +195,7 @@ describe('pack format 12', () => {
   it('has a row in the id set table and is the highest format this build reads', () => {
     expect(PACK_JSON_VERSION_V12).toBe(PACK_JSON_VERSION_V11 + 1);
     expect(PACK_JSON_ID_SET_VERSIONS.map((row) => row.version)).toContain(PACK_JSON_VERSION_V12);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
   });
 
   it('is detected from a reserved id in the terrain, the items, the entities or a clone template', () => {

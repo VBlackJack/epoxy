@@ -417,7 +417,7 @@ export const PACK_JSON_VERSION_V18_IDS: ReadonlySet<string> = new Set([
 /**
  * Version of a pack file whose levels link a wire or a button to a tile that flips on power (a force floor, a green toggle or a
  * swivel door of a CC2-engine level; see TileDefinition.flipsOnPower). An older build would drop those links, so it must refuse the
- * file. The writer does not use it yet: the pack format wiring comes with the wired flip rule.
+ * file. The writer uses it only for such a level (see usesPowerFlipSinkFormat).
  */
 export const PACK_JSON_VERSION_V19 = 19;
 
@@ -442,9 +442,9 @@ export const PACK_JSON_ID_SET_VERSIONS: ReadonlyArray<{ version: number; ids: Re
 
 /**
  * Highest pack file version this build reads; a file with a higher version is refused. Every id of
- * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 18.
+ * PACK_JSON_ID_SET_VERSIONS exists in the configs, so this build reads version 19.
  */
-export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V18;
+export const PACK_JSON_MAX_VERSION = PACK_JSON_VERSION_V19;
 
 /** Fragment parameter of a pack share link: `#pack=<version>.<payload>`. */
 export const SHARE_LINK_PARAM = 'pack';
