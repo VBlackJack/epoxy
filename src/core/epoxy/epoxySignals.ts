@@ -104,17 +104,33 @@ export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
   };
 }
 
+/** Tile id of the pink button: the only held source CC2 reads from an actor at rest (Lexy button_pink is_emitting). */
+const PINK_BUTTON_TILE_ID = 'signal_plate';
+
+/**
+ * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
+ * cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
+ */
+function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
+  return e.arrivalTicks === undefined && !e.isSliding && (e.kind === 'block' || e.cooldownTicks === 0);
+}
+
 /**
  * Whether a held source's cell is occupied the way a pressure plate asks: the player standing there, or a
  * monster or block that is not sliding and presses plates. A coloured block counts, as on a plate of its colour.
+ * On a CC2 level the pink button reads only an actor at rest: the player once he has settled (the settle right after his own
+ * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
-function cellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
-  if (playerAtCell(w, x, y) !== undefined) return true;
+function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
+  const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
+  const player = playerAtCell(w, x, y);
+  if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
   const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y) return false;
     // CC3D: a mob still taking its step presses nothing (Cc3dDevices isPressed asks for remaining 0).
     if (e.arrivalTicks !== undefined) return false;
+    if (atRestOnly && !actorAtRest(e)) return false;
     if (anyActor) return true;
     if (e.isSliding) return false;
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(e.type)?.plateColor ?? 'red';
@@ -160,7 +176,7 @@ function sourceBlastedAway(w: EpoxyWorld, x: number, y: number): boolean {
 }
 
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
-function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): Map<number, boolean> {
+function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, phase: SignalPhase): Map<number, boolean> {
   const width = mapWidth(w);
   const lit = new Set(w.litReceiverCells.map((cell) => cell.y * width + cell.x));
   const levels = new Map<number, boolean>();
@@ -174,12 +190,12 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean): M
     else if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
     else if (def.sample === 'receiver') levels.set(cell, lit.has(cell));
     // A black button is powered unless something presses it.
-    else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y));
+    else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y, phase));
     // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
     else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
     // A wire floor is powered while the player stands on it holding the lightning bolt: the whole wire net it feeds is on.
     else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y));
-    else levels.set(cell, cellOccupied(w, x, y));
+    else levels.set(cell, cellOccupied(w, x, y, phase));
   }
   return levels;
 }
@@ -229,11 +245,11 @@ export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
  * the signals of the same pass. Returns the edges of the sinks. Clears the pending arrivals of the pulse buttons
  * right after sampling, before the caller fires the sinks.
  */
-export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, _phase: SignalPhase = SIGNAL_PHASE_TICK): SignalEdge[] {
+export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, phase: SignalPhase = SIGNAL_PHASE_TICK): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
-  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime), prime);
+  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime, phase), prime);
   runtime.state = result.state;
   // CC2 engine: every wired sink starts off (Lexy recalculate_circuitry), so one whose source is held at load rises on the first
   // settle. A sink fed by a button link keeps the primed state, and gates keep it too.

@@ -113,11 +113,11 @@ describe('a wired flame jet flips on the rising edge only on a CC2 level', () =>
   function overAndOff(mode: Mode, source: string): GameEngine {
     const engine = load(lane(mode, source, false));
     stepEast(engine);
-    run(engine, SETTLE_TICKS);
+    run(engine, MAX_WAIT_TICKS);
     expect(jetAt(engine)).toBe(JET_ON);
     stepEast(engine);
     stepEast(engine);
-    run(engine, SETTLE_TICKS);
+    run(engine, MAX_WAIT_TICKS);
     expect(engine.getPlayer().x).toBeGreaterThan(SOURCE_X);
     return engine;
   }
@@ -132,5 +132,30 @@ describe('a wired flame jet flips on the rising edge only on a CC2 level', () =>
 
   it('toggles a jet worked by an orange button on release too', () => {
     expect(jetAt(overAndOff('cc2', ORANGE))).toBe(JET_OFF);
+  });
+});
+
+describe('the CC2 pink button reads only an actor at rest', () => {
+  it('lights the jet once the player has settled on the button, not at the end of his step', () => {
+    const engine = load(lane('cc2', PLATE, false));
+    stepEast(engine);
+    expect(engine.getPlayer().x).toBe(SOURCE_X);
+    expect(jetAt(engine)).toBe(JET_OFF);
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
+    run(engine, MAX_WAIT_TICKS);
+    expect(engine.getPlayer().moveCooldown).toBe(0);
+    expect(jetAt(engine)).toBe(JET_ON);
+  });
+
+  it('lights the jet at the end of the step on a level that is not CC2', () => {
+    const engine = load(lane('native', PLATE, false));
+    stepEast(engine);
+    expect(jetAt(engine)).toBe(JET_ON);
+  });
+
+  it('still reads the player on an orange button the moment he arrives', () => {
+    const engine = load(lane('cc2', ORANGE, false));
+    stepEast(engine);
+    expect(jetAt(engine)).toBe(JET_ON);
   });
 });
