@@ -204,6 +204,11 @@ function planClassicDecisions(ctx: EpoxyContext): void {
       continue;
     }
     let plan = chooseMonsterDirection(w, entity, def);
+    // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
+    if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
+      const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+      if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+    }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(entity.type, usesCc2Engine(w.level)) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
     }
@@ -225,6 +230,14 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
   delete tank.pendingSteerDue;
   tank.dir = pending;
   w.ccPlans.set(tank.uid, canStep(w, tank, pending) ? pending : null);
+}
+
+/** CC2 engine: the way a monster on ice goes when its planned step `plan` is refused (turned round, then deflected by the ice corner); null elsewhere. */
+function iceBounceDirection(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined, plan: Direction): Direction | null {
+  if (!usesCc2Engine(w.level) || def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true) return null;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType !== 'ice') return null;
+  return here.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan];
 }
 
 /** The way a floor forces a monster, for the CC2 plan of a monster whose forced move is blocked right now; null when the floor does not decide for it. */
@@ -399,8 +412,12 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     // Decided in the decision pass: the step is tried once; a refused step only turns the monster.
     const plan = w.ccPlans.get(entity.uid) ?? null;
     w.ccPlans.delete(entity.uid);
+    const bounce = plan !== null ? iceBounceDirection(w, entity, def, plan) : null;
     if (plan !== null && canStep(w, entity, plan)) {
       chosenDir = plan;
+    } else if (bounce !== null && canStep(w, entity, bounce)) {
+      // Lexy game.js:1164-1214: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
+      chosenDir = bounce;
     } else {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
