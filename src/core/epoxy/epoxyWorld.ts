@@ -993,6 +993,8 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
     return !specificLinks.some((l) => isButtonPressed(w, l.buttonX, l.buttonY));
   }
 
+  // CC2 engine: a brown button works only the trap it is connected to (Lexy button_brown.connection): an unlinked trap stays shut.
+  if (usesCc2Engine(w.level)) return true;
   // Unlinked trap: any held trap button releases it
   // A button hidden under a removable top is listed too, and presses nothing until the top is gone.
   return !w.holdTrapButtons.some(
