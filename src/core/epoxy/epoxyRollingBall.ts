@@ -154,6 +154,8 @@ export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
 export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: Direction): boolean {
   const w = ctx.world;
   if (!usesCc2Engine(w.level)) return false;
+  // A uid removed earlier in this pass (or before an undo) must not make the new ball look removed.
+  w.removedUids.clear();
   const ball: RuntimeEntity = { uid: w.nextEntityUid++, type: ROLLING_BALL_ENTITY_ID, kind: 'monster', x, y, dir, cooldownTicks: 0, isSliding: false };
   w.entities.push(ball);
   const blocker = ballBlocker(w, ball, dir);

@@ -943,6 +943,8 @@ export class GameEngine {
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
+    // The uids of what was removed since the snapshot are not those of the world put back (a uid is reused after an undo).
+    this.w.removedUids.clear();
     this.w.litCharges = (snap.litCharges ?? []).map((charge) => ({ ...charge }));
     // A blast may have turned a device into floor: the devices are listed from the terrain put back.
     if (this.w.hasDynamite) rebuildDeviceLookups(this.w);
