@@ -226,6 +226,14 @@ function planClassicDecisions(ctx: EpoxyContext): void {
 function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void {
   const pending = tank.pendingSteer;
   if (tank.cooldownTicks !== 0 || pending === undefined || (tank.pendingSteerDue ?? 0) > clock) return;
+  // Lexy make_actor_decision decides nothing, and keeps the pending decision, while the actor stands on a clone
+  // machine, sits in a closed trap or slides: the steer waits for the first decision after that.
+  const def = ConfigRegistry.getEntityDef(tank.type);
+  const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+  if (here.isCloneMachine) return;
+  if (def?.ignoresFloorEffects !== true && isCellClosedTrap(w, tank.x, tank.y)) return;
+  if (!floorFree && here.slideType !== undefined) return;
   delete tank.pendingSteer;
   delete tank.pendingSteerDue;
   tank.dir = pending;

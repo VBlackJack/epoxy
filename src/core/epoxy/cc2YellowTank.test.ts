@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
+import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { GameEngine } from '../GameEngine';
 import type { Direction, RuntimeEntity } from '../types';
 import type { EpoxyWorld } from './epoxyWorld';
@@ -152,5 +153,61 @@ describe('markYellowButtonArrival', () => {
     const native = start('native');
     markYellowButtonArrival(world(native), 'S');
     expect(tankOf(native).pendingSteer).toBeUndefined();
+  });
+});
+
+describe('yellow tank decisions that wait', () => {
+  const STEER: Direction = 'E';
+  const FEW_TICKS = 6;
+
+  function steered(floor: string): GameEngine {
+    const engine = start('cc2', { [`${TANK_CELL.x},${TANK_CELL.y}`]: floor });
+    const tank = tankOf(engine);
+    tank.pendingSteer = STEER;
+    tank.cooldownTicks = 0;
+    return engine;
+  }
+
+  it('keeps the steer and its facing while the tank is a template on a clone machine', () => {
+    const engine = steered('clone_machine');
+    for (let i = 0; i < FEW_TICKS; i++) engine.tick();
+    const tank = tankOf(engine);
+    expect(tank.pendingSteer).toBe(STEER);
+    expect(tank.dir).toBe('N');
+    expect(tank.x).toBe(TANK_CELL.x);
+    expect(tank.y).toBe(TANK_CELL.y);
+  });
+
+  it('keeps the steer while the tank sits in a closed trap', () => {
+    const engine = steered('trap');
+    for (let i = 0; i < FEW_TICKS; i++) engine.tick();
+    const tank = tankOf(engine);
+    expect(tank.pendingSteer).toBe(STEER);
+    expect(tank.dir).toBe('N');
+    expect(tank.x).toBe(TANK_CELL.x);
+  });
+
+  it('keeps the steer while the tank slides (a tank the floor carries)', () => {
+    const def = ConfigRegistry.getEntityDef(TANK);
+    if (def === undefined) throw new Error('the yellow tank has a definition');
+    const carried = def.ignoresSlidingFloors;
+    def.ignoresSlidingFloors = false;
+    try {
+      const engine = steered('ice');
+      const first = tankOf(engine);
+      world(engine).ccPlans.clear();
+      engine.tick();
+      expect(first.pendingSteer).toBe(STEER);
+    } finally {
+      def.ignoresSlidingFloors = carried;
+    }
+  });
+
+  it('applies the steer on solid floor', () => {
+    const engine = steered('floor');
+    for (let i = 0; i < FEW_TICKS; i++) engine.tick();
+    const tank = tankOf(engine);
+    expect(tank.pendingSteer).toBeUndefined();
+    expect(tank.dir).toBe(STEER);
   });
 });
