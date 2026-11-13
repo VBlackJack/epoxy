@@ -73,7 +73,7 @@ export const CC2_ITEM_VARIANTS: Readonly<Record<string, Cc2Variant>> = {
   ...Object.fromEntries(NO_SIGN_ITEM_IDS.map((id): [string, Cc2Variant] => [`${NO_SIGN_ITEM_PREFIX}${id}`, { base: id, mark: 'no_sign' }]))
 };
 
-/** Runtime-only actors drawn as an item: the rolling ball is the bowling ball item (the hurl stone) on the move. */
+/** Runtime-only actors drawn as an item: the rolling ball is the bowling ball item (the hurl stone) on the move. Runeward paints it through its entity painter, the other styles through drawItem; both end in the item art. */
 export const CC2_ENTITY_ITEM_ART: Readonly<Record<string, string>> = {
   rolling_ball: 'hurl_stone'
 };

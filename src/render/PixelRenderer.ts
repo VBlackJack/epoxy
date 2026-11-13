@@ -5998,16 +5998,16 @@ export class PixelRenderer {
       }
       return;
     }
-    // The rolling ball is the bowling ball item rolling: every style draws it with the art of that item.
-    const itemArt = CC2_ENTITY_ITEM_ART[type];
-    if (itemArt !== undefined) {
-      this.drawItem(ctx, itemArt, x, y, size);
-      return;
-    }
     const runewardEntities = this.runewardPainters();
     const runewardPaint = runewardEntities ? findRunewardPainter(runewardEntities.entities, type) : undefined;
     if (runewardPaint) {
       runewardPaint(ctx, dir, x, y, size, this.runewardEnv(this.runewardArt() as RunewardArtConfig));
+      return;
+    }
+    // The rolling ball is the bowling ball item rolling: Runeward draws it by its entity painter (the item painter on the cell), every other style with the art of that item.
+    const itemArt = CC2_ENTITY_ITEM_ART[type];
+    if (itemArt !== undefined) {
+      this.drawItem(ctx, itemArt, x, y, size);
       return;
     }
     // A mirror player is the player seen through glass: the player skin, Melinda's bow for her mirror, a pale dot.
