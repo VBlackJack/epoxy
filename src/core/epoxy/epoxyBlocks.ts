@@ -437,6 +437,8 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   if (tile.hazard === 'fire' && blockDef?.destroyedByFire) {
     if (blockDef.meltsInFireTo) {
       w.terrain[destY][destX] = blockDef.meltsInFireTo;
+      // CC2 engine: the melt transmutes the block into a splash on the new water, which bars the real player alone.
+      if (usesCc2Engine(w.level)) leaveSplash(w, destX, destY);
     }
     removeEntity(w, block.uid);
     AudioManager.playSfx('burn');

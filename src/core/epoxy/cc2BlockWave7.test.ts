@@ -42,10 +42,14 @@ beforeEach(() => {
 });
 
 const BLOCK = 'dirt_block';
+const ICE_BLOCK = 'ice_block';
 const FORCE_EAST = 'force_e';
 const FORCE_CYCLE = 'force_cycle';
 const FORCE_START_X = 5;
 const WATCH_TICKS = 6;
+const SPLASH_PASSES = 5;
+const MELT_WAIT_PASSES = 8;
+const FIRE_X = 4;
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const ctxOf = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
@@ -140,5 +144,39 @@ describe('block step result on a force floor (FB2)', () => {
 
   it('reports nothing for a slide that moved', () => {
     expect(stepOnce(false)).toEqual({ refused: undefined, slid: true });
+  });
+});
+
+describe('melted ice block splash (MS)', () => {
+  function melt(mode: RoomMode): GameEngine {
+    const engine = load(mode, {
+      startX: FIRE_X - 2,
+      terrain: { [`${FIRE_X},${ROOM_ROW}`]: 'fire' },
+      entities: [{ type: ICE_BLOCK, x: FIRE_X - 1, y: ROOM_ROW, dir: 'E' }]
+    });
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    for (let pass = 0; pass < MELT_WAIT_PASSES && engine.getTerrain()[ROOM_ROW][FIRE_X] === 'fire'; pass++) engine.tick();
+    expect(engine.getTerrain()[ROOM_ROW][FIRE_X]).toBe('water');
+    return engine;
+  }
+  const canStepEast = (engine: GameEngine): boolean => {
+    engine.getPlayer().moveCooldown = 0;
+    return engine.attemptPlayerMove('E');
+  };
+
+  it('leaves a splash on the new water that bars the player for a few passes', () => {
+    const engine = melt('cc2');
+    expect(worldOf(engine).blockSplashes.size).toBe(1);
+    for (let pass = 0; pass < SPLASH_PASSES; pass++) {
+      expect(canStepEast(engine), `pass ${pass}`).toBe(false);
+      engine.tick();
+    }
+    expect(worldOf(engine).blockSplashes.size).toBe(0);
+  });
+
+  it('leaves none on a classic or a native level', () => {
+    for (const mode of ['cc', 'native'] as const) {
+      expect(worldOf(melt(mode)).blockSplashes.size, mode).toBe(0);
+    }
   });
 });
