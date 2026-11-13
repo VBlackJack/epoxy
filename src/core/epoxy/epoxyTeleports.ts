@@ -101,8 +101,8 @@ function cc2GreenPlan(w: EpoxyWorld, origin: TileDefinition, others: readonly Gr
  * The pads a Chip's Challenge 2 teleporter tries, in order, as Lexy's Labyrinth searches them: the ring of its group read
  * forward from the pad after the one entered, the entered pad last (it is only left forward). A lone pad leaves forward
  * and draws nothing. The green ('random') pad draws one pad among the others and then one side (both from the walker
- * generator of a CC2 level, the level generator of a native one, and only now that the pad is used), and tries that side, then right, back and left; the red pad tries every
- * pad forward, right, back, left of the facing of the mover.
+ * generator of a CC2 level, the level generator of a native one, and only now that the pad is used), and tries that side,
+ * then right, back and left; the red pad tries every pad forward, right, back, left of the facing of the mover.
  */
 function cc2PadPlan(w: EpoxyWorld, origin: TileDefinition, teleporters: readonly GridPoint[], startIdx: number, facing: Direction): PadAttempt[] {
   const self = teleporters[startIdx];
