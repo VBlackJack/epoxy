@@ -998,8 +998,12 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
 }
 
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
+  // CC2 engine: a brown button the player's step ended on is held for the rest of the tick, even if he leaves at once.
+  if (w.cc2BrownHeld !== undefined && w.cc2BrownHeld === by * mapWidth(w) + bx) return true;
   // On a converted CC3D level the player works a brown button only at rest, like everything else.
-  if (w.player.x === bx && w.player.y === by && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
+  // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
+  const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;
+  if (w.player.x === bx && w.player.y === by && !stepOntoPending && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
   if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.

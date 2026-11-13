@@ -45,6 +45,7 @@ import {
   isInBounds,
   dropExitedController,
   killPlayer,
+  mapWidth,
   leaveCell,
   leaveThroughExit,
   notePulseArrival,
@@ -548,6 +549,11 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     notePulseArrival(w, x, y, null);
   }
 
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && tile.buttonAction === 'hold_trap') {
+    // CC2 engine: the brown button feels him when his step onto it ends, and is held for that tick even if he leaves at once.
+    cc3dArrivalOf(w.player).brown = { x, y };
+  }
+
   if (tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !atStepEnd) {
     // CC3D: the player works a clone switch, and CC2 any button, when the step that took him onto it ends.
     cc3dArrivalOf(w.player).press = { x, y };
@@ -634,6 +640,9 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
   delete p.cc3dArrival;
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
+  if (pending.brown !== undefined && p.x === pending.brown.x && p.y === pending.brown.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).buttonAction === 'hold_trap') {
+    w.cc2BrownHeld = p.y * mapWidth(w) + p.x;
+  }
   if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
