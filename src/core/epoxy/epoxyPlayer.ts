@@ -292,7 +292,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   if (targetTile.requiredKey) {
     const keyCount = w.player.keys[targetTile.requiredKey] || 0;
     if (keyCount > 0) {
-      if (targetTile.consumesKey) {
+      if (spendsKeyOn(w, targetTile)) {
         w.player.keys[targetTile.requiredKey] = keyCount - 1;
       }
       const revealed = takeRevealedTerrain(w, targetX, targetY);
@@ -445,6 +445,16 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     }
   }
   return true;
+}
+
+/**
+ * Whether the step through a door spends the key. On a CC2-engine level each character has a key it never spends
+ * (cc2Characters.keptKeyByCharacter: Chip's green, Melinda's yellow; Lexy tiletypes.js infinite_items) and spends every other
+ * one; elsewhere the door's own consumesKey decides.
+ */
+function spendsKeyOn(w: EpoxyWorld, door: TileDefinition): boolean {
+  const kept = usesCc2Engine(w.level) ? ConfigRegistry.getGame().cc2Characters?.keptKeyByCharacter[playerCharacterOf(w)] : undefined;
+  return kept !== undefined ? door.requiredKey !== kept : door.consumesKey === true;
 }
 
 /** Spends one held toll token; false when the player holds none. */
