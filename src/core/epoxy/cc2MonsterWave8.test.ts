@@ -183,3 +183,14 @@ describe('CC2 engine: a hint bars the monsters but the ghost (HT)', () => {
     expect(westmostX('cc', BALL, { terrain: 'hint' })).toBeLessThan(HINT_X + 1);
   });
 });
+
+describe('CC2 engine: lit dynamite bars every monster (LD)', () => {
+  it('stops a pink ball and a ghost short of lit dynamite', () => {
+    expect(westmostX('cc2', BALL, { item: 'dynamite_lit' })).toBe(HINT_X + 1);
+    expect(westmostX('cc2', 'ghost', { item: 'dynamite_lit' })).toBe(HINT_X + 1);
+  });
+
+  it('does not bar a ghost from unlit dynamite', () => {
+    expect(westmostX('cc2', 'ghost', { item: 'dynamite' })).toBeLessThan(HINT_X + 1);
+  });
+});
