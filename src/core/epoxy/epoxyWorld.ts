@@ -990,9 +990,25 @@ export function leaveThroughExit(w: EpoxyWorld): boolean {
   return false;
 }
 
+/**
+ * CC2 engine: the next player to control is the one before the current one in the actor list, wrapping to the last (Lexy
+ * swap_players walks the list backwards, game.js:1377-1415). Moves it to the head of the parked queue. This applies on levels
+ * without the actor order too; it is a no-op without list ordinals (no CC2 engine), under the CC3D pace, or with a single player parked.
+ */
+function pickPreviousPlayer(w: EpoxyWorld): void {
+  const own = w.player.listOrdinal;
+  if (!usesCc2Engine(w.level) || w.cc3dPace || own === undefined || w.parked.length < 2 || w.parked.some((p) => p.listOrdinal === undefined)) return;
+  const before = w.parked.filter((p) => (p.listOrdinal as number) < own);
+  const pool = before.length > 0 ? before : w.parked;
+  const pick = pool.reduce((a, b) => ((b.listOrdinal as number) > (a.listOrdinal as number) ? b : a));
+  w.parked.splice(w.parked.indexOf(pick), 1);
+  w.parked.unshift(pick);
+}
+
 /** Drops the controlled player once it has left through an exit and hands control to the next one; true when it did. */
 export function dropExitedController(w: EpoxyWorld): boolean {
   if (w.player.exited !== true || w.swappedIn !== null) return false;
+  pickPreviousPlayer(w);
   const next = w.parked.shift();
   if (next !== undefined) w.player = next;
   return true;
@@ -1004,6 +1020,7 @@ export function dropExitedController(w: EpoxyWorld): boolean {
  * receives control mid-slide keeps sliding and its move cooldown has kept running down while it was parked.
  */
 export function rotatePlayers(w: EpoxyWorld): boolean {
+  pickPreviousPlayer(w);
   const next = w.parked.shift();
   if (next === undefined) return false;
   w.parked.push(w.player);
