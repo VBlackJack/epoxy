@@ -1445,8 +1445,8 @@ export class GameEngine {
   }
 
   /**
-   * The thin wall sides of the cells that carry cell edges, by cell index (y * width + x). Static for
-   * the level; empty when it has none. The map is shared: do not mutate it.
+   * The thin wall sides of the cells that carry cell edges, by cell index (y * width + x). Rebuilt when the
+   * wall mask changes (a blast leaves a fresh copy); empty when it has none. The map is shared: do not mutate it.
    */
   public getPanels(): ReadonlyMap<number, readonly Direction[]> {
     const mask = this.w.edgeMask;
@@ -1470,8 +1470,8 @@ export class GameEngine {
   }
 
   /**
-   * The cells a canopy covers, by cell index (y * width + x). Static for the level; empty when it has none. The set
-   * is shared: do not mutate it.
+   * The cells a canopy covers, by cell index (y * width + x). Rebuilt when the wall mask changes (a blast removes a
+   * canopy); empty when it has none. The set is shared: do not mutate it.
    */
   public getCanopyCells(): ReadonlySet<number> {
     this.getPanels();

@@ -828,7 +828,7 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
   return ((def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS) + 1) * slowdown - 1;
 }
 
-/** The collectible kind that an entity takes but never holds as a tool: keys are not tools. */
+/** The collectible kind that an entity takes but never holds as a tool: keys are not tools (a mirror player keeps every key it takes, its own colour too). */
 const TOOL_EXCLUDED_COLLECTIBLE = 'key';
 
 /** The collectible kind of a score bonus: a ball that takes one holds nothing. */
@@ -881,9 +881,6 @@ function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, it
   entity.heldTools = held;
 }
 
-/** The collectible kind of a key: a mirror player keeps every key it takes (its own colour too). */
-const KEY_COLLECTIBLE = 'key';
-
 /** Collectible kinds a mirror player holds as tools on its belt (Lexy gives a doppelganger the same toolbelt as the player). */
 const MIRROR_TOOL_COLLECTIBLES: readonly string[] = ['boot', 'charge', 'stone', 'gate'];
 
@@ -900,7 +897,7 @@ const CC1_BOOT_ITEM_IDS: readonly string[] = ['boots_ice', 'boots_force', 'boots
 export function mirrorTakesItem(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): boolean {
   const collectible = ConfigRegistry.getTile(itemId).collectible;
   if (collectible === undefined) return false;
-  if (collectible === KEY_COLLECTIBLE) {
+  if (collectible === TOOL_EXCLUDED_COLLECTIBLE) {
     w.items[y][x] = null;
     (entity.heldKeys ??= []).push(itemId);
     return true;

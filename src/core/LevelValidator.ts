@@ -2578,9 +2578,12 @@ export class LevelValidator {
     if (width === 0) return false;
     const possibleCharacters = this.possibleCharacters(level);
     const tally = { changed: false };
+    // CC2 engine: a mirror opens a door of its colour only when a key of that colour lies on the map for it to pick up.
+    const keysOnMap = new Set<string>();
+    if (level.cc2 !== undefined) for (const row of level.items) for (const item of row) if (item !== null) keysOnMap.add(item);
     // Walls a button opens let the movers go further, so the flood is repeated until a round opens nothing new.
     for (let round = 0; round < MOVER_FLOOD_MAX_ROUNDS; round++) {
-      if (!this.floodMovingThings(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain, possibleCharacters, tally)) break;
+      if (!this.floodMovingThings(level, blockTypes, grantedCloneLinks, stockBlocks, simItems, simTerrain, possibleCharacters, keysOnMap, tally)) break;
     }
     return tally.changed;
   }
@@ -2596,12 +2599,10 @@ export class LevelValidator {
     simItems: (string | null)[][],
     simTerrain: string[][],
     possibleCharacters: readonly PlayerCharacter[],
+    keysOnMap: ReadonlySet<string>,
     tally: { changed: boolean }
   ): boolean {
     const height = simTerrain.length;
-    // CC2 engine: a mirror opens a door of its colour only when a key of that colour lies on the map for it to pick up.
-    const keysOnMap = new Set<string>();
-    if (level.cc2 !== undefined) for (const row of simItems) for (const item of row) if (item !== null) keysOnMap.add(item);
     const width = simTerrain[0]?.length ?? 0;
     if (width === 0) return false;
     const reached = new Uint8Array(width * height);
