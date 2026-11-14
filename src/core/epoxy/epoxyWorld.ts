@@ -106,6 +106,8 @@ export interface EpoxyWorld {
    * Cc2LevelData.ghostBarCells), bounds-checked at load. A blast that turns such a cell to floor removes it. Absent on every other level.
    */
   ghostBar?: Set<number>;
+  /** CC2 engine: the size of `ghostBar` as built at load (the listed cells that lie inside the map); the bar counts as edited once it differs. */
+  ghostBarLoadSize?: number;
   /**
    * CC2 engine: what the mirror players copy of the controlled player's decisions. Absent until a decision was made;
    * reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while set.
@@ -433,9 +435,9 @@ export function assignListOrdinals(w: EpoxyWorld): void {
   actors.forEach((actor, ordinal) => actor.assign(ordinal));
 }
 
-/** True once a blast removed a cell from the ghost bar (the set holds fewer cells than the level lists). */
+/** True once a blast removed a cell from the ghost bar (the set holds fewer cells than it held at load). */
 export function ghostBarEdited(w: EpoxyWorld): boolean {
-  return w.ghostBar !== undefined && w.ghostBar.size !== (w.level.cc2?.ghostBarCells?.length ?? 0);
+  return w.ghostBar !== undefined && w.ghostBar.size !== (w.ghostBarLoadSize ?? w.level.cc2?.ghostBarCells?.length ?? 0);
 }
 
 export function buildLevelLookups(w: EpoxyWorld): void {
@@ -444,6 +446,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.blastedEdgeMask = undefined;
   w.mirrorMove = undefined;
   w.ghostBar = buildGhostBar(w.level, w.terrain[0]?.length ?? 0, w.terrain.length);
+  w.ghostBarLoadSize = w.ghostBar?.size;
   assignListOrdinals(w);
   w.hasTurrets = levelHasTurrets(w);
   w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
@@ -805,15 +808,17 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
  */
 export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const parts: string[] = [];
+  // Passes are stored relative to the running one: the same position reached at another time must give the same key.
+  const pass = currentEntityPass(w);
   const modifier = w.ccGenerators?.blobModifier;
   if (modifier !== undefined) parts.push(`m${modifier}`);
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
-  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
+  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue !== undefined ? e.pendingSteerDue - pass : ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
-  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due}`);
+  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
@@ -832,10 +837,15 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (mirror !== undefined) parts.push(`M${mirror.remembered ?? '-'}${mirror.snapshot ?? '-'}${mirror.attempted ? 1 : 0}`);
   const held = w.entities.filter((e) => e.trapHeld === true).map((e) => e.uid);
   if (held.length > 0) parts.push(`h${held.join(',')}`);
-  const ended = w.entities.filter((e) => e.stepEndedPass !== undefined).map((e) => `${e.uid}@${e.stepEndedPass}.${e.stepEndedCell ?? ''}`);
+  // A record older than the running pass and the one before it no longer matters (the monster step drops it), so it is left out.
+  const ended = w.entities.flatMap((e) => {
+    if (e.stepEndedPass === undefined) return [];
+    const age = pass - e.stepEndedPass;
+    return age === 0 || age === 1 ? [`${e.uid}@${age}.${e.stepEndedCell ?? ''}`] : [];
+  });
   if (ended.length > 0) parts.push(`e${ended.join(',')}`);
   // A light switch or pulse source worked by a monster waits for the next settle.
-  const pulses = w.ccArrivals.filter((a) => a.pulse === true).map((a) => `${a.uid}@${a.due}`);
+  const pulses = w.ccArrivals.filter((a) => a.pulse === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (pulses.length > 0) parts.push(`u${pulses.join(',')}`);
   // Thin walls removed by a blast, and the custom cells a blast turned to floor.
   if (w.blastedEdgeMask !== undefined) parts.push(`E${blastedEdgeDiff(w).join(',')}`);

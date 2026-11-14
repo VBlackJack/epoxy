@@ -2366,7 +2366,7 @@ export interface RuntimeEntity {
   pendingSteerDue?: number;
   /** CC2-engine level only: the entity still stands on the cell it was loaded on and has made no decision elsewhere; set at load, cleared on its first decision away from that cell. Absent otherwise. */
   atLoadCell?: true;
-  /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set only while it matters, absent otherwise. */
+  /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set while it matters (the running pass and the one after it) and dropped by the next monster step once older; the search key holds its age, not the pass number. */
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */
   stepEndedCell?: number;

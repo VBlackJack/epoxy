@@ -117,6 +117,14 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       if (!isInBounds(w, x, y)) continue;
       ctx.emitVisual('explosion', x, y);
 
+      // CC2 engine, Lexy's layer walk (tiletypes.js:3128-3153): a canopy protects everything else in its cell, so the blast
+      // removes the canopy alone (the actor, the item, the terrain and the thin walls survive).
+      if (cc2Engine && w.edgeMask !== null && (w.edgeMask[y * width + x] & CELL_EDGE_CANOPY_BIT) !== 0) {
+        blastedMask ??= new Uint8Array(w.edgeMask);
+        blastedMask[y * width + x] &= ~CELL_EDGE_CANOPY_BIT;
+        continue;
+      }
+
       // What stands in the cell: creatures, the player, or a lit dynamite (the exploding one included). The template
       // held by a clone machine is a creature like any other: it dies and the machine stays, protected by it.
       const creatures = w.entities.filter((e) => e.x === x && e.y === y);
@@ -135,7 +143,8 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       const terrainId = w.terrain[y][x];
       if (actorHere) {
         // A creature protects the terrain under it, but plain floor catches fire (water under an ice block).
-        if (terrainId === FLOOR_TILE_ID) {
+        // A ghost-barred cell (an imported custom floor) neither burns nor loses its bar under an actor.
+        if (terrainId === FLOOR_TILE_ID && w.ghostBar?.has(y * width + x) !== true) {
           const overIce = creatures.some((e) => e.type === DYNAMITE_ICE_BLOCK_TYPE);
           w.terrain[y][x] = overIce ? DYNAMITE_WATER_TILE_ID : DYNAMITE_FIRE_TILE_ID;
           terrainChanged = true;
@@ -147,16 +156,14 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
         terrainChanged = true;
         // A ghost is no longer barred from a custom floor or wall the blast turned into floor.
         w.ghostBar?.delete(y * width + x);
+        // A mirror the trap held is free once its trap is gone.
+        for (const held of w.entities) if (held.x === x && held.y === y) delete held.trapHeld;
       }
 
-      // Lexy's layer walk (tiletypes.js:3128-3147): under a canopy only the canopy goes and the thin walls stay; otherwise
-      // the side bits go.
-      if (cc2Engine && w.edgeMask !== null) {
-        const bits = w.edgeMask[y * width + x];
-        if (bits !== 0) {
-          if (blastedMask === null) blastedMask = new Uint8Array(w.edgeMask);
-          blastedMask[y * width + x] = (bits & CELL_EDGE_CANOPY_BIT) !== 0 ? bits & ~CELL_EDGE_CANOPY_BIT : 0;
-        }
+      // The thin walls of a cell without a canopy go with the blast.
+      if (cc2Engine && w.edgeMask !== null && w.edgeMask[y * width + x] !== 0) {
+        blastedMask ??= new Uint8Array(w.edgeMask);
+        blastedMask[y * width + x] = 0;
       }
       for (const entity of creatures) removeEntity(w, entity.uid);
       if (playerHere !== undefined) playersKilled.push(playerHere);
