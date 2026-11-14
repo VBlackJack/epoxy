@@ -638,7 +638,14 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
     }
     return BLOCK_STEP_DONE;
   }
-  if (!entity.isSliding && usesCc2Engine(w.level)) takeForceFloorDrift(w, entity);
+  // CC2 engine: a push the player's decision left on a jammed block turns the block's own move of the tick, then is spent
+  // (Lexy pending_push, game.js:1703-1710).
+  const pending = usesCc2Engine(w.level) && !w.cc3dPace && entity.cooldownTicks <= 0 ? entity.cc2PendingPush : undefined;
+  if (pending !== undefined) {
+    delete entity.cc2PendingPush;
+    entity.dir = pending;
+    entity.isSliding = true;
+  } else if (!entity.isSliding && usesCc2Engine(w.level)) takeForceFloorDrift(w, entity);
   if (!entity.isSliding) return BLOCK_STEP_DONE;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
