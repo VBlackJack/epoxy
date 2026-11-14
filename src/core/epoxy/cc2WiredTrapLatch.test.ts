@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
@@ -84,7 +85,7 @@ describe('a wired trap on the CC2 engine', () => {
 
   it('still releases the monster when the power is gone again in the same tick', () => {
     const engine = load('cc2', START_X);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     waitForRest(engine);
     expect(engine.getPlayer().x).toBe(PLATE_X);
     // The tick that ended the step powered the trap at its settle; stepping off settles the wire off at once.

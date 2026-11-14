@@ -25,6 +25,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { loadTestConfigs } from '../test/loadTestConfigs';
+import { playMove } from '../test/cc2Play';
 import { GameEngine } from '../core/GameEngine';
 import { CC2_COVERAGE } from '../core/cc2/cc2Coverage';
 import { convertCc2Map } from './cc2ToEpoxy';
@@ -96,7 +97,7 @@ describe('wired track switches', () => {
   function step(engine: GameEngine, dir: 'E' | 'W'): void {
     for (let waited = 0; waited <= MAX_WAIT_TICKS; waited++) {
       if (engine.getPlayer().moveCooldown === 0) {
-        engine.attemptPlayerMove(dir);
+        playMove(engine, dir);
         return;
       }
       engine.tick();

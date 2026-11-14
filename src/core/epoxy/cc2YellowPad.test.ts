@@ -25,6 +25,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playDrop, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -130,7 +131,7 @@ describe('yellow pad picked up on the CC2 engine', () => {
     p.x = PAD_C.x;
     p.y = PAD_C.y;
     p.moveCooldown = 0;
-    expect(engine.dropItem(ITEM)).toBe(true);
+    expect(playDrop(engine, ITEM)).toBe(true);
     expect(terrainAt(engine, PAD_C)).toBe(PAD);
     expect(held(engine, ITEM)).toBe(0);
     // Entering B (its own exit closed): the pad C he set down is read from the grid, and he leaves it forward.
@@ -168,7 +169,7 @@ describe('yellow pad picked up on the CC2 engine', () => {
   it('survives an undo: the pad is back and the item is gone', () => {
     const engine = load('cc2', [PAD_A, PAD_B], { [key(B_EXIT)]: WALL });
     for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown !== 0; waited++) engine.tick();
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(held(engine, ITEM)).toBe(1);
     expect(engine.undo()).toBe(true);
     expect(terrainAt(engine, PAD_A)).toBe(PAD);

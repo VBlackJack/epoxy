@@ -27,6 +27,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { PlayerCharacter } from '../types';
 
@@ -42,7 +43,7 @@ function keysLeftAfterDoor(mode: RoomMode, character: PlayerCharacter, color: 'r
   const engine = new GameEngine();
   engine.loadLevel({ ...room({ mode, startX: DOOR_X - 1, terrain: { [`${DOOR_X},${ROOM_ROW}`]: `door_${color}` } }), character });
   engine.getPlayer().keys[`key_${color}`] = KEY_COUNT;
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').moved).toBe(true);
   expect(engine.getPlayer().x).toBe(DOOR_X);
   return engine.getPlayer().keys[`key_${color}`] ?? 0;
 }

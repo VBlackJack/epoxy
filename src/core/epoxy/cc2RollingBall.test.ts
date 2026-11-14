@@ -19,6 +19,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { playDrop } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ccStepTicks, STONE_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
@@ -138,7 +139,7 @@ describe('CC2 rolling ball: items', () => {
 describe('CC2 rolling ball: pace', () => {
   it('spends a whole step on the first cell after the drop, then crosses one cell per step', () => {
     const engine = thrower(true);
-    expect(engine.dropItem(STONE)).toBe(true);
+    expect(playDrop(engine, STONE)).toBe(true);
     const shotX = (): number => ballOf(engine)?.x as number;
     const startX = shotX();
     tickN(engine, stepTicks());

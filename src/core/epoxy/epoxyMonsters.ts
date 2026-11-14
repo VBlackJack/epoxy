@@ -109,6 +109,9 @@ export function updateEntities(ctx: EpoxyContext): void {
     if (w.ccRules && usesCc2Engine(w.level) && w.player.alive && !applyQueuedArrivals(ctx, undefined, passClock, true)) return;
   } finally {
     w.ccPassOpen = false;
+    // CC2 engine, actor order: the per-pass sets live for one pass only.
+    w.cc2TurnSeen = undefined;
+    w.cc2SkipTurn = undefined;
     w.ccPlans.clear();
     w.entityPassSeen.clear();
     w.turnSpent.clear();
@@ -239,8 +242,16 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
   // Uids are never reused, so a change in the removed set tells that an actor was removed during the pass.
   const removedAtStart = w.removedUids.size;
   const removedDuringPass = (entity: RuntimeEntity): boolean => w.removedUids.size !== removedAtStart && !w.entities.includes(entity);
+  // CC2 engine, actor order: the player decides at his place in the list, once per pass (his early push before anything moves).
+  const playerOrdinal = w.cc2ActorOrder === true ? w.player.listOrdinal : undefined;
+  let playerDecided = false;
   for (let i = decisionOrder.length - 1; i >= 0; i--) {
     const entity = decisionOrder[i];
+    if (!playerDecided && playerOrdinal !== undefined && entity.listOrdinal !== undefined && entity.listOrdinal < playerOrdinal) {
+      playerDecided = true;
+      ctx.cc2PlayerDecides?.();
+      if (!w.player.alive) return false;
+    }
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
     if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
@@ -290,6 +301,11 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // The entity may be gone by now (the ball blew up, or the monster probed one).
     if (removedDuringPass(entity)) continue;
     w.ccPlans.set(entity.uid, plan);
+  }
+  // The player listed before every actor (or an unordered list) decides after the last one.
+  if (w.cc2ActorOrder === true && !playerDecided) {
+    ctx.cc2PlayerDecides?.();
+    if (!w.player.alive) return false;
   }
   return true;
 }
@@ -362,8 +378,20 @@ function runEntityPass(ctx: EpoxyContext): void {
   if (w.ccRules) snapshotEntities.reverse();
   // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
   const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
+  // CC2 engine, actor order: the player acts at his place in the list, after every actor listed after him, once per pass.
+  const playerOrdinal = w.cc2ActorOrder === true ? w.player.listOrdinal : undefined;
+  let playerActed = false;
+  if (w.cc2ActorOrder === true) w.cc2TurnSeen = new Set<number>();
   for (const entity of snapshotEntities) {
+    if (!playerActed && playerOrdinal !== undefined && entity.listOrdinal !== undefined && entity.listOrdinal < playerOrdinal) {
+      playerActed = true;
+      ctx.cc2PlayerActs?.();
+      if (!w.player.alive || w.levelCompleted) return;
+    }
     if (w.removedUids.has(entity.uid)) continue;
+    // A cloner template that went out of its place skips the rest of the pass.
+    if (w.cc2SkipTurn?.has(entity.uid) === true) continue;
+    if (!playerActed) w.cc2TurnSeen?.add(entity.uid);
     if (w.cc3dPace) {
       w.entityPassSeen.add(entity.uid);
       // CC3D fires a monster's button press inside that monster's own turn, so the monsters ahead of it in the list
@@ -393,6 +421,10 @@ function runEntityPass(ctx: EpoxyContext): void {
     if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
     if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
+  }
+  if (w.cc2ActorOrder === true && !playerActed) {
+    ctx.cc2PlayerActs?.();
+    if (!w.player.alive || w.levelCompleted) return;
   }
   // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
   // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
@@ -726,6 +758,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     w.terrain[ny][nx] = ConfigRegistry.getTile(FLOOR_TILE_ID).cc2Twin || FLOOR_TILE_ID;
   }
 
+  // CC2 engine: a lit flame jet burns a ghost when its step ends. Only the fire tile spares it (Lexy fire.on_arrive); the jet
+  // kills every actor that is not fireproof (flame_jet_on on_stand), and fire boots keep the ghost alive.
+  if (floorFree && usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && destTile.burnsOccupants === true && !w.cc3dPace && !holdsProtection(w, entity)) {
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal: 'burn', due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+  }
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
@@ -789,7 +826,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (queuesButtonPress(w, entity, destTile.buttonAction)) {
       // A converted CC3D level applies the press when the step ends (the wrapper of stepMonster sets the final time).
-      const delay = w.cc3dPace ? entity.cooldownTicks - 1 : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
+      // CC2 engine: every monster press but the green and blue buttons lands when the step ends, at the start of the pass after its
+      // cooldown ran out (Lexy on_arrive). The two exceptions are Lexy's pending_green_toggle (applied after the actor pass) and
+      // pending_reverse (applied at the next decision), which keep their own timing.
+      const cc2StepEnd = usesCc2Engine(w.level) && destTile.buttonAction !== CC2_GREEN_TOGGLE_ACTION && destTile.buttonAction !== CC2_BLUE_REVERSE_ACTION;
+      const delay = w.cc3dPace ? entity.cooldownTicks - 1 : cc2StepEnd ? entity.cooldownTicks : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
       // The clock counts the pass of the current tick only once it has started (as markTanksToTurn reads it).
       const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
       w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay });
@@ -830,6 +871,12 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
 
 /** The collectible kind that an entity takes but never holds as a tool: keys are not tools (a mirror player keeps every key it takes, its own colour too). */
 const TOOL_EXCLUDED_COLLECTIBLE = 'key';
+
+/** The green button action: a CC2 monster press of it is applied after the actor pass (Lexy pending_green_toggle). */
+const CC2_GREEN_TOGGLE_ACTION: ButtonAction = 'toggle_walls';
+
+/** The blue button action: a CC2 monster press of it is applied at the next decision (Lexy pending_reverse). */
+const CC2_BLUE_REVERSE_ACTION: ButtonAction = 'reverse_tanks';
 
 /** The collectible kind of a score bonus: a ball that takes one holds nothing. */
 const SCORE_BONUS_COLLECTIBLE = 'bonus';
@@ -938,7 +985,9 @@ function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefiniti
 function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
   const def = ConfigRegistry.getEntityDef(entity.type);
-  const removal = hazardRemoval(w, entity, def);
+  let removal = hazardRemoval(w, entity, def);
+  // CC2 engine: the ghost on a jet still lit when its step ends burns (queued by resolveMonsterArrival).
+  if (removal === null && usesCc2Engine(w.level) && def?.ignoresFloorEffects === true && ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).burnsOccupants === true && !holdsProtection(w, entity)) removal = 'burn';
   if (removal === null) return;
   if (removal === 'bomb') w.items[entity.y][entity.x] = null;
   removeEntity(w, entity.uid);

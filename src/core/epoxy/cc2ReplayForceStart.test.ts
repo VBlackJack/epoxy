@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { FORCE_CYCLE_ORDER } from '../../config/constants';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { Direction } from '../types';
 
@@ -44,7 +45,7 @@ describe('the force floor start of a replay', () => {
     const engine = new GameEngine();
     engine.loadLevel(room({ mode, startX: START_X, terrain: { [`${FLOOR_X},${ROOM_ROW}`]: CYCLE_FLOOR } }));
     if (start !== undefined) engine.setReplayForceStart(start);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     return engine.getPlayer().slideDir;
   }
 

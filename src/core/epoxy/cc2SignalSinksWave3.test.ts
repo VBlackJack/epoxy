@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { GameEngine } from '../GameEngine';
@@ -66,11 +67,11 @@ function load(level: CompiledLevel): GameEngine {
 
 const jetAt = (engine: GameEngine): string => engine.getTerrain()[ROW][JET_X];
 const MAX_WAIT_TICKS = 40;
-/** Walks one step east, waiting out the cooldown of the step before. */
+/** Walks one step east (the input and the tick that plays it), waiting out the cooldown of the step before. */
 function stepEast(engine: GameEngine): void {
   for (let waited = 0; waited <= MAX_WAIT_TICKS; waited++) {
     if (engine.getPlayer().moveCooldown === 0) {
-      engine.attemptPlayerMove('E');
+      playMove(engine, 'E');
       return;
     }
     engine.tick();
@@ -189,9 +190,15 @@ describe('CC2 engine: a wire-fired clone machine acts one wire phase later', () 
     expect(deferredCount(engine)).toBe(0);
   });
 
-  it('fires an edge of the move phase at the end of the same tick', () => {
+  // Lexy runs no wire phase between two actions (game.js:859-866): the edge the player's step makes at his turn is read by the wire
+  // phase that closes the tick, and the clone machine acts on it one wire phase later, as for an edge of the tick phase.
+  it("fires an edge made at the player's turn one tick later", () => {
     const engine = load(cloneLane('cc2', ORANGE, false));
-    stepEast(engine);
+    // The step is stored for the turn of the tick: nothing has happened yet.
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(clonesAt(engine)).toBe(0);
+    expect(deferredCount(engine)).toBe(0);
+    engine.tick();
     expect(clonesAt(engine)).toBe(0);
     expect(deferredCount(engine)).toBe(1);
     engine.tick();

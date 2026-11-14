@@ -27,6 +27,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { CC2_TOOL_BELT_CAPACITY, STONE_ITEM_ID } from '../coreConstants';
+import { playCycle, playDrop, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CC2_TEST_RECORD, room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -60,7 +61,7 @@ function corridor(mode: RoomMode, items: string[], opts: { cc1Boots?: boolean; t
 function walkEast(engine: GameEngine, steps: number): void {
   for (let i = 0; i < steps; i++) {
     for (let t = 0; t < MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; t++) engine.tick();
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
   }
 }
 
@@ -154,7 +155,7 @@ describe('the four-tool belt of a CC2-engine level', () => {
     const engine = new GameEngine();
     engine.loadLevel(corridor('cc2', BOOTS.slice(0, 3)));
     walkEast(engine, 3);
-    expect(engine.dropItem(BOOTS[0])).toBe(true);
+    expect(playDrop(engine, BOOTS[0])).toBe(true);
     expect(engine.getPlayer().belt).toEqual(BOOTS.slice(1, 3));
     expect(engine.getToolBelt()).toEqual(BOOTS.slice(1, 3));
   });
@@ -164,7 +165,7 @@ describe('the four-tool belt of a CC2-engine level', () => {
     engine.loadLevel(corridor('cc2', [DYNAMITE, BOOTS[0], DYNAMITE]));
     walkEast(engine, 3);
     expect(engine.getPlayer().belt).toEqual([DYNAMITE, BOOTS[0], DYNAMITE]);
-    expect(engine.dropItem(DYNAMITE)).toBe(true);
+    expect(playDrop(engine, DYNAMITE)).toBe(true);
     expect(engine.getPlayer().keys[DYNAMITE]).toBe(1);
     expect(engine.getPlayer().belt).toEqual([BOOTS[0], DYNAMITE]);
   });
@@ -174,14 +175,14 @@ describe('the four-tool belt of a CC2-engine level', () => {
     engine.loadLevel(corridor('cc2', [BOOTS[0], DYNAMITE, BOOTS[1]]));
     walkEast(engine, 3);
     expect(engine.getToolBelt()).toEqual([BOOTS[0], DYNAMITE, BOOTS[1]]);
-    expect(engine.cycleInventory()).toBe(true);
+    expect(playCycle(engine)).toBe(true);
     expect(engine.getToolBelt()).toEqual([DYNAMITE, BOOTS[1], BOOTS[0]]);
     expect(engine.getPlayer().belt).toEqual([DYNAMITE, BOOTS[1], BOOTS[0]]);
     // The cycle needs two tools.
     const lone = new GameEngine();
     lone.loadLevel(corridor('cc2', [BOOTS[0]]));
     walkEast(lone, 1);
-    expect(lone.cycleInventory()).toBe(false);
+    expect(playCycle(lone)).toBe(false);
   });
 
   it('is undone with the pickup', () => {

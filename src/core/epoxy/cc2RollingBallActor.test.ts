@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playDrop, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
@@ -86,7 +87,7 @@ function tickUntilSpent(engine: GameEngine): number {
 describe('CC2 rolling ball as an actor', () => {
   it('becomes an entity at the end of the list that has left the player cell at once', () => {
     const engine = bowler({ entities: [{ type: 'lurker_dormant', x: 9, y: 9, dir: 'N' }] });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     const entities = engine.getEntities();
     expect(entities[entities.length - 1].type).toBe(ROLLING_BALL_ID);
     expect(ballOf(engine)).toMatchObject({ x: START_X + 1, y: ROOM_ROW, dir: 'E', kind: 'monster' });
@@ -96,7 +97,7 @@ describe('CC2 rolling ball as an actor', () => {
 
   it('spends a whole step on the first cell after the drop, then crosses one cell per step', () => {
     const engine = bowler();
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     const ballX = (): number => ballOf(engine)?.x as number;
     expect(ballX()).toBe(START_X + 1);
     tick(engine, stepTicks());
@@ -127,14 +128,16 @@ describe('CC2 rolling ball as an actor', () => {
   it('is refused on a cell that holds an item, and the ball is kept', () => {
     const engine = bowler();
     world(engine).items[ROOM_ROW][START_X] = 'chip';
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(false);
+    // The refusal is decided at the turn: the drop is stored, then nothing is put down.
+    playDrop(engine, STONE_ITEM_ID);
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_cell_occupied');
     expect(engine.getPlayer().keys[STONE_ITEM_ID]).toBe(1);
     expect(ballOf(engine)).toBeUndefined();
   });
 
   it('is not refused by what is ahead: facing a wall it is spent at once', () => {
     const engine = bowler({ startX: LAST_FLOOR_X });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toBeUndefined();
     expect(engine.getPlayer().keys[STONE_ITEM_ID] ?? 0).toBe(0);
     expect(engine.getPlayer().alive).toBe(true);
@@ -142,10 +145,12 @@ describe('CC2 rolling ball as an actor', () => {
 
   it('is refused while the player is in the cooldown of a step', () => {
     const engine = bowler();
-    expect(engine.attemptPlayerMove('S')).toBe(true);
+    expect(playMove(engine, 'S').moved).toBe(true);
     expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(false);
+    // The drop is decided at the turn, which comes while the step is still being waited out: nothing is put down.
+    playDrop(engine, STONE_ITEM_ID);
     expect(engine.getPlayer().keys[STONE_ITEM_ID]).toBe(1);
+    expect(ballOf(engine)).toBeUndefined();
   });
 });
 
@@ -196,11 +201,10 @@ describe('CC2 rolling ball: what it runs into', () => {
   it('is blown up with the player who walks into it, helmet or not', () => {
     const engine = bowler();
     engine.getPlayer().boots.add(HELMET);
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     // The ball is on the cell next to the player; he steps into it.
-    tick(engine, 1);
     while (engine.getPlayer().moveCooldown > 0) engine.tick();
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(engine.getPlayer().alive).toBe(false);
     expect(engine.getPlayer().deathReasonKey).toBe(STONE_DEATH_REASON_KEY);
     expect(ballOf(engine)).toBeUndefined();

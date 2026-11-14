@@ -20,6 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -37,7 +38,7 @@ function pushInto(mode: RoomMode, item: string, blockType: string): boolean {
   engine.loadLevel(
     room({ mode, startX: 2, items: { [`${ITEM_X},${ROOM_ROW}`]: item }, entities: [{ type: blockType, x: BLOCK_X, y: ROOM_ROW, dir: 'E' }] })
   );
-  return engine.attemptPlayerMove('E');
+  return playMove(engine, 'E').moved;
 }
 
 describe('CC2 dirt block item bar', () => {
@@ -71,7 +72,7 @@ function blowUp(mode: RoomMode, blockType: string): GameEngine {
   engine.loadLevel(
     room({ mode, startX: 2, items: { [`${ITEM_X},${ROOM_ROW}`]: 'bomb' }, entities: [{ type: blockType, x: BLOCK_X, y: ROOM_ROW, dir: 'E' }] })
   );
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').accepted).toBe(true);
   for (let pass = 0; pass < PUSH_WAIT_PASSES && engine.getItems()[ROOM_ROW][ITEM_X] !== null; pass++) engine.tick();
   expect(engine.getItems()[ROOM_ROW][ITEM_X]).toBeNull();
   return engine;
@@ -83,11 +84,10 @@ describe('CC2 dirt block blown up on a bomb', () => {
     expect(worldOf(engine).blockSplashes.size).toBe(1);
     for (let pass = 0; pass < EXPLOSION_PASSES; pass++) {
       engine.getPlayer().moveCooldown = 0;
-      expect(engine.attemptPlayerMove('E'), `pass ${pass}`).toBe(false);
-      engine.tick();
+      expect(playMove(engine, 'E').moved, `pass ${pass}`).toBe(false);
     }
     engine.getPlayer().moveCooldown = 0;
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
   });
 
   it('leaves nothing on a classic-rules or a native level', () => {

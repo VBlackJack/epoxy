@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playHeld } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -54,13 +55,13 @@ describe('CC2 engine: the slap and a clone template', () => {
   it('does not move the template block on a clone machine', () => {
     const engine = load(true);
     // Two keys: east (at the block) and north (a free cell); the slap pushes toward both before the step.
-    engine.attemptPlayerMoveHeld(['E', 'N']);
+    playHeld(engine, ['E', 'N']);
     expect(blockX(engine)).toBe(BLOCK_X);
   });
 
   it('still moves a free block', () => {
     const engine = load(false);
-    engine.attemptPlayerMoveHeld(['E', 'N']);
+    playHeld(engine, ['E', 'N']);
     expect(blockX(engine)).toBeGreaterThan(BLOCK_X);
   });
 });

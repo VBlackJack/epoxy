@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import { playerWalkCooldown } from './epoxyPlayer';
 import type { EpoxyWorld } from './epoxyWorld';
@@ -36,6 +37,8 @@ beforeEach(() => {
 
 const EXIT_X = 4;
 const OTHER_X = 9;
+/** Ticks of the wait already counted down by the tick that played the exit step. */
+const PLAYED_TICKS = 1;
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
@@ -51,9 +54,9 @@ describe('control after an exit', () => {
   it('passes to the next player one walking step later on a CC2-engine level', () => {
     const engine = twoPlayers('cc2');
     const wait = playerWalkCooldown(world(engine));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.getPlayer().x).toBe(OTHER_X);
-    expect(engine.getPlayer().moveCooldown).toBe(wait);
+    expect(engine.getPlayer().moveCooldown).toBe(wait - PLAYED_TICKS);
     expect(engine.isLevelCompleted()).toBe(false);
     // The new player cannot decide until the exit step has ended.
     expect(engine.attemptPlayerMove('W')).toBe(false);
@@ -80,7 +83,7 @@ describe('control after an exit', () => {
   it('does not delay the end of the level when the last player leaves', () => {
     const engine = new GameEngine();
     engine.loadLevel(room({ mode: 'cc2', startX: EXIT_X - 1, terrain: { [`${EXIT_X},${ROOM_ROW}`]: 'exit' } }));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.isLevelCompleted()).toBe(true);
   });
 });

@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
@@ -77,14 +78,19 @@ function directWait(mode: RoomMode, template: Template): number {
 /** The player steps onto the button, waits the step out, and the next input is the one that lets the clone out. */
 function waitOfStepEndClone(mode: RoomMode, template: Template): number {
   const engine = load(mode, template);
-  expect(engine.attemptPlayerMove('E')).toBe(true);
   // Any other level presses at the start of the step: the clone is out already.
-  if (mode !== 'cc2') return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
+  if (mode !== 'cc2') {
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
+  }
+  expect(playMove(engine, 'E').accepted).toBe(true);
   let guard = 0;
   while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
   // CC2: nothing yet, the step-end effects act at the start of the next tick or input.
   expect(clonedOf(engine, template)).toBeUndefined();
+  // The step end acts when the next input begins: read the wait between that flush and the entity pass of the tick.
   engine.attemptPlayerMove('N');
+  engine.flushPendingStepEnd();
   return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
 }
 
@@ -101,10 +107,12 @@ describe('CC2 engine: a clone let out by the step end of the player', () => {
 
   it('leaves no transient flag behind', () => {
     const engine = load('cc2', MONSTER);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
     engine.attemptPlayerMove('N');
+    engine.flushPendingStepEnd();
+    engine.tick();
     expect(world(engine).cc2BeforePass).toBeUndefined();
   });
 });

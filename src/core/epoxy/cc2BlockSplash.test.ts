@@ -20,6 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel } from '../types';
 
@@ -65,15 +66,15 @@ function load(level: CompiledLevel): GameEngine {
 
 /** Pushes the block into the water and runs the passes until its step ends and it sinks; the player ends on the block's old cell. */
 function sinkBlock(engine: GameEngine): void {
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').accepted).toBe(true);
   for (let pass = 0; pass < SINK_WAIT_PASSES && engine.getTerrain()[ROW][WATER_X] === 'water'; pass++) engine.tick();
   expect(engine.getTerrain()[ROW][WATER_X]).not.toBe('water');
 }
 
-/** Whether the player can step east from the cell he stands on (his cooldown is cleared first). */
+/** Whether the player stepped east from the cell he stands on (his cooldown is cleared first); the tick that plays the input is run. */
 function canStepEast(engine: GameEngine): boolean {
   engine.getPlayer().moveCooldown = 0;
-  return engine.attemptPlayerMove('E');
+  return playMove(engine, 'E').moved;
 }
 
 describe('CC2 block splash', () => {
@@ -83,7 +84,6 @@ describe('CC2 block splash', () => {
     expect(worldOf(engine).blockSplashes.size).toBe(1);
     for (let pass = 0; pass < SPLASH_PASSES; pass++) {
       expect(canStepEast(engine), `pass ${pass}`).toBe(false);
-      engine.tick();
     }
     expect(canStepEast(engine)).toBe(true);
     expect(engine.getPlayer().x).toBe(WATER_X);
@@ -103,7 +103,7 @@ describe('CC2 block splash', () => {
     sinkBlock(engine);
     const clockAtSink = worldOf(engine).ccMonsterClock;
     engine.getPlayer().moveCooldown = 0;
-    expect(engine.attemptPlayerMove('W')).toBe(true);
+    expect(playMove(engine, 'W').accepted).toBe(true);
     for (let i = 0; i < SPLASH_PASSES + 2; i++) engine.tick();
     expect(engine.undo()).toBe(true);
     expect(worldOf(engine).ccMonsterClock).toBe(clockAtSink);
@@ -127,7 +127,7 @@ describe('CC2 block splash', () => {
     const w = worldOf(engine);
     w.blockSplashes.set(ROW * engine.getMapWidth() + WATER_X, w.ccMonsterClock + SPLASH_PASSES);
     expect(w.blockSplashes.size).toBe(1);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(w.blockSplashes.size).toBe(0);
   });
 
@@ -166,7 +166,7 @@ describe('CC2 block blast', () => {
   function blastBlock(): GameEngine {
     const engine = load(room('cc2'));
     worldOf(engine).items[ROW][WATER_X] = 'bomb';
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     for (let pass = 0; pass < SINK_WAIT_PASSES && worldOf(engine).blockSplashes.size === 0; pass++) engine.tick();
     return engine;
   }
@@ -188,7 +188,7 @@ describe('CC2 block blast', () => {
   it('keeps its kind through undo and is dropped when it wears off', () => {
     const engine = blastBlock();
     engine.getPlayer().moveCooldown = 0;
-    expect(engine.attemptPlayerMove('W')).toBe(true);
+    expect(playMove(engine, 'W').accepted).toBe(true);
     expect(engine.undo()).toBe(true);
     expect(engine.getBlockSplashes()?.[0].kind).toBe('explosion');
     for (let pass = 0; pass < SPLASH_PASSES; pass++) engine.tick();

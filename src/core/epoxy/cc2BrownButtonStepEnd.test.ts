@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import { cc2HiddenStateKey, mapWidth, type EpoxyWorld } from './epoxyWorld';
 
@@ -60,7 +61,7 @@ describe('CC2 engine: a brown button works when the step onto it ends', () => {
   it('keeps the trap shut during the step and opens it when the step has ended', () => {
     const engine = load('cc2');
     expect(trapClosed(engine)).toBe(true);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(trapClosed(engine)).toBe(true);
     waitOut(engine);
     expect(trapClosed(engine)).toBe(true);
@@ -72,32 +73,33 @@ describe('CC2 engine: a brown button works when the step onto it ends', () => {
 
   it('holds the trap for the tick of the step end even when he leaves at once, and lets go after it', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
     // The next input: the step-end press acts first, then he steps off the button.
     expect(engine.attemptPlayerMove('N')).toBe(true);
-    expect(engine.getPlayer().y).toBe(ROOM_ROW - 1);
+    // The step-end press acts at the start of the tick, held for that tick only: read it between the flush and the tick.
+    engine.flushPendingStepEnd();
     expect(world(engine).cc2BrownHeld).toEqual([ROOM_ROW * mapWidth(world(engine)) + BUTTON_X]);
     expect(trapClosed(engine)).toBe(false);
     engine.tick();
+    expect(engine.getPlayer().y).toBe(ROOM_ROW - 1);
     expect(world(engine).cc2BrownHeld).toBeUndefined();
     expect(trapClosed(engine)).toBe(true);
   });
 
   it('undo in the middle of the step and the step taken again reach the state of a straight run', () => {
     const straight = load('cc2');
-    straight.attemptPlayerMove('E');
+    playMove(straight, 'E');
     waitOut(straight);
-    straight.attemptPlayerMove('N');
+    playMove(straight, 'N');
 
     const redone = load('cc2');
-    redone.attemptPlayerMove('E');
-    redone.tick();
+    playMove(redone, 'E');
     expect(redone.undo()).toBe(true);
     expect(redone.getPlayer().cc3dArrival).toBeUndefined();
-    redone.attemptPlayerMove('E');
+    playMove(redone, 'E');
     waitOut(redone);
-    redone.attemptPlayerMove('N');
+    playMove(redone, 'N');
     expect(cc2HiddenStateKey(world(redone))).toBe(cc2HiddenStateKey(world(straight)));
     expect(JSON.stringify(redone.getPlayer())).toBe(JSON.stringify(straight.getPlayer()));
     expect(trapClosed(redone)).toBe(trapClosed(straight));
@@ -105,11 +107,13 @@ describe('CC2 engine: a brown button works when the step onto it ends', () => {
 
   it('undo of the leaving step restores the held button of the step that ended', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
-    engine.attemptPlayerMove('N');
+    expect(engine.attemptPlayerMove('N')).toBe(true);
+    engine.flushPendingStepEnd();
     const held = world(engine).cc2BrownHeld;
     expect(held).toBeDefined();
+    engine.tick();
     expect(engine.undo()).toBe(true);
     expect(engine.getPlayer().x).toBe(BUTTON_X);
     expect(engine.getPlayer().y).toBe(ROOM_ROW);

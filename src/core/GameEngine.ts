@@ -42,7 +42,7 @@ import {
 } from './coreConstants';
 import { countPausedTick } from './epoxy/epoxyCc2Items';
 import { railStateKey, railStateOf, restoreRailState } from './epoxy/epoxyRailsCc2';
-import { CC2_SPLASH_BLOCK_PASSES } from './epoxy/epoxyBlocks';
+import { CC2_SPLASH_BLOCK_PASSES, stepSlidingBlock } from './epoxy/epoxyBlocks';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { lightDepartedDynamite, setDownDynamite } from './epoxy/epoxyDynamite';
 import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
@@ -67,6 +67,7 @@ import {
   CC2_SLIDE_ENTRY_EXTRA_TICKS,
   FORCE_FLOOR_MOVE_COOLDOWN_TICKS,
   executePlayerMove,
+  decisionPush,
   slapBlockAhead,
   steerMirrorsOnce,
   isCarriedByForceFloor,
@@ -105,6 +106,7 @@ import {
   cc2PlayerViewKey,
   cc2HiddenStateKey,
   copyCc2PlayerView,
+  copyPendingDecision,
   copyCc3dArrival,
   buildGhostBar,
   blastedEdgeDiff,
@@ -113,6 +115,7 @@ import {
   getEntityAt,
   holdsItem,
   isCellClosedTrap,
+  isTrapOpenedByWireOnly,
   isCovered,
   killPlayer,
   mapHeight,
@@ -122,6 +125,8 @@ import {
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
+  Cc2PendingAction,
+  Cc2PendingDecision,
   CloneLink,
   CompiledLevel,
   Direction,
@@ -150,10 +155,28 @@ const MIN_BOOTS_TO_CYCLE = 2;
 /** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
 const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
+/**
+ * CC2 engine, actor order: what the running tick tracks while the player takes his place in the actor list. Exists from the
+ * start of the tick to its end and only on a level that plays in that order.
+ */
+interface ActorTick {
+  /** The monster clock as the tick started: the player's turn reads it as the input did before the pass (see playActorTurn). */
+  clockAtStart: number;
+  /** Whether the player's decision (his early push) was played in this tick. */
+  decided: boolean;
+  /** Whether the player's turn was played in this tick. */
+  turned: boolean;
+  /** Whether the decision moved a block, which keeps the undo step of an input the turn then refused. */
+  decisionMovedBlock: boolean;
+}
+
 /** The panels of a level without cell edges. */
 const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
 /** The canopy cells of a level without a canopy. */
 const NO_CANOPIES: ReadonlySet<number> = new Set();
+
+/** Multiplier of the hash that tells whether the blocks moved (any odd constant mixes the uid and the cell). */
+const BLOCK_LAYOUT_HASH_MULTIPLIER = 31;
 
 /** Copies an entity for a snapshot: the array fields are copied too, so the live entity and the snapshot never share one. */
 export function copyEntity(e: RuntimeEntity): RuntimeEntity {
@@ -183,6 +206,20 @@ export class GameEngine {
   private undoStack: UndoSnapshot[] = [];
   private moveHistory: Direction[] = [];
   private timedMoveHistory: TimedMove[] = [];
+  /** CC2 engine, actor order: the running tick's own state; undefined between ticks and on any other level. */
+  private actorTick: ActorTick | undefined;
+  /** CC2 engine, actor order: true while the stored input is played (at the player's turn or the forced step), so the entry points act at once. */
+  private playingStored = false;
+  /** CC2 engine, actor order: the undo snapshot taken when the first input of the tick was stored; the turn keeps it in place of its own. */
+  private deferredUndo: UndoSnapshot | undefined;
+  /** CC2 engine, actor order: while the stored input is played, how many undo snapshots its steps asked for (and not gave back); undefined outside the turn. */
+  private turnUndoRequests: number | undefined;
+  /** CC2 engine, actor order: what the player's turn of the last tick did (see getLastPlayerTurn). */
+  private lastPlayerTurn: { dir: Direction; moved: boolean } | undefined;
+  /** CC2 engine, actor order: the cells of the level's light switches, in cell order. Empty on any other level. */
+  private lightSwitchCells: number[] = [];
+  /** CC2 engine, actor order: the form of each light switch as the last tick ended (see settleBeforeActorPass). */
+  private lightSwitchBase = new Map<number, string>();
 
   private onWinCallback:
     | ((levelId: string, timeRemaining: number, steps: number, score: number, moves: Direction[]) => void)
@@ -198,7 +235,10 @@ export class GameEngine {
       completeLevel: () => this.completeLevel(),
       checkTargetsWin: () => this.checkTargetsWin(),
       triggerButton: (x, y, action) => triggerButton(this.ctx, x, y, action),
-      teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad)
+      teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad),
+      // Wave 9 hooks of the actor order: the entity pass calls them at the player's place in the actor list.
+      cc2PlayerDecides: () => this.playActorDecision(),
+      cc2PlayerActs: () => this.playActorTurn()
     };
   }
 
@@ -253,6 +293,11 @@ export class GameEngine {
     this.undoStack = [];
     this.moveHistory = [];
     this.timedMoveHistory = [];
+    this.actorTick = undefined;
+    this.playingStored = false;
+    this.deferredUndo = undefined;
+    this.lastPlayerTurn = undefined;
+    this.indexLightSwitches();
   }
 
   /**
@@ -605,8 +650,12 @@ export class GameEngine {
    * happen on entering a cell. A held blast charge goes down lit instead, and
    * blasts when its fuse has run out; a held pocket gate becomes a teleporter
    * pad on a plain floor cell. Returns false when nothing was dropped.
+   *
+   * CC2 engine, actor order: the drop is stored for the player's turn and played there, before his move, and true means stored.
+   * `null` there puts down the tool held longest, chosen at the turn (after any cycle given in the same tick), not at the input.
    */
   public dropItem(itemId: string | null): boolean {
+    if (this.defersInput()) return this.deferAction({ kind: 'drop', itemId });
     const dropped = this.dropItemNow(itemId);
     // CC2 engine: what was put down leaves the belt, the oldest tool of its kind first.
     if (dropped && usesToolBelt(this.w) && itemId !== null) {
@@ -806,15 +855,44 @@ export class GameEngine {
 
   /** Undo is refused once the level is won: the score is already awarded. */
   public canUndo(): boolean {
-    return !this.w.levelCompleted && this.undoStack.length > 0;
+    return !this.w.levelCompleted && (this.undoStack.length > 0 || this.deferredUndo !== undefined);
   }
 
   public saveUndoSnapshot(): void {
-    const maxSnapshots = ConfigRegistry.getGame().timing.maxUndoSnapshots;
-    if (this.undoStack.length >= maxSnapshots) {
-      this.undoStack.shift();
+    // The turn of a stored input keeps the snapshot taken when the input was stored, pushed once at its end (see playStoredInput).
+    if (this.turnUndoRequests !== undefined) {
+      this.turnUndoRequests++;
+      return;
     }
-    this.undoStack.push(this.captureState());
+    this.pushUndoSnapshot(this.captureState());
+  }
+
+  /** Ends the collection of the undo requests of the turn; whether a step of it still asks for a snapshot. */
+  private endTurnUndoRequest(): boolean {
+    const requested = (this.turnUndoRequests ?? 0) > 0;
+    this.turnUndoRequests = undefined;
+    return requested;
+  }
+
+  /** Gives back the snapshot the last step asked for (a refused step): the one it pushed, or the request the turn counts. */
+  private dropLastUndoSnapshot(): void {
+    if (this.turnUndoRequests !== undefined) this.turnUndoRequests = Math.max(0, this.turnUndoRequests - 1);
+    else this.undoStack.pop();
+  }
+
+  /** The undo steps as they stand, with the requests of a turn in progress, to put back after a try that may not be kept. */
+  private undoState(): { stack: UndoSnapshot[]; requests: number | undefined } {
+    return { stack: [...this.undoStack], requests: this.turnUndoRequests };
+  }
+
+  private restoreUndoState(state: { stack: UndoSnapshot[]; requests: number | undefined }): void {
+    this.undoStack = [...state.stack];
+    this.turnUndoRequests = state.requests;
+  }
+  private pushUndoSnapshot(snap: UndoSnapshot): void {
+    const maxSnapshots = ConfigRegistry.getGame().timing.maxUndoSnapshots;
+    if (this.undoStack.length >= maxSnapshots) this.undoStack.shift();
+    this.undoStack.push(snap);
   }
 
   /**
@@ -869,11 +947,14 @@ export class GameEngine {
       ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
       // Only a CC2-engine level with a decision for the mirror players to copy, a blasted wall or a blasted ghost bar cell has them to put back.
       ...(this.w.mirrorMove !== undefined ? { mirrorMove: { ...this.w.mirrorMove } } : {}),
+      // Only a CC2-engine level with an input stored for the player's turn has one to put back.
+      ...(this.w.cc2PendingDecision !== undefined ? { cc2PendingDecision: copyPendingDecision(this.w.cc2PendingDecision) } : {}),
       ...(this.w.blastedEdgeMask !== undefined ? { blastedEdgeMask: Array.from(this.w.blastedEdgeMask) } : {}),
       ...(ghostBarEdited(this.w) ? { ghostBar: [...(this.w.ghostBar as Set<number>)] } : {}),
       // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
       ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
-      ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
+      // The CC2 engine keeps its creatures in the list itself (a clone takes the template's place), so it has no slots to put back.
+      ...(this.w.ccRules && !usesCc2Engine(this.w.level) ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
       // Only a level with a lit blast charge has a fuse to put back.
       ...(this.w.litCharges.length > 0 ? { litCharges: copyLitCharges(this.w) } : {}),
@@ -909,6 +990,7 @@ export class GameEngine {
       ...(p.belt !== undefined && p.belt.length > 0 ? { belt: [...p.belt] } : {}),
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
+      ...(p.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -934,12 +1016,22 @@ export class GameEngine {
       ...(snap.belt !== undefined ? { belt: [...snap.belt] } : {}),
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
+      ...(snap.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
 
   public undo(): boolean {
     if (this.w.levelCompleted) return false;
+    // An input stored for the next tick is what the undo takes back first: nothing of it is on the stack yet.
+    if (this.w.cc2PendingDecision !== undefined) {
+      const stored = this.deferredUndo;
+      this.w.cc2PendingDecision = undefined;
+      this.deferredUndo = undefined;
+      if (stored !== undefined) this.restoreState(stored);
+      AudioManager.playStep(null);
+      return true;
+    }
     const snap = this.undoStack.pop();
     if (!snap) return false;
     this.restoreState(snap);
@@ -986,6 +1078,7 @@ export class GameEngine {
     this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.cc2ToggledButtonCells = snap.cc2ToggledButtonCells !== undefined ? [...snap.cc2ToggledButtonCells] : [];
     this.w.mirrorMove = snap.mirrorMove !== undefined ? { ...snap.mirrorMove } : undefined;
+    this.w.cc2PendingDecision = snap.cc2PendingDecision !== undefined ? copyPendingDecision(snap.cc2PendingDecision) : undefined;
     // The walls a blast removed come back as an array of their own; with none removed the level's memoized mask is the live one again.
     if (snap.blastedEdgeMask !== undefined) {
       this.w.blastedEdgeMask = Uint8Array.from(snap.blastedEdgeMask);
@@ -1018,6 +1111,10 @@ export class GameEngine {
     this.w.levelCompleted = false;
     this.w.statusBannerKey = null;
     this.w.beamDirty = true;
+    // The state put back is one between ticks: no turn was played in it, and the snapshot kept for the stored input is gone with it.
+    this.deferredUndo = undefined;
+    this.lastPlayerTurn = undefined;
+    this.rebaseLightSwitches();
   }
 
   /**
@@ -1070,37 +1167,44 @@ export class GameEngine {
     countPausedTick(this.w);
     if (this.getTimeRemainingSeconds() <= 0 && this.w.level.timeLimitSeconds > 0) {
       killPlayer(this.ctx, 'hud.messages.death_time', 'death');
+      this.w.cc2PendingDecision = undefined;
       return;
     }
 
     // A shot fired from here to the end of the pass is advanced by this very tick.
     this.w.inTick = true;
     this.beginMirrorTick();
-    if (this.w.player.moveCooldown > 0) {
-      this.w.player.moveCooldown--;
-    }
-    // A converted CC3D level: what the player's step onto a cell does acts when that step ends.
-    if (this.w.cc3dPace && !applyCc3dStepEnd(this.ctx)) {
-      this.w.inTick = false;
-      return;
-    }
-
-    // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
-    // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
-    if (this.w.ccRules || this.w.cc3dPace) resumeForceCarry(this.w);
-    if (this.w.player.isSliding) {
-      if (this.w.player.slideCooldown > 0) {
-        this.w.player.slideCooldown--;
-        if (this.w.cc3dPace && this.w.player.slideCooldown === 0 && !applyCc3dStepEnd(this.ctx)) {
-          this.w.inTick = false;
-          return;
-        }
-      } else {
-        processPlayerSlideStep(this.ctx);
+    // CC2 engine, actor order: the player's turn (his stored input, then the start-of-tick block below) is played by the entity pass at his place in the list.
+    const actorOrder = this.w.cc2ActorOrder === true;
+    if (actorOrder) {
+      this.openActorTick();
+    } else {
+      if (this.w.player.moveCooldown > 0) {
+        this.w.player.moveCooldown--;
       }
+      // A converted CC3D level: what the player's step onto a cell does acts when that step ends.
+      if (this.w.cc3dPace && !applyCc3dStepEnd(this.ctx)) {
+        this.w.inTick = false;
+        return;
+      }
+
+      // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
+      // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
+      if (this.w.ccRules || this.w.cc3dPace) resumeForceCarry(this.w);
+      if (this.w.player.isSliding) {
+        if (this.w.player.slideCooldown > 0) {
+          this.w.player.slideCooldown--;
+          if (this.w.cc3dPace && this.w.player.slideCooldown === 0 && !applyCc3dStepEnd(this.ctx)) {
+            this.w.inTick = false;
+            return;
+          }
+        } else {
+          processPlayerSlideStep(this.ctx);
+        }
+      }
+      // Classic rules and converted CC3D levels: a player on a teleporter pad leaves it by his forced exit step.
+      if (this.w.ccRules || this.w.cc3dPace) processTeleportExit(this.ctx);
     }
-    // Classic rules and converted CC3D levels: a player on a teleporter pad leaves it by his forced exit step.
-    if (this.w.ccRules || this.w.cc3dPace) processTeleportExit(this.ctx);
     // The players not controlled finish their forced moves (slides, force floors); they take no voluntary move.
     if (this.w.parked.length > 0) tickParkedPlayers(this.ctx);
 
@@ -1109,10 +1213,17 @@ export class GameEngine {
     const aliveBeforeBlasts = this.w.player.alive;
     if (!this.w.levelCompleted) detonateCharges(this.ctx, this.ticksElapsed);
     if (aliveBeforeBlasts && !this.w.player.alive) {
+      this.clearActorTick();
       this.w.inTick = false;
       return;
     }
+    if (actorOrder) {
+      this.settleBeforeActorPass();
+      this.releaseTrappedPlayer();
+    }
     updateEntities(this.ctx);
+    // A pass that never reached the player's place (nothing listed after him, or no pass at all) plays his turn now.
+    if (actorOrder) this.closeActorTick();
     advanceShots(this.ctx);
     this.w.inTick = false;
     // Before the laser pass, which may return early; doors settle at the end of each pass.
@@ -1139,6 +1250,7 @@ export class GameEngine {
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
     this.endMirrorTick();
+    this.rebaseLightSwitches();
   }
 
   /**
@@ -1146,7 +1258,333 @@ export class GameEngine {
    * move for the mirror players to copy, and the mirrors loaded at the start are ready to decide in the first tick.
    */
   private beginMirrorTick(): void {
+    const move = this.w.mirrorMove;
+    const stored = this.w.cc2PendingDecision;
+    // CC2 engine, actor order: an input stored for the player's turn is his decision of this tick, though he has not played it yet.
+    if (stored !== undefined && stored.dirs.length > 0 && move !== undefined && !move.attempted) {
+      move.attempted = true;
+      beginCc2MirrorTick(this.w, this.ticksElapsed === 1);
+      move.attempted = false;
+      return;
+    }
     beginCc2MirrorTick(this.w, this.ticksElapsed === 1);
+  }
+
+  /** CC2 engine: whether the player takes his turn at his place in the actor list on this level (see EpoxyWorld.cc2ActorOrder). */
+  public playsInActorOrder(): boolean {
+    return this.w.cc2ActorOrder === true;
+  }
+
+  /** Whether an input given now is stored for the player's turn: actor order, between ticks, and not the turn playing it. */
+  private defersInput(): boolean {
+    return this.w.cc2ActorOrder === true && !this.w.inTick && !this.playingStored;
+  }
+
+  /**
+   * Stores a move for the player's turn. False for what the input alone decides, as the move did before it was stored: paused,
+   * dead or done, a step still being waited out, locked on ice, leaving a teleporter, an opposing pair or more than two keys.
+   * True when it is stored: the turn may still refuse it. A second input before the tick replaces the move (the last wins).
+   */
+  private deferMove(dirs: readonly Direction[], held: boolean): boolean {
+    if (!this.beginInput()) return false;
+    const keys = dirs.filter((d, i) => dirs.indexOf(d) === i);
+    if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
+    const player = this.w.player;
+    const lockedByIce = player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice';
+    if (lockedByIce || player.moveCooldown > 0 || (player.teleportExit !== undefined && !softPadOverrideDue(this.w))) return false;
+    this.storeInput((stored) => {
+      stored.dirs = [...dirs];
+      stored.held = held;
+    });
+    return true;
+  }
+
+  /** Stores a drop or an inventory cycle for the player's turn, where it is played before his move. */
+  private deferAction(action: Cc2PendingAction): boolean {
+    if (!this.beginInput()) return false;
+    if (action.kind === 'cycle') {
+      const tools = usesToolBelt(this.w) ? syncToolBelt(this.w.player) : [...this.w.player.boots];
+      if (tools.length < MIN_BOOTS_TO_CYCLE) return false;
+    }
+    this.storeInput((stored) => {
+      (stored.actions ??= []).push(action);
+    });
+    return true;
+  }
+
+  /**
+   * Writes into the input stored for this tick, creating it first. The undo snapshot of the whole tick's input is taken here, once,
+   * before anything is stored (so its copy holds no stored input), and kept off the stack: the turn pushes it once if it did anything.
+   */
+  private storeInput(write: (stored: Cc2PendingDecision) => void): void {
+    let stored = this.w.cc2PendingDecision;
+    if (stored === undefined) {
+      this.deferredUndo = this.captureState();
+      stored = { dirs: [], held: false, tick: this.ticksElapsed };
+      this.w.cc2PendingDecision = stored;
+    }
+    write(stored);
+  }
+
+  /** Start of a tick on a level that plays in actor order: the tick's own state, and the sets the entity pass fills. */
+  private openActorTick(): void {
+    this.actorTick = { clockAtStart: this.w.ccMonsterClock, decided: false, turned: false, decisionMovedBlock: false };
+    this.lastPlayerTurn = undefined;
+    this.w.cc2MovingAtDecision = undefined;
+    this.w.cc2PushedLate = undefined;
+    this.w.cc2SkipTurn = undefined;
+  }
+
+  /** End of the tick: the player's turn is played when the pass never reached it, and nothing of the tick's order state is kept. */
+  private closeActorTick(): void {
+    const tick = this.actorTick;
+    if (tick !== undefined && !tick.turned && this.w.player.alive && !this.w.levelCompleted) this.playActorTurn();
+    this.clearActorTick();
+  }
+
+  private clearActorTick(): void {
+    this.actorTick = undefined;
+    this.w.cc2TurnSeen = undefined;
+    this.w.cc2MovingAtDecision = undefined;
+    this.w.cc2PushedLate = undefined;
+    this.w.cc2SkipTurn = undefined;
+    this.w.cc2PendingDecision = undefined;
+    this.deferredUndo = undefined;
+  }
+
+  /** A hash of the blocks of the world and where they stand, to tell whether something moved them without building a string. */
+  private blockLayout(): number {
+    let hash = 0;
+    for (const e of this.w.entities) {
+      if (e.kind !== 'block') continue;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.uid) | 0;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.x) | 0;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.y) | 0;
+    }
+    return hash;
+  }
+
+  /**
+   * CC2 engine, actor order: the player's decision at his place among the decisions of the pass (Lexy make_player_decision): his
+   * early push of the block ahead for each key he reads. Played once per tick, and only for a stored move.
+   */
+  private playActorDecision(): void {
+    const tick = this.actorTick;
+    if (tick === undefined || tick.decided) return;
+    tick.decided = true;
+    const stored = this.w.cc2PendingDecision;
+    if (stored === undefined || stored.dirs.length === 0 || !this.w.player.alive) return;
+    const keys = stored.dirs.filter((d, i) => stored.dirs.indexOf(d) === i);
+    const moving = new Set<number>();
+    this.w.cc2MovingAtDecision = moving;
+    const before = this.blockLayout();
+    decisionPush(this.ctx, keys.length === 1 ? keys : resolveCc2HeldOrder(keys, this.w.player.dir), moving);
+    if (this.blockLayout() !== before) tick.decisionMovedBlock = true;
+  }
+
+  /**
+   * CC2 engine, actor order: the player's turn at his place among the actions of the pass (Lexy: the player is an actor of the list).
+   * The stored input is played first, then what the start of a tick did for him before the order existed: the end of his step wait,
+   * the force floor carry, the slide step and the exit from a teleporter. Played once per tick.
+   *
+   * Epoxy clock adapter, not a CC2 rule: the turn reads the monster clock and the pass as the input did before the tick (the clock as
+   * the tick started, the pass not open), so the splashes, press delays and arrivals he causes are timed as they were when he moved first.
+   * The blocks his turn moved after their own turn in the pass take that turn at once (Lexy do_extra_cooldown, game.js:2229-2242).
+   */
+  private playActorTurn(): void {
+    const tick = this.actorTick;
+    if (tick === undefined || tick.turned) return;
+    tick.turned = true;
+    const w = this.w;
+    if (!w.player.alive || w.levelCompleted) return;
+    const clock = w.ccMonsterClock;
+    const passOpen = w.ccPassOpen;
+    w.ccMonsterClock = tick.clockAtStart;
+    w.ccPassOpen = false;
+    let late: number[] = [];
+    try {
+      late = this.runPlayerTurn(tick);
+    } finally {
+      w.ccMonsterClock = clock;
+      w.ccPassOpen = passOpen;
+    }
+    w.cc2PushedLate = late;
+    for (const uid of late) {
+      if (!w.player.alive || w.levelCompleted) break;
+      const block = w.entities.find((e) => e.uid === uid);
+      if (block !== undefined) stepSlidingBlock(this.ctx, block);
+    }
+    w.cc2PushedLate = undefined;
+  }
+
+  /** What the state of a block says about its turn in the pass: where it is, whether it arrives, its cooldown, whether it slides. */
+  private blockTurnState(block: RuntimeEntity): string {
+    return `${block.x},${block.y},${block.arrivalTicks},${block.cooldownTicks},${block.isSliding}`;
+  }
+
+  /** The turn itself, with the clock view set (see playActorTurn). Returns the uids of the blocks it moved after their own turn. */
+  private runPlayerTurn(tick: ActorTick): number[] {
+    const w = this.w;
+    if (isCellClosedTrap(w, w.player.x, w.player.y)) w.player.trapShutAtTurn = true;
+    else delete w.player.trapShutAtTurn;
+    const seen = w.cc2TurnSeen ?? new Set<number>();
+    const before = new Map<number, string>();
+    for (const e of w.entities) if (e.kind === 'block' && seen.has(e.uid)) before.set(e.uid, this.blockTurnState(e));
+    const stored = w.cc2PendingDecision;
+    w.cc2PendingDecision = undefined;
+    if (stored !== undefined) this.playStoredInput(stored, tick);
+    if (!w.player.alive || w.levelCompleted) return [];
+    if (w.player.moveCooldown > 0) w.player.moveCooldown--;
+    resumeForceCarry(w);
+    if (w.player.isSliding) {
+      if (w.player.slideCooldown > 0) w.player.slideCooldown--;
+      else processPlayerSlideStep(this.ctx);
+    }
+    processTeleportExit(this.ctx);
+    const late: number[] = [];
+    for (const e of w.entities) {
+      const was = before.get(e.uid);
+      if (was !== undefined && was !== this.blockTurnState(e)) late.push(e.uid);
+    }
+    return late;
+  }
+
+  /**
+   * Plays what was stored: the drops and cycles in the order they were given, then the move. The move's history and its dynamite are
+   * stamped with the tick the input was given in (not the one the pass runs in), so a stored solution replays unchanged. The undo
+   * step is the snapshot taken when the input was stored; it is dropped when the turn changed nothing, as a refused move was.
+   */
+  private playStoredInput(stored: Cc2PendingDecision, tick: ActorTick): void {
+    const w = this.w;
+    const ticksNow = this.ticksElapsed;
+    const inTick = w.inTick;
+    const undoMark = this.deferredUndo;
+    this.deferredUndo = undefined;
+    let acted = false;
+    let moved = false;
+    this.turnUndoRequests = undoMark === undefined ? undefined : 0;
+    this.playingStored = true;
+    w.inTick = false;
+    this.ticksElapsed = stored.tick;
+    try {
+      for (const action of stored.actions ?? []) {
+        if (action.kind === 'drop') acted = this.dropItem(action.itemId ?? this.oldestTool()) || acted;
+        else acted = this.cycleInventory() || acted;
+      }
+      if (stored.dirs.length > 0) {
+        moved = stored.held ? this.attemptPlayerMoveHeld(stored.dirs) : this.attemptPlayerMove(stored.dirs[0]);
+        this.lastPlayerTurn = { dir: w.player.dir, moved };
+      }
+    } finally {
+      this.ticksElapsed = ticksNow;
+      this.playingStored = false;
+      w.inTick = inTick;
+    }
+    const requested = this.endTurnUndoRequest();
+    // The capped push drops the oldest step only when the input did something, as a refused move never did.
+    if (undoMark !== undefined && (acted || moved || tick.decisionMovedBlock || requested)) this.pushUndoSnapshot(undoMark);
+  }
+
+  /** The tool a drop without a named item puts down: the one held longest (the head of the belt, or the oldest boots), or null with none. */
+  private oldestTool(): string | null {
+    if (usesToolBelt(this.w)) return syncToolBelt(this.w.player)[0] ?? null;
+    return this.w.player.boots.values().next().value ?? null;
+  }
+
+  /**
+   * CC2 engine, actor order: a player whose trap was shut at his last turn and is open at the start of a pass steps out the way he
+   * faces, before the pass, input or not (Lexy trap add_press, attempt_out_of_turn_step, tiletypes.js:1764-1779). Not when the trap
+   * is open only by its wire: Lexy's add_press does nothing for a wire.
+   */
+  private releaseTrappedPlayer(): void {
+    const w = this.w;
+    const player = w.player;
+    if (player.trapShutAtTurn !== true || !player.alive || w.levelCompleted || isCellClosedTrap(w, player.x, player.y)) return;
+    delete player.trapShutAtTurn;
+    if (isTrapOpenedByWireOnly(w, player.x, player.y)) return;
+    this.playForcedStep(player.dir);
+  }
+
+  /**
+   * A step the world forces on the player out of turn: the move as an input makes it, but it leaves no move history, no undo step
+   * and no step count (it is not something the player did, so a stored solution does not hold it).
+   */
+  private playForcedStep(dir: Direction): void {
+    const w = this.w;
+    const steps = this.stepsCount;
+    const moves = this.moveHistory.length;
+    const timed = this.timedMoveHistory.length;
+    const undo = this.undoState();
+    const playStart = w.playStartTick;
+    const inTick = w.inTick;
+    this.playingStored = true;
+    w.inTick = false;
+    try {
+      this.attemptPlayerMove(dir);
+    } finally {
+      this.playingStored = false;
+      w.inTick = inTick;
+      this.stepsCount = steps;
+      this.moveHistory.length = moves;
+      this.timedMoveHistory.length = timed;
+      this.restoreUndoState(undo);
+      w.playStartTick = playStart;
+    }
+  }
+
+  /**
+   * CC2 engine, actor order: before the pass of a tick with a stored move, the wires settle once, sampled as at rest, with the sinks
+   * they fire waiting as those of a move settle do (Lexy runs the wire phases of its first frames before the decisions; AOL of the
+   * wave 9 plan). A light switch the player's step end flipped since the last tick reads as it was: Lexy's switch emits from the next
+   * wire phase, after the monsters decided.
+   */
+  private settleBeforeActorPass(): void {
+    const w = this.w;
+    const stored = w.cc2PendingDecision;
+    if (stored === undefined || stored.dirs.length === 0 || !w.player.alive) return;
+    const width = mapWidth(w);
+    const hidden: [number, string][] = [];
+    for (const cell of this.lightSwitchCells) {
+      const x = cell % width;
+      const y = Math.floor(cell / width);
+      const was = this.lightSwitchBase.get(cell);
+      if (was !== undefined && was !== w.terrain[y][x]) {
+        hidden.push([cell, w.terrain[y][x]]);
+        w.terrain[y][x] = was;
+      }
+    }
+    try {
+      const edges = w.signals !== undefined ? settleWorldSignals(w, false, SIGNAL_PHASE_TICK) : [];
+      setPoweredCells(this.ctx);
+      setHoldDoors(this.ctx);
+      // Sampled as a tick settle (the player has not moved), fired as a move settle (the sinks wait for the wire phase of the tick).
+      fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
+    } finally {
+      for (const [cell, id] of hidden) w.terrain[Math.floor(cell / width)][cell % width] = id;
+    }
+  }
+
+  /** CC2 engine, actor order: finds the light switches of the level (see settleBeforeActorPass). Only a level with a signal network has any to read. */
+  private indexLightSwitches(): void {
+    this.lightSwitchCells = [];
+    this.lightSwitchBase = new Map<number, string>();
+    if (this.w.cc2ActorOrder !== true || this.w.signals === undefined) return;
+    this.lightSwitchCells = [...this.w.signals.toggleCells].sort((a, b) => a - b);
+    this.rebaseLightSwitches();
+  }
+
+  /** CC2 engine, actor order: remembers the form of each light switch as the world stands between two ticks. */
+  private rebaseLightSwitches(): void {
+    const width = mapWidth(this.w);
+    for (const cell of this.lightSwitchCells) this.lightSwitchBase.set(cell, this.w.terrain[Math.floor(cell / width)][cell % width]);
+  }
+
+  /**
+   * CC2 engine, actor order: what the player's turn of the last tick did: the way he faced when it ended his move, and whether he
+   * stepped. Undefined when the level does not play in actor order, when he stored no move, or before the first tick.
+   */
+  public getLastPlayerTurn(): { dir: Direction; moved: boolean } | undefined {
+    return this.lastPlayerTurn === undefined ? undefined : { ...this.lastPlayerTurn };
   }
 
   /**
@@ -1165,6 +1603,7 @@ export class GameEngine {
    */
   public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     if (dirs.length === 0) return false;
+    if (this.defersInput()) return this.deferMove(dirs, true);
     if (!this.beginInput()) return false;
     const keys = dirs.filter((d, i) => dirs.indexOf(d) === i);
     if (!usesCc2Engine(this.w.level) || this.w.cc3dPace || keys.length === 1) return this.attemptPlayerMove(dirs[0]);
@@ -1185,7 +1624,7 @@ export class GameEngine {
     // A player in a closed trap only turns: the first key of the order decides, as one key would.
     if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
 
-    const undoBefore = [...this.undoStack];
+    const undoBefore = this.undoState();
     const tickAtMove = this.ticksElapsed;
     const historyBefore = this.timedMoveHistory.length;
     const dirBefore = player.dir;
@@ -1193,7 +1632,7 @@ export class GameEngine {
     let mutated = false;
     this.saveUndoSnapshot();
     if (softOverride) takeSoftPadOverride(this.w);
-    const undoWithSlap = [...this.undoStack];
+    const undoWithSlap = this.undoState();
     let slapped = false;
     for (const slapDir of CC2_SLAP_ORDER) {
       if (keys.includes(slapDir) && slapBlockAhead(this.ctx, slapDir)) slapped = true;
@@ -1224,17 +1663,23 @@ export class GameEngine {
     const changed = slapped || moved || mutated || softOverride || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
     // The attempts recorded and pushed snapshots of their own; the hold keeps one of each, or none.
     this.timedMoveHistory.length = historyBefore;
-    this.undoStack.length = 0;
     if (!changed) {
-      this.undoStack.push(...undoBefore);
+      this.restoreUndoState(undoBefore);
       return false;
     }
-    this.undoStack.push(...undoWithSlap);
+    this.restoreUndoState(undoWithSlap);
     this.timedMoveHistory.push({ tick: tickAtMove, dir: keys[0], alt: keys[1] });
     return moved;
   }
 
+  /**
+   * One step of the player. CC2 engine, actor order (cc2ActorOrder): the input is stored and played by the player's turn in the
+   * entity pass, so the return is not the step's outcome: false for what the input alone decides (paused, dead or done, a step
+   * still being waited out, locked on ice, leaving a teleporter), true when stored; getLastPlayerTurn tells what the turn did after
+   * the tick. A second input before the tick replaces the first (the last wins). Any other level steps at once and returns the outcome.
+   */
   public attemptPlayerMove(dir: Direction): boolean {
+    if (this.defersInput()) return this.deferMove([dir], false);
     if (!this.beginInput()) return false;
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
@@ -1295,13 +1740,18 @@ export class GameEngine {
     const diedInPlace = moved && this.w.cc3dPace && !mover.alive && mover.x === fromX && mover.y === fromY;
     if (moved) {
       if (!diedInPlace) lightDepartedDynamite(this.w, this.ticksElapsed);
-      const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_MOVE) : [];
-      // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
-      setPoweredCells(this.ctx);
-      setHoldDoors(this.ctx);
-      // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
-      // following tick, as one fired by a button does (see the clear in tick()).
-      fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
+      // CC2 engine, actor order: a move played at the player's place in the pass (his stored input or a forced step) settles no
+      // wire: Lexy runs no wire phase between the actions, so what he pressed reaches the wires at the settle of the tick, and the
+      // wires of his tick settled once before the pass (see settleBeforeActorPass).
+      if (!(this.playingStored && this.w.cc2ActorOrder === true)) {
+        const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_MOVE) : [];
+        // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
+        setPoweredCells(this.ctx);
+        setHoldDoors(this.ctx);
+        // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
+        // following tick, as one fired by a button does (see the clear in tick()).
+        fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
+      }
       this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
@@ -1328,7 +1778,7 @@ export class GameEngine {
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
       // A refused move on a soft pad still ended the forced exit: it keeps its undo step.
-      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.undoStack.pop();
+      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.dropLastUndoSnapshot();
       if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || softOverride || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }
@@ -1358,6 +1808,7 @@ export class GameEngine {
    * solution replays it.
    */
   public cycleInventory(): boolean {
+    if (this.defersInput()) return this.deferAction({ kind: 'cycle' });
     if (!usesCc2Engine(this.w.level) || !this.beginInput()) return false;
     if (usesToolBelt(this.w)) return this.cycleToolBelt();
     const boots = this.w.player.boots;
@@ -1548,6 +1999,7 @@ export class GameEngine {
     // Nothing fires after the win: the wire-fired edges still waiting are dropped.
     this.w.cc2DeferredSinkEdges = [];
     this.w.cc2BrownHeld = undefined;
+    this.w.cc2PendingDecision = undefined;
     this.w.player.isSliding = false;
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();

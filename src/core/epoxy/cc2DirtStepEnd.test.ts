@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { playMove } from '../../test/cc2Play';
 import { FLOOR_TILE_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel } from '../types';
@@ -66,10 +67,14 @@ describe.each(DIRT_TILES)('%s packed down by the player', (dirt) => {
     const { engine, w } = fixture('cc2', dirt);
     const glider = w.entities.find((e) => e.kind === 'monster');
     if (glider === undefined) throw new Error('the glider is missing');
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect({ x: w.player.x, y: w.player.y }).toEqual(DIRT);
     expect(terrainAtDirt(w)).toBe(dirt);
     expect(w.player.cc3dArrival?.opening).toEqual(DIRT);
+    // The tick that played the step let the glider consider the cell and turn away from it: put it back at its post to ask again.
+    expect({ x: glider.x, y: glider.y }).not.toEqual(DIRT);
+    glider.x = GLIDER_CELL.x;
+    glider.y = GLIDER_CELL.y;
     expect(canMonsterEnter(w, glider, 'W')).toBe(false);
     let ticks = 0;
     while (w.player.cc3dArrival !== undefined && ticks < MAX_STEP_TICKS) {

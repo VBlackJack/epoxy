@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { Cc2PlayerView } from '../types';
 import { playerWalkCooldown } from './epoxyPlayer';
@@ -132,10 +133,9 @@ describe('CC2 engine: the apparent position across a teleport', () => {
   it('stays on the source pad for the pad step, then is the destination pad on the first exit tick', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
     engine.tick();
-    expect(engine.attemptPlayerMove('E')).toBe(true);
-    // The player already stands on the destination pad; the move did not touch the view the teeth of this tick read.
+    // The tick that plays the move puts the player on the destination pad; the view the teeth of that tick read was recorded before it.
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
-    engine.tick();
     expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD, y: ROOM_ROW, dir: 'E', sourcePad: { x: NEAR_PAD, y: ROOM_ROW } });
     const walk = playerWalkCooldown(world(engine));
     expect(viewOf(engine)?.stepLength).toBe(walk);
@@ -154,7 +154,7 @@ describe('CC2 engine: the apparent position across a teleport', () => {
 
   it('is the destination pad (at rest) while the exit tick runs the teeth', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     let sawDestination = false;
     for (let i = 0; i < MAX_TICKS && engine.getPlayer().x === FAR_PAD; i++) {
       engine.tick();

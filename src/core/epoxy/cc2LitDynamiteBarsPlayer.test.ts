@@ -22,6 +22,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { playMove } from '../../test/cc2Play';
 import { DYNAMITE_ITEM_ID, DYNAMITE_LIT_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel } from '../types';
@@ -65,21 +66,26 @@ describe('lit dynamite bars the player (CC2 engine)', () => {
     const { engine, w } = fixture('cc2');
     lightAt(w, false);
     const from = { x: w.player.x, y: w.player.y };
-    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(playMove(engine, 'E').moved).toBe(false);
     expect({ x: w.player.x, y: w.player.y }).toEqual(from);
   });
 
-  it('lets the player step onto a dynamite that is set down but not lit yet', () => {
+  // A set-down charge is under the player who set it: he cannot step onto it, he steps off it and it lights (Lexy tiletypes.js
+  // dynamite on_depart -> dynamite_lit), so the step off the charge succeeds and leaves a lit charge behind.
+  it('lets the player step off a dynamite he set down, which lights as he leaves', () => {
     const { engine, w } = fixture('cc2');
+    w.player.x = LIT_CELL.x;
     lightAt(w, true);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
-    expect({ x: w.player.x, y: w.player.y }).toEqual(LIT_CELL);
+    expect(playMove(engine, 'E').moved).toBe(true);
+    expect({ x: w.player.x, y: w.player.y }).toEqual({ x: LIT_CELL.x + 1, y: LIT_CELL.y });
+    expect(w.items[LIT_CELL.y][LIT_CELL.x]).toBe(DYNAMITE_LIT_ITEM_ID);
+    expect(w.litCharges.some((c) => c.x === LIT_CELL.x && c.y === LIT_CELL.y && c.awaitingDeparture !== true)).toBe(true);
   });
 
   it.each(['cc', 'native'] as const)('does not bar the player on a %s level', (mode) => {
     const { engine, w } = fixture(mode);
     lightAt(w, false);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect({ x: w.player.x, y: w.player.y }).toEqual(LIT_CELL);
   });
 });
