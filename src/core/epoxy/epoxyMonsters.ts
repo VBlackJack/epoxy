@@ -911,13 +911,15 @@ function holdsProtection(w: EpoxyWorld, entity: RuntimeEntity): boolean {
 
 /**
  * CC2: an entity that picks things up (a ghost, a rover) keeps the tools it takes, up to CC2_ENTITY_TOOL_CAPACITY; taking
- * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). Keys are taken but never held.
+ * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). On the CC2 engine any actor keeps the keys
+ * it takes on its keyring and opens doors with them; elsewhere only a rolling ball keeps keys.
  */
 function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): void {
   const collectible = ConfigRegistry.getTile(itemId).collectible;
   if (collectible === TOOL_EXCLUDED_COLLECTIBLE) {
-    // A rolling ball keeps the keys it takes: they open the doors it rolls into.
-    if (isRollingBallDef(ConfigRegistry.getEntityDef(entity.type))) (entity.heldKeys ??= []).push(itemId);
+    // A rolling ball keeps the keys it takes: they open the doors it rolls into. On the CC2 engine any actor does (Lexy attempt_take
+    // game.js:3221-3275, door on_arrive take_key_from_actor tiletypes.js:38-56); the CC3D pace keeps its own rule.
+    if (isRollingBallDef(ConfigRegistry.getEntityDef(entity.type)) || (usesCc2Engine(w.level) && !w.cc3dPace)) (entity.heldKeys ??= []).push(itemId);
     return;
   }
   // A score bonus is taken and gone: it is no tool.
