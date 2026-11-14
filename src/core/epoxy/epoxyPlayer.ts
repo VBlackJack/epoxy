@@ -668,8 +668,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   if (tile.transformsToOnStep) {
-    w.terrain[y][x] = tile.transformsToOnStep;
-    tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    if (tile.clearsOnArriveCc2 === true && usesCc2Engine(w.level) && !w.cc3dPace) {
+      // CC2 engine: the dirt he packs down goes when his step ends (Lexy tiletypes.js dirt on_arrive), so until then
+      // monsters find the cell shut; applyCc3dStepEnd clears it. The rest of the arrival reads the cell as floor.
+      cc3dArrivalOf(w.player).opening = { x, y };
+      tile = ConfigRegistry.getTile(tile.transformsToOnStep);
+    } else {
+      w.terrain[y][x] = tile.transformsToOnStep;
+      tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    }
   }
 
   // A transmogrifier turns the player into the other character on arrival (Lexy's Labyrinth tiletypes.js `transmogrifier`).
@@ -840,6 +847,12 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (pending === undefined) return true;
   if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
   delete p.cc3dArrival;
+  // CC2 engine: the dirt he packed down goes now that his step has ended (see resolvePlayerArrival).
+  if (pending.opening !== undefined) {
+    const { x, y } = pending.opening;
+    const packed = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+    if (packed.clearsOnArriveCc2 === true && packed.transformsToOnStep !== undefined) w.terrain[y][x] = packed.transformsToOnStep;
+  }
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
   if (pending.brown !== undefined && p.x === pending.brown.x && p.y === pending.brown.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).buttonAction === 'hold_trap') {
     // Several players can end steps on different brown buttons before the tick: each cell stays held, in ascending order.
