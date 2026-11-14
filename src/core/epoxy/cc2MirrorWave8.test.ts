@@ -295,6 +295,21 @@ describe('CC2 engine: a mirror keeps what it picks up (MI)', () => {
   });
 });
 
+describe('CC2 engine: lit dynamite bars a mirror (LD)', () => {
+  const LIT = 'dynamite_lit';
+  it('stops the mirror before the lit charge', () => {
+    const engine = mirrorWalk('cc2', { items: { [`8,${MIRROR_Y}`]: LIT } });
+    eastSteps(engine, 3);
+    expect(cellOf(engine)).toBe(`7,${MIRROR_Y}`);
+  });
+
+  it('lets a native mirror walk over it', () => {
+    const engine = mirrorWalk('native', { items: { [`8,${MIRROR_Y}`]: LIT } });
+    eastSteps(engine, 3);
+    expect(cellOf(engine)).toBe(`9,${MIRROR_Y}`);
+  });
+});
+
 describe('validator: the door rule of a mirror follows the engine (MI)', () => {
   const errorsOf = (level: CompiledLevel): string[] =>
     LevelValidator.validate(level)

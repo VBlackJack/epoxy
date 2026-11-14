@@ -40,6 +40,7 @@ import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION, RAILROAD_SIGN_ITEM_ID } from '../coreConstants';
 import { Cc2MirrorMove, Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
+import { isLitChargeItem } from './epoxyCharges';
 import { usesCc2Engine } from './ccRules';
 import { mirrorTakesItem, resolveMonsterArrival } from './epoxyMonsters';
 import { shieldedPlayerAt } from './epoxyWard';
@@ -171,6 +172,8 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   const rail = cc2 && entity.heldTools?.includes(RAILROAD_SIGN_ITEM_ID) === true ? 'railproof' : undefined;
   if (isEdgeBlocked(w, entity.x, entity.y, nx, ny, dir, false, rail)) return false;
   if (w.shots.length > 0 && shotAt(w, nx, ny)?.payload !== undefined) return false;
+  // CC2 engine: lit dynamite is an actor that bars every other actor, the mirrors included (Lexy dynamite_lit blocks_collision all).
+  if (cc2 && isLitChargeItem(w.items[ny][nx])) return false;
   // A player in a helmet is not hurt by contact, so the mirror stops at the player's cell as any monster does.
   if (shieldedPlayerAt(w, nx, ny)) return false;
 
