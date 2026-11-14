@@ -102,7 +102,10 @@ export function updateEntities(ctx: EpoxyContext): void {
   w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
     if (w.ccRules && !planClassicDecisions(ctx)) return;
+    const passClock = w.ccMonsterClock;
     runEntityPass(ctx);
+    // CC2 engine: a green toggle a monster's step queued is applied after the entity pass (Lexy do_post_actor_phase).
+    if (w.ccRules && usesCc2Engine(w.level) && w.player.alive && !applyQueuedArrivals(ctx, undefined, passClock, true)) return;
   } finally {
     w.ccPassOpen = false;
     w.ccPlans.clear();
@@ -136,14 +139,18 @@ function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number): boolean {
+function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
-  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster.
+  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster, the green
+  // toggles after the pass (endOfPass).
   const cc2 = usesCc2Engine(w.level);
   const isDue = (a: CcArrival): boolean =>
-    a.due <= pass && (ownerUid === undefined || a.uid === ownerUid) && (!cc2 || (a.teleport === true) === (ownerUid !== undefined));
+    a.due <= pass &&
+    (ownerUid === undefined || a.uid === ownerUid) &&
+    (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
+    (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
   const due = w.ccArrivals.filter(isDue);
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));

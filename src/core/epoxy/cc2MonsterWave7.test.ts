@@ -30,6 +30,7 @@ import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode, RoomOptions } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import type { Direction, RuntimeEntity } from '../types';
+import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -230,5 +231,27 @@ describe('monster on a green button (GB, GB2)', () => {
     const { tick, ballArrival } = toggleTick('native');
     expect(ballArrival).toBeGreaterThan(0);
     expect(tick).toBe(ballArrival);
+  });
+
+  it('applies a queued green toggle after the entity pass: a monster of that pass still meets the old walls', () => {
+    const pusherX = 7;
+    const walkerX = 3;
+    const engine = load('cc2', {
+      terrain: {
+        [`${pusherX},${ROOM_ROW}`]: BUTTON,
+        [`${walkerX + 1},${ROOM_ROW}`]: WALL_CLOSED
+      },
+      entities: [
+        { type: BALL, x: pusherX, y: ROOM_ROW, dir: 'E' },
+        { type: BALL, x: walkerX, y: ROOM_ROW, dir: 'E' }
+      ]
+    });
+    const w = (engine as unknown as { w: EpoxyWorld }).w;
+    const [pusher, walker] = w.entities;
+    pusher.cooldownTicks = WATCH_TICKS;
+    w.ccArrivals.push({ uid: pusher.uid, x: pusherX, y: ROOM_ROW, action: 'toggle_walls', due: w.ccMonsterClock });
+    engine.tick();
+    expect(engine.getTerrain()[ROOM_ROW][walkerX + 1]).toBe(WALL_OPEN);
+    expect(walker.x).toBeLessThanOrEqual(walkerX);
   });
 });
