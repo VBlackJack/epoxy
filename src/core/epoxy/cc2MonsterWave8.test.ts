@@ -145,3 +145,41 @@ describe('CC2 engine: any actor works a light switch when its step ends (FP, FP2
     expect(fireballOnSwitch('cc').flipped).toBe(-1);
   });
 });
+
+const HINT_X = 5;
+const WALK_TICKS = 40;
+
+/** A monster of `type` walks west along the row toward a cell holding `terrain` or `item`. Returns the smallest x it reached. */
+function westmostX(mode: RoomMode, type: string, cell: { terrain?: string; item?: string }): number {
+  const key = `${HINT_X},${ROOM_ROW}`;
+  const level = room({
+    mode,
+    startX: 1,
+    terrain: cell.terrain === undefined ? {} : { [key]: cell.terrain },
+    items: cell.item === undefined ? {} : { [key]: cell.item },
+    entities: [{ type, x: FIREBALL_START_X, y: ROOM_ROW, dir: 'W' }]
+  });
+  const engine = new GameEngine();
+  engine.loadLevel(level);
+  let min = FIREBALL_START_X;
+  for (let t = 0; t < WALK_TICKS; t++) {
+    engine.tick();
+    const mover = engine.getEntities().find((e) => e.type === type);
+    if (mover !== undefined) min = Math.min(min, mover.x);
+  }
+  return min;
+}
+
+describe('CC2 engine: a hint bars the monsters but the ghost (HT)', () => {
+  it('stops a pink ball short of the hint', () => {
+    expect(westmostX('cc2', BALL, { terrain: 'hint' })).toBe(HINT_X + 1);
+  });
+
+  it('lets a ghost walk over the hint', () => {
+    expect(westmostX('cc2', 'ghost', { terrain: 'hint' })).toBeLessThan(HINT_X);
+  });
+
+  it('leaves a classic level unchanged: the pink ball walks over the hint', () => {
+    expect(westmostX('cc', BALL, { terrain: 'hint' })).toBeLessThan(HINT_X + 1);
+  });
+});

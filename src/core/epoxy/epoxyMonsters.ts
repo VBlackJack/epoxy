@@ -1193,6 +1193,9 @@ export function canMonsterEnter(
 
   const destTileId = w.terrain[ny][nx];
   const destTile = ConfigRegistry.getTile(destTileId);
+  // CC2 engine: a hint bars every monster but the ghost, the rover, the rolling ball and the mirrors (Lexy hint blocks_collision
+  // holds block_cc1 and monster_typical, which those lack).
+  if (destTile.showsHint === true && def?.passesCc2Hints !== true && usesCc2Engine(w.level)) return false;
 
   // A monster that walks through solid tiles (a ghost) is stopped only by the tiles and hazards its definition names.
   const passesSolid =
