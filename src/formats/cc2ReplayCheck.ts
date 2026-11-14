@@ -308,10 +308,15 @@ class ToolBelt {
     engine.cycleInventory?.();
   }
 
-  /** The drop key: puts the oldest tool down; it leaves the belt when the engine let it go. */
+  /**
+   * The drop key: puts the oldest tool down; it leaves the belt when the engine let it go. A level that plays in actor order stores
+   * the drop for the player's turn, which puts down the head of the belt as it stands there, after a cycle given in the same tick:
+   * the head read here would be the one before that cycle, so the engine is asked for the oldest tool (null) and chooses at the turn.
+   */
   drop(engine: PlayEngine): void {
     this.sync(engine);
-    if (this.order.length > 0 && engine.dropItem(this.order[0])) this.order.shift();
+    const chosenAtTurn = engineBeltOf(engine) !== undefined && engine instanceof GameEngine && engine.playsInActorOrder();
+    if (this.order.length > 0 && engine.dropItem(chosenAtTurn ? null : this.order[0])) this.order.shift();
   }
 
   /** Records what was picked up this tick, so that the pickup order survives until the next key press. */

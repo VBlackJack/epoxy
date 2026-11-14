@@ -795,6 +795,8 @@ class EpoxyApplication {
     this.pollGamepad();
     // An engine that tells presses from holds hears the held direction (or its release) once per tick.
     this.engine.holdPlayerDirection?.(this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection));
+    // CC2 actor order: a click-to-move step is stored by the input and played by the tick, so its outcome is read after the tick.
+    let autoStepStored = false;
     if (this.isReplaying) {
       this.advanceReplay();
     } else if (this.heldDirection) {
@@ -813,21 +815,35 @@ class EpoxyApplication {
       if (!stepSafe) {
         this.clearAutoMove();
       }
-      const moved = stepSafe && this.engine.attemptPlayerMove(nextDir);
-      if (moved) {
-        this.autoMoveQueue.shift();
-        this.autoMovePoints.shift();
-        this.renderer.setPlannedPath(this.autoMovePoints);
-      } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
+      const accepted = stepSafe && this.engine.attemptPlayerMove(nextDir);
+      autoStepStored = accepted && epoxy?.playsInActorOrder() === true;
+      if (accepted && !autoStepStored) {
+        this.advanceAutoMove();
+      } else if (!accepted && !this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
         this.clearAutoMove();
       }
     }
     this.engine.tick();
+    if (autoStepStored) {
+      // The turn of the tick played the stored step: the queue follows what it did, as it followed the step when it was played at the input.
+      if (this.epoxyEngine()?.getLastPlayerTurn()?.moved === true) {
+        this.advanceAutoMove();
+      } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
+        this.clearAutoMove();
+      }
+    }
     // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
     this.epoxyEngine()?.flushPendingStepEnd();
     this.renderer.incrementFrame();
     this.updateHUD();
     this.watchBlockPuzzles();
+  }
+
+  /** The step at the head of the click-to-move queue was taken: drops it from the queue and the drawn path. */
+  private advanceAutoMove(): void {
+    this.autoMoveQueue.shift();
+    this.autoMovePoints.shift();
+    this.renderer.setPlannedPath(this.autoMovePoints);
   }
 
   /**
