@@ -23,7 +23,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
-import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, DYNAMITE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, THIEF_PAYMENT_ITEM_IDS, TOKEN_ITEM_ID } from './core/coreConstants';
+import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, DYNAMITE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
 import { bootsRevealHiddenWalls, featuresFor, isEpoxyOnlyItemId } from './core/RulesetFeatures';
 import { PixelRenderer } from './render/PixelRenderer';
 import { AUTO_QUALITY_ID, parseQuality, QUALITY_LEVELS } from './render/renderSettings';
@@ -67,6 +67,7 @@ import {
 import { inspectDisplayTileId } from './ui/inspectMask';
 import { confirmDialog } from './ui/confirmDialog';
 import { applyBoardBackdrop } from './ui/boardBackdrop';
+import { engineToolBelt, isItemSelectable, selectableItemOrder } from './ui/itemSelection';
 import { closeDialog, isDialogOpen, openDialog } from './ui/dialog';
 import { EndlessGenerator, EndlessWorkerLike } from './ui/endlessGenerator';
 import {
@@ -4126,8 +4127,8 @@ class EpoxyApplication {
     for (const id of this.keyIds) {
       if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
-    for (const id of this.bootIds) {
-      if (!THIEF_PAYMENT_ITEM_IDS.has(id) && this.engine.holdsItem(id)) return (this.selectedItemId = id);
+    for (const id of selectableItemOrder([], this.bootIds, engineToolBelt(this.engine))) {
+      if (this.engine.holdsItem(id)) return (this.selectedItemId = id);
     }
     return null;
   }
@@ -4136,8 +4137,8 @@ class EpoxyApplication {
   private cycleSelectedItem(): void {
     const current = this.resolveSelectedItem();
     if (current === null) return;
-    // A toll token is never set down, so the cycle skips it.
-    const order = [...this.keyIds, ...this.bootIds].filter((id) => !THIEF_PAYMENT_ITEM_IDS.has(id));
+    // A toll token is never set down, so the cycle skips it; on a belt level the bribe is set down and the belt orders the cycle.
+    const order = selectableItemOrder(this.keyIds, this.bootIds, engineToolBelt(this.engine));
     const from = order.indexOf(current);
     for (let step = 1; step <= order.length; step++) {
       const id = order[(from + step) % order.length];
@@ -4207,7 +4208,7 @@ class EpoxyApplication {
     }
     if (!featuresFor(this.engine.getLevel()).itemDrop) return;
     this.clearAutoMove();
-    if (!THIEF_PAYMENT_ITEM_IDS.has(itemId)) this.selectedItemId = itemId;
+    if (isItemSelectable(itemId, engineToolBelt(this.engine))) this.selectedItemId = itemId;
     this.engine.dropItem(itemId);
     this.updateHUD();
   }
@@ -4228,7 +4229,7 @@ class EpoxyApplication {
   /** Slot tooltip: the item's name, with the drop hint once it is held. */
   private slotLabel(itemId: string, owned: boolean): string {
     const name = this.getInventoryLabel(itemId);
-    return owned && !THIEF_PAYMENT_ITEM_IDS.has(itemId) ? t('hud.inventory.slot_drop.label', { name }) : name;
+    return owned && isItemSelectable(itemId, engineToolBelt(this.engine)) ? t('hud.inventory.slot_drop.label', { name }) : name;
   }
 
   /** The Epoxy-only boots the level places, which are the ones whose HUD slot shows. */
