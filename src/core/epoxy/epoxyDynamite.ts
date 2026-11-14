@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { AudioManager } from '../../audio/AudioManager';
+import { usesCc2Engine } from './ccRules';
 import {
   CHARGE_BLAST_SFX,
   CHARGE_DEATH_REASON_KEY,
@@ -25,7 +26,8 @@ import {
   DYNAMITE_ICE_BLOCK_TYPE,
   DYNAMITE_NOT_LIT_TICK,
   DYNAMITE_WATER_TILE_ID,
-  FLOOR_TILE_ID
+  FLOOR_TILE_ID,
+  effectiveDynamiteFuseTicks
 } from '../coreConstants';
 import { LitCharge, PlayerState } from '../types';
 import { EpoxyContext, EpoxyWorld, isInBounds, mapWidth, rebuildDeviceLookups, removeEntity, playerAtCell, playersOf, killPlayerAt } from './epoxyWorld';
@@ -70,7 +72,8 @@ export function lightDepartedDynamite(w: EpoxyWorld, tick: number): void {
     if (litId === undefined) continue;
     w.items[charge.y][charge.x] = litId;
     delete charge.awaitingDeparture;
-    charge.detonateTick = tick + ConfigRegistry.getGame().timing.dynamiteFuseTicks;
+    // The offset compensates Epoxy lighting the dynamite inside the player's move, one decision before Lexy's timer starts.
+    charge.detonateTick = tick + effectiveDynamiteFuseTicks(ConfigRegistry.getGame().timing.dynamiteFuseTicks, usesCc2Engine(w.level));
     kept.push(charge);
   }
   w.litCharges = kept;
