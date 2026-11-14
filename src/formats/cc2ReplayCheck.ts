@@ -203,6 +203,8 @@ function newEngine(level: CompiledLevel, replay: Cc2Replay, kind: Cc2ReplayEngin
   }
   const engine = new GameEngine();
   engine.loadLevel(level, replay.blobSeed);
+  // The random force floors of a CC2-engine level start where the replay header says (the live game starts north).
+  engine.setReplayForceStart(FORCE_START_DIRECTIONS[replay.forceFloorStart & FORCE_START_MASK]);
   return engine;
 }
 

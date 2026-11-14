@@ -249,6 +249,16 @@ export class GameEngine {
     this.timedMoveHistory = [];
   }
 
+  /**
+   * Replay option of the CC2 replay check: the random force floors start their shared turn at `dir` (the replay header's force
+   * floor start, Lexy game.js:3061-3069). Only a CC2-engine level honours it, and only a call made right after loadLevel; live
+   * play keeps the default start.
+   */
+  public setReplayForceStart(dir: Direction): void {
+    if (!usesCc2Engine(this.w.level)) return;
+    this.w.forceCycleTurn = FORCE_CYCLE_ORDER.indexOf(dir as (typeof FORCE_CYCLE_ORDER)[number]);
+  }
+
   /** Successful player moves, in order. */
   public getMoveHistory(): Direction[] {
     return [...this.moveHistory];
