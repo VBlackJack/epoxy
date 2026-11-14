@@ -29,8 +29,9 @@
  * On a level played by the CC2 engine the mirrors are actors of their own (Lexy tiletypes.js doppelganger1 and doppelganger2):
  * they walk a step every four ticks (two onto ice or a force floor), read the move the player last decided (game.js
  * remember_player_move: a blocked try too, cleared when his step ends or when he decides nothing), press buttons when their
- * step ends and are pushed out of a trap forward when it opens (tiletypes.js trap add_press). Native Epoxy levels keep the
- * copy of each input.
+ * step ends and are pushed out of a trap forward when it opens (tiletypes.js trap add_press). Which tick's decision a mirror
+ * reads follows the order the source lists the actors in (the player among them). Native Epoxy levels keep the copy of each
+ * input.
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
@@ -316,9 +317,18 @@ function mirrorStepCooldown(w: EpoxyWorld, entity: RuntimeEntity): number {
   return tile.slideType !== undefined ? CC2_MIRROR_SLIDE_COOLDOWN_TICKS : CC2_MIRROR_WALK_COOLDOWN_TICKS;
 }
 
-/** CC2 engine: the move a mirror reads this pass, or null when there is none. */
-function decidedMoveFor(w: EpoxyWorld): Direction | null {
-  return w.mirrorMove?.snapshot ?? null;
+/**
+ * CC2 engine: the move a mirror reads this pass, or null when there is none. Lexy runs the actors in reverse list order and
+ * the player is one of them (game.js:531-541, swap_players game.js:1408): a mirror listed before the player runs after him
+ * and reads the decision of this tick, one listed after him (a clone spawned later counts as after) reads the previous
+ * tick's.
+ */
+function decidedMoveFor(w: EpoxyWorld, entity: RuntimeEntity): Direction | null {
+  const move = w.mirrorMove;
+  if (move === undefined) return null;
+  const playerOrdinal = w.player.listOrdinal;
+  const listedBeforePlayer = entity.listOrdinal !== undefined && playerOrdinal !== undefined && entity.listOrdinal < playerOrdinal;
+  return listedBeforePlayer ? move.remembered : move.snapshot;
 }
 
 /**
@@ -340,7 +350,7 @@ function decideMirrorStep(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityD
   if (ejected) want = entity.dir;
   else {
     if (def.mirrorsCharacter !== playerCharacterOf(w) || !w.player.alive || w.levelCompleted) return true;
-    want = decidedMoveFor(w);
+    want = decidedMoveFor(w, entity);
   }
   if (want === null) return true;
   // The step's own cooldown is set before the arrival, so a button press it queues lands when the step ends.

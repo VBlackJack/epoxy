@@ -129,3 +129,55 @@ describe('CC2 engine: a mirror walks at its own cadence (MC)', () => {
     expect(cellOf(engine, MIRROR_MELINDA)).toBe('7,9');
   });
 });
+
+/** The player decides one step east in the first tick; returns the tick (1-based) in which each mirror first moves, or 0. */
+function firstMoveTicks(mode: RoomMode, mirrors: EntityPlacement[]): number[] {
+  const engine = load(mirrorRoom(mode, mirrors));
+  engine.attemptPlayerMove('E');
+  const first = mirrors.map(() => 0);
+  const starts = mirrors.map((m) => `${m.x},${m.y}`);
+  for (let tick = 1; tick <= MIRROR_STEP_TICKS; tick++) {
+    engine.tick();
+    engine.getEntities().filter((e) => e.type === MIRROR_CHIP).forEach((e, i) => {
+      if (first[i] === 0 && `${e.x},${e.y}` !== starts[i]) first[i] = tick;
+    });
+  }
+  return first;
+}
+
+describe('CC2 engine: the actor order decides which tick a mirror reads (MC2)', () => {
+  // The player starts at (2, 5): a mirror above him is listed before him, one below him after.
+  const BEFORE: EntityPlacement = { type: MIRROR_CHIP, x: 7, y: 2, dir: 'N' };
+  const AFTER: EntityPlacement = { type: MIRROR_CHIP, x: 7, y: 9, dir: 'N' };
+
+  it('moves a mirror listed before the player in the tick of his decision, one listed after him a tick later', () => {
+    const [before] = firstMoveTicks('cc2', [BEFORE]);
+    const [after] = firstMoveTicks('cc2', [AFTER]);
+    expect(after - before).toBe(1);
+  });
+
+  it('numbers the mirror and the player so that the comparison reads the load order', () => {
+    const engine = load(mirrorRoom('cc2', [BEFORE, AFTER]));
+    const ordinals = engine.getEntities().map((e) => e.listOrdinal);
+    const player = engine.getPlayer().listOrdinal;
+    expect(ordinals[0]).toBeLessThan(player ?? -1);
+    expect(ordinals[1]).toBeGreaterThan(player ?? Infinity);
+  });
+
+  it('counts a mirror without an ordinal (a clone spawned later) as listed after the player', () => {
+    const engine = load(mirrorRoom('cc2', [BEFORE]));
+    const w = (engine as unknown as { w: { entities: RuntimeEntity[] } }).w;
+    delete w.entities[0].listOrdinal;
+    engine.attemptPlayerMove('E');
+    engine.tick();
+    expect(cellOf(engine)).toBe('7,2');
+    engine.tick();
+    expect(cellOf(engine)).toBe('8,2');
+  });
+
+  it('does not move a mirror in the first tick on a native level, which copies at once', () => {
+    const engine = load(mirrorRoom('native', [BEFORE]));
+    engine.attemptPlayerMove('E');
+    expect(cellOf(engine)).toBe('8,2');
+  });
+});
