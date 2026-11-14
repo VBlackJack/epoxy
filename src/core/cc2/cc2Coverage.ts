@@ -155,6 +155,7 @@ const MIRROR_REASON =
 
 /** Exact keys that carry their own reason instead of the generic one. */
 const EXACT_REASONS: Readonly<Record<string, string>> = {
+  custom_floor: 'Epoxy plays the custom floor as a plain floor and the custom wall as a plain wall, and bars the ghost from both, as the floor_custom and wall_custom tiles do in the Lexy Labyrinth engine: the import lists their cells for that.',
   turtle: 'Epoxy plays the turtle (turtle_cc2) as a lily pad on water that monsters may enter, as in CC2: it bars the fireball and the ghost, and turns to water behind whoever leaves it, a glider excepted. Only the dynamite-on-a-turtle quirk of CC2 is not modelled, and a level with dynamite is approximate on its own.',
   helmet: 'Epoxy plays the helmet as an item that shields its holder from the contact of monsters and blocks, as the invulnerable trait does in the Lexy Labyrinth engine; it does not protect from a bowling ball, as there. Turning the helmet into another item on a CC2 transmogrifier is reported under transmogrifier.',
   green_wall_fake: 'Epoxy plays the fake green wall (popdown floor) as the block barrier floor: the player and the monsters walk over it and every block is barred, as the popdown_floor tile does in the Lexy Labyrinth engine.',
