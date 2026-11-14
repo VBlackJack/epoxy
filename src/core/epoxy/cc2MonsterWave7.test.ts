@@ -15,7 +15,8 @@
  */
 
 /**
- * CC2 wave 7, monsters: a monster loaded on ice decides normally until it has left its load cell (IL). Every rule is off on
+ * CC2 wave 7, monsters: a monster loaded on ice decides normally until it has left its load cell (IL), and a yellow tank that
+ * stands on ice or a force floor is carried by it unless it still stands on its load cell on ice (YI). Every rule is off on
  * classic and native levels.
  */
 
@@ -89,6 +90,59 @@ describe('monster loaded on ice (IL)', () => {
     for (const mode of ['cc', 'native'] as const) {
       const engine = load(mode, placed('N'));
       expect(monsterOf(engine, BUG).atLoadCell, mode).toBeUndefined();
+    }
+  });
+});
+
+describe('yellow tank on ice and force floors (YI)', () => {
+  const TANK = 'puppet';
+  const FORCE_EAST = 'force_e';
+  const TANK_X = 5;
+  const WATCH_TICKS = 12;
+
+  const tankIn = (engine: GameEngine): RuntimeEntity => monsterOf(engine, TANK);
+  const loadTank = (mode: RoomMode, cell: string, dir: Direction): GameEngine =>
+    load(mode, { terrain: { [`${TANK_X},${ROOM_ROW}`]: cell }, entities: [{ type: TANK, x: TANK_X, y: ROOM_ROW, dir }] });
+
+  it('takes its pending steer on its load cell on ice', () => {
+    const engine = loadTank('cc2', ICE, 'N');
+    tankIn(engine).pendingSteer = 'S';
+    for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
+    expect(tankIn(engine).pendingSteer).toBeUndefined();
+    expect(tankIn(engine).y).toBeGreaterThan(ROOM_ROW);
+  });
+
+  it('is carried at once by the force floor it is loaded on, its pending steer kept', () => {
+    const engine = loadTank('cc2', FORCE_EAST, 'N');
+    tankIn(engine).pendingSteer = 'S';
+    for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
+    expect(tankIn(engine).x).toBeGreaterThan(TANK_X);
+    expect(tankIn(engine).y).toBe(ROOM_ROW);
+    expect(tankIn(engine).pendingSteer).toBe('S');
+  });
+
+  it('is carried along the ice it moved onto, its pending steer kept until it is off', () => {
+    const engine = load('cc2', {
+      terrain: { [`${TANK_X + 1},${ROOM_ROW}`]: ICE, [`${TANK_X + 2},${ROOM_ROW}`]: ICE, [`${TANK_X + 3},${ROOM_ROW}`]: ICE },
+      entities: [{ type: TANK, x: TANK_X, y: ROOM_ROW, dir: 'E' }]
+    });
+    tankIn(engine).pendingSteer = 'E';
+    let onIce = false;
+    for (let i = 0; i < WATCH_TICKS && !onIce; i++) {
+      engine.tick();
+      onIce = tankIn(engine).x > TANK_X;
+    }
+    expect(onIce).toBe(true);
+    tankIn(engine).pendingSteer = 'N';
+    for (let i = 0; i < WATCH_TICKS && tankIn(engine).x < TANK_X + 4; i++) engine.tick();
+    expect(tankIn(engine).y).toBe(ROOM_ROW);
+    expect(tankIn(engine).x).toBeGreaterThanOrEqual(TANK_X + 3);
+  });
+
+  it('leaves the classic and the native level alone', () => {
+    for (const mode of ['cc', 'native'] as const) {
+      const engine = loadTank(mode, FORCE_EAST, 'N');
+      expect(tankIn(engine).atLoadCell, mode).toBeUndefined();
     }
   });
 });

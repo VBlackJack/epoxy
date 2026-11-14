@@ -232,7 +232,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
     if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
-      planYellowTank(w, entity, clock);
+      if (!planYellowTankCarried(w, entity)) planYellowTank(w, entity, clock);
       continue;
     }
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
@@ -283,6 +283,27 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
 }
 
 /**
+ * CC2 engine: a yellow tank that stands on ice or on a force floor is carried by it (its pending steer waits for the first
+ * decision after the slide). A tank still on its load cell on ice is not: ice has no pending slide at load, so it takes its
+ * pending steer there (a tank loaded on a force floor is carried on its first idle tick). Returns whether the floor planned it.
+ */
+function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
+  if (tank.cooldownTicks !== 0 || tank.atLoadCell === true) return false;
+  const def = ConfigRegistry.getEntityDef(tank.type);
+  if (def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true) return false;
+  const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
+  if (here.slideType === 'ice') {
+    w.ccPlans.set(tank.uid, here.deflectionMap?.[tank.dir] || tank.dir);
+    return true;
+  }
+  if (here.slideType === 'force' && here.forceDirection !== undefined && here.forceDirection !== 'RANDOM') {
+    w.ccPlans.set(tank.uid, here.forceDirection);
+    return true;
+  }
+  return false;
+}
+
+/**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
  * ended. The way is judged now, so a tank blocked then only turns (Lexy tank_yellow decides [way, null]).
  */
@@ -296,7 +317,7 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
   const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
   if (here.isCloneMachine) return;
   if (def?.ignoresFloorEffects !== true && isCellClosedTrap(w, tank.x, tank.y)) return;
-  if (!floorFree && here.slideType !== undefined) return;
+  if (!floorFree && here.slideType !== undefined && tank.atLoadCell !== true) return;
   delete tank.pendingSteer;
   delete tank.pendingSteerDue;
   tank.dir = pending;
