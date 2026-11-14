@@ -758,6 +758,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     w.terrain[ny][nx] = ConfigRegistry.getTile(FLOOR_TILE_ID).cc2Twin || FLOOR_TILE_ID;
   }
 
+  // CC2 engine: a lit flame jet burns a ghost when its step ends. Only the fire tile spares it (Lexy fire.on_arrive); the jet
+  // kills every actor that is not fireproof (flame_jet_on on_stand), and fire boots keep the ghost alive.
+  if (floorFree && usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && destTile.burnsOccupants === true && !holdsProtection(w, entity)) {
+    w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal: 'burn', due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+  }
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
@@ -980,7 +985,9 @@ function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefiniti
 function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
   const w = ctx.world;
   const def = ConfigRegistry.getEntityDef(entity.type);
-  const removal = hazardRemoval(w, entity, def);
+  let removal = hazardRemoval(w, entity, def);
+  // CC2 engine: the ghost on a jet still lit when its step ends burns (queued by resolveMonsterArrival).
+  if (removal === null && usesCc2Engine(w.level) && def?.ignoresFloorEffects === true && ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).burnsOccupants === true && !holdsProtection(w, entity)) removal = 'burn';
   if (removal === null) return;
   if (removal === 'bomb') w.items[entity.y][entity.x] = null;
   removeEntity(w, entity.uid);
