@@ -16,7 +16,8 @@
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { relativeTo } from '../core/lynx/directions';
-import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, PHASE_LINE_PATTERN, STONE_ITEM_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
+import { usesCc2Engine } from '../core/epoxy/ccRules';
+import { BLOCK_TARGET_TILE_ID, CHANNEL_COLORS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, effectiveDynamiteFuseTicks, MELINDA_CHARACTER, PHASE_LINE_PATTERN, STONE_ITEM_ID, TOGGLE_CHANNEL_COLORS, channelOfButtonAction } from '../core/coreConstants';
 import { PlayEngine } from '../core/PlayEngine';
 import { GLOVE } from './gloveShape';
 import { WARD } from './wardShape';
@@ -1623,7 +1624,8 @@ export class PixelRenderer {
             ? null
             : { px: originX + Math.floor((cx - region.x0) * unit), py: originY + Math.floor((cy - region.y0) * unit) },
         unit,
-        drawSize
+        drawSize,
+        usesCc2Engine(engine.getLevel())
       );
     }
 
@@ -4198,14 +4200,15 @@ export class PixelRenderer {
     tick: number,
     cell: (x: number, y: number) => { px: number; py: number } | null,
     unit: number,
-    drawSize: number
+    drawSize: number,
+    cc2Engine: boolean
   ): void {
     const timing = ConfigRegistry.getGame().timing;
     const spark = this.pal().bombSpark;
     for (const charge of charges) {
       const at = cell(charge.x, charge.y);
       if (at === null) continue;
-      const fuseTicks = Math.max(1, charge.dynamite === true ? timing.dynamiteFuseTicks : timing.chargeFuseTicks);
+      const fuseTicks = Math.max(1, charge.dynamite === true ? effectiveDynamiteFuseTicks(timing.dynamiteFuseTicks, cc2Engine) : timing.chargeFuseTicks);
       // A dynamite whose player has not left yet has not started to burn: its ring stays full and quiet.
       const left = charge.awaitingDeparture === true ? fuseTicks : Math.max(0, charge.detonateTick - tick);
       const fraction = Math.min(1, left / fuseTicks);

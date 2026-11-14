@@ -15,6 +15,7 @@
  */
 
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { cellEdgeMask } from './EdgeRules';
 import { AudioManager } from '../audio/AudioManager';
 import { FORCE_CYCLE_ORDER } from '../config/constants';
 import {
@@ -84,6 +85,7 @@ import {
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
+import { beginCc2MirrorTick, endCc2MirrorTick } from './epoxy/epoxyMirrors';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
@@ -104,7 +106,10 @@ import {
   cc2HiddenStateKey,
   copyCc2PlayerView,
   copyCc3dArrival,
+  buildGhostBar,
+  blastedEdgeDiff,
   createEpoxyWorld,
+  ghostBarEdited,
   getEntityAt,
   holdsItem,
   isCellClosedTrap,
@@ -862,6 +867,10 @@ export class GameEngine {
       // Only a CC2-engine level with a wire-fired cloner or launcher waiting for the next tick has edges to put back.
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
       ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
+      // Only a CC2-engine level with a decision for the mirror players to copy, a blasted wall or a blasted ghost bar cell has them to put back.
+      ...(this.w.mirrorMove !== undefined ? { mirrorMove: { ...this.w.mirrorMove } } : {}),
+      ...(this.w.blastedEdgeMask !== undefined ? { blastedEdgeMask: Array.from(this.w.blastedEdgeMask) } : {}),
+      ...(ghostBarEdited(this.w) ? { ghostBar: [...(this.w.ghostBar as Set<number>)] } : {}),
       // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
       ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
       ...(this.w.ccRules ? { ccSlots: [...this.w.ccSlots] } : {}),
@@ -899,6 +908,7 @@ export class GameEngine {
       ...(p.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(p.cc3dArrival) } : {}),
       ...(p.belt !== undefined && p.belt.length > 0 ? { belt: [...p.belt] } : {}),
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
+      ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -923,6 +933,7 @@ export class GameEngine {
       ...(snap.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(snap.cc3dArrival) } : {}),
       ...(snap.belt !== undefined ? { belt: [...snap.belt] } : {}),
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
+      ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -974,6 +985,16 @@ export class GameEngine {
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
     this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.cc2ToggledButtonCells = snap.cc2ToggledButtonCells !== undefined ? [...snap.cc2ToggledButtonCells] : [];
+    this.w.mirrorMove = snap.mirrorMove !== undefined ? { ...snap.mirrorMove } : undefined;
+    // The walls a blast removed come back as an array of their own; with none removed the level's memoized mask is the live one again.
+    if (snap.blastedEdgeMask !== undefined) {
+      this.w.blastedEdgeMask = Uint8Array.from(snap.blastedEdgeMask);
+      this.w.edgeMask = this.w.blastedEdgeMask;
+    } else if (this.w.blastedEdgeMask !== undefined) {
+      this.w.blastedEdgeMask = undefined;
+      this.w.edgeMask = cellEdgeMask(this.w.level);
+    }
+    this.w.ghostBar = snap.ghostBar !== undefined ? new Set(snap.ghostBar) : buildGhostBar(this.w.level, mapWidth(this.w), mapHeight(this.w));
     this.w.ccSlots = snap.ccSlots !== undefined ? [...snap.ccSlots] : [];
     this.w.ccArrivals = (snap.ccArrivals ?? []).map((a) => ({ ...a }));
     this.w.ccArrivalsRunning = false;
@@ -1054,6 +1075,7 @@ export class GameEngine {
 
     // A shot fired from here to the end of the pass is advanced by this very tick.
     this.w.inTick = true;
+    this.beginMirrorTick();
     if (this.w.player.moveCooldown > 0) {
       this.w.player.moveCooldown--;
     }
@@ -1116,6 +1138,22 @@ export class GameEngine {
     if (usesToolBelt(this.w)) syncToolBelt(this.w.player);
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
+    this.endMirrorTick();
+  }
+
+  /**
+   * CC2 engine, start of a tick (before the player's cooldown runs): a player free to decide who decided nothing leaves no
+   * move for the mirror players to copy, and the mirrors loaded at the start are ready to decide in the first tick.
+   */
+  private beginMirrorTick(): void {
+    beginCc2MirrorTick(this.w, this.ticksElapsed === 1);
+  }
+
+  /**
+   * CC2 engine, end of a tick: the mirror players' remembered decision is carried to the next tick.
+   */
+  private endMirrorTick(): void {
+    endCc2MirrorTick(this.w);
   }
 
   /**
@@ -1249,6 +1287,8 @@ export class GameEngine {
     const permissionBefore = mover.forcePermission;
     const fromX = mover.x;
     const fromY = mover.y;
+    // CC2 engine: the speed boots a step takes act from the next step (Lexy game.js:2170-2195), so the walk is timed before it.
+    const walkWaitAtStart = playerWalkCooldown(this.w);
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     // A converted CC3D level: a step into a monster kills the player where he stands; it counts as a step (Cc3dSimulation.decidePlayer) but leaves nothing behind.
@@ -1272,7 +1312,9 @@ export class GameEngine {
         // Boots cancel the push, so a booted player keeps the walking cadence.
         this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
-          : playerWalkCooldown(this.w);
+          : usesCc2Engine(this.w.level) && !this.w.cc3dPace
+            ? walkWaitAtStart
+            : playerWalkCooldown(this.w);
         // CC2 engine: a voluntary step onto ice or a force floor lasts the time of the tile it enters; boots do not shorten it.
         if (usesCc2Engine(this.w.level) && this.w.ccRules && this.w.player.isSliding && this.w.player.alive) {
           this.w.player.slideCooldown += CC2_SLIDE_ENTRY_EXTRA_TICKS;
@@ -1354,20 +1396,26 @@ export class GameEngine {
   }
 
   /**
-   * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier and the deferred wire-fired
-   * sink edges. Undefined while neither is set, so a level that uses neither hashes as before.
+   * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier, the deferred wire-fired
+   * sink edges, the mirror players' remembered decision, the blasted walls and the edited ghost bar. Undefined while none is set, so a level that uses none hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[]; toggledButtons?: number[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: { remembered: Direction | null; snapshot: Direction | null; attempted: boolean }; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
     const brownHeld = this.w.cc2BrownHeld;
     const toggled = this.w.cc2ToggledButtonCells;
-    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined && toggled.length === 0) return undefined;
+    const mirrorMove = this.w.mirrorMove;
+    const blasted = blastedEdgeDiff(this.w);
+    const barEdited = ghostBarEdited(this.w);
+    if (blobModifier === undefined && edges.length === 0 && brownHeld === undefined && toggled.length === 0 && mirrorMove === undefined && blasted.length === 0 && !barEdited) return undefined;
     return {
       ...(blobModifier !== undefined ? { blobModifier } : {}),
       ...(brownHeld !== undefined ? { brownHeld: [...brownHeld] } : {}),
       ...(toggled.length > 0 ? { toggledButtons: [...toggled] } : {}),
-      ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {})
+      ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {}),
+      ...(mirrorMove !== undefined ? { mirrorMove: { ...mirrorMove } } : {}),
+      ...(blasted.length > 0 ? { blastedEdges: blasted } : {}),
+      ...(barEdited ? { ghostBar: [...(this.w.ghostBar as Set<number>)].sort((a, b) => a - b) } : {})
     };
   }
 
@@ -1397,8 +1445,8 @@ export class GameEngine {
   }
 
   /**
-   * The thin wall sides of the cells that carry cell edges, by cell index (y * width + x). Static for
-   * the level; empty when it has none. The map is shared: do not mutate it.
+   * The thin wall sides of the cells that carry cell edges, by cell index (y * width + x). Rebuilt when the
+   * wall mask changes (a blast leaves a fresh copy); empty when it has none. The map is shared: do not mutate it.
    */
   public getPanels(): ReadonlyMap<number, readonly Direction[]> {
     const mask = this.w.edgeMask;
@@ -1422,8 +1470,8 @@ export class GameEngine {
   }
 
   /**
-   * The cells a canopy covers, by cell index (y * width + x). Static for the level; empty when it has none. The set
-   * is shared: do not mutate it.
+   * The cells a canopy covers, by cell index (y * width + x). Rebuilt when the wall mask changes (a blast removes a
+   * canopy); empty when it has none. The set is shared: do not mutate it.
    */
   public getCanopyCells(): ReadonlySet<number> {
     this.getPanels();

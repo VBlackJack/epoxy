@@ -30,7 +30,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
-import { steerMirrors } from './epoxyMirrors';
+import { hasCc2MirrorCadence, rememberPlayerMove, steerMirrors } from './epoxyMirrors';
 import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } from './epoxyRollingBall';
@@ -162,6 +162,12 @@ function exitHandsControlLater(w: EpoxyWorld): boolean {
 /** Steers the mirror players toward `dir` when the controlled player is still on the map and not parked: the one copy of a step. */
 export function steerMirrorsOnce(ctx: EpoxyContext, dir: Direction): void {
   const w = ctx.world;
+  // CC2 engine: the mirrors are actors with their own cadence; they read the move the player decided (Lexy
+  // remember_player_move), a blocked try included, at their own pace.
+  if (hasCc2MirrorCadence(w)) {
+    if (w.swappedIn === null) rememberPlayerMove(w, dir);
+    return;
+  }
   if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, dir);
 }
 
@@ -211,6 +217,12 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   return pushed || bumped;
 }
 
+/** CC2 engine: whether a lit (not merely set down) dynamite stands on (x, y), which bars the player from entering it. */
+function litDynamiteBars(w: EpoxyWorld, x: number, y: number): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || w.litCharges.length === 0) return false;
+  return w.litCharges.some((charge) => charge.dynamite === true && charge.awaitingDeparture !== true && charge.x === x && charge.y === y);
+}
+
 /** The player's own step toward `requestedDir`: the track redirect, the checks of the cell ahead, the push of a block and the arrival. */
 function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
@@ -234,6 +246,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   // CC2 engine: the splash a block left in the water bars the real player from its cell while it lasts.
   if (splashBarsPlayer(w, targetX, targetY)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // CC2 engine: lit dynamite is an actor that bars the player from its cell (Lexy tiletypes.js dynamite_lit blocks_collision).
+  if (litDynamiteBars(w, targetX, targetY)) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
@@ -656,8 +674,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   if (tile.transformsToOnStep) {
-    w.terrain[y][x] = tile.transformsToOnStep;
-    tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    if (tile.clearsOnArriveCc2 === true && usesCc2Engine(w.level) && !w.cc3dPace) {
+      // CC2 engine: the dirt he packs down goes when his step ends (Lexy tiletypes.js dirt on_arrive), so until then
+      // monsters find the cell shut; applyCc3dStepEnd clears it. The rest of the arrival reads the cell as floor.
+      cc3dArrivalOf(w.player).opening = { x, y };
+      tile = ConfigRegistry.getTile(tile.transformsToOnStep);
+    } else {
+      w.terrain[y][x] = tile.transformsToOnStep;
+      tile = ConfigRegistry.getTile(w.terrain[y][x]);
+    }
   }
 
   // A transmogrifier turns the player into the other character on arrival (Lexy's Labyrinth tiletypes.js `transmogrifier`).
@@ -828,6 +853,12 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (pending === undefined) return true;
   if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
   delete p.cc3dArrival;
+  // CC2 engine: the dirt he packed down goes now that his step has ended (see resolvePlayerArrival).
+  if (pending.opening !== undefined) {
+    const { x, y } = pending.opening;
+    const packed = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+    if (packed.clearsOnArriveCc2 === true && packed.transformsToOnStep !== undefined) w.terrain[y][x] = packed.transformsToOnStep;
+  }
   if (!p.alive || p.exited === true || w.levelCompleted) return true;
   if (pending.brown !== undefined && p.x === pending.brown.x && p.y === pending.brown.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).buttonAction === 'hold_trap') {
     // Several players can end steps on different brown buttons before the tick: each cell stays held, in ascending order.
@@ -1055,6 +1086,8 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
 
   // The mover may leave through an exit during the step, which hands control to the next player.
   const mover = w.player;
+  // CC2 engine: speed boots taken by this step act from the next one, so the walking wait is read before it.
+  const walkWaitAtStart = playerWalkCooldown(w);
   const moved = executePlayerMove(ctx, dir, true);
   let steppedOff = moved;
   if (!moved) {
@@ -1092,7 +1125,8 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
     // A player who slid onto a teleporter waits the time of a slide step before the forced exit. On a CC2-engine level the
     // step time comes from the cell entered (Lexy game.js:2177-2194, the speed of the goal cell): a pad is plain floor, so the
     // slide onto it lasts a walking step.
-    const wait = w.player.teleportExit !== undefined && !slideOntoPadWalks(w) ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
+    const cc2WalkWait = usesCc2Engine(w.level) && !w.cc3dPace ? walkWaitAtStart : playerWalkCooldown(w);
+    const wait = w.player.teleportExit !== undefined && !slideOntoPadWalks(w) ? CC_TELEPORT_SLIDE_WAIT_TICKS : cc2WalkWait;
     w.player.moveCooldown = Math.max(w.player.moveCooldown, wait);
     // CC2 engine: the slide step that ends on plain floor is an in-tick move, so the wait is one tick shorter. A slide that ends on a
     // pad keeps the whole walking wait: measured on the official CC2 replays, taking that tick off the pad slide as well wins one level

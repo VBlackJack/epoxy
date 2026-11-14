@@ -556,6 +556,12 @@ export function spawnFromCloner(
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
     ...initialEmulationState(def)
   };
+  // CC2 engine: the mirror let out takes the template's place in the actor list; the template that stays on the machine
+  // (the new template of the original) takes none, so it counts as after every other actor (Lexy tiletypes.js:1703-1731).
+  if (usesCc2Engine(w.level) && template?.listOrdinal !== undefined) {
+    spawned.listOrdinal = template.listOrdinal;
+    delete template.listOrdinal;
+  }
   addClonedEntity(w, spawned);
   // CC2 engine: a creature let out before the entity pass of the tick (a clone press the player's step end made) is counted
   // down by that pass at once. The original runs that creature's step out of turn, ahead of the others, which shortens its

@@ -780,6 +780,39 @@ describe('chips and metadata', () => {
   });
 });
 
+describe('the ghost bar list', () => {
+  const CUSTOM_FLOOR = 0x6b;
+  const CUSTOM_WALL = 0x70;
+  const WIDTH = 6;
+
+  it('lists the custom floor and custom wall cells in ascending order and keeps the plain tiles', () => {
+    const { level } = convert([
+      put(4, 2, { code: CUSTOM_WALL }),
+      put(2, 0, { code: CUSTOM_FLOOR }),
+      put(0, 3, { code: CUSTOM_WALL }),
+      put(5, 1, { code: CUSTOM_FLOOR })
+    ]);
+    expect(level.cc2?.ghostBarCells).toEqual([2, 1 * WIDTH + 5, 2 * WIDTH + 4, 3 * WIDTH]);
+    expect(level.terrain[0][2]).toBe('floor');
+    expect(level.terrain[1][5]).toBe('floor');
+    expect(level.terrain[2][4]).toBe('wall');
+    expect(level.terrain[3][0]).toBe('wall');
+  });
+
+  it('keeps the sign of a no-sign item on a custom floor and lists the cell', () => {
+    const { level } = convert([put(1, 0, { code: 0x7f }, { code: DYNAMITE }, { code: CUSTOM_FLOOR })]);
+    expect(level.terrain[0][1]).toBe('floor');
+    expect(level.items[0][1]).toBe('no_sign_dynamite');
+    expect(level.cc2?.ghostBarCells).toEqual([1]);
+  });
+
+  it('has no field on a level without custom floors or walls', () => {
+    const { level } = convert([put(1, 0, { code: WALL }), put(2, 0, { code: PURPLE_WALL })]);
+    expect(level.cc2).toBeDefined();
+    expect(level.cc2).not.toHaveProperty('ghostBarCells');
+  });
+});
+
 describe('the cc2 record', () => {
   it('holds the source, the grid hash and the coverage', () => {
     const { level, coverage } = convert([put(1, 0, { code: PURPLE_WALL })]);

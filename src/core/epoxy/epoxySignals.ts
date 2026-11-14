@@ -227,6 +227,9 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, ph
     // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
     else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
     // A wire floor is powered while the player stands on it holding the lightning bolt: the whole wire net it feeds is on.
+    // CC2 engine: in the settle right after the player's own move the bolt source keeps its last level, since Lexy's
+    // monsters decide before the wire phase and see a power drop (or rise) caused by that move only afterwards.
+    else if (def.sample === 'charged' && phase === SIGNAL_PHASE_MOVE && usesCc2Engine(w.level)) levels.set(cell, runtime.state.lastOutputs[index] === true);
     else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y, phase));
     else levels.set(cell, cellOccupied(w, x, y, phase));
   }

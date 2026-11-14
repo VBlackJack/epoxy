@@ -57,6 +57,9 @@ function hold(engine: GameEngine, dirs: Direction[]): boolean {
   return engine.attemptPlayerMoveHeld!(dirs);
 }
 
+/** Ticks until a mirror listed after the player reads his decision (the previous tick's). */
+const MIRROR_READ_TICKS = 2;
+
 function cellOfEntity(engine: GameEngine, type: string): string {
   const entity = engine.getEntities().find((e) => e.type === type);
   return entity ? `${entity.x},${entity.y}` : 'gone';
@@ -98,6 +101,8 @@ describe('two keys on a CC2-engine level', () => {
   it('steps the mirror players once when the first direction is blocked', () => {
     const engine = load({ terrain: { [`${START_X + 1},${START_Y}`]: 'wall' }, entities: [mirror(3, 8)] });
     expect(hold(engine, ['N', 'E'])).toBe(true);
+    // A mirror is an actor on the CC2 engine: it reads the decision when the next tick has run, once.
+    for (let i = 0; i < MIRROR_READ_TICKS; i++) engine.tick();
     expect(cellOfEntity(engine, 'mirror_chip')).toBe('3,7');
   });
 
@@ -108,6 +113,7 @@ describe('two keys on a CC2-engine level', () => {
       entities: [mirror(3, 8)]
     });
     expect(hold(engine, ['N', 'E'])).toBe(false);
+    for (let i = 0; i < MIRROR_READ_TICKS; i++) engine.tick();
     expect(cellOfEntity(engine, 'mirror_chip')).toBe('4,8');
     expect(engine.getPlayer().dir).toBe('E');
   });

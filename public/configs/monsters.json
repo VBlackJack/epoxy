@@ -648,6 +648,7 @@
       "passesItems": true,
       "picksUpItems": true,
       "erasesHazardWithToolCc2": true,
+      "passesCc2Hints": true,
       "epoxyOnly": true
     },
     "rolling_ball": {
@@ -664,6 +665,7 @@
       "entersBarredTiles": ["exit", "socket", "dirt", "dirt_cc2", "gravel", "thief", "thief_keys", "fire", "sand"],
       "passesItems": true,
       "picksUpItems": true,
+      "passesCc2Hints": true,
       "epoxyOnly": true,
       "runtimeOnly": true,
       "killsShieldedPlayer": true,
@@ -682,6 +684,7 @@
       "avoidsFire": false,
       "emulates": ["teeth", "glider", "bug", "pink_ball", "timid_teeth", "fireball", "paramecium", "walker"],
       "emulationSwitchAttempts": 32,
+      "passesCc2Hints": true,
       "epoxyOnly": true,
       "blockedByCanopy": true,
       "pushesBlocks": true,
@@ -720,6 +723,7 @@
       "pushesBlocks": true,
       "mirrorsCharacter": "chip",
       "mirrorKey": "key_green",
+      "passesCc2Hints": true,
       "epoxyOnly": true
     },
     "mirror_melinda": {
@@ -736,6 +740,7 @@
       "pushesBlocks": true,
       "mirrorsCharacter": "melinda",
       "mirrorKey": "key_yellow",
+      "passesCc2Hints": true,
       "epoxyOnly": true
     },
     "bouncer": {

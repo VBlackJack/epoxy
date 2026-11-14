@@ -26,7 +26,7 @@ import { usesCc2Engine, usesCcRules } from './ccRules';
 import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
 import type { SignalEdge } from './signalNetwork';
-import type { CcArrival, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
+import type { CcArrival, Cc2MirrorMove, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -93,8 +93,26 @@ export interface EpoxyWorld {
    * an entity: it is no occupant of a cell for the hold doors, the traps or the targets.
    */
   shots: Shot[];
-  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
+  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask), null when none; the level's memoized mask until a CC2 blast replaces it with a world-owned copy (blastedEdgeMask). */
   edgeMask: Uint8Array | null;
+  /**
+   * CC2 engine: the thin walls after dynamite blasts removed some sides, an array owned by the world (never the level's
+   * memoized mask, which must not be mutated); while set, `edgeMask` is this very array. Every blast builds a fresh array.
+   * Absent until a blast changed the walls; reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while set.
+   */
+  blastedEdgeMask?: Uint8Array;
+  /**
+   * CC2 engine: the cells (y * width + x) that bar ghosts, the custom floors and custom walls of the source (see
+   * Cc2LevelData.ghostBarCells), bounds-checked at load. A blast that turns such a cell to floor removes it. Absent on every other level.
+   */
+  ghostBar?: Set<number>;
+  /** CC2 engine: the size of `ghostBar` as built at load (the listed cells that lie inside the map); the bar counts as edited once it differs. */
+  ghostBarLoadSize?: number;
+  /**
+   * CC2 engine: what the mirror players copy of the controlled player's decisions. Absent until a decision was made;
+   * reset when a level loads, saved with the undo snapshot, part of the search key and of the simulation hash while set.
+   */
+  mirrorMove?: Cc2MirrorMove;
   /** Terrain hidden under removable tops by cell index (see underlayMap); static, null when none. */
   underlays: ReadonlyMap<number, string> | null;
 
@@ -384,8 +402,52 @@ export function levelHasTurrets(w: EpoxyWorld): boolean {
   return w.cloneLinks.some((link) => ConfigRegistry.getEntityDef(link.templateType)?.turretBeam !== undefined);
 }
 
+/**
+ * The cells that bar ghosts on a CC2-engine level: the custom floors and custom walls the import listed, bounds-checked
+ * against the grid. Undefined on every other level, and when the level lists none.
+ */
+export function buildGhostBar(level: CompiledLevel, width: number, height: number): Set<number> | undefined {
+  const listed = level.cc2?.ghostBarCells;
+  if (listed === undefined || listed.length === 0) return undefined;
+  const cells = new Set<number>();
+  for (const cell of listed) {
+    if (Number.isInteger(cell) && cell >= 0 && cell < width * height) cells.add(cell);
+  }
+  return cells.size > 0 ? cells : undefined;
+}
+
+/**
+ * CC2 engine, on a level with a mirror player: numbers every actor (entities and players) in the reading order of the
+ * load grid, which is the order the source lists them in. Entities spawned later keep no ordinal and count as after every
+ * other. Any other level, and a level without a mirror, is left without ordinals, so nothing about them reaches its snapshots or hash.
+ */
+export function assignListOrdinals(w: EpoxyWorld): void {
+  for (const e of w.entities) delete e.listOrdinal;
+  for (const p of playersOf(w)) delete p.listOrdinal;
+  const hasMirror = (type: string): boolean => ConfigRegistry.getEntityDef(type)?.mirrorsCharacter !== undefined;
+  if (!usesCc2Engine(w.level)) return;
+  if (!w.entities.some((e) => hasMirror(e.type)) && !w.cloneLinks.some((link) => hasMirror(link.templateType))) return;
+  const width = mapWidth(w);
+  const actors: { cell: number; assign: (ordinal: number) => void }[] = [];
+  for (const e of w.entities) actors.push({ cell: e.y * width + e.x, assign: (ordinal) => { e.listOrdinal = ordinal; } });
+  for (const p of playersOf(w)) actors.push({ cell: p.y * width + p.x, assign: (ordinal) => { p.listOrdinal = ordinal; } });
+  actors.sort((a, b) => a.cell - b.cell);
+  actors.forEach((actor, ordinal) => actor.assign(ordinal));
+}
+
+/** True once a blast removed a cell from the ghost bar (the set holds fewer cells than it held at load). */
+export function ghostBarEdited(w: EpoxyWorld): boolean {
+  return w.ghostBar !== undefined && w.ghostBar.size !== (w.ghostBarLoadSize ?? w.level.cc2?.ghostBarCells?.length ?? 0);
+}
+
 export function buildLevelLookups(w: EpoxyWorld): void {
   w.edgeMask = cellEdgeMask(w.level);
+  // Blasted walls, the mirror players' memory and the ghost bar of the last level must not leak into this one.
+  w.blastedEdgeMask = undefined;
+  w.mirrorMove = undefined;
+  w.ghostBar = buildGhostBar(w.level, w.terrain[0]?.length ?? 0, w.terrain.length);
+  w.ghostBarLoadSize = w.ghostBar?.size;
+  assignListOrdinals(w);
   w.hasTurrets = levelHasTurrets(w);
   w.launcherLinks = (w.level.launcherLinks ?? []).map((l) => ({ ...l }));
   w.hasLaunchers = false;
@@ -746,15 +808,17 @@ export function cc2PlayerViewKey(w: EpoxyWorld): string {
  */
 export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const parts: string[] = [];
+  // Passes are stored relative to the running one: the same position reached at another time must give the same key.
+  const pass = currentEntityPass(w);
   const modifier = w.ccGenerators?.blobModifier;
   if (modifier !== undefined) parts.push(`m${modifier}`);
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
-  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue ?? ''}`);
+  const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue !== undefined ? e.pendingSteerDue - pass : ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
-  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due}`);
+  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
@@ -768,7 +832,37 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);
   const soft = playersOf(w).flatMap((p, index) => (p.softPadDue === true ? [index] : []));
   if (soft.length > 0) parts.push(`f${soft.join(',')}`);
+  // The decisions the mirror players copy, the mirrors held by a shut trap and the steps that ended in the running pass.
+  const mirror = w.mirrorMove;
+  if (mirror !== undefined) parts.push(`M${mirror.remembered ?? '-'}${mirror.snapshot ?? '-'}${mirror.attempted ? 1 : 0}`);
+  const held = w.entities.filter((e) => e.trapHeld === true).map((e) => e.uid);
+  if (held.length > 0) parts.push(`h${held.join(',')}`);
+  // A record older than the running pass and the one before it no longer matters (the monster step drops it), so it is left out.
+  const ended = w.entities.flatMap((e) => {
+    if (e.stepEndedPass === undefined) return [];
+    const age = pass - e.stepEndedPass;
+    return age === 0 || age === 1 ? [`${e.uid}@${age}.${e.stepEndedCell ?? ''}`] : [];
+  });
+  if (ended.length > 0) parts.push(`e${ended.join(',')}`);
+  // A light switch or pulse source worked by a monster waits for the next settle.
+  const pulses = w.ccArrivals.filter((a) => a.pulse === true).map((a) => `${a.uid}@${a.due - pass}`);
+  if (pulses.length > 0) parts.push(`u${pulses.join(',')}`);
+  // Thin walls removed by a blast, and the custom cells a blast turned to floor.
+  if (w.blastedEdgeMask !== undefined) parts.push(`E${blastedEdgeDiff(w).join(',')}`);
+  if (ghostBarEdited(w)) parts.push(`g${[...(w.ghostBar as Set<number>)].sort((a, b) => a - b).join(',')}`);
   return parts.join(';');
+}
+
+/** The cells whose walls a blast changed, as `cell:mask`, ascending; empty while none was. */
+export function blastedEdgeDiff(w: EpoxyWorld): string[] {
+  const blasted = w.blastedEdgeMask;
+  if (blasted === undefined) return [];
+  const original = cellEdgeMask(w.level);
+  const changed: string[] = [];
+  for (let cell = 0; cell < blasted.length; cell++) {
+    if (blasted[cell] !== (original?.[cell] ?? 0)) changed.push(`${cell}:${blasted[cell]}`);
+  }
+  return changed;
 }
 
 /** The search key of what waits on the players of a converted CC3D level: empty when nothing does. */
@@ -1058,7 +1152,25 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
   );
 }
 
+/** The entity pass the world is in, or about to start: the clock counts a pass only once it has started. */
+export function currentEntityPass(w: EpoxyWorld): number {
+  return w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+}
+
+/** CC2 engine: whether a monster's step onto a cell ended in the given pass (see RuntimeEntity.stepEndedPass). */
+function monsterStepEndedAt(e: RuntimeEntity, pass: number, cell: number): boolean {
+  return e.kind === 'monster' && e.stepEndedPass === pass && e.stepEndedCell === cell;
+}
+
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
+  // CC2 engine: a monster whose step ended on the button in the previous pass holds it for this whole pass, even if it leaves in
+  // its own turn. Approximation of Lexy's out-of-turn release: its add_press on arrival frees a trapped actor before the presser
+  // decides and leaves, and remove_press closes the trap again only when the presser has left (tiletypes.js:1764-1779).
+  if (!w.cc3dPace && w.entities.some((e) => e.stepEndedPass !== undefined) && usesCc2Engine(w.level)) {
+    const pass = currentEntityPass(w) - 1;
+    const cell = by * mapWidth(w) + bx;
+    if (w.entities.some((e) => monsterStepEndedAt(e, pass, cell))) return true;
+  }
   // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
   if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
   // CC2 engine: a brown button an actor was removed from in place with no departure stays pressed for good (Lexy add_press without remove_press).
@@ -1081,6 +1193,9 @@ function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
 
 /** A converted CC3D level counts a brown button's occupant only at rest: a monster after its step, a block neither sliding nor arriving. */
 function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  // CC2 engine: a monster works a brown button when its step onto it ends (Lexy on_arrive), not while that step runs, and the pass
+  // in which it ends still counts as under way: the press holds from the next pass (see isButtonPressed).
+  if (e.kind === 'monster' && !w.cc3dPace && (e.cooldownTicks > 0 || e.stepEndedPass === currentEntityPass(w)) && usesCc2Engine(w.level)) return false;
   return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
 }
 
@@ -1120,7 +1235,10 @@ export function notePulseArrival(w: EpoxyWorld, x: number, y: number, entity: Ru
   // An unwired toggle switch still changes form (only the level reading needs the network), so the tile decides.
   const isToggle = ConfigRegistry.getTile(w.terrain[y][x]).signalSource === 'toggle';
   if (!isPulse && !isToggle) return;
-  if (entity !== null) {
+  // CC2 engine: every actor works a light switch or a pulse source, a fireball or a glider included (Lexy on_arrive, any actor);
+  // only a monster that presses nothing (the wisp) does not.
+  const worksAny = entity !== null && entity.kind === 'monster' && usesCc2Engine(w.level) && !w.cc3dPace && ConfigRegistry.getEntityDef(entity.type)?.pressesPlates !== false;
+  if (entity !== null && !worksAny) {
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(entity.type)?.plateColor ?? 'red';
     if (!entityPressesPlate(entity.type, entity.kind, ownColor)) return;
   }

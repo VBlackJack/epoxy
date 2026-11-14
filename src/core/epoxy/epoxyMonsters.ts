@@ -72,6 +72,7 @@ import {
   EpoxyWorld,
   applyRelativeTurn,
   consumeFishGate,
+  currentEntityPass,
   getEntityAt,
   isCellClosedTrap,
   isEdgeBlocked,
@@ -161,6 +162,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
       if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
       if (arrival.removal !== undefined) {
         applyPendingRemoval(ctx, monster);
+        continue;
+      }
+      if (arrival.pulse === true) {
+        notePulseArrival(w, arrival.x, arrival.y, monster);
         continue;
       }
       if (arrival.teleport === true) {
@@ -497,6 +502,11 @@ function retimeQueuedPresses(w: EpoxyWorld, entity: RuntimeEntity, first: number
 
 function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
+  // The record of a step end matters for the pass it happened in and the next one only; dropping it keeps the state key small.
+  if (entity.stepEndedPass !== undefined && entity.stepEndedPass < currentEntityPass(w) - 1) {
+    delete entity.stepEndedPass;
+    delete entity.stepEndedCell;
+  }
   // A steered monster never decides a step by itself. On a CC2-engine level a yellow tank takes the decision a button
   // arrival set for it (planned in the decision pass); on any other level it moves only when a steering pad is worked.
   const yellowTank = isCc2YellowTank(w, entity);
@@ -513,6 +523,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   if (ConfigRegistry.getEntityDef(entity.type)?.movementPattern === STATIONARY_PATTERN) return true;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
+    // CC2 engine: the pass in which the countdown ends is the pass its step ends in (see RuntimeEntity.stepEndedPass).
+    if (entity.cooldownTicks === 0 && usesCc2Engine(w.level) && !w.cc3dPace) {
+      entity.stepEndedPass = currentEntityPass(w);
+      entity.stepEndedCell = entity.y * mapWidth(w) + entity.x;
+    }
     return true;
   }
 
@@ -753,7 +768,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // not judge it again on what shows, so neither does Epoxy. A monster that walks through solid tiles leaves it shut.
   if (def?.passesSolidTiles !== true && isOpenFishGate(w, destTile)) consumeFishGate(ctx, nx, ny);
 
-  notePulseArrival(w, nx, ny, entity);
+  // CC2 engine: a monster works a light switch or pulse source when its step onto it ends (Lexy on_arrive, any actor, flyers
+  // included); the next settle reads it, so monsters deciding in the arrival pass still see the old wire state.
+  const worksAtStepEnd = usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && def?.pressesPlates !== false &&
+    (ConfigRegistry.getTile(w.terrain[ny][nx]).signalSource === 'toggle' || w.signals?.pulseCells.has(ny * mapWidth(w) + nx) === true);
+  if (worksAtStepEnd) w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, due: currentEntityPass(w) + entity.cooldownTicks, pulse: true });
+  else notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
   const cycleDir = floorFree || def?.ignoresSlidingFloors === true ? undefined : forceCycleArrival(w, destTile);
@@ -808,7 +828,7 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
   return ((def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS) + 1) * slowdown - 1;
 }
 
-/** The collectible kind that an entity takes but never holds as a tool: keys are not tools. */
+/** The collectible kind that an entity takes but never holds as a tool: keys are not tools (a mirror player keeps every key it takes, its own colour too). */
 const TOOL_EXCLUDED_COLLECTIBLE = 'key';
 
 /** The collectible kind of a score bonus: a ball that takes one holds nothing. */
@@ -861,6 +881,48 @@ function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, it
   entity.heldTools = held;
 }
 
+/** Collectible kinds a mirror player holds as tools on its belt (Lexy gives a doppelganger the same toolbelt as the player). */
+const MIRROR_TOOL_COLLECTIBLES: readonly string[] = ['boot', 'charge', 'stone', 'gate'];
+
+/** The boots the CC1 boot rules (use_cc1_boots) keep: a fixed set, no belt cap, duplicates ignored, nothing else is taken (Lexy game.js CC1_INVENTORY_ORDER). */
+const CC1_BOOT_ITEM_IDS: readonly string[] = ['boots_ice', 'boots_force', 'boots_fire', 'boots_water'];
+
+/**
+ * CC2 engine: a mirror player takes the item it stands on the way Lexy's attempt_take does for any actor (game.js:3221-3275):
+ * keys are kept, tools join a belt of four whose oldest is put down on the cell, and the CC1 boot rules (use_cc1_boots) keep
+ * a fixed set of boots with no cap and refuse every other tool. A yellow teleporter pad cannot be put down off plain floor, so
+ * a full belt whose oldest tool is a pad refuses the pickup there. Epoxy keeps no item modifier layer, so Lexy's item_mod
+ * ignore has nothing to read. Returns true when the item was taken (the cell no longer holds it), false when it stays.
+ */
+export function mirrorTakesItem(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): boolean {
+  const collectible = ConfigRegistry.getTile(itemId).collectible;
+  if (collectible === undefined) return false;
+  if (collectible === TOOL_EXCLUDED_COLLECTIBLE) {
+    w.items[y][x] = null;
+    (entity.heldKeys ??= []).push(itemId);
+    return true;
+  }
+  if (!MIRROR_TOOL_COLLECTIBLES.includes(collectible)) {
+    // A toll token and the like are taken and gone, as before.
+    w.items[y][x] = null;
+    return true;
+  }
+  const held = entity.heldTools ?? [];
+  if (w.level.cc2?.useCc1Boots === true) {
+    if (!CC1_BOOT_ITEM_IDS.includes(itemId)) return false;
+    w.items[y][x] = null;
+    if (!held.includes(itemId)) entity.heldTools = [...held, itemId];
+    return true;
+  }
+  if (held.length >= CC2_ENTITY_TOOL_CAPACITY) {
+    const oldest = ConfigRegistry.getTile(held[0]);
+    if (oldest.cc2YellowPadItem === true && w.terrain[y][x] !== FLOOR_TILE_ID) return false;
+  }
+  w.items[y][x] = null;
+  holdTool(w, entity, x, y, itemId);
+  return true;
+}
+
 /** The hazard of the cell a monster stands in that removes it (a bomb, water, fire, slime it is not immune to), or null. */
 function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): 'bomb' | 'splash' | 'burn' | null {
   const item = w.items[entity.y][entity.x];
@@ -893,6 +955,8 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
   // neither waits for the step to end.
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
+  // CC2 engine: a mirror player has its own cadence and presses when its step ends, like the monsters.
+  if (usesCc2Engine(w.level) && w.inTick && ConfigRegistry.getEntityDef(entity.type)?.mirrorsCharacter !== undefined) return true;
   return w.ccRules && w.inTick && followsCcCadence(entity.type, usesCc2Engine(w.level));
 }
 
@@ -1173,6 +1237,15 @@ export function canMonsterEnter(
 
   const destTileId = w.terrain[ny][nx];
   const destTile = ConfigRegistry.getTile(destTileId);
+  // CC2 engine: a hint bars every monster but the ghost, the rover, the rolling ball and the mirrors (Lexy hint blocks_collision
+  // holds block_cc1 and monster_typical, which those lack).
+  if (destTile.showsHint === true && def?.passesCc2Hints !== true && usesCc2Engine(w.level)) return false;
+  // CC2 engine: lit dynamite is an actor that bars every other actor, monsters included (Lexy dynamite_lit blocks_collision all).
+  const destItemId = w.items[ny][nx];
+  if (destItemId !== null && usesCc2Engine(w.level) && ConfigRegistry.getTile(destItemId).cc2Dynamite === true && isLitChargeItem(destItemId)) return false;
+  // CC2 engine: a ghost is barred from the cells the import lists (custom floors and walls, Lexy blocks_collision ghost); a blast
+  // that turns one to floor removes it from the set.
+  if (def?.passesSolidTiles === true && usesCc2Engine(w.level) && w.ghostBar?.has(ny * mapWidth(w) + nx) === true) return false;
 
   // A monster that walks through solid tiles (a ghost) is stopped only by the tiles and hazards its definition names.
   const passesSolid =

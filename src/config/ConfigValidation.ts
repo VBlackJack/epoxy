@@ -592,6 +592,12 @@ export function isPlayerCharacter(value: unknown): value is PlayerCharacter {
   return typeof value === 'string' && (PLAYER_CHARACTERS as readonly string[]).includes(value);
 }
 
+/** True for a list of non-negative integers in strictly ascending order (cell indices). */
+function isAscendingCellList(list: unknown): boolean {
+  if (!Array.isArray(list)) return false;
+  return list.every((cell, index) => Number.isInteger(cell) && (cell as number) >= 0 && (index === 0 || (cell as number) > (list[index - 1] as number)));
+}
+
 /** True for a CC2 source record: version 1, text fields, a positive order and a coverage with a known verdict. */
 export function isCc2LevelData(value: unknown): value is Cc2LevelData {
   if (!isRecord(value) || value.v !== 1) return false;
@@ -604,6 +610,7 @@ export function isCc2LevelData(value: unknown): value is Cc2LevelData {
     (value.music === undefined || typeof value.music === 'string') &&
     (value.useCc1Boots === undefined || typeof value.useCc1Boots === 'boolean') &&
     (value.blobBehavior === undefined || (Number.isInteger(value.blobBehavior) && (value.blobBehavior as number) >= 0 && (value.blobBehavior as number) <= CC2_BYTE_MAX)) &&
+    (value.ghostBarCells === undefined || isAscendingCellList(value.ghostBarCells)) &&
     typeof value.gridHash === 'string' &&
     isRecord(coverage) &&
     (coverage.verdict === 'exact' || coverage.verdict === 'approx' || coverage.verdict === 'lost') &&
@@ -1828,6 +1835,7 @@ const MONSTER_FLAG_FIELDS = [
   'meltsIceBlocks',
   'meltsIceOnBumpCc2',
   'erasesHazardWithToolCc2',
+  'passesCc2Hints',
   'immuneToSlime',
   'entersTurtles',
   'leavesTurtlesAfloat'
@@ -2378,6 +2386,10 @@ export function findFormat16ConfigErrors(tiles: Record<string, TileDefinition>):
   const errors: string[] = [];
   for (const tile of Object.values(tiles)) {
     const { id } = tile;
+    if (tile.clearsOnArriveCc2 !== undefined) {
+      if (tile.clearsOnArriveCc2 !== true) errors.push(`${id}.clearsOnArriveCc2: expected true`);
+      if (tile.transformsToOnStep === undefined) errors.push(`${id}.clearsOnArriveCc2: needs a transformsToOnStep terrain`);
+    }
     if (tile.pressedByAnyActor !== undefined) {
       if (tile.pressedByAnyActor !== true) errors.push(`${id}.pressedByAnyActor: expected true`);
       if (tile.signalSource !== 'held') errors.push(`${id}.pressedByAnyActor: only a held signal source is pressed`);

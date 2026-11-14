@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { AudioManager } from '../../audio/AudioManager';
+import { usesCc2Engine } from './ccRules';
 import {
   CHARGE_BLAST_SFX,
   CHARGE_DEATH_REASON_KEY,
@@ -25,7 +26,9 @@ import {
   DYNAMITE_ICE_BLOCK_TYPE,
   DYNAMITE_NOT_LIT_TICK,
   DYNAMITE_WATER_TILE_ID,
-  FLOOR_TILE_ID
+  FLOOR_TILE_ID,
+  CELL_EDGE_CANOPY_BIT,
+  effectiveDynamiteFuseTicks
 } from '../coreConstants';
 import { LitCharge, PlayerState } from '../types';
 import { EpoxyContext, EpoxyWorld, isInBounds, mapWidth, rebuildDeviceLookups, removeEntity, playerAtCell, playersOf, killPlayerAt } from './epoxyWorld';
@@ -70,7 +73,8 @@ export function lightDepartedDynamite(w: EpoxyWorld, tick: number): void {
     if (litId === undefined) continue;
     w.items[charge.y][charge.x] = litId;
     delete charge.awaitingDeparture;
-    charge.detonateTick = tick + ConfigRegistry.getGame().timing.dynamiteFuseTicks;
+    // The offset compensates Epoxy lighting the dynamite inside the player's move, one decision before Lexy's timer starts.
+    charge.detonateTick = tick + effectiveDynamiteFuseTicks(ConfigRegistry.getGame().timing.dynamiteFuseTicks, usesCc2Engine(w.level));
     kept.push(charge);
   }
   w.litCharges = kept;
@@ -102,6 +106,9 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
   const width = mapWidth(w);
   let terrainChanged = false;
   const playersKilled: PlayerState[] = [];
+  const cc2Engine = usesCc2Engine(w.level);
+  // CC2 engine: the thin walls are copy-on-write, one fresh array per blast (the level's memoized mask is never mutated).
+  let blastedMask: Uint8Array | null = null;
   for (let dx = -DYNAMITE_BLAST_RADIUS; dx <= DYNAMITE_BLAST_RADIUS; dx++) {
     for (let dy = -DYNAMITE_BLAST_RADIUS; dy <= DYNAMITE_BLAST_RADIUS; dy++) {
       if (!inDynamiteBlast(dx, dy)) continue;
@@ -109,6 +116,14 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       const y = charge.y + dy;
       if (!isInBounds(w, x, y)) continue;
       ctx.emitVisual('explosion', x, y);
+
+      // CC2 engine, Lexy's layer walk (tiletypes.js:3128-3153): a canopy protects everything else in its cell, so the blast
+      // removes the canopy alone (the actor, the item, the terrain and the thin walls survive).
+      if (cc2Engine && w.edgeMask !== null && (w.edgeMask[y * width + x] & CELL_EDGE_CANOPY_BIT) !== 0) {
+        blastedMask ??= new Uint8Array(w.edgeMask);
+        blastedMask[y * width + x] &= ~CELL_EDGE_CANOPY_BIT;
+        continue;
+      }
 
       // What stands in the cell: creatures, the player, or a lit dynamite (the exploding one included). The template
       // held by a clone machine is a creature like any other: it dies and the machine stays, protected by it.
@@ -128,7 +143,8 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
       const terrainId = w.terrain[y][x];
       if (actorHere) {
         // A creature protects the terrain under it, but plain floor catches fire (water under an ice block).
-        if (terrainId === FLOOR_TILE_ID) {
+        // A ghost-barred cell (an imported custom floor) neither burns nor loses its bar under an actor.
+        if (terrainId === FLOOR_TILE_ID && w.ghostBar?.has(y * width + x) !== true) {
           const overIce = creatures.some((e) => e.type === DYNAMITE_ICE_BLOCK_TYPE);
           w.terrain[y][x] = overIce ? DYNAMITE_WATER_TILE_ID : DYNAMITE_FIRE_TILE_ID;
           terrainChanged = true;
@@ -138,11 +154,24 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
         // A cell whose terrain is blasted away reveals nothing later.
         w.revealedCells.add(y * width + x);
         terrainChanged = true;
+        // A ghost is no longer barred from a custom floor or wall the blast turned into floor.
+        w.ghostBar?.delete(y * width + x);
+        // A mirror the trap held is free once its trap is gone.
+        for (const held of w.entities) if (held.x === x && held.y === y) delete held.trapHeld;
       }
 
+      // The thin walls of a cell without a canopy go with the blast.
+      if (cc2Engine && w.edgeMask !== null && w.edgeMask[y * width + x] !== 0) {
+        blastedMask ??= new Uint8Array(w.edgeMask);
+        blastedMask[y * width + x] = 0;
+      }
       for (const entity of creatures) removeEntity(w, entity.uid);
       if (playerHere !== undefined) playersKilled.push(playerHere);
     }
+  }
+  if (blastedMask !== null) {
+    w.blastedEdgeMask = blastedMask;
+    w.edgeMask = blastedMask;
   }
   if (terrainChanged) rebuildDeviceLookups(w);
   // A blast changes what stands on a beam path.

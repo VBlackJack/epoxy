@@ -148,6 +148,9 @@ const KEY_NAND_GATE = 'nand_gate';
 /** The CC2 green chip; counted toward the chip requirement like the computer chips [medium confidence]. */
 const CODE_GREEN_CHIP = 0x84;
 const CODE_SOCKET = 0x2c;
+/** The custom floor and the custom wall: plain floor and wall tiles that bar ghosts, so their cells are listed. */
+const CODE_CUSTOM_FLOOR = 0x6b;
+const CODE_CUSTOM_WALL = 0x70;
 const TELEPORT_FIRST = 0x10;
 const TELEPORT_LAST = 0x13;
 const TRANSMOGRIFIER = 0x4e;
@@ -446,6 +449,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
   const redButtons: number[] = [];
   const orangeButtons: number[] = [];
   const flameJets = new Set<number>();
+  const ghostBarCells: number[] = [];
   let chips = 0;
   let hasSocket = false;
   let playerIndex = -1;
@@ -498,6 +502,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
         const mapping = terrainMapping(tile, warnings, where, wiredSinkCells.has(index));
         terrainId = chargeFloorCells.has(index) ? WIRE_FLOOR_TILE_ID : mapping.id;
         keys.add(mapping.key);
+        if (code === CODE_CUSTOM_FLOOR || code === CODE_CUSTOM_WALL) ghostBarCells.push(index);
         if (code === CC2_CODE_TRACK) railTracks.push({ x, y, ...decodeCc2Track(tile.mod) });
         if (code === CODE_SOCKET) hasSocket = true;
         if (code === CODE_TRAP || code === CODE_OPEN_TRAP) traps.push(index);
@@ -770,7 +775,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     gridHash: cc2GridHash(level),
     coverage,
     ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {}),
-    ...(options.useCc1Boots !== undefined ? { useCc1Boots: options.useCc1Boots } : {})
+    ...(options.useCc1Boots !== undefined ? { useCc1Boots: options.useCc1Boots } : {}),
+    ...(ghostBarCells.length > 0 ? { ghostBarCells } : {})
   };
 
   return {

@@ -150,6 +150,23 @@ export const DYNAMITE_BLAST_CORNER_SUM = 4;
 /** Stand-in blast tick of a set-down dynamite whose player has not left yet: it never comes due. */
 export const DYNAMITE_NOT_LIT_TICK = Number.MAX_SAFE_INTEGER;
 
+/**
+ * CC2 engine: ticks added to the dynamite fuse. Lexy counts the fuse down from the decision after the player left, while
+ * Epoxy lights the dynamite inside the player's move, one tick earlier.
+ */
+export const CC2_DYNAMITE_LIGHT_TICK_OFFSET = 1;
+
+/** The fuse of a dynamite in ticks: the configured one, plus the lighting offset on a CC2-engine level. */
+export function effectiveDynamiteFuseTicks(configuredFuseTicks: number, cc2Engine: boolean): number {
+  return configuredFuseTicks + (cc2Engine ? CC2_DYNAMITE_LIGHT_TICK_OFFSET : 0);
+}
+
+/** CC2 engine: the cooldown (ticks after the move tick) of a mirror player's walking step, four ticks in all. */
+export const CC2_MIRROR_WALK_COOLDOWN_TICKS = 3;
+
+/** CC2 engine: the cooldown (ticks after the move tick) of a mirror player's step onto ice or a force floor, two ticks in all. */
+export const CC2_MIRROR_SLIDE_COOLDOWN_TICKS = 1;
+
 /** What dynamite leaves under a creature standing on plain floor: fire, or water under an ice block. */
 export const DYNAMITE_FIRE_TILE_ID = 'fire';
 

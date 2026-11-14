@@ -302,9 +302,16 @@ export function isCanBlockEnter(
   if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
   // A tile may bar some blocks although it admits the others (the CC3D dirt and slime bar mirrors and turrets).
   if (destTile.barsBlocks?.includes(block.type) === true) return false;
+  // CC2 engine: a hint bars the dirt block only (Lexy: hint blocks_collision holds block_cc1, which the other blocks lack).
+  if (destTile.showsHint === true && block.type === CC2_DIRT_BLOCK_TYPE && usesCc2Engine(w.level)) return false;
   // An item that bars blocks (the toggle clock) keeps them out of its cell.
   const destItem = w.items[destY][destX];
   if (destItem !== null && ConfigRegistry.getTile(destItem).blocksBlocks === true) return false;
+  // CC2 engine: lit dynamite is an actor that bars every block (Lexy dynamite_lit blocks_collision all).
+  if (destItem !== null && usesCc2Engine(w.level)) {
+    const itemTile = ConfigRegistry.getTile(destItem);
+    if (itemTile.cc2Dynamite === true && itemTile.litCharge === true) return false;
+  }
   // On a CC2-engine level the dirt block is also kept out of the cells holding chips, keys and bonus items.
   if (
     destItem !== null &&
