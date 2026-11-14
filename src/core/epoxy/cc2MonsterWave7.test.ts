@@ -16,8 +16,8 @@
 
 /**
  * CC2 wave 7, monsters: a monster loaded on ice decides normally until it has left its load cell (IL), and a yellow tank that
- * stands on ice or a force floor is carried by it unless it still stands on its load cell on ice (YI). Every rule is off on
- * classic and native levels.
+ * stands on ice or a force floor is carried by it unless it still stands on its load cell on ice (YI), and a block refused on a
+ * force floor tries once more after the entity pass (FB2). Every rule is off on classic and native levels.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -143,6 +143,43 @@ describe('yellow tank on ice and force floors (YI)', () => {
     for (const mode of ['cc', 'native'] as const) {
       const engine = loadTank(mode, FORCE_EAST, 'N');
       expect(tankIn(engine).atLoadCell, mode).toBeUndefined();
+    }
+  });
+});
+
+describe('block refused on a force floor, retried after the pass (FB2)', () => {
+  const BLOCK = 'dirt_block';
+  const BLOCK_X = 5;
+  const ROW_LENGTH = 6;
+  const forceRow: Record<string, string> = {};
+  for (let i = 0; i < ROW_LENGTH; i++) forceRow[`${BLOCK_X + i},${ROOM_ROW}`] = 'force_e';
+
+  // The block ahead is listed first, so the one behind takes its turn first (the pass runs the list backwards).
+  const options = {
+    terrain: forceRow,
+    entities: [
+      { type: BLOCK, x: BLOCK_X + 1, y: ROOM_ROW, dir: 'E' as const },
+      { type: BLOCK, x: BLOCK_X, y: ROOM_ROW, dir: 'E' as const }
+    ]
+  };
+  const columns = (engine: GameEngine): number[] =>
+    engine
+      .getEntities()
+      .filter((e) => e.kind === 'block')
+      .map((e) => e.x)
+      .sort((a, b) => a - b);
+
+  it('moves the block behind in the same tick as the block ahead on a CC2 level', () => {
+    const engine = load('cc2', options);
+    engine.tick();
+    expect(columns(engine)).toEqual([BLOCK_X + 1, BLOCK_X + 2]);
+  });
+
+  it('keeps a classic level and a native level where they were', () => {
+    for (const mode of ['cc', 'native'] as const) {
+      const engine = load(mode, options);
+      engine.tick();
+      expect(columns(engine), mode).toEqual([BLOCK_X, BLOCK_X + 1]);
     }
   });
 });

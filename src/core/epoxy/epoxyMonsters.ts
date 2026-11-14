@@ -348,6 +348,8 @@ function runEntityPass(ctx: EpoxyContext): void {
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
+  // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
+  const refusedOnForce: RuntimeEntity[] = [];
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
     if (w.cc3dPace) {
@@ -369,11 +371,19 @@ function runEntityPass(ctx: EpoxyContext): void {
     }
 
     if (entity.kind === 'block') {
-      stepSlidingBlock(ctx, entity);
+      if (stepSlidingBlock(ctx, entity).refusedOnForce === true) refusedOnForce.push(entity);
       continue;
     }
 
     if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+  }
+  // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
+  // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
+  if (usesCc2Engine(w.level)) {
+    for (const block of refusedOnForce) {
+      if (w.removedUids.has(block.uid) || !w.entities.includes(block) || block.isSliding) continue;
+      stepSlidingBlock(ctx, block);
+    }
   }
 }
 
