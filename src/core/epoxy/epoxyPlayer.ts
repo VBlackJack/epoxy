@@ -37,6 +37,7 @@ import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } 
 import { setDownDynamite } from './epoxyDynamite';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
+import { stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -44,6 +45,7 @@ import {
   entityPressesPlate,
   getEntityAt,
   holdsItem,
+  isButtonPressed,
   isCellClosedTrap,
   isCovered,
   isEdgeBlocked,
@@ -62,6 +64,32 @@ import {
   takeRevealedTerrain,
   withPlayer
 } from './epoxyWorld';
+
+/** Out-of-turn ejection from a trap: a block is pushed out its facing, chain allowed (Lexy attempt_step pushes of the ice block), not by the player. */
+const TRAP_EJECT_ALLOW_CHAIN = true;
+const TRAP_EJECT_BY_PLAYER = false;
+
+/**
+ * A trap that a press just opened ejects what it holds, out of turn (Lexy trap add_press -> attempt_out_of_turn_step,
+ * tiletypes.js:1764-1779). A block is pushed out its facing; a monster steps once out of turn and carries one extra cooldown
+ * tick, counted once per tic (Lexy do_extra_cooldown, game.js:2218-2242, last_extra_cooldown_tic) so the pass does not count
+ * the tick of its step a second time. An entity that ignores floor effects (a ghost) is not held by a trap.
+ */
+function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  const e = getEntityAt(w, x, y);
+  if (e === undefined || ConfigRegistry.getEntityDef(e.type)?.ignoresFloorEffects === true) return;
+  if (e.kind === 'block') {
+    if (!e.isSliding && e.arrivalTicks === undefined) attemptPushBlock(ctx, e, e.dir, TRAP_EJECT_ALLOW_CHAIN, false, undefined, TRAP_EJECT_BY_PLAYER);
+    return;
+  }
+  if (e.kind !== 'monster' || e.cooldownTicks !== 0) return;
+  w.ccPlans.set(e.uid, e.dir);
+  const fromX = e.x;
+  const fromY = e.y;
+  stepClassicMonsterOutOfTurn(ctx, e);
+  if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks++;
+}
 
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
 export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
@@ -928,6 +956,15 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     const cell = p.y * mapWidth(w) + p.x;
     const held = w.cc2BrownHeld ?? [];
     if (!held.includes(cell)) w.cc2BrownHeld = [...held, cell].sort((a, b) => a - b);
+    // CC2 engine: the traps this press opens eject what they hold. He has stood on the button since his step began (Epoxy presses by
+    // occupancy), so the trap reads open already: the press is the opening one when no other button linked to the trap is held.
+    if (usesCc2Engine(w.level) && !w.cc3dPace) {
+      for (const l of w.trapLinks) {
+        if (l.buttonX !== p.x || l.buttonY !== p.y) continue;
+        if (w.trapLinks.some((o) => o.trapX === l.trapX && o.trapY === l.trapY && (o.buttonX !== p.x || o.buttonY !== p.y) && isButtonPressed(w, o.buttonX, o.buttonY))) continue;
+        if (!isCellClosedTrap(w, l.trapX, l.trapY)) ejectFromTrap(ctx, l.trapX, l.trapY);
+      }
+    }
   }
   if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {
