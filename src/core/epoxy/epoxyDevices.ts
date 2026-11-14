@@ -40,7 +40,7 @@ import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
-import { isCanBlockEnter, moveBlockTo } from './epoxyBlocks';
+import { isCanBlockEnter, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
@@ -515,6 +515,11 @@ export function spawnFromCloner(
     cooldownTicks: 0,
     isSliding: false
   };
+  // CC2 engine: a cloned block pushes the block standing in the exit out of the way first, by its own pushes table (Lexy
+  // tiletypes.js:1716-1731, the template's out-of-turn step; ice_block pushes, dirt does not, :1381-1385).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && kind === 'block' && !isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)) {
+    slidePushesAhead(ctx, probe, spawnX, spawnY, templateDir);
+  }
   const canEnter =
     kind === 'block'
       ? isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)
