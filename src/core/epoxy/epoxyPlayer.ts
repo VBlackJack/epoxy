@@ -263,6 +263,9 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   if (block === undefined || block.kind !== 'block') return bumped;
   // CC2 engine: the block on a clone machine is its template, held by the machine: the slap does not move it (Lexy cloner.traps).
   if (usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[targetY][targetX]).isCloneMachine) return bumped;
+  // CC2 engine: a block whose terrain bars the player is not slapped, the item on its cell is not read (Lexy can_actor_enter_cell
+  // judges the tiles before the pushables, game.js:1813-1935, and mines items for the player).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), null)) return bumped;
   const pushed = attemptPushBlock(ctx, block, dir, true, false, undefined, true);
   p.dir = facing;
   return pushed || bumped;
