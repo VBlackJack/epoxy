@@ -135,8 +135,12 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   const w = ctx.world;
   if (w.ccRules) updateForcePermission(w, fromSlide);
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
+  // The step onto an exit lasts the leaver's walking step (read before control changes hands).
+  const leaverWait = playerWalkCooldown(w);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
   if (dropExitedController(w)) {
+    // CC2 engine: the exit acts when the step onto it ends, so the next player takes control one walking step later.
+    if (exitHandsControlLater(w)) w.player.moveCooldown = Math.max(w.player.moveCooldown, leaverWait);
     resetCc2PlayerView(w);
     return moved;
   }
@@ -146,6 +150,11 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   // A two-key move steers the mirrors once with its decision (steerMirrorsOnce), not once per attempt.
   if (!w.mirrorsHeldBack) steerMirrorsOnce(ctx, requestedDir);
   return moved;
+}
+
+/** CC2 engine: whether the player who takes control after an exit waits out the exit step (Lexy tiletypes.js exit on_arrive, game.js:1377-1420). */
+function exitHandsControlLater(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && !w.levelCompleted;
 }
 
 /** Steers the mirror players toward `dir` when the controlled player is still on the map and not parked: the one copy of a step. */
