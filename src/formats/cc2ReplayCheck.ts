@@ -340,6 +340,17 @@ function mayOverrideForce(engine: PlayEngine): boolean {
 }
 
 /**
+ * A forced exit from a hard pad is pending (teleportExit set on a pad that is not teleportSoftCc2): Lexy's teleport-hard
+ * slide leaves no may_move, so a drop is refused (tiletypes.js:1879, 2022).
+ */
+function hardPadExitPending(engine: PlayEngine): boolean {
+  if (!(engine instanceof GameEngine)) return false;
+  const player = engine.getPlayer();
+  if (player.teleportExit === undefined) return false;
+  return ConfigRegistry.getTile(engine.getTerrain()[player.y][player.x]).teleportSoftCc2 !== true;
+}
+
+/**
  * Plays the action keys freshly pressed this tick, at the player's decision only (move cooldown 0), as the reference
  * player does: cycle inventory, drop (not while sliding) and switch player. A key that acts is reported through
  * `consume` so that it does not act again until it is released; a key pressed while the player is not deciding keeps
@@ -353,8 +364,9 @@ function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: numbe
     if (belt) belt.cycle(engine);
     else engine.cycleInventory?.();
   }
-  // CC2 engine: a drop is also allowed while a force floor carries a player who may override it; the key is not consumed while barred (Lexy re-arm, game.js:1590-1594).
-  const dropAllowed = cc2Engine ? !player.isSliding || mayOverrideForce(engine) : !player.isSliding;
+  // CC2 engine: a drop is also allowed while a force floor carries a player who may override it and refused while a hard pad exit is
+  // pending; the key is not consumed while barred (Lexy re-arm, game.js:1590-1594).
+  const dropAllowed = cc2Engine ? (!player.isSliding || mayOverrideForce(engine)) && !hardPadExitPending(engine) : !player.isSliding;
   if (fresh & CC2_REPLAY_ACTION_BITS.drop && dropAllowed) {
     consume(CC2_REPLAY_ACTION_BITS.drop);
     if (belt) belt.drop(engine);
