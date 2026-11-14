@@ -1199,6 +1199,9 @@ export function canMonsterEnter(
   // CC2 engine: lit dynamite is an actor that bars every other actor, monsters included (Lexy dynamite_lit blocks_collision all).
   const destItemId = w.items[ny][nx];
   if (destItemId !== null && usesCc2Engine(w.level) && ConfigRegistry.getTile(destItemId).cc2Dynamite === true && isLitChargeItem(destItemId)) return false;
+  // CC2 engine: a ghost is barred from the cells the import lists (custom floors and walls, Lexy blocks_collision ghost); a blast
+  // that turns one to floor removes it from the set.
+  if (def?.passesSolidTiles === true && usesCc2Engine(w.level) && w.ghostBar?.has(ny * mapWidth(w) + nx) === true) return false;
 
   // A monster that walks through solid tiles (a ghost) is stopped only by the tiles and hazards its definition names.
   const passesSolid =

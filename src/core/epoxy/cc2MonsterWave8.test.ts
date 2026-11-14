@@ -29,6 +29,9 @@ import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import type { RuntimeEntity } from '../types';
+import { CC2_TEST_RECORD } from '../../test/cc2Room';
+import type { EpoxyWorld } from './epoxyWorld';
+import { canMonsterEnter } from './epoxyMonsters';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -192,5 +195,40 @@ describe('CC2 engine: lit dynamite bars every monster (LD)', () => {
 
   it('does not bar a ghost from unlit dynamite', () => {
     expect(westmostX('cc2', 'ghost', { item: 'dynamite' })).toBeLessThan(HINT_X + 1);
+  });
+});
+
+describe('CC2 engine: a ghost stops at the cells the import lists (GC2)', () => {
+  const listedLevel = (mode: RoomMode) => {
+    const level = room({ mode, startX: 1, entities: [{ type: 'ghost', x: FIREBALL_START_X, y: ROOM_ROW, dir: 'W' }] });
+    if (mode === 'cc2') level.cc2 = { ...CC2_TEST_RECORD, ghostBarCells: [ROOM_ROW * 13 + HINT_X] };
+    return level;
+  };
+  const ghostMin = (engine: GameEngine, ticks: number): number => {
+    let min = Number.POSITIVE_INFINITY;
+    for (let t = 0; t < ticks; t++) {
+      engine.tick();
+      min = Math.min(min, (engine.getEntities().find((e) => e.type === 'ghost') as RuntimeEntity).x);
+    }
+    return min;
+  };
+
+  it('stops the ghost at a listed cell, and lets it in once a blast has freed the cell', () => {
+    const level = listedLevel('cc2');
+    level.entities = [{ type: 'ghost', x: HINT_X + 1, y: ROOM_ROW, dir: 'W' }];
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const w = (engine as unknown as { w: EpoxyWorld }).w;
+    const ghost = engine.getEntities().find((e) => e.type === 'ghost') as RuntimeEntity;
+    expect(canMonsterEnter(w, ghost, 'W')).toBe(false);
+    // What blastDynamite does to a custom cell it turns to floor.
+    w.ghostBar?.delete(ROOM_ROW * 13 + HINT_X);
+    expect(canMonsterEnter(w, ghost, 'W')).toBe(true);
+  });
+
+  it('bars nothing on a classic level', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(listedLevel('cc'));
+    expect(ghostMin(engine, WALK_TICKS)).toBeLessThan(HINT_X);
   });
 });
