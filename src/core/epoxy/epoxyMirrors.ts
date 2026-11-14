@@ -45,7 +45,7 @@ import { usesCc2Engine } from './ccRules';
 import { mirrorTakesItem, resolveMonsterArrival } from './epoxyMonsters';
 import { shieldedPlayerAt } from './epoxyWard';
 import { leaveSwivel } from './epoxySwivels';
-import { currentEntityPass, EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, mapWidth, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
+import { currentEntityPass, EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, mapWidth, playerAtCell, playerCharacterOf, revealedTerrain, shotAt, takeRevealedTerrain } from './epoxyWorld';
 
 /** Extra ticks a mirror waits between two steps of a force floor, on top of the shared slide delay. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
@@ -205,6 +205,13 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
     const held = entity.heldKeys ?? [];
     const at = held.indexOf(tile.requiredKey);
     if (at < 0) return false;
+    // What the door reveals is judged before the key is spent: a mirror never opens a door onto a floor its character cannot enter.
+    const beyond = ConfigRegistry.getTile(revealedTerrain(w, nx, ny) ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID));
+    const mirrored = def.mirrorsCharacter;
+    if (mirrored === undefined) return false;
+    if (beyond.characterOnly !== undefined && beyond.characterOnly !== mirrored) return false;
+    const bootsBeyond = beyond.bootsForCharacter?.[mirrored];
+    if (bootsBeyond !== undefined && entity.heldTools?.includes(bootsBeyond) !== true) return false;
     if (def.mirrorKey !== tile.requiredKey) {
       held.splice(at, 1);
       if (held.length === 0) delete entity.heldKeys;
@@ -329,7 +336,8 @@ export function stepMirrorFloor(ctx: EpoxyContext, entity: RuntimeEntity): boole
   if (cc2 && carried === null) return decideMirrorStep(ctx, entity, def);
   if (carried === null) return true;
   const slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks;
-  entity.cooldownTicks = tile.slideType === 'force' ? slideCooldown + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS : slideCooldown;
+  // CC2 engine: the step's own cooldown is set before the arrival, so a pulse arrival it queues gets the right due.
+  entity.cooldownTicks = cc2 ? CC2_MIRROR_WALK_COOLDOWN_TICKS : tile.slideType === 'force' ? slideCooldown + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS : slideCooldown;
   let outcome = stepMirror(ctx, entity, def, carried);
   // CC2 engine: the step time comes from the cell entered (half a walking step onto ice or a force floor), as any actor's.
   if (cc2) entity.cooldownTicks = mirrorStepCooldown(w, entity);

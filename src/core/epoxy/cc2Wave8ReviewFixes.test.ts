@@ -20,6 +20,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { ROOM_ROW, room as flatRoom } from '../../test/cc2Room';
+import type { RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CELL_EDGE_CANOPY_BIT, DYNAMITE_ITEM_ID, FLOOR_TILE_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
@@ -164,5 +166,79 @@ describe('F3: dynamite under a canopy and over a barred cell', () => {
     blast(engine);
     expect(engine.getTerrain()[BARRED_CELL.y][BARRED_CELL.x]).toBe(FLOOR_TILE_ID);
     expect((worldOf(engine).ghostBar as Set<number>).has(cell)).toBe(true);
+  });
+});
+
+const MIRROR_CHIP = 'mirror_chip';
+const MIRROR_Y = 9;
+const MIRROR_START_X = 6;
+const DOOR_X = 8;
+const DOOR_KEY = 'key_yellow';
+const DOOR_TILE = 'door_yellow';
+const WRONG_CHARACTER_FLOOR = 'sign_melinda_only';
+const DECISION_GAP_TICKS = 6;
+const CLONER = { x: 8, y: 3 };
+const CLONE_BUTTON = { x: 3, y: ROOM_ROW };
+
+function mirrorDoorRoom(mode: RoomMode, hidden: string | null): GameEngine {
+  const level = flatRoom({
+    mode,
+    startX: 2,
+    entities: [{ type: MIRROR_CHIP, x: MIRROR_START_X, y: MIRROR_Y, dir: 'E' }],
+    terrain: { [`${DOOR_X},${MIRROR_Y}`]: DOOR_TILE },
+    items: { [`${MIRROR_START_X + 1},${MIRROR_Y}`]: DOOR_KEY }
+  });
+  if (hidden !== null) level.underlays = [{ x: DOOR_X, y: MIRROR_Y, terrain: hidden }];
+  return load(level);
+}
+
+function walkEast(engine: GameEngine, steps: number): void {
+  for (let i = 0; i < steps; i++) {
+    engine.attemptPlayerMove('E');
+    for (let t = 0; t < DECISION_GAP_TICKS; t++) engine.tick();
+  }
+}
+
+describe('F4a: a mirror does not spend a key on a door that opens onto a floor of another character', () => {
+  it('keeps the key and the shut door on a CC2 level', () => {
+    const engine = mirrorDoorRoom('cc2', WRONG_CHARACTER_FLOOR);
+    walkEast(engine, 4);
+    const mirror = engine.getEntities().find((e) => e.type === MIRROR_CHIP) as NonNullable<ReturnType<GameEngine['getEntities']>[number]>;
+    expect(mirror.heldKeys).toEqual([DOOR_KEY]);
+    expect(engine.getTerrain()[MIRROR_Y][DOOR_X]).toBe(DOOR_TILE);
+    expect(mirror.x).toBe(DOOR_X - 1);
+  });
+
+  it('still opens a door that hides nothing for it', () => {
+    const engine = mirrorDoorRoom('cc2', null);
+    walkEast(engine, 4);
+    const mirror = engine.getEntities().find((e) => e.type === MIRROR_CHIP) as NonNullable<ReturnType<GameEngine['getEntities']>[number]>;
+    expect(mirror.x).toBeGreaterThan(DOOR_X);
+    expect(mirror.heldKeys).toBeUndefined();
+  });
+});
+
+describe('F4c: the mirror a cloner lets out keeps the template list ordinal', () => {
+  it('hands the ordinal to the clone and leaves the template without one', () => {
+    const level = flatRoom({
+      mode: 'cc2',
+      startX: 2,
+      terrain: { [`${CLONE_BUTTON.x},${CLONE_BUTTON.y}`]: 'button_red', [`${CLONER.x},${CLONER.y}`]: 'clone_machine' },
+      entities: [{ type: MIRROR_CHIP, x: CLONER.x, y: CLONER.y, dir: 'E' }]
+    });
+    level.cloneLinks = [{ buttonX: CLONE_BUTTON.x, buttonY: CLONE_BUTTON.y, clonerX: CLONER.x, clonerY: CLONER.y, templateType: MIRROR_CHIP, templateDir: 'E' }];
+    const engine = load(level);
+    const template = engine.getEntities()[0];
+    const ordinal = template.listOrdinal;
+    expect(ordinal).toBeDefined();
+    for (let i = 0; i < 12 && engine.getEntities().length < 2; i++) {
+      engine.attemptPlayerMove('E');
+      engine.tick();
+    }
+    const entities = engine.getEntities();
+    expect(entities).toHaveLength(2);
+    const out = entities.find((e) => e.x !== CLONER.x || e.y !== CLONER.y) as NonNullable<(typeof entities)[number]>;
+    expect(out.listOrdinal).toBe(ordinal);
+    expect(entities.find((e) => e !== out)?.listOrdinal).toBeUndefined();
   });
 });
