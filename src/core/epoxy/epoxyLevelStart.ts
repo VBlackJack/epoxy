@@ -116,7 +116,9 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
       // A rover starts on the first behaviour of its list; no other entity has these fields.
       ...initialEmulationState(def),
       // A monster with a trail that starts on slime has stood on it already.
-      ...(def?.trailTile !== undefined && def.immuneToSlime === true && ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).hazard === 'slime' ? { slimed: true } : {})
+      ...(def?.trailTile !== undefined && def.immuneToSlime === true && ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).hazard === 'slime' ? { slimed: true } : {}),
+      // CC2 engine: a monster loaded on ice has no pending slide there until it has left its load cell (see planClassicDecisions).
+      ...(usesCc2Engine(level) && (def?.kind ?? 'monster') === 'monster' && ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).slideType === 'ice' ? { atLoadCell: true as const } : {})
     };
   });
 

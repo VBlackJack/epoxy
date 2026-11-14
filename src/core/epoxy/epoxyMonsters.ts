@@ -264,7 +264,8 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
-      if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+      // Lexy ice has no on_ready: a monster still on its load cell has no pending slide and decides normally.
+      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
     }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
@@ -368,6 +369,8 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   const x = entity.x;
   const y = entity.y;
   const alive = stepMonster(ctx, entity);
+  // The first step away from the load cell forgets it: the ice there is an ordinary slide from now on.
+  if (entity.atLoadCell === true && (entity.x !== x || entity.y !== y)) delete entity.atLoadCell;
   // Like the original, a creature that could not move (a blocked decision, a held trap, a blocked forced move on a
   // slide tile) tries again on the next tick.
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
