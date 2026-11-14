@@ -582,6 +582,11 @@ function bombWaitsForStepEnd(w: EpoxyWorld): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace;
 }
 
+/** CC2 engine: a chip the player stepped onto that has become a green bomb by the time his step ends goes off (the green toggle acts during the step). */
+function chipTurnedBombKills(w: EpoxyWorld): boolean {
+  return bombWaitsForStepEnd(w);
+}
+
 /** The bomb under the player goes off and kills him. */
 function explodePlayerBomb(ctx: EpoxyContext, x: number, y: number): void {
   ctx.world.items[y][x] = null;
@@ -824,6 +829,11 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     if (itemId) {
       const itemDef = ConfigRegistry.getTile(itemId);
       if (itemDef.collectible === 'chip') takeChip(ctx, x, y, itemDef);
+      else if (itemDef.hazard === 'bomb' && chipTurnedBombKills(w) && p.x === x && p.y === y) {
+        // The chip he stepped onto became a green bomb during the step: it goes off.
+        explodePlayerBomb(ctx, x, y);
+        return true;
+      }
     }
   }
   if (pending.teleport !== undefined) {
