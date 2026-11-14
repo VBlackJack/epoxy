@@ -1156,7 +1156,7 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
   // CC2 engine: a monster whose step ended on the button in the previous pass holds it for this whole pass, even if it leaves in
   // its own turn. Approximation of Lexy's out-of-turn release: its add_press on arrival frees a trapped actor before the presser
   // decides and leaves, and remove_press closes the trap again only when the presser has left (tiletypes.js:1764-1779).
-  if (usesCc2Engine(w.level) && !w.cc3dPace) {
+  if (!w.cc3dPace && w.entities.some((e) => e.stepEndedPass !== undefined) && usesCc2Engine(w.level)) {
     const pass = currentEntityPass(w) - 1;
     const cell = by * mapWidth(w) + bx;
     if (w.entities.some((e) => monsterStepEndedAt(e, pass, cell))) return true;
@@ -1185,7 +1185,7 @@ function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
 function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
   // CC2 engine: a monster works a brown button when its step onto it ends (Lexy on_arrive), not while that step runs, and the pass
   // in which it ends still counts as under way: the press holds from the next pass (see isButtonPressed).
-  if (usesCc2Engine(w.level) && !w.cc3dPace && e.kind === 'monster' && (e.cooldownTicks > 0 || e.stepEndedPass === currentEntityPass(w))) return false;
+  if (e.kind === 'monster' && !w.cc3dPace && (e.cooldownTicks > 0 || e.stepEndedPass === currentEntityPass(w)) && usesCc2Engine(w.level)) return false;
   return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
 }
 
