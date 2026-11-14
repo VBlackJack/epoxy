@@ -760,7 +760,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
 
   // CC2 engine: a lit flame jet burns a ghost when its step ends. Only the fire tile spares it (Lexy fire.on_arrive); the jet
   // kills every actor that is not fireproof (flame_jet_on on_stand), and fire boots keep the ghost alive.
-  if (floorFree && usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && destTile.burnsOccupants === true && !holdsProtection(w, entity)) {
+  if (floorFree && usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && destTile.burnsOccupants === true && !w.cc3dPace && !holdsProtection(w, entity)) {
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal: 'burn', due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
   }
   // Bombs, water, fire and slime do nothing to a monster the floor does not affect: a ghost sets off no bomb.

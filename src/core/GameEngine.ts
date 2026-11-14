@@ -110,20 +110,18 @@ import {
   copyCc3dArrival,
   buildGhostBar,
   blastedEdgeDiff,
-  cellKey,
   createEpoxyWorld,
   ghostBarEdited,
   getEntityAt,
   holdsItem,
-  isButtonPressed,
   isCellClosedTrap,
+  isTrapOpenedByWireOnly,
   isCovered,
   killPlayer,
   mapHeight,
   mapWidth,
   rebuildDeviceLookups,
-  refreshTrapLatch,
-  signalSinkOn
+  refreshTrapLatch
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
@@ -177,6 +175,9 @@ const NO_PANELS: ReadonlyMap<number, readonly Direction[]> = new Map();
 /** The canopy cells of a level without a canopy. */
 const NO_CANOPIES: ReadonlySet<number> = new Set();
 
+/** Multiplier of the hash that tells whether the blocks moved (any odd constant mixes the uid and the cell). */
+const BLOCK_LAYOUT_HASH_MULTIPLIER = 31;
+
 /** Copies an entity for a snapshot: the array fields are copied too, so the live entity and the snapshot never share one. */
 export function copyEntity(e: RuntimeEntity): RuntimeEntity {
   const copy = { ...e };
@@ -211,6 +212,8 @@ export class GameEngine {
   private playingStored = false;
   /** CC2 engine, actor order: the undo snapshot taken when the first input of the tick was stored; the turn keeps it in place of its own. */
   private deferredUndo: UndoSnapshot | undefined;
+  /** CC2 engine, actor order: while the stored input is played, how many undo snapshots its steps asked for (and not gave back); undefined outside the turn. */
+  private turnUndoRequests: number | undefined;
   /** CC2 engine, actor order: what the player's turn of the last tick did (see getLastPlayerTurn). */
   private lastPlayerTurn: { dir: Direction; moved: boolean } | undefined;
   /** CC2 engine, actor order: the cells of the level's light switches, in cell order. Empty on any other level. */
@@ -852,15 +855,44 @@ export class GameEngine {
 
   /** Undo is refused once the level is won: the score is already awarded. */
   public canUndo(): boolean {
-    return !this.w.levelCompleted && this.undoStack.length > 0;
+    return !this.w.levelCompleted && (this.undoStack.length > 0 || this.deferredUndo !== undefined);
   }
 
   public saveUndoSnapshot(): void {
-    const maxSnapshots = ConfigRegistry.getGame().timing.maxUndoSnapshots;
-    if (this.undoStack.length >= maxSnapshots) {
-      this.undoStack.shift();
+    // The turn of a stored input keeps the snapshot taken when the input was stored, pushed once at its end (see playStoredInput).
+    if (this.turnUndoRequests !== undefined) {
+      this.turnUndoRequests++;
+      return;
     }
-    this.undoStack.push(this.captureState());
+    this.pushUndoSnapshot(this.captureState());
+  }
+
+  /** Ends the collection of the undo requests of the turn; whether a step of it still asks for a snapshot. */
+  private endTurnUndoRequest(): boolean {
+    const requested = (this.turnUndoRequests ?? 0) > 0;
+    this.turnUndoRequests = undefined;
+    return requested;
+  }
+
+  /** Gives back the snapshot the last step asked for (a refused step): the one it pushed, or the request the turn counts. */
+  private dropLastUndoSnapshot(): void {
+    if (this.turnUndoRequests !== undefined) this.turnUndoRequests = Math.max(0, this.turnUndoRequests - 1);
+    else this.undoStack.pop();
+  }
+
+  /** The undo steps as they stand, with the requests of a turn in progress, to put back after a try that may not be kept. */
+  private undoState(): { stack: UndoSnapshot[]; requests: number | undefined } {
+    return { stack: [...this.undoStack], requests: this.turnUndoRequests };
+  }
+
+  private restoreUndoState(state: { stack: UndoSnapshot[]; requests: number | undefined }): void {
+    this.undoStack = [...state.stack];
+    this.turnUndoRequests = state.requests;
+  }
+  private pushUndoSnapshot(snap: UndoSnapshot): void {
+    const maxSnapshots = ConfigRegistry.getGame().timing.maxUndoSnapshots;
+    if (this.undoStack.length >= maxSnapshots) this.undoStack.shift();
+    this.undoStack.push(snap);
   }
 
   /**
@@ -991,6 +1023,15 @@ export class GameEngine {
 
   public undo(): boolean {
     if (this.w.levelCompleted) return false;
+    // An input stored for the next tick is what the undo takes back first: nothing of it is on the stack yet.
+    if (this.w.cc2PendingDecision !== undefined) {
+      const stored = this.deferredUndo;
+      this.w.cc2PendingDecision = undefined;
+      this.deferredUndo = undefined;
+      if (stored !== undefined) this.restoreState(stored);
+      AudioManager.playStep(null);
+      return true;
+    }
     const snap = this.undoStack.pop();
     if (!snap) return false;
     this.restoreState(snap);
@@ -1273,13 +1314,12 @@ export class GameEngine {
 
   /**
    * Writes into the input stored for this tick, creating it first. The undo snapshot of the whole tick's input is taken here, once,
-   * before anything is stored (so its copy holds no stored input); the turn keeps it in place of the snapshots its own moves take.
+   * before anything is stored (so its copy holds no stored input), and kept off the stack: the turn pushes it once if it did anything.
    */
   private storeInput(write: (stored: Cc2PendingDecision) => void): void {
     let stored = this.w.cc2PendingDecision;
     if (stored === undefined) {
-      this.saveUndoSnapshot();
-      this.deferredUndo = this.undoStack[this.undoStack.length - 1];
+      this.deferredUndo = this.captureState();
       stored = { dirs: [], held: false, tick: this.ticksElapsed };
       this.w.cc2PendingDecision = stored;
     }
@@ -1290,7 +1330,6 @@ export class GameEngine {
   private openActorTick(): void {
     this.actorTick = { clockAtStart: this.w.ccMonsterClock, decided: false, turned: false, decisionMovedBlock: false };
     this.lastPlayerTurn = undefined;
-    this.w.cc2TurnSeen = new Set<number>();
     this.w.cc2MovingAtDecision = undefined;
     this.w.cc2PushedLate = undefined;
     this.w.cc2SkipTurn = undefined;
@@ -1313,12 +1352,16 @@ export class GameEngine {
     this.deferredUndo = undefined;
   }
 
-  /** The blocks of the world and where they stand, to tell whether something moved them. */
-  private blockLayout(): string {
-    return this.w.entities
-      .filter((e) => e.kind === 'block')
-      .map((e) => `${e.uid}:${e.x},${e.y}`)
-      .join(';');
+  /** A hash of the blocks of the world and where they stand, to tell whether something moved them without building a string. */
+  private blockLayout(): number {
+    let hash = 0;
+    for (const e of this.w.entities) {
+      if (e.kind !== 'block') continue;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.uid) | 0;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.x) | 0;
+      hash = (Math.imul(hash, BLOCK_LAYOUT_HASH_MULTIPLIER) + e.y) | 0;
+    }
+    return hash;
   }
 
   /**
@@ -1418,6 +1461,8 @@ export class GameEngine {
     const undoMark = this.deferredUndo;
     this.deferredUndo = undefined;
     let acted = false;
+    let moved = false;
+    this.turnUndoRequests = undoMark === undefined ? undefined : 0;
     this.playingStored = true;
     w.inTick = false;
     this.ticksElapsed = stored.tick;
@@ -1427,7 +1472,7 @@ export class GameEngine {
         else acted = this.cycleInventory() || acted;
       }
       if (stored.dirs.length > 0) {
-        const moved = stored.held ? this.attemptPlayerMoveHeld(stored.dirs) : this.attemptPlayerMove(stored.dirs[0]);
+        moved = stored.held ? this.attemptPlayerMoveHeld(stored.dirs) : this.attemptPlayerMove(stored.dirs[0]);
         this.lastPlayerTurn = { dir: w.player.dir, moved };
       }
     } finally {
@@ -1435,11 +1480,9 @@ export class GameEngine {
       this.playingStored = false;
       w.inTick = inTick;
     }
-    const index = undoMark === undefined ? -1 : this.undoStack.lastIndexOf(undoMark);
-    if (index >= 0) {
-      const kept = acted || tick.decisionMovedBlock || this.undoStack.length - 1 > index;
-      this.undoStack.length = kept ? index + 1 : index;
-    }
+    const requested = this.endTurnUndoRequest();
+    // The capped push drops the oldest step only when the input did something, as a refused move never did.
+    if (undoMark !== undefined && (acted || moved || tick.decisionMovedBlock || requested)) this.pushUndoSnapshot(undoMark);
   }
 
   /** The tool a drop without a named item puts down: the one held longest (the head of the belt, or the oldest boots), or null with none. */
@@ -1458,21 +1501,8 @@ export class GameEngine {
     const player = w.player;
     if (player.trapShutAtTurn !== true || !player.alive || w.levelCompleted || isCellClosedTrap(w, player.x, player.y)) return;
     delete player.trapShutAtTurn;
-    if (this.trapOpenedByWireOnly(player.x, player.y)) return;
+    if (isTrapOpenedByWireOnly(w, player.x, player.y)) return;
     this.playForcedStep(player.dir);
-  }
-
-  /** Whether the wired trap here is open by its signal alone, none of the buttons linked to it being pressed. */
-  private trapOpenedByWireOnly(x: number, y: number): boolean {
-    const w = this.w;
-    const runtime = w.signals;
-    if (runtime === undefined || ConfigRegistry.getTile(w.terrain[y][x]).wiredTrap !== true) return false;
-    const cell = y * mapWidth(w) + x;
-    const index = runtime.network.indexOfCell.get(cell);
-    const powered = runtime.lit.has(cell) || (index !== undefined && runtime.defs.get(index)?.powers === true && signalSinkOn(w, index));
-    if (!powered) return false;
-    const links = w.trapLinksByTrap.get(cellKey(x, y));
-    return !(links !== undefined && links.some((link) => isButtonPressed(w, link.buttonX, link.buttonY)));
   }
 
   /**
@@ -1484,7 +1514,7 @@ export class GameEngine {
     const steps = this.stepsCount;
     const moves = this.moveHistory.length;
     const timed = this.timedMoveHistory.length;
-    const undo = [...this.undoStack];
+    const undo = this.undoState();
     const playStart = w.playStartTick;
     const inTick = w.inTick;
     this.playingStored = true;
@@ -1497,7 +1527,7 @@ export class GameEngine {
       this.stepsCount = steps;
       this.moveHistory.length = moves;
       this.timedMoveHistory.length = timed;
-      this.undoStack = undo;
+      this.restoreUndoState(undo);
       w.playStartTick = playStart;
     }
   }
@@ -1539,13 +1569,7 @@ export class GameEngine {
     this.lightSwitchCells = [];
     this.lightSwitchBase = new Map<number, string>();
     if (this.w.cc2ActorOrder !== true || this.w.signals === undefined) return;
-    const width = mapWidth(this.w);
-    this.w.terrain.forEach((row, y) =>
-      row.forEach((id, x) => {
-        const tile = ConfigRegistry.getTile(id);
-        if (tile.signalSource === 'toggle' && tile.signalToggleTwin !== undefined) this.lightSwitchCells.push(y * width + x);
-      })
-    );
+    this.lightSwitchCells = [...this.w.signals.toggleCells].sort((a, b) => a - b);
     this.rebaseLightSwitches();
   }
 
@@ -1600,7 +1624,7 @@ export class GameEngine {
     // A player in a closed trap only turns: the first key of the order decides, as one key would.
     if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
 
-    const undoBefore = [...this.undoStack];
+    const undoBefore = this.undoState();
     const tickAtMove = this.ticksElapsed;
     const historyBefore = this.timedMoveHistory.length;
     const dirBefore = player.dir;
@@ -1608,7 +1632,7 @@ export class GameEngine {
     let mutated = false;
     this.saveUndoSnapshot();
     if (softOverride) takeSoftPadOverride(this.w);
-    const undoWithSlap = [...this.undoStack];
+    const undoWithSlap = this.undoState();
     let slapped = false;
     for (const slapDir of CC2_SLAP_ORDER) {
       if (keys.includes(slapDir) && slapBlockAhead(this.ctx, slapDir)) slapped = true;
@@ -1639,12 +1663,11 @@ export class GameEngine {
     const changed = slapped || moved || mutated || softOverride || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
     // The attempts recorded and pushed snapshots of their own; the hold keeps one of each, or none.
     this.timedMoveHistory.length = historyBefore;
-    this.undoStack.length = 0;
     if (!changed) {
-      this.undoStack.push(...undoBefore);
+      this.restoreUndoState(undoBefore);
       return false;
     }
-    this.undoStack.push(...undoWithSlap);
+    this.restoreUndoState(undoWithSlap);
     this.timedMoveHistory.push({ tick: tickAtMove, dir: keys[0], alt: keys[1] });
     return moved;
   }
@@ -1755,7 +1778,7 @@ export class GameEngine {
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
       // A refused move on a soft pad still ended the forced exit: it keeps its undo step.
-      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.undoStack.pop();
+      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.dropLastUndoSnapshot();
       if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || softOverride || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }

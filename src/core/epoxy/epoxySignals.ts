@@ -371,6 +371,7 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
  * `cc2DeferredSinkEdges`: one from the move phase fires at the end of the same tick (the next tick phase), one from the tick
  * phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
+ * On an actor-order level the edges of the move phase come only from settleBeforeActorPass: the player's turn settles no wire with his move.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;

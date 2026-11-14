@@ -105,6 +105,15 @@ describe('CC2 clone machine identity', () => {
     expect(world(engine).cc2SkipTurn?.has(template!.uid)).toBe(true);
   });
 
+  it("keeps the template that went out out of the rest of the tick when it is fired during the player's turn", () => {
+    const engine = machine('cc2');
+    const template = at(engine, CLONER_X);
+    world(engine).inTick = true;
+    world(engine).cc2TurnSeen = new Set<number>();
+    press(engine);
+    expect(world(engine).cc2SkipTurn?.has(template!.uid)).toBe(true);
+  });
+
   it('marks nothing to skip outside a pass, and on a level that is not CC2', () => {
     const idle = machine('cc2');
     press(idle);

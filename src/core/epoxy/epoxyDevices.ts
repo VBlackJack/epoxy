@@ -590,7 +590,8 @@ export function spawnFromCloner(
     Object.assign(template, initialEmulationState(def));
     w.entities.push(fresh);
     // The template that went out has had (or will not have) its turn for this pass: it acts from the next one.
-    if (w.ccPassOpen) (w.cc2SkipTurn ??= new Set<number>()).add(template.uid);
+    // CC2 engine, actor order: the player's turn is part of the pass, so a template fired during it has had its turn too.
+    if (w.ccPassOpen || (w.inTick && w.cc2TurnSeen !== undefined)) (w.cc2SkipTurn ??= new Set<number>()).add(template.uid);
     spawned = template;
   } else {
     addClonedEntity(w, spawned);

@@ -153,6 +153,31 @@ describe('two keys on a CC2-engine level', () => {
     expect(undoCount(twoKeys)).toBe(SMALL_UNDO_CAP);
   });
 
+  it('keeps the last undo step when a refused move is stored at a cap of one', () => {
+    ConfigRegistry.getGame().timing.maxUndoSnapshots = 1;
+    const engine = load({ terrain: { [`${START_X + 2},${START_Y}`]: 'wall' } });
+    settle(engine);
+    expect(playMove(engine, 'E').moved).toBe(true);
+    settle(engine);
+    // The wall refuses the second step: the snapshot taken for it is dropped, and the first step is still there to undo.
+    expect(playMove(engine, 'E').moved).toBe(false);
+    expect(undoCount(engine)).toBe(1);
+    expect(at(engine)).toBe(`${START_X},${START_Y}`);
+  });
+
+  it('takes back an input stored for the next tick before any step', () => {
+    const engine = load();
+    settle(engine);
+    expect(playMove(engine, 'E').moved).toBe(true);
+    settle(engine);
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.undo()).toBe(true);
+    engine.tick();
+    expect(at(engine)).toBe(`${START_X + 1},${START_Y}`);
+    expect(engine.undo()).toBe(true);
+    expect(at(engine)).toBe(`${START_X},${START_Y}`);
+  });
+
   it('replays a recorded {dir, alt} move to the same state, through a storage round trip', () => {
     const level = { entities: [block(START_X, START_Y + 1)], terrain: { [`${START_X + 2},${START_Y}`]: 'wall' } };
     const played = load(level);

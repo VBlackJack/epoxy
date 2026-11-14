@@ -366,6 +366,8 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
   const down = new Map<Cc2Direction, number>();
   const tracker = new BlockTracker();
   let moves = 0;
+  // Actor order: a move the engine accepted is counted once the tick has played the turn that took it.
+  let storedMove = false;
   // Action keys act once per press: a bit is released while the key is up and consumed by the press that acts.
   let released: number = ACTION_KEY_MASK;
   // The tool belt of the CC2 engine; any other level keeps dropping the oldest pair of boots.
@@ -375,6 +377,7 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
     const tickKeys = tick < keys.length ? keys[tick] : !lynx && keys.length > 0 ? keys[keys.length - 1] : 0;
     const held = heldDirections(tickKeys);
     let swappedNow = false;
+    storedMove = false;
     belt?.observe(engine);
     if (!lynx) {
       released |= ~tickKeys & ACTION_KEY_MASK;
@@ -399,7 +402,10 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
       if (swappedNow) {
         // The swap key took this tick's input.
       } else if (cc2Engine && engine.attemptPlayerMoveHeld) {
-        if (byRecency.length > 0 && engine.attemptPlayerMoveHeld(byRecency as Direction[])) moves++;
+        if (byRecency.length > 0 && engine.attemptPlayerMoveHeld(byRecency as Direction[])) {
+          if (engine instanceof GameEngine && engine.playsInActorOrder()) storedMove = true;
+          else moves++;
+        }
       } else {
         // Any other level (a .DAT import) keeps the harness resolution: the CC2 order, the other key as the fallback.
         for (const dir of resolveCc2HeldOrder(held, engine.getPlayer().dir)) {
@@ -413,6 +419,7 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
     const p = engine.getPlayer();
     tracker.observe(tick, p.x, p.y, held.length > 0);
     engine.tick();
+    if (storedMove && engine instanceof GameEngine && engine.getLastPlayerTurn()?.moved === true) moves++;
     if (engine.isLevelCompleted()) return { strategy: 'held', won: true, winTick: engine.getTick(), moves };
     if (!engine.getPlayer().alive) {
       return { strategy: 'held', won: false, moves, divergence: divergenceOf('death', engine, moves, tracker.blockedSince) };

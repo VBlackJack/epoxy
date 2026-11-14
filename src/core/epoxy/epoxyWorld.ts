@@ -1172,6 +1172,13 @@ function latchPoweredWiredTraps(w: EpoxyWorld): Map<number, boolean> | null {
   return latch;
 }
 
+/** CC2 engine: whether the wired trap here is open by its signal alone, none of the buttons linked to it being pressed. */
+export function isTrapOpenedByWireOnly(w: EpoxyWorld, tx: number, ty: number): boolean {
+  if (ConfigRegistry.getTile(w.terrain[ty]?.[tx]).wiredTrap !== true || !isWiredTrapPowered(w, tx, ty)) return false;
+  const links = w.trapLinksByTrap.get(cellKey(tx, ty));
+  return !(links !== undefined && links.some((link) => isButtonPressed(w, link.buttonX, link.buttonY)));
+}
+
 export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean {
   if (w.trapLatch !== null) {
     const latched = w.trapLatch.get(ty * mapWidth(w) + tx);
