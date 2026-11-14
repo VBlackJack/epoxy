@@ -27,6 +27,7 @@ import {
   DYNAMITE_NOT_LIT_TICK,
   DYNAMITE_WATER_TILE_ID,
   FLOOR_TILE_ID,
+  CELL_EDGE_CANOPY_BIT,
   effectiveDynamiteFuseTicks
 } from '../coreConstants';
 import { LitCharge, PlayerState } from '../types';
@@ -105,6 +106,9 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
   const width = mapWidth(w);
   let terrainChanged = false;
   const playersKilled: PlayerState[] = [];
+  const cc2Engine = usesCc2Engine(w.level);
+  // CC2 engine: the thin walls are copy-on-write, one fresh array per blast (the level's memoized mask is never mutated).
+  let blastedMask: Uint8Array | null = null;
   for (let dx = -DYNAMITE_BLAST_RADIUS; dx <= DYNAMITE_BLAST_RADIUS; dx++) {
     for (let dy = -DYNAMITE_BLAST_RADIUS; dy <= DYNAMITE_BLAST_RADIUS; dy++) {
       if (!inDynamiteBlast(dx, dy)) continue;
@@ -143,9 +147,22 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
         terrainChanged = true;
       }
 
+      // Lexy's layer walk (tiletypes.js:3128-3147): under a canopy only the canopy goes and the thin walls stay; otherwise
+      // the side bits go.
+      if (cc2Engine && w.edgeMask !== null) {
+        const bits = w.edgeMask[y * width + x];
+        if (bits !== 0) {
+          if (blastedMask === null) blastedMask = new Uint8Array(w.edgeMask);
+          blastedMask[y * width + x] = (bits & CELL_EDGE_CANOPY_BIT) !== 0 ? bits & ~CELL_EDGE_CANOPY_BIT : 0;
+        }
+      }
       for (const entity of creatures) removeEntity(w, entity.uid);
       if (playerHere !== undefined) playersKilled.push(playerHere);
     }
+  }
+  if (blastedMask !== null) {
+    w.blastedEdgeMask = blastedMask;
+    w.edgeMask = blastedMask;
   }
   if (terrainChanged) rebuildDeviceLookups(w);
   // A blast changes what stands on a beam path.
