@@ -74,6 +74,9 @@ export const CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS = 1;
 /** CC2 engine: ticks a slide that ends on plain floor waits less than a walking step (the last slide step is an in-tick move). */
 export const CC2_SLIDE_END_WAIT_REDUCTION_TICKS = 1;
 
+/** CC2 engine: ticks the step that leaves a soft pad lasts less, since the forced exit is taken a tick after the wait. */
+const CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS = 1;
+
 /** Shortest wait between two voluntary moves, whatever the haste. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
 
@@ -793,6 +796,14 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   const w = ctx.world;
   const dir = w.player.teleportExit;
   if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
+  // CC2 engine, red and yellow pads: the exit is the player's own decision at his next decision (see softPadOverrideDue). The
+  // first tick after the wait only opens that decision; the forced exit is taken on the following tick when he held nothing.
+  const soft = onSoftPad(w);
+  if (soft && w.player.softPadDue !== true) {
+    w.player.softPadDue = true;
+    return;
+  }
+  delete w.player.softPadDue;
   delete w.player.teleportExit;
   const mover = w.player;
   // CC2 engine: the exit step begins from the destination pad, which is where the teeth aim on this first exit tick.
@@ -803,9 +814,38 @@ export function processTeleportExit(ctx: EpoxyContext): void {
     if (w.player.isSliding) w.player.slideCooldown = Math.min(w.player.slideCooldown, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS - 1);
     else w.player.moveCooldown = Math.max(w.player.moveCooldown, STEP_TICKS.fast - CC3D_TELEPORT_LANDING_WAIT_TICKS);
   } else if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
+    // The exit of a soft pad was taken a tick later, so its step is one tick shorter.
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (soft ? CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS : 0));
   }
   ctx.checkTargetsWin();
+}
+
+/**
+ * CC2 engine: whether the controlled-or-parked player waits on a soft pad for his exit: a red or yellow teleporter (the
+ * pads whose exit he may decide himself, Lexy's teleport-soft slide, tiletypes.js teleport_red and teleport_yellow). The
+ * other pads force the exit.
+ */
+function onSoftPad(w: EpoxyWorld): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || w.player.teleportExit === undefined) return false;
+  const here = w.terrain[w.player.y]?.[w.player.x];
+  return here !== undefined && ConfigRegistry.getTile(here).teleportSoftCc2 === true;
+}
+
+/**
+ * CC2 engine: whether the controlled player may decide the exit of the soft pad he stands on now: the decision was opened
+ * (softPadDue) and his step wait is over. A direction held then is a normal move from the destination pad (Lexy
+ * game.js:1578-1620: a pending teleport-soft slide yields to a direction); a refused one leaves him there with the forced exit
+ * gone.
+ */
+export function softPadOverrideDue(w: EpoxyWorld): boolean {
+  return w.player.softPadDue === true && w.player.moveCooldown <= 0 && onSoftPad(w);
+}
+
+/** CC2 engine: takes the soft pad decision of the controlled player: the forced exit is gone and he decides from the pad. */
+export function takeSoftPadOverride(w: EpoxyWorld): void {
+  delete w.player.softPadDue;
+  delete w.player.teleportExit;
+  resetCc2PlayerView(w, w.player.dir);
 }
 
 /** CC2 engine: a player who slides onto a teleporter pad takes a walking step to reach it, not the slide wait of the classic rules. */

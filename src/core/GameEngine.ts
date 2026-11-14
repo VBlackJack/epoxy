@@ -76,6 +76,8 @@ import {
   recordCc2PlayerView,
   resetCc2PlayerView,
   processTeleportExit,
+  softPadOverrideDue,
+  takeSoftPadOverride,
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
@@ -1103,8 +1105,10 @@ export class GameEngine {
     if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     const player = this.w.player;
+    // A soft pad (red, yellow) leaves the exit to the player's own decision: a held pair is a move from the pad.
+    const softOverride = softPadOverrideDue(this.w);
     // A player who cannot decide this tick (waiting out a step, locked on ice, leaving a teleporter) does nothing at all.
-    if (player.moveCooldown > 0 || player.teleportExit !== undefined || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
+    if (player.moveCooldown > 0 || (player.teleportExit !== undefined && !softOverride) || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
       return false;
     }
     // The force-floor refusal of attemptPlayerMove: a player still being carried has no choice yet, so nothing turns.
@@ -1122,6 +1126,7 @@ export class GameEngine {
     const permissionBefore = player.forcePermission;
     let mutated = false;
     this.saveUndoSnapshot();
+    if (softOverride) takeSoftPadOverride(this.w);
     const undoWithSlap = [...this.undoStack];
     let slapped = false;
     for (const slapDir of CC2_SLAP_ORDER) {
@@ -1150,7 +1155,7 @@ export class GameEngine {
       // The controlled player stays in place unless he left through an exit, which hands control on without a copy.
       if (this.w.player === player && player.exited !== true) steerMirrorsOnce(this.ctx, decision);
     }
-    const changed = slapped || moved || mutated || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
+    const changed = slapped || moved || mutated || softOverride || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
     // The attempts recorded and pushed snapshots of their own; the hold keeps one of each, or none.
     this.timedMoveHistory.length = historyBefore;
     this.undoStack.length = 0;
@@ -1167,9 +1172,11 @@ export class GameEngine {
     if (!this.beginInput()) return false;
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
+    // A soft pad (red, yellow) leaves the exit to the player's own decision: a direction is a normal move from the pad.
+    const softOverride = softPadOverrideDue(this.w);
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
     // switch, a jump) bars the input. It always acts at the true end of the step (see applyCc3dStepEnd), so this never sticks.
-    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || (this.w.player.teleportExit !== undefined && !softOverride) || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
       return false;
     }
 
@@ -1204,6 +1211,7 @@ export class GameEngine {
     }
 
     this.saveUndoSnapshot();
+    if (softOverride) takeSoftPadOverride(this.w);
     // CC2 engine: the teeth of the coming tick aim at where he stands now, not at the cell this move takes him to.
     if (usesCc2Engine(this.w.level) && this.w.cc2PlayerView === undefined) this.w.cc2PlayerView = cc2PlayerViewOf(this.w);
     this.w.gridMutatedByMove = false;
@@ -1249,8 +1257,9 @@ export class GameEngine {
       // A move that revealed an underlay and was then rejected still spends the key and drops its undo
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
-      if (!this.w.rejectedPushMovedBlocks) this.undoStack.pop();
-      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
+      // A refused move on a soft pad still ended the forced exit: it keeps its undo step.
+      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.undoStack.pop();
+      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || softOverride || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }
     }
