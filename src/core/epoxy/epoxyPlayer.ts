@@ -44,6 +44,7 @@ import {
   entityPressesPlate,
   getEntityAt,
   holdsItem,
+  isCellClosedTrap,
   isCovered,
   isEdgeBlocked,
   isInBounds,
@@ -188,14 +189,53 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
 }
 
 /**
- * CC2 engine, actor order (wave 9): the player's early push at his decision, for each key in the order he reads them.
- * `movingAtDecision` receives the uids of the blocks that were in motion when he decided (the step at his place must not
- * push them). Declared by the interface batch; the rule is written by the player batch. Does nothing yet.
+ * CC2 engine, actor order (wave 9): the player's early push at his decision, for each key in the order he reads them (Lexy
+ * make_player_decision, game.js:1630-1660, check_movement with push mode). `movingAtDecision` receives the uids of the blocks
+ * that were in motion when he decided (arriving, or sliding with a cooldown): the step at his place must not push them
+ * (see the guard in attemptPlayerStep). Nothing calls this until the engine batch wires it, so a play is unchanged before.
+ *
+ * Two Lexy refusals apply to each key:
+ * - a block on a sliding floor that slides or is arriving is not pushed (Lexy no_directly_pushing_sliding_blocks,
+ *   game.js:1985-1996, on in the steam rulesets, defs.js:289-291);
+ * - a block whose terrain bars the player is not pushed (Lexy can_actor_enter_cell judges the cell's tiles before pushables,
+ *   game.js:1813-1935).
+ *
+ * Known gap, pinned by a test: Lexy does not drop the push of a sliding block, it writes a pending push that turns the
+ * block's next slide that way. Porting it (the AODP prototype flag) lost chaoslnd and map116 and broke memories (a block
+ * pushed N on ice at t139 kills the player where the solution lives), so the push is skipped and the gap is kept.
+ *
+ * The slaps are timed as the input was (pass closed, outside a tick), as the clock adapter of the turn expects.
  */
 export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movingAtDecision: Set<number>): void {
-  void ctx;
-  void dirs;
-  void movingAtDecision;
+  const w = ctx.world;
+  const p = w.player;
+  if (!usesCc2Engine(w.level) || w.cc3dPace) return;
+  if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || p.isSliding || isCellClosedTrap(w, p.x, p.y)) return;
+  for (const entity of w.entities) {
+    if (entity.kind === 'block' && (entity.arrivalTicks !== undefined || (entity.isSliding && entity.cooldownTicks > 0))) {
+      movingAtDecision.add(entity.uid);
+    }
+  }
+  const passOpen = w.ccPassOpen;
+  const inTick = w.inTick;
+  w.ccPassOpen = false;
+  w.inTick = false;
+  try {
+    for (const dir of dirs) {
+      const vec = DIRECTION_VECTORS[dir];
+      const ahead = getEntityAt(w, p.x + vec.dx, p.y + vec.dy);
+      if (ahead !== undefined && ahead.kind === 'block') {
+        const aheadTile = ConfigRegistry.getTile(w.terrain[ahead.y][ahead.x]);
+        // Lexy no_directly_pushing_sliding_blocks: skipped here (the pending push it writes instead is not ported, see above).
+        if (aheadTile.slideType !== undefined && (ahead.isSliding || ahead.arrivalTicks !== undefined)) continue;
+        if (!canPlayerEnter(w, aheadTile, w.items[ahead.y][ahead.x])) continue;
+      }
+      slapBlockAhead(ctx, dir);
+    }
+  } finally {
+    w.ccPassOpen = passOpen;
+    w.inTick = inTick;
+  }
 }
 
 /**
@@ -390,7 +430,11 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
     if (entityAtTarget.kind === 'block') {
       // Pushing a block while leaving a CC2 swivel door through a closed side: the push resolves first, then the door
       // turns as the player steps off. Likely what CC2 does, but not verified against the game.
-      const pushed = attemptPushBlock(ctx, entityAtTarget, dir, true, false, undefined, true);
+      // CC2 engine (AOD3): a block that was in motion when the player decided (arriving, or sliding with a cooldown) is not
+      // pushed by his step. This is a decision-time proxy for Lexy's step-time cooldown check (a block with a cooldown
+      // refuses the push in attempt_step, game.js:2136-2150), not a rule of its own; the set is absent until the turn fills it.
+      const inMotionAtDecision = !fromSlide && usesCc2Engine(w.level) && !w.cc3dPace && w.cc2MovingAtDecision?.has(entityAtTarget.uid) === true;
+      const pushed = inMotionAtDecision ? false : attemptPushBlock(ctx, entityAtTarget, dir, true, false, undefined, true);
       if (!pushed) {
         if (!fromSlide) AudioManager.playSfx('blocked');
         return false;
