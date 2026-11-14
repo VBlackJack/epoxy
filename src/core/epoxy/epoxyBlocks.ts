@@ -173,6 +173,9 @@ function planPushLine(
     if (next && next.kind === 'block' && chainsInto(current, next, head)) {
       // CC2: a block never pushes a sliding block, and a trapped or off-arrow block does not yield.
       if (next.isSliding || !canBeShoved(w, next, dir)) return undefined;
+      // CC2: the pusher must be let into the cell's terrain before the block standing there is pushed (Lexy can_actor_enter_cell
+      // checks the cell's tiles before its pushables, game.js:1813-1935). The item layer is not read: Lexy mines items (game.js:1895-1905).
+      if (usesCc2Engine(w.level) && !w.cc3dPace && !terrainLetsBlockIn(w, current, destX, destY, dir)) return undefined;
       line.push(next);
       current = next;
       continue;
@@ -308,6 +311,17 @@ function arrivesAtStepEnd(w: EpoxyWorld, x: number, y: number): boolean {
 /** Whether a push is one the player's step carries: the block's cell is his to enter when the push is made. */
 export function isCc3dPush(block: RuntimeEntity): boolean {
   return ConfigRegistry.getEntityDef(block.type)?.stopsAtWall === true;
+}
+
+/** Whether the terrain of a cell (tile, thin walls, swivel edges) lets a block in, with its items and occupants left aside. */
+function terrainLetsBlockIn(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number, dir: Direction): boolean {
+  if (!isInBounds(w, destX, destY)) return false;
+  if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
+  const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
+  const slidesOver = ConfigRegistry.getEntityDef(block.type)?.slidesOverTiles?.includes(destTile.id) === true;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
+  if (destTile.barsBlocks?.includes(block.type) === true) return false;
+  return destTile.blocksBlocks !== true;
 }
 
 export function isCanBlockEnter(
