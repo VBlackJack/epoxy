@@ -1717,13 +1717,18 @@ export class GameEngine {
     const diedInPlace = moved && this.w.cc3dPace && !mover.alive && mover.x === fromX && mover.y === fromY;
     if (moved) {
       if (!diedInPlace) lightDepartedDynamite(this.w, this.ticksElapsed);
-      const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_MOVE) : [];
-      // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
-      setPoweredCells(this.ctx);
-      setHoldDoors(this.ctx);
-      // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
-      // following tick, as one fired by a button does (see the clear in tick()).
-      fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
+      // CC2 engine, actor order: a move played at the player's place in the pass (his stored input or a forced step) settles no
+      // wire: Lexy runs no wire phase between the actions, so what he pressed reaches the wires at the settle of the tick, and the
+      // wires of his tick settled once before the pass (see settleBeforeActorPass).
+      if (!(this.playingStored && this.w.cc2ActorOrder === true)) {
+        const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_MOVE) : [];
+        // The relay pads follow the signals after the move: a jump made during the move read each pad as it stood before it.
+        setPoweredCells(this.ctx);
+        setHoldDoors(this.ctx);
+        // The move never clears firedLaunchers: a launcher fired here by a signal blocks the fire buttons of the
+        // following tick, as one fired by a button does (see the clear in tick()).
+        fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
+      }
       this.stepsCount++;
       // The turrets' clock starts with the first step.
       if (this.w.hasTurrets && this.w.playStartTick === NO_PLAY_START_TICK) this.w.playStartTick = tickAtMove;
