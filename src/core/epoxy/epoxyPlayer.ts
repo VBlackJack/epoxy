@@ -228,9 +228,14 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
  * - a block whose terrain bars the player is not pushed (Lexy can_actor_enter_cell judges the cell's tiles before pushables,
  *   game.js:1813-1935).
  *
- * Known gap, pinned by a test: Lexy does not drop the push of a sliding block, it writes a pending push that turns the
- * block's next slide that way. Porting it (the AODP prototype flag) lost chaoslnd and map116 and broke memories (a block
- * pushed N on ice at t139 kills the player where the solution lives), so the push is skipped and the gap is kept.
+ * Pending push (wave 10): Lexy does not drop the push of a block that cannot be pushed directly, it writes a pending push that
+ * turns the block's next move that way (must_pending_push, game.js:1980-1996; taken at 1703-1710). Only the jammed case is
+ * ported: a block at rest on a force floor whose last move landed it on a slide cell (cc2SlideArrived) takes cc2PendingPush, is
+ * listed as moving at the decision so the step does not push it, and the player walks in when the block already left. Known gaps,
+ * pinned by tests: the push of a block that slides or arrives (ice or force) is still skipped, not queued (the full pending push,
+ * the AODP prototype flag, lost chaoslnd and map116 and broke memories, a block pushed N on ice at t139 kills the player where the
+ * solution lives); and the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either.
+ * A player carried by a force floor who may override it decides too (Lexy may_move, game.js:1576-1579).
  *
  * The slaps are timed as the input was (pass closed, outside a tick), as the clock adapter of the turn expects.
  */
@@ -238,7 +243,9 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
   const w = ctx.world;
   const p = w.player;
   if (!usesCc2Engine(w.level) || w.cc3dPace) return;
-  if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || p.isSliding || isCellClosedTrap(w, p.x, p.y)) return;
+  // A player carried by a force floor who may override it decides (and pushes) too (Lexy may_move, game.js:1576-1579).
+  const overridesForce = p.isSliding && p.forcePermission === true && ConfigRegistry.getTile(w.terrain[p.y][p.x]).slideType === 'force';
+  if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || (p.isSliding && !overridesForce) || isCellClosedTrap(w, p.x, p.y)) return;
   for (const entity of w.entities) {
     if (entity.kind === 'block' && (entity.arrivalTicks !== undefined || (entity.isSliding && entity.cooldownTicks > 0))) {
       movingAtDecision.add(entity.uid);
@@ -254,8 +261,18 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
       const ahead = getEntityAt(w, p.x + vec.dx, p.y + vec.dy);
       if (ahead !== undefined && ahead.kind === 'block') {
         const aheadTile = ConfigRegistry.getTile(w.terrain[ahead.y][ahead.x]);
-        // Lexy no_directly_pushing_sliding_blocks: skipped here (the pending push it writes instead is not ported, see above).
-        if (aheadTile.slideType !== undefined && (ahead.isSliding || ahead.arrivalTicks !== undefined)) continue;
+        const moving = aheadTile.slideType !== undefined && (ahead.isSliding || ahead.arrivalTicks !== undefined);
+        // Lexy must_pending_push (game.js:1980-1996): the push of a block jammed on a force floor (at rest, its last move landed it
+        // on a slide cell) becomes a pending push. The block goes that way at its own move of the tick; the step does not push it
+        // (it is listed as moving at the decision), and he walks in when the block, listed before him, already left.
+        const jammed = aheadTile.slideType === 'force' && !ahead.isSliding && ahead.arrivalTicks === undefined && ahead.cc2SlideArrived === true;
+        if (jammed) {
+          ahead.cc2PendingPush = dir;
+          movingAtDecision.add(ahead.uid);
+          continue;
+        }
+        // Lexy no_directly_pushing_sliding_blocks: the push of a block that slides or arrives is skipped.
+        if (moving) continue;
         if (!canPlayerEnter(w, aheadTile, w.items[ahead.y][ahead.x])) continue;
       }
       slapBlockAhead(ctx, dir);

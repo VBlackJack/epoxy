@@ -105,7 +105,8 @@ describe('decision push', () => {
     decisionPush(contextOf(engine), ['E'], new Set<number>());
     expect(block.x).toBe(BLOCK_X);
     // Known gap: Lexy (game.js no_directly_pushing_sliding_blocks, steam rulesets) writes a pending push here that turns the
-    // block's next slide. Porting it lost chaoslnd and map116 and broke memories, so the decision neither pushes nor queues.
+    // block's next slide. Porting it lost chaoslnd and map116 and broke memories, so a block that slides on ice is neither pushed
+    // nor queued. Only a block jammed at rest on a force floor is queued (wave 10, see cc2PlayerPendingPush.test.ts).
     expect(JSON.stringify(block)).toBe(before);
   });
 
