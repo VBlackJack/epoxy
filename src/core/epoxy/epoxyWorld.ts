@@ -826,7 +826,7 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
 
 /** A copy of the apparent player position of a CC2-engine level. */
 export function copyCc2PlayerView(v: Cc2PlayerView): Cc2PlayerView {
-  return { ...v, ...(v.sourcePad !== undefined ? { sourcePad: { ...v.sourcePad } } : {}) };
+  return { ...v };
 }
 
 /** A copy of the input stored for the player's turn on a CC2-engine level. */
@@ -838,7 +838,7 @@ export function copyPendingDecision(d: Cc2PendingDecision): Cc2PendingDecision {
 export function cc2PlayerViewKey(w: EpoxyWorld): string {
   const v = w.cc2PlayerView;
   if (v === undefined) return '';
-  return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}${v.sourcePad === undefined ? '' : `p${v.sourcePad.x}.${v.sourcePad.y}`}`;
+  return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}`;
 }
 
 /**

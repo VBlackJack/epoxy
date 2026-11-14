@@ -1017,16 +1017,15 @@ function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {
 
 /**
  * The point teeth aim at. On a CC2-engine level, once a tick has recorded the player's view, it is his apparent position
- * (the cell he is stepping out of, or the source pad of a teleport, plus the share of the step still to run), not his cell
+ * (the cell he is stepping out of, plus the share of the step still to run), not his cell
  * (Lexy pursue_player, visual_position); otherwise the player's cell.
  */
 function chaseTarget(w: EpoxyWorld): { x: number; y: number } {
   const view = w.cc2PlayerView;
   if (view === undefined || !usesCc2Engine(w.level)) return { x: w.player.x, y: w.player.y };
-  const base = view.sourcePad ?? view;
   const left = view.stepLength > 0 ? Math.min(1, Math.max(0, view.cooldown / view.stepLength)) : 0;
   const vec = DIRECTION_VECTORS[view.dir];
-  return { x: base.x - vec.dx * left, y: base.y - vec.dy * left };
+  return { x: view.x - vec.dx * left, y: view.y - vec.dy * left };
 }
 
 /**

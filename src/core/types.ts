@@ -2439,8 +2439,6 @@ export interface Cc2PlayerView {
   cooldown: number;
   /** Length of the step in ticks (how far along it the player is: 1 - cooldown / length). */
   stepLength: number;
-  /** A teleport under way: the cell of the source pad the apparent position stays on until the exit step. */
-  sourcePad?: GridPoint;
 }
 
 export interface PlayerState {
