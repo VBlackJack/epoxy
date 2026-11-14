@@ -101,13 +101,17 @@ describe('CC2 engine: a cloner wired to a source held at load', () => {
     expect(clonesAt(engine)).toBe(1);
   });
 
-  it('clones nothing when the player steps off the held source before tick 0', () => {
+  // Lexy runs two wire phases before the decisions of tic 0 (game.js:853-858): the source held at load has fired by the time the
+  // player's step off it is played, so the clone is made after all.
+  it('still clones when the player steps off the held source before tick 0', () => {
     const level = lane('cc2', false);
     level.playerStart = { x: PLATE_X, y: ROW, dir: 'W' };
     const engine = load(level);
     expect(playMove(engine, 'W').moved).toBe(true);
+    engine.tick();
+    expect(clonesAt(engine)).toBe(1);
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
-    expect(clonesAt(engine)).toBe(0);
+    expect(clonesAt(engine)).toBe(1);
     expect(engine.getPlayer().x).toBe(PLAYER_X);
   });
 });

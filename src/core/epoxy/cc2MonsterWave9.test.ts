@@ -208,12 +208,11 @@ describe('CC2 engine, actor order: the call sites of the player turn in the enti
     const skipping = ordered('cc2');
     const ticks = 6;
     for (let t = 0; t < ticks; t++) control.engine.tick();
-    world(skipping.engine).cc2SkipTurn = new Set<number>(skipping.uids);
-    for (let t = 0; t < ticks; t++) {
-      skipping.engine.tick();
-      // The set is for one pass: put it back for each tick of the probe.
+    // The set is for one pass and the tick clears it as it opens: it is put in from inside the pass, at the player's decision.
+    contextOf(skipping.engine).cc2PlayerDecides = () => {
       world(skipping.engine).cc2SkipTurn = new Set<number>(skipping.uids);
-    }
+    };
+    for (let t = 0; t < ticks; t++) skipping.engine.tick();
     const cells = (engine: GameEngine): string[] => engine.getEntities().map((e) => `${e.x},${e.y}`);
     expect(cells(control.engine)).not.toEqual(cells(skipping.engine));
     expect(cells(skipping.engine)).toEqual(['8,2', '8,4', '8,6']);
