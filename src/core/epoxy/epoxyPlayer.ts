@@ -105,8 +105,8 @@ export const CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS = 1;
 /** CC2 engine: ticks a slide that ends on plain floor waits less than a walking step (the last slide step is an in-tick move). */
 export const CC2_SLIDE_END_WAIT_REDUCTION_TICKS = 1;
 
-/** CC2 engine: ticks the step that leaves a soft pad lasts less, since the forced exit is taken a tick after the wait. */
-const CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS = 1;
+/** CC2 engine: ticks of the exit step's wait already counted when it is taken, at the turn after the jump. */
+const CC2_TELEPORT_EXIT_COUNTED_TICKS = 1;
 
 /** Shortest wait between two voluntary moves, whatever the haste. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
@@ -768,13 +768,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   // The item of the cell he arrived on, read before a pad is taken: the tool it pushes off the belt lands here and is not picked up again.
   const arrivalItem = w.items[y][x];
-  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && w.cc3dPace) {
-    // CC3D: the jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
+  // CC2 engine: the jump too happens when the step onto the pad ends, at the player's turn (Lexy step_on_cell marks the pad,
+  // game.js:2316-2327, and attempt_teleport runs from do_actor_idle, game.js:1371-1372).
+  const jumpsAtStepEnd = usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd;
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && (w.cc3dPace || jumpsAtStepEnd)) {
+    // The jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
     cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
   } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) {
-      markCc2Teleport(w, x, y);
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
       return;
@@ -1013,7 +1015,9 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
       }
     }
   }
-  if (pending.teleport !== undefined) {
+  if (pending.teleport !== undefined && !w.cc3dPace) {
+    jumpAtStepEnd(ctx, pending.teleport);
+  } else if (pending.teleport !== undefined) {
     const { x, y, dir } = pending.teleport;
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, dir, true)) {
@@ -1025,6 +1029,23 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     }
   }
   return true;
+}
+
+/**
+ * CC2 engine: the jump of the step that ended on a pad. He lands on the destination pad and the forced exit is taken at his next
+ * turn (Lexy teleport-hard slide, game.js:2324-2373); a soft pad (red, yellow) opens his exit decision in the tick of the jump
+ * (Lexy teleport-soft, tiletypes.js teleport_red and teleport_yellow, game.js:1600-1620).
+ */
+function jumpAtStepEnd(ctx: EpoxyContext, at: { x: number; y: number; dir: Direction }): void {
+  const w = ctx.world;
+  const p = w.player;
+  const { x, y, dir } = at;
+  if (p.x !== x || p.y !== y || !p.alive) return;
+  ctx.emitVisual('teleport', x, y);
+  if (!teleportPlayer(w, x, y, dir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) return;
+  ctx.emitVisual('teleport', w.player.x, w.player.y);
+  resolvePlayerArrival(ctx, w.player.dir, false, true);
+  if (onSoftPad(w)) w.player.softPadDue = true;
 }
 
 /**
@@ -1139,13 +1160,6 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   const w = ctx.world;
   const dir = w.player.teleportExit;
   if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
-  // CC2 engine, red and yellow pads: the exit is the player's own decision at his next decision (see softPadOverrideDue). The
-  // first tick after the wait only opens that decision; the forced exit is taken on the following tick when he held nothing.
-  const soft = onSoftPad(w);
-  if (soft && w.player.softPadDue !== true) {
-    w.player.softPadDue = true;
-    return;
-  }
   delete w.player.softPadDue;
   delete w.player.teleportExit;
   const mover = w.player;
@@ -1157,8 +1171,8 @@ export function processTeleportExit(ctx: EpoxyContext): void {
     if (w.player.isSliding) w.player.slideCooldown = Math.min(w.player.slideCooldown, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS - 1);
     else w.player.moveCooldown = Math.max(w.player.moveCooldown, STEP_TICKS.fast - CC3D_TELEPORT_LANDING_WAIT_TICKS);
   } else if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    // The exit of a soft pad was taken a tick later, so its step is one tick shorter.
-    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (soft ? CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS : 0));
+    // CC2 engine: the exit is taken at his turn after the jump, which counted a tick of its wait already: a walking wait less one.
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (usesCc2Engine(w.level) ? CC2_TELEPORT_EXIT_COUNTED_TICKS : 0));
   }
   ctx.checkTargetsWin();
 }
@@ -1287,23 +1301,10 @@ export function cc2PlayerViewOf(w: EpoxyWorld): Cc2PlayerView {
 }
 
 /**
- * CC2 engine: the explicit teleport marker. The jump to the destination pad happens when the step onto the source pad
- * (x, y) starts here, but the teeth see the player move onto the source pad and only then jump. The marker rides on
- * the view (`sourcePad`), which is left as it stood (the teeth of the tick under way read it); the next
- * recordCc2PlayerView moves it onto the pad.
- */
-function markCc2Teleport(w: EpoxyWorld, x: number, y: number): void {
-  if (!tracksCc2PlayerView(w) || w.cc3dPace) return;
-  const view = w.cc2PlayerView;
-  w.cc2PlayerView = view === undefined ? { x, y, dir: w.player.dir, cooldown: 0, stepLength: 1, sourcePad: { x, y } } : { ...view, sourcePad: { x, y } };
-}
-
-/**
  * CC2 engine: records where the controlled player appears to be, at the end of a tick, so the teeth of the next tick
  * (which run after this tick's input moved him, but aim where he stood before it) read his position at the start of it.
  * A step in progress puts him `cooldown / stepLength` of a cell behind his cell; the step length is the real one (ice,
- * force floors, speed boots), read from the cooldown the step was given. A teleport keeps the apparent position on the
- * source pad until the exit step (resetCc2PlayerView in processTeleportExit moves it onto the destination pad).
+ * force floors, speed boots), read from the cooldown the step was given.
  */
 export function recordCc2PlayerView(w: EpoxyWorld): void {
   if (!tracksCc2PlayerView(w)) return;
@@ -1312,19 +1313,6 @@ export function recordCc2PlayerView(w: EpoxyWorld): void {
   const prev = w.cc2PlayerView;
   if (prev === undefined) {
     w.cc2PlayerView = { x: p.x, y: p.y, dir: p.dir, cooldown, stepLength: Math.max(1, cooldown) };
-    return;
-  }
-  const pad = prev.sourcePad;
-  if (pad !== undefined) {
-    if (prev.x !== pad.x || prev.y !== pad.y) {
-      // The teleport was marked after this view was taken: from now the apparent position is the pad he stepped onto.
-      const dx = Math.sign(pad.x - prev.x);
-      const dy = Math.sign(pad.y - prev.y);
-      const dir = dx === 0 && dy < 0 ? 'N' : dx === 0 && dy > 0 ? 'S' : dy === 0 && dx > 0 ? 'E' : dy === 0 && dx < 0 ? 'W' : prev.dir;
-      w.cc2PlayerView = { x: pad.x, y: pad.y, dir, cooldown, stepLength: Math.max(1, cooldown + 1), sourcePad: { ...pad } };
-    } else {
-      w.cc2PlayerView = { ...prev, cooldown, stepLength: cooldown === 0 ? 1 : prev.stepLength, sourcePad: { ...pad } };
-    }
     return;
   }
   const moved = prev.x !== p.x || prev.y !== p.y;
