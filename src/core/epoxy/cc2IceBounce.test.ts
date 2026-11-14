@@ -48,6 +48,8 @@ function afterFirstStep(mode: RoomMode, terrain: Record<string, string> = {}): {
       entities: [{ type: MONSTER, x: CELL_X, y: ROOM_ROW, dir: 'N' }]
     })
   );
+  // A monster loaded on ice decides normally on its load cell; this test is about the ice step of one that has moved on.
+  for (const loaded of engine.getEntities()) delete loaded.atLoadCell;
   for (let i = 0; i < FIRST_TICKS; i++) engine.tick();
   const monster = engine.getEntities().find((e) => e.type === MONSTER);
   if (monster === undefined) throw new Error('the room has a bug');

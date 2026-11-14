@@ -283,11 +283,11 @@ describe('classic queued monster button arrivals', () => {
     expect(w.ccArrivals).toEqual([]);
   });
 
-  it('does not delay the green button on a level imported from Chip\'s Challenge 2', () => {
+  it('defers the green button press to the end of the step on a level imported from Chip\'s Challenge 2', () => {
     const state = buttonLevel('cc2', 'bug', 'button_green');
     stepOntoButton(state, 'bug');
-    expect(state.w.ccArrivals).toEqual([]);
-    expect(state.w.terrain[WALL_CELL.y][WALL_CELL.x]).not.toBe('toggle_wall_closed');
+    expect(state.w.ccArrivals).toHaveLength(1);
+    expect(state.w.terrain[WALL_CELL.y][WALL_CELL.x]).toBe('toggle_wall_closed');
   });
 
   it('still delays the other buttons on a level imported from Chip\'s Challenge 2', () => {
