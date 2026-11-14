@@ -145,6 +145,8 @@ export function blastDynamite(ctx: EpoxyContext, charge: LitCharge, pending: Set
         // A cell whose terrain is blasted away reveals nothing later.
         w.revealedCells.add(y * width + x);
         terrainChanged = true;
+        // A ghost is no longer barred from a custom floor or wall the blast turned into floor.
+        w.ghostBar?.delete(y * width + x);
       }
 
       // Lexy's layer walk (tiletypes.js:3128-3147): under a canopy only the canopy goes and the thin walls stay; otherwise
