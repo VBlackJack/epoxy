@@ -466,6 +466,15 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
     }
   }
 
+  // CC2 engine: a lit flame jet burns every block that is not fireproof (Lexy flame_jet_on on_stand; the dirt block is
+  // fireproof, tiletypes.js dirt_block). The ice block explodes like the others, it does not melt to water on a jet.
+  if (tile.burnsOccupants === true && block.type !== CC2_DIRT_BLOCK_TYPE && usesCc2Engine(w.level) && !w.cc3dPace) {
+    removeEntity(w, block.uid);
+    AudioManager.playSfx('burn');
+    ctx.emitVisual('explosion', destX, destY);
+    return;
+  }
+
   if (tile.hazard === 'fire' && blockDef?.destroyedByFire) {
     if (blockDef.meltsInFireTo) {
       w.terrain[destY][destX] = blockDef.meltsInFireTo;
