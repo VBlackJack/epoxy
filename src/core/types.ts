@@ -2382,6 +2382,16 @@ export interface RuntimeEntity {
   pendingSteerDue?: number;
   /** CC2-engine level only: the entity still stands on the cell it was loaded on and has made no decision elsewhere; set at load, cleared on its first decision away from that cell. Absent otherwise. */
   atLoadCell?: true;
+  /**
+   * CC2 engine, on a block: its last move landed it on a slide cell (Lexy current_slide_mode, game.js:187 and the slide
+   * branches at 1130-1164). Set only under the CC2 engine and deleted rather than set false; the push judgement reads it.
+   */
+  cc2SlideArrived?: true;
+  /**
+   * CC2 engine, on a block jammed on a force floor: the direction the player's decision pushed it, which the block takes at
+   * its own move of the tick (Lexy pending_push, game.js:1703-1710 and must_pending_push at 1980-1996). Deleted once used.
+   */
+  cc2PendingPush?: Direction;
   /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set while it matters (the running pass and the one after it) and dropped by the next monster step once older; the search key holds its age, not the pass number. */
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */

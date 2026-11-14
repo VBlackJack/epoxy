@@ -867,6 +867,11 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // An entity that has not left its load cell decides differently from one that has.
   const atLoad = w.entities.filter((e) => e.atLoadCell === true).map((e) => e.uid);
   if (atLoad.length > 0) parts.push(`l${atLoad.join(',')}`);
+  // A block that landed on a slide cell by its last move, and the push a jammed block waits to take at its own move.
+  const slid = w.entities.filter((e) => e.cc2SlideArrived === true).map((e) => e.uid);
+  if (slid.length > 0) parts.push(`a${slid.join(',')}`);
+  const pushes = w.entities.filter((e) => e.cc2PendingPush !== undefined).map((e) => `${e.uid}${e.cc2PendingPush}`);
+  if (pushes.length > 0) parts.push(`q${pushes.join(',')}`);
   // The tool belt (order matters) and the soft pad decision of each player.
   const belts = playersOf(w).map((p, index) => (p.belt !== undefined && p.belt.length > 0 ? `${index}:${p.belt.join('+')}` : '')).filter((part) => part !== '');
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);
