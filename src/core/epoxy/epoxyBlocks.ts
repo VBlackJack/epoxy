@@ -52,6 +52,9 @@ import {
  */
 export const CC2_SPLASH_BLOCK_PASSES = 5;
 
+/** Quarter turns in a full circle of directions. */
+const QUARTER_TURNS_IN_CIRCLE = 4;
+
 /** The block type the CC2 item bar (blocksDirtBlock) applies to. */
 const CC2_DIRT_BLOCK_TYPE = DIRT_BLOCK_ENTITY_ID;
 
@@ -203,7 +206,7 @@ export function canPushBlock(
   guardPlayerCell = false
 ): boolean {
   const dir = railRedirect(w, block.x, block.y, requestedDir, 'block');
-  return canBeShoved(w, block, dir) && planPushLine(w, block, dir, allowChain, guardPlayerCell) !== undefined;
+  return canBeShoved(w, block, shoveJudgedDir(w, requestedDir, dir)) && planPushLine(w, block, dir, allowChain, guardPlayerCell) !== undefined;
 }
 
 export function attemptPushBlock(
@@ -218,9 +221,14 @@ export function attemptPushBlock(
   const w = ctx.world;
   // A block on a Chip's Challenge 2 track cell is turned onto the track when the push is one the tracks refuse.
   const dir = railRedirect(w, block.x, block.y, requestedDir, 'block');
-  if (!canBeShoved(w, block, dir)) {
+  if (!canBeShoved(w, block, shoveJudgedDir(w, requestedDir, dir))) {
     return false;
   }
+  // CC2 engine: a frame block the track turns keeps its arrows turned with it (Lexy frame_block on_rotate).
+  const turnedFacing =
+    usesCc2Engine(w.level) && !w.cc3dPace && dir !== requestedDir && ConfigRegistry.getEntityDef(block.type)?.pushArrows !== undefined
+      ? turnFacingWithTrack(block.facing ?? block.dir, requestedDir, dir)
+      : undefined;
   const refusal: PushRefusal = {};
   const line = planPushLine(w, block, dir, allowChain, guardPlayerCell, refusal, slider ?? block);
   if (!line) {
@@ -240,7 +248,7 @@ export function attemptPushBlock(
     if (!w.player.alive) break;
     // Still the same block at its cell and still allowed to yield. A sliding member refuses, but the directly
     // pushed block keeps the old rule (it may be pushed while it slides).
-    if (getEntityAt(w, member.x, member.y) !== member || !canBeShoved(w, member, dir)) break;
+    if (getEntityAt(w, member.x, member.y) !== member || !canBeShoved(w, member, i === 0 ? shoveJudgedDir(w, requestedDir, dir) : dir)) break;
     if (i > 0 && member.isSliding) break;
     const destX = member.x + vec.dx;
     const destY = member.y + vec.dy;
@@ -261,7 +269,24 @@ export function attemptPushBlock(
   }
   if (movedCount > 1 || (movedCount > 0 && !directMoved)) w.chainPushCount++;
   if (movedCount > 0 && !directMoved) w.rejectedPushMovedBlocks = true;
+  if (directMoved && turnedFacing !== undefined) block.facing = turnedFacing;
   return directMoved;
+}
+
+/**
+ * The way a block's arrows are judged for a push. CC2 engine: the way pushed, before a track turns it (Lexy judges the
+ * arrows on the push, game.js redirect_exit comes after); every other level judges the redirected way.
+ */
+function shoveJudgedDir(w: EpoxyWorld, requested: Direction, redirected: Direction): Direction {
+  return usesCc2Engine(w.level) && !w.cc3dPace ? requested : redirected;
+}
+
+/** The facing after the turn that takes the pushed way `from` to the way `to` the track gave (Lexy frame_block on_rotate). */
+function turnFacingWithTrack(facing: Direction, from: Direction, to: Direction): Direction {
+  for (let quarterTurns = 0; quarterTurns < QUARTER_TURNS_IN_CIRCLE; quarterTurns++) {
+    if (turnClockwise(from, quarterTurns) === to) return turnClockwise(facing, quarterTurns);
+  }
+  return facing;
 }
 
 /**
