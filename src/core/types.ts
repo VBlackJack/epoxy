@@ -1671,7 +1671,7 @@ export interface EntityDefinition {
    * character's own rules (a mirror Chip slides on ice, a mirror Melinda does not and is stopped by dirt and gravel).
    */
   mirrorsCharacter?: PlayerCharacter;
-  /** The key item a mirror player opens doors with without using it up (its own colour of key, as in CC2). */
+  /** The key item a mirror player never uses up (its own colour of key, as in CC2). Native levels: it opens those doors without holding the key. CC2 engine: it must hold one it picked up, and it spends every other colour. */
   mirrorKey?: string;
 }
 

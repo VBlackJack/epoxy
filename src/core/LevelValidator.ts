@@ -585,8 +585,9 @@ export class LevelValidator {
       }
     }
     // A mirror of the level's character opens the doors of its own key colour without a key: such doors are not left without one.
+    // On the CC2 engine a mirror opens a door only with a key it picked up, so no door goes without a key because of a mirror.
     const mirrorKeys = new Set(
-      level.entities
+      (level.cc2 !== undefined ? [] : level.entities)
         .map((e) => ConfigRegistry.getEntityDef(e.type))
         .filter((def) => def?.mirrorsCharacter !== undefined && characters.includes(def.mirrorsCharacter))
         .map((def) => def?.mirrorKey)
@@ -2598,6 +2599,9 @@ export class LevelValidator {
     tally: { changed: boolean }
   ): boolean {
     const height = simTerrain.length;
+    // CC2 engine: a mirror opens a door of its colour only when a key of that colour lies on the map for it to pick up.
+    const keysOnMap = new Set<string>();
+    if (level.cc2 !== undefined) for (const row of simItems) for (const item of row) if (item !== null) keysOnMap.add(item);
     const width = simTerrain[0]?.length ?? 0;
     if (width === 0) return false;
     const reached = new Uint8Array(width * height);
@@ -2632,7 +2636,7 @@ export class LevelValidator {
             (dest.hazard === undefined || def.blockedByHazards?.includes(dest.hazard) !== true);
           // A mirror player walks the terrain its character walks (doors of its key colour open to it): the flood
           // reads every tile the player may enter as open, an over-approximation that never turns a level unwinnable.
-          const mirrored = def?.mirrorsCharacter !== undefined && possibleCharacters.includes(def.mirrorsCharacter) && (dest.passableByPlayer || dest.requiredKey === def.mirrorKey);
+          const mirrored = def?.mirrorsCharacter !== undefined && possibleCharacters.includes(def.mirrorsCharacter) && (dest.passableByPlayer || (dest.requiredKey === def.mirrorKey && (level.cc2 === undefined || keysOnMap.has(def.mirrorKey as string))));
           // A fish gate is read as open to a monster or a block (an over-approximation: it opens once the chips are in).
           const opensToMovers = dest.fishGate === true;
           // A monster may also enter what its definition passes: the turtles, the fire it is immune to, the tiles it names.

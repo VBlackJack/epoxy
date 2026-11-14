@@ -21,7 +21,7 @@
  * mirrors (Lexy's Labyrinth: the doppelganger decides `level.player1_move` or `level.player2_move`, whichever the real
  * player left, in js/tiletypes.js `doppelganger1` and `doppelganger2`, set by `remember_player_move` in js/game.js).
  * It obeys the terrain rules of its character, not a monster's: it opens the doors of its own key colour without
- * using the key up, is stopped by what stops that character (dirt and gravel for Melinda without boots, a sign for
+ * using the key up (on the CC2 engine only with a key it picked up), is stopped by what stops that character (dirt and gravel for Melinda without boots, a sign for
  * the other character), pushes blocks, takes the items lying on its way, presses the buttons it steps on and dies in
  * water, fire and bombs. Chip's mirror slides on ice; Melinda's does not. It kills the player on contact, whoever
  * moves into the other, and its own death does not end the level.
@@ -29,18 +29,19 @@
  * On a level played by the CC2 engine the mirrors are actors of their own (Lexy tiletypes.js doppelganger1 and doppelganger2):
  * they walk a step every four ticks (two onto ice or a force floor), read the move the player last decided (game.js
  * remember_player_move: a blocked try too, cleared when his step ends or when he decides nothing), press buttons when their
- * step ends and are pushed out of a trap forward when it opens (tiletypes.js trap add_press). Which tick's decision a mirror
+ * step ends and are pushed out of a trap forward when it opens (tiletypes.js trap add_press). They keep what they pick up
+ * like any actor (game.js attempt_take: up to four tools, every key) and open a door only with a key they hold. Which tick's decision a mirror
  * reads follows the order the source lists the actors in (the player among them). Native Epoxy levels keep the copy of each
  * input.
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
-import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION } from '../coreConstants';
+import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION, RAILROAD_SIGN_ITEM_ID } from '../coreConstants';
 import { Cc2MirrorMove, Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { usesCc2Engine } from './ccRules';
-import { resolveMonsterArrival } from './epoxyMonsters';
+import { mirrorTakesItem, resolveMonsterArrival } from './epoxyMonsters';
 import { shieldedPlayerAt } from './epoxyWard';
 import { leaveSwivel } from './epoxySwivels';
 import { currentEntityPass, EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, mapWidth, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
@@ -134,8 +135,15 @@ function activeMirrors(w: EpoxyWorld, dir: Direction): RuntimeEntity[] {
   return w.entities.filter((e) => mirrorDefOf(e)?.mirrorsCharacter === character).sort((a, b) => ahead(b) - ahead(a));
 }
 
+/** CC2 engine: whether the mirror holds the boots that protect from this tile (cleats and suction boots on a floor, flippers on water, fire boots on fire). */
+function holdsProtectionFor(entity: RuntimeEntity, tile: TileDefinition): boolean {
+  return tile.protectedByItem !== undefined && entity.heldTools?.includes(tile.protectedByItem) === true;
+}
+
 /** The direction a mirror slides in on the tile it stands on, or null when the floor does not carry it. */
 function floorCarry(entity: RuntimeEntity, def: EntityDefinition, tile: TileDefinition, w: EpoxyWorld): Direction | null {
+  // CC2 engine: a mirror holding the boots against the floor (cleats, suction boots) is not carried by it.
+  if (hasCc2MirrorCadence(w) && holdsProtectionFor(entity, tile)) return null;
   if (tile.slideType === 'ice') {
     // Melinda does not slide on ice, and neither does her mirror; Chip's mirror owns no skates.
     if (def.mirrorsCharacter === MELINDA_CHARACTER) return null;
@@ -154,11 +162,14 @@ function floorCarry(entity: RuntimeEntity, def: EntityDefinition, tile: TileDefi
  */
 function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinition, dir: Direction): boolean {
   const w = ctx.world;
+  const cc2 = hasCc2MirrorCadence(w);
   const vec = DIRECTION_VECTORS[dir];
   const nx = entity.x + vec.dx;
   const ny = entity.y + vec.dy;
   if (!isInBounds(w, nx, ny)) return false;
-  if (isEdgeBlocked(w, entity.x, entity.y, nx, ny, dir)) return false;
+  // CC2 engine: a mirror holding the railroad sign leaves a track any way (Lexy railproof trait).
+  const rail = cc2 && entity.heldTools?.includes(RAILROAD_SIGN_ITEM_ID) === true ? 'railproof' : undefined;
+  if (isEdgeBlocked(w, entity.x, entity.y, nx, ny, dir, false, rail)) return false;
   if (w.shots.length > 0 && shotAt(w, nx, ny)?.payload !== undefined) return false;
   // A player in a helmet is not hurt by contact, so the mirror stops at the player's cell as any monster does.
   if (shieldedPlayerAt(w, nx, ny)) return false;
@@ -185,7 +196,22 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   }
   // A socket never opens for a mirror: it picks up no chip. A fish gate that is already open admits it, as any mover.
   if (tile.requiresAllChips && !isOpenFishGate(w, tile)) return false;
-  if (tile.requiredKey) {
+  if (tile.requiredKey && cc2) {
+    // CC2 engine: a mirror opens a door only with a key it holds (Lexy door blocks an actor without the key); it never spends
+    // the key of its own colour (infinite_items) and spends any other.
+    const held = entity.heldKeys ?? [];
+    const at = held.indexOf(tile.requiredKey);
+    if (at < 0) return false;
+    if (def.mirrorKey !== tile.requiredKey) {
+      held.splice(at, 1);
+      if (held.length === 0) delete entity.heldKeys;
+    }
+    const revealed = takeRevealedTerrain(w, nx, ny);
+    w.terrain[ny][nx] = revealed ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
+    w.gridMutatedByMove = true;
+    ctx.emitVisual('unlock', nx, ny, tile.colorKey || 'yellow');
+    tile = ConfigRegistry.getTile(w.terrain[ny][nx]);
+  } else if (tile.requiredKey) {
     if (def.mirrorKey !== tile.requiredKey) return false;
     const revealed = takeRevealedTerrain(w, nx, ny);
     w.terrain[ny][nx] = revealed ?? (tile.transformsToOnUnlock || FLOOR_TILE_ID);
@@ -197,8 +223,9 @@ function enterAhead(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinit
   const character = def.mirrorsCharacter;
   if (character === undefined) return false;
   if (tile.characterOnly !== undefined && tile.characterOnly !== character) return false;
-  // The boots a character needs on dirt and gravel: a mirror holds none.
-  if (tile.bootsForCharacter?.[character] !== undefined) return false;
+  // The boots a character needs on dirt and gravel: a mirror holds none, except on the CC2 engine where it keeps the ones it took.
+  const neededBoots = tile.bootsForCharacter?.[character];
+  if (neededBoots !== undefined && !(cc2 && entity.heldTools?.includes(neededBoots) === true)) return false;
   return true;
 }
 
@@ -249,7 +276,10 @@ function takeItemUnder(w: EpoxyWorld, entity: RuntimeEntity): void {
   const itemId = w.items[entity.y][entity.x];
   if (!itemId) return;
   const kind = ConfigRegistry.getTile(itemId).collectible;
-  if (kind !== undefined && MIRROR_TAKES_COLLECTIBLES.includes(kind)) w.items[entity.y][entity.x] = null;
+  if (kind === undefined || !MIRROR_TAKES_COLLECTIBLES.includes(kind)) return;
+  // CC2 engine: it keeps what it takes (keys, boots, dynamite, stones), up to four tools; a refused pickup stays on the floor.
+  if (hasCc2MirrorCadence(w)) mirrorTakesItem(w, entity, entity.x, entity.y, itemId);
+  else w.items[entity.y][entity.x] = null;
 }
 
 /**
@@ -314,7 +344,7 @@ export function stepMirrorFloor(ctx: EpoxyContext, entity: RuntimeEntity): boole
 /** CC2 engine: the cooldown a mirror's step ends with, read from the cell it entered: half a walking step onto ice or a force floor. */
 function mirrorStepCooldown(w: EpoxyWorld, entity: RuntimeEntity): number {
   const tile = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
-  return tile.slideType !== undefined ? CC2_MIRROR_SLIDE_COOLDOWN_TICKS : CC2_MIRROR_WALK_COOLDOWN_TICKS;
+  return tile.slideType !== undefined && !holdsProtectionFor(entity, tile) ? CC2_MIRROR_SLIDE_COOLDOWN_TICKS : CC2_MIRROR_WALK_COOLDOWN_TICKS;
 }
 
 /**

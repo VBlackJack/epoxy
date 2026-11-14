@@ -881,6 +881,51 @@ function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, it
   entity.heldTools = held;
 }
 
+/** The collectible kind of a key: a mirror player keeps every key it takes (its own colour too). */
+const KEY_COLLECTIBLE = 'key';
+
+/** Collectible kinds a mirror player holds as tools on its belt (Lexy gives a doppelganger the same toolbelt as the player). */
+const MIRROR_TOOL_COLLECTIBLES: readonly string[] = ['boot', 'charge', 'stone', 'gate'];
+
+/** The boots the CC1 boot rules (use_cc1_boots) keep: a fixed set, no belt cap, duplicates ignored, nothing else is taken (Lexy game.js CC1_INVENTORY_ORDER). */
+const CC1_BOOT_ITEM_IDS: readonly string[] = ['boots_ice', 'boots_force', 'boots_fire', 'boots_water'];
+
+/**
+ * CC2 engine: a mirror player takes the item it stands on the way Lexy's attempt_take does for any actor (game.js:3221-3275):
+ * keys are kept, tools join a belt of four whose oldest is put down on the cell, and the CC1 boot rules (use_cc1_boots) keep
+ * a fixed set of boots with no cap and refuse every other tool. A yellow teleporter pad cannot be put down off plain floor, so
+ * a full belt whose oldest tool is a pad refuses the pickup there. Epoxy keeps no item modifier layer, so Lexy's item_mod
+ * ignore has nothing to read. Returns true when the item was taken (the cell no longer holds it), false when it stays.
+ */
+export function mirrorTakesItem(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): boolean {
+  const collectible = ConfigRegistry.getTile(itemId).collectible;
+  if (collectible === undefined) return false;
+  if (collectible === KEY_COLLECTIBLE) {
+    w.items[y][x] = null;
+    (entity.heldKeys ??= []).push(itemId);
+    return true;
+  }
+  if (!MIRROR_TOOL_COLLECTIBLES.includes(collectible)) {
+    // A toll token and the like are taken and gone, as before.
+    w.items[y][x] = null;
+    return true;
+  }
+  const held = entity.heldTools ?? [];
+  if (w.level.cc2?.useCc1Boots === true) {
+    if (!CC1_BOOT_ITEM_IDS.includes(itemId)) return false;
+    w.items[y][x] = null;
+    if (!held.includes(itemId)) entity.heldTools = [...held, itemId];
+    return true;
+  }
+  if (held.length >= CC2_ENTITY_TOOL_CAPACITY) {
+    const oldest = ConfigRegistry.getTile(held[0]);
+    if (oldest.cc2YellowPadItem === true && w.terrain[y][x] !== FLOOR_TILE_ID) return false;
+  }
+  w.items[y][x] = null;
+  holdTool(w, entity, x, y, itemId);
+  return true;
+}
+
 /** The hazard of the cell a monster stands in that removes it (a bomb, water, fire, slime it is not immune to), or null. */
 function hazardRemoval(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): 'bomb' | 'splash' | 'burn' | null {
   const item = w.items[entity.y][entity.x];
