@@ -517,6 +517,7 @@
       "passableByMonster": false,
       "passableByBlock": false,
       "transformsToOnStep": "floor",
+      "clearsOnArriveCc2": true,
       "bootsForCharacter": { "melinda": "hiking_boots" },
       "cc2Twin": "dirt_cc2"
     },
@@ -530,6 +531,7 @@
       "passableByMonster": false,
       "passableByBlock": true,
       "transformsToOnStep": "floor",
+      "clearsOnArriveCc2": true,
       "bootsForCharacter": { "melinda": "hiking_boots" },
       "blockClearsTo": "floor",
       "barsBlocks": ["dirt_block"],

@@ -1311,6 +1311,8 @@ export interface TileDefinition {
    * clears items and terrain in a diamond-shaped region (see epoxyDynamite.ts), not the square of the blast charge.
    */
   cc2Dynamite?: boolean;
+  /** CC2 engine, on a tile with `transformsToOnStep`: the player's step clears it only when that step ends, so monsters find the cell shut until then (the dirt). */
+  clearsOnArriveCc2?: boolean;
   /**
    * Boots only (the steel foil): while held, a player who bumps a wall whose id is a key here turns it into the tile named by
    * the value, and does not move. Every target must be an impassable terrain, so the foil never opens a way. The boots stay held.
@@ -1648,6 +1650,8 @@ export interface EntityDefinition {
   meltsIceOnBumpCc2?: boolean;
   /** CC2 engine: a monster that, holding the tool that protects from a fire it arrives on, turns the fire into floor (the ghost with fire boots, Lexy fire.on_arrive). */
   erasesHazardWithToolCc2?: boolean;
+  /** CC2 engine: a monster a CC2 hint does not bar (the ghost, the rover, the rolling ball and the mirror players). */
+  passesCc2Hints?: boolean;
   /** CC2 engine, on a block: water that swallows it becomes plain floor, not dirt (the frame blocks, Lexy water.on_arrive). */
   waterBecomesFloorCc2?: boolean;
   /** A monster that slime does not kill (the CC3D omni); without it a monster that enters slime dies. */
@@ -2186,6 +2190,23 @@ export interface Cc2LevelData {
   blobBehavior?: number;
   /** OPTN byte 23 (use_cc1_boots): the level plays with the CC1 tool belt rules, so the four-tool belt is off. Absent means unset (P parses it). */
   useCc1Boots?: boolean;
+  /**
+   * Cell indices (y * width + x) of the custom floors and custom walls of the source, which bar ghosts while the tiles
+   * themselves stay plain floor and wall. Ascending integers; absent when there are none. A level imported before this
+   * field existed gets it only after a re-import.
+   */
+  ghostBarCells?: number[];
+}
+
+/**
+ * CC2 engine: what the mirror players copy of the controlled player's decisions. `remembered` is the direction he last
+ * decided (a blocked try too), `snapshot` the value a mirror loaded after him reads (the previous tick's), `attempted`
+ * whether he decided this tick. Absent in the world until a decision was made.
+ */
+export interface Cc2MirrorMove {
+  remembered: Direction | null;
+  snapshot: Direction | null;
+  attempted: boolean;
 }
 
 /** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */
@@ -2205,6 +2226,8 @@ export interface CcArrival {
   teleport?: boolean;
   /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
   due: number;
+  /** CC2 engine: the entity worked a light switch or pulse source when its step ended; the next settle reads it. Absent otherwise. */
+  pulse?: true;
 }
 
 /** The start of a player beyond the first on a level with several. */
@@ -2343,6 +2366,17 @@ export interface RuntimeEntity {
   pendingSteerDue?: number;
   /** CC2-engine level only: the entity still stands on the cell it was loaded on and has made no decision elsewhere; set at load, cleared on its first decision away from that cell. Absent otherwise. */
   atLoadCell?: true;
+  /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set only while it matters, absent otherwise. */
+  stepEndedPass?: number;
+  /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */
+  stepEndedCell?: number;
+  /** CC2 engine, a mirror: held by a shut trap, to be ejected forward when it opens. Absent otherwise. */
+  trapHeld?: true;
+  /**
+   * CC2 engine, on a level with mirror players: the position of this actor in the order the source lists its actors
+   * (reading order of the load grid). An entity without one was spawned after load and counts as after every other.
+   */
+  listOrdinal?: number;
 }
 
 /** What a step of the player onto a cell does when it ends, on a converted CC3D level or a CC2-engine level (see PlayerState.cc3dArrival). */
@@ -2424,6 +2458,8 @@ export interface PlayerState {
   belt?: string[];
   /** CC2-engine level only: the player stands on a soft pad (red or yellow teleporter) and decides his exit at his next decision. Set only while due. */
   softPadDue?: true;
+  /** CC2-engine level with mirror players only: the position of this player in the actor order of the source (see RuntimeEntity.listOrdinal). Absent otherwise. */
+  listOrdinal?: number;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2491,6 +2527,8 @@ export interface PlayerSnapshot {
   belt?: string[];
   /** The player's softPadDue; written only while due. */
   softPadDue?: true;
+  /** The player's listOrdinal; written only when set. */
+  listOrdinal?: number;
 }
 
 export interface UndoSnapshot {
@@ -2556,6 +2594,12 @@ export interface UndoSnapshot {
   cc2BrownHeld?: number[];
   /** The ascending cell indices of the buttons a rolling ball toggled (a button held by an actor that was removed); written only while one is toggled, absent otherwise. */
   cc2ToggledButtonCells?: number[];
+  /** The decisions the mirror players copy (CC2 engine): written only once one was recorded, absent otherwise. */
+  mirrorMove?: Cc2MirrorMove;
+  /** The thin wall edge mask after dynamite blasts removed some of its sides (CC2 engine); written only after a blast changed it, absent otherwise. */
+  blastedEdgeMask?: number[];
+  /** The cells that still bar ghosts (CC2 engine custom floors and walls); written only once a blast removed one, absent otherwise. */
+  ghostBar?: number[];
   /** Monster button presses queued on a classic-rules level; written only while one waits, absent otherwise. */
   ccArrivals?: CcArrival[];
   /** Creature slots of a classic-rules level (the uid in each, null for a freed one); written only on a classic-rules level, absent otherwise. */
