@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -53,7 +54,7 @@ function endStep(engine: GameEngine): void {
 describe('a bomb stepped onto', () => {
   it('goes off when the step ends on a CC2-engine level', () => {
     const engine = load('cc2', 'bomb');
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.getPlayer().alive).toBe(true);
     expect(world(engine).items[ROOM_ROW][ITEM_X]).toBe('bomb');
     endStep(engine);
@@ -63,7 +64,7 @@ describe('a bomb stepped onto', () => {
 
   it('does not go off when he is no longer on its cell by then', () => {
     const engine = load('cc2', 'bomb');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     world(engine).player.x = ITEM_X + 1;
     endStep(engine);
     expect(engine.getPlayer().alive).toBe(true);
@@ -79,7 +80,7 @@ describe('a bomb stepped onto', () => {
 
   it('is taken as a chip when it turned into one during the step', () => {
     const engine = load('cc2', 'green_bomb');
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.getPlayer().alive).toBe(true);
     world(engine).items[ROOM_ROW][ITEM_X] = 'green_chip';
     expect(engine.getChipsRemaining()).toBe(1);

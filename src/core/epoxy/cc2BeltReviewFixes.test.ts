@@ -27,6 +27,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 import { BRIBE_ITEM_ID, TOKEN_ITEM_ID } from '../coreConstants';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playDrop, playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -60,7 +61,7 @@ function corridor(mode: RoomMode, items: string[]): GameEngine {
 function walkEast(engine: GameEngine, steps: number): void {
   for (let i = 0; i < steps; i++) {
     for (let t = 0; t < MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; t++) engine.tick();
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
   }
 }
 
@@ -70,7 +71,7 @@ describe('the bribe on the belt', () => {
     walkEast(engine, 3);
     expect(engine.getToolBelt()).toEqual([BRIBE_ITEM_ID, BOOTS[0], BOOTS[1]]);
     const head = (engine.getToolBelt() as readonly string[])[0];
-    expect(engine.dropItem(head)).toBe(true);
+    expect(playDrop(engine, head)).toBe(true);
     expect(world(engine).items[ROOM_ROW][engine.getPlayer().x]).toBe(BRIBE_ITEM_ID);
     expect(engine.getToolBelt()).toEqual([BOOTS[0], BOOTS[1]]);
     expect(engine.getPlayer().keys[BRIBE_ITEM_ID]).toBeUndefined();
@@ -97,8 +98,11 @@ describe('the toll token', () => {
     walkEast(engine, 3);
     expect(engine.getPlayer().keys[TOKEN_ITEM_ID]).toBe(1);
     expect(engine.getToolBelt()).toEqual([BOOTS[0], BOOTS[1]]);
-    expect(engine.dropItem(BOOTS[0])).toBe(true);
-    expect(engine.dropItem(TOKEN_ITEM_ID)).toBe(false);
+    expect(playDrop(engine, BOOTS[0])).toBe(true);
+    // A CC2-engine level stores the drop key for the tick, which refuses the token: it stays held and nothing is put down.
+    playDrop(engine, TOKEN_ITEM_ID);
+    expect(engine.getPlayer().keys[TOKEN_ITEM_ID]).toBe(1);
+    expect(world(engine).items[ROOM_ROW][engine.getPlayer().x]).not.toBe(TOKEN_ITEM_ID);
   });
 });
 

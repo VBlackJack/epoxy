@@ -31,6 +31,7 @@ vi.mock('../../audio/AudioManager', () => ({
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import type { RoomMode, RoomOptions } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import { stepSlidingBlock } from './epoxyBlocks';
@@ -199,14 +200,14 @@ describe('melted ice block splash (MS)', () => {
       terrain: { [`${FIRE_X},${ROOM_ROW}`]: 'fire' },
       entities: [{ type: ICE_BLOCK, x: FIRE_X - 1, y: ROOM_ROW, dir: 'E' }]
     });
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     for (let pass = 0; pass < MELT_WAIT_PASSES && engine.getTerrain()[ROOM_ROW][FIRE_X] === 'fire'; pass++) engine.tick();
     expect(engine.getTerrain()[ROOM_ROW][FIRE_X]).toBe('water');
     return engine;
   }
   const canStepEast = (engine: GameEngine): boolean => {
     engine.getPlayer().moveCooldown = 0;
-    return engine.attemptPlayerMove('E');
+    return playMove(engine, 'E').moved;
   };
 
   it('leaves a splash on the new water that bars the player for a few passes', () => {
@@ -214,7 +215,6 @@ describe('melted ice block splash (MS)', () => {
     expect(worldOf(engine).blockSplashes.size).toBe(1);
     for (let pass = 0; pass < SPLASH_PASSES; pass++) {
       expect(canStepEast(engine), `pass ${pass}`).toBe(false);
-      engine.tick();
     }
     expect(worldOf(engine).blockSplashes.size).toBe(0);
   });

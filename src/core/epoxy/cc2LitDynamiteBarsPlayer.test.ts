@@ -22,6 +22,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { playMove } from '../../test/cc2Play';
 import { DYNAMITE_ITEM_ID, DYNAMITE_LIT_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel } from '../types';
@@ -65,21 +66,21 @@ describe('lit dynamite bars the player (CC2 engine)', () => {
     const { engine, w } = fixture('cc2');
     lightAt(w, false);
     const from = { x: w.player.x, y: w.player.y };
-    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(playMove(engine, 'E').moved).toBe(false);
     expect({ x: w.player.x, y: w.player.y }).toEqual(from);
   });
 
   it('lets the player step onto a dynamite that is set down but not lit yet', () => {
     const { engine, w } = fixture('cc2');
     lightAt(w, true);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect({ x: w.player.x, y: w.player.y }).toEqual(LIT_CELL);
   });
 
   it.each(['cc', 'native'] as const)('does not bar the player on a %s level', (mode) => {
     const { engine, w } = fixture(mode);
     lightAt(w, false);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect({ x: w.player.x, y: w.player.y }).toEqual(LIT_CELL);
   });
 });

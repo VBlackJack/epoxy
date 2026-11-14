@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -54,7 +55,7 @@ function waitOut(engine: GameEngine): void {
 describe('CC2 engine: a light switch acts when the step onto it ends', () => {
   it('flips at the start of the tick after the wait ran out, not before', () => {
     const engine = load('cc2');
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(switchTile(engine)).toBe(SWITCH_OFF);
     expect(engine.getPlayer().cc3dArrival?.pulse).toEqual({ x: SWITCH_X, y: ROOM_ROW });
     waitOut(engine);
@@ -66,20 +67,19 @@ describe('CC2 engine: a light switch acts when the step onto it ends', () => {
 
   it('flips once even when the next input steps off at once', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(switchTile(engine)).toBe(SWITCH_ON);
   });
 
   it('undo in the middle of the step puts the switch back, and the step taken again flips it once', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
-    engine.tick();
+    playMove(engine, 'E');
     expect(engine.undo()).toBe(true);
     expect(switchTile(engine)).toBe(SWITCH_OFF);
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
     engine.tick();
     expect(switchTile(engine)).toBe(SWITCH_ON);
@@ -87,15 +87,14 @@ describe('CC2 engine: a light switch acts when the step onto it ends', () => {
 
   it('an undo and a redo of the step reach the state a straight run reaches', () => {
     const straight = load('cc2');
-    straight.attemptPlayerMove('E');
+    playMove(straight, 'E');
     waitOut(straight);
     straight.tick();
 
     const redone = load('cc2');
-    redone.attemptPlayerMove('E');
-    redone.tick();
+    playMove(redone, 'E');
     redone.undo();
-    redone.attemptPlayerMove('E');
+    playMove(redone, 'E');
     waitOut(redone);
     redone.tick();
     expect(switchTile(redone)).toBe(switchTile(straight));

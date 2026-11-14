@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 import { decisionPush } from './epoxyPlayer';
@@ -135,8 +136,9 @@ describe('step guard for a block in motion at the decision', () => {
   it('leaves a block in the set unpushed and the player in place (map033 t54 shape)', () => {
     const engine = load('cc2', null);
     const block = blockOf(engine);
-    world(engine).cc2MovingAtDecision = new Set<number>([block.uid]);
-    engine.attemptPlayerMove('E');
+    // The tick builds the set of the blocks in motion at the decision itself: the block is made to be arriving.
+    block.arrivalTicks = ARRIVAL_TICKS;
+    playMove(engine, 'E');
     expect(block.x).toBe(BLOCK_X);
     expect(world(engine).player.x).toBe(PLAYER_X);
   });
@@ -144,20 +146,20 @@ describe('step guard for a block in motion at the decision', () => {
   it('pushes a block at rest whose uid is not in the set (S_motel t1800 shape)', () => {
     const engine = load('cc2', null);
     world(engine).cc2MovingAtDecision = new Set<number>();
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(blockOf(engine).x).toBe(PUSHED_X);
   });
 
   it('pushes the block when no set is written, as before', () => {
     const engine = load('cc2', null);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(blockOf(engine).x).toBe(PUSHED_X);
   });
 
   it.each(['cc', 'native'] as RoomMode[])('ignores the set outside the CC2 engine (%s)', (mode) => {
     const engine = load(mode, null);
     world(engine).cc2MovingAtDecision = new Set<number>([blockOf(engine).uid]);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(blockOf(engine).x).toBe(PUSHED_X);
   });
 });

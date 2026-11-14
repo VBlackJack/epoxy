@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel } from '../types';
 import type { EpoxyWorld } from './epoxyWorld';
@@ -64,7 +65,7 @@ function withKey(engine: GameEngine): GameEngine {
 describe('CC2 engine: the socket or door being stepped into', () => {
   it('is recorded when the step through a socket goes through, and dropped when the step ends', () => {
     const engine = load(socketRoom('cc2'));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(engine.getPlayer().cc3dArrival?.opening).toEqual({ x: TARGET_X, y: ROOM_ROW });
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) {
@@ -78,20 +79,20 @@ describe('CC2 engine: the socket or door being stepped into', () => {
 
   it('is recorded for a key door too', () => {
     const engine = withKey(load(doorRoom('cc2')));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(engine.getPlayer().cc3dArrival?.opening).toEqual({ x: TARGET_X, y: ROOM_ROW });
   });
 
   it('is not recorded when the socket stays shut (chips left)', () => {
     const engine = load(socketRoom('cc2', 1));
-    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(playMove(engine, 'E').moved).toBe(false);
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();
     expect(engine.getPlayer().x).toBe(START_X);
   });
 
   it('is not recorded when the door stays shut (no key)', () => {
     const engine = load(doorRoom('cc2'));
-    expect(engine.attemptPlayerMove('E')).toBe(false);
+    expect(playMove(engine, 'E').moved).toBe(false);
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();
   });
 
@@ -119,7 +120,7 @@ describe('CC2 engine: the socket or door being stepped into', () => {
 
   it('does not bar the input once the step is over', () => {
     const engine = load(socketRoom('cc2'));
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
     expect(engine.attemptPlayerMove('E')).toBe(true);

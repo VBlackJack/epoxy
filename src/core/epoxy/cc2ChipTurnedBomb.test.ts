@@ -26,6 +26,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -53,7 +54,7 @@ function endStep(engine: GameEngine): void {
 describe('a chip stepped onto that turned into a green bomb during the step', () => {
   it('goes off on a CC2-engine level', () => {
     const engine = load('cc2', 'green_chip');
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').accepted).toBe(true);
     expect(engine.getPlayer().alive).toBe(true);
     world(engine).items[ROOM_ROW][ITEM_X] = 'green_bomb';
     endStep(engine);
@@ -62,7 +63,7 @@ describe('a chip stepped onto that turned into a green bomb during the step', ()
 
   it('is taken at the end of the step when it stayed a chip', () => {
     const engine = load('cc2', 'green_chip');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(engine.getChipsRemaining()).toBe(1);
     endStep(engine);
     expect(engine.getChipsRemaining()).toBe(0);

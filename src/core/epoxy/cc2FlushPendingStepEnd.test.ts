@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import { GameEngine } from '../GameEngine';
 import { stableStringify } from '../engineSimHash';
 import type { Direction } from '../types';
@@ -90,7 +91,7 @@ describe('flushPendingStepEnd', () => {
 
   it('is idempotent', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine, false);
     engine.flushPendingStepEnd();
     const once = fingerprint(engine);
@@ -100,9 +101,9 @@ describe('flushPendingStepEnd', () => {
 
   it('takes the chip of the cell the step ended on without waiting for the next tick', () => {
     const engine = load('cc2');
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine, false);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine, false);
     expect(engine.getChipsRemaining()).toBe(1);
     engine.flushPendingStepEnd();
