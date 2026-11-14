@@ -148,6 +148,50 @@ describe('block step result on a force floor (FB2)', () => {
   });
 });
 
+describe('block jammed on a turning force floor draws once per tick (FB2)', () => {
+  const JAM_TICKS = 4;
+  const walls: Record<string, string> = {
+    [`${FORCE_START_X},${ROOM_ROW}`]: FORCE_CYCLE,
+    [`${FORCE_START_X - 1},${ROOM_ROW}`]: 'wall',
+    [`${FORCE_START_X + 1},${ROOM_ROW}`]: 'wall',
+    [`${FORCE_START_X},${ROOM_ROW - 1}`]: 'wall',
+    [`${FORCE_START_X},${ROOM_ROW + 1}`]: 'wall'
+  };
+
+  it('advances the shared sequence once per tick when terrain refuses the block', () => {
+    const engine = load('cc2', { startX: 1, terrain: walls, entities: [{ type: BLOCK, x: FORCE_START_X, y: ROOM_ROW, dir: 'E' }] });
+    const before = worldOf(engine).forceCycleTurn;
+    for (let i = 0; i < JAM_TICKS; i++) engine.tick();
+    expect(worldOf(engine).forceCycleTurn - before).toBe(JAM_TICKS);
+  });
+
+  it('does not report a retry for a wall, and reports the way for a block in the road', () => {
+    const run = (ahead: boolean) => {
+      const engine = load('cc2', {
+        startX: 1,
+        terrain: { ...forceRow(3), ...(ahead ? {} : { [`${FORCE_START_X + 1},${ROOM_ROW}`]: 'wall' }) },
+        entities: [
+          ...(ahead ? [{ type: BLOCK, x: FORCE_START_X + 1, y: ROOM_ROW, dir: 'E' as const }] : []),
+          { type: BLOCK, x: FORCE_START_X, y: ROOM_ROW, dir: 'E' }
+        ]
+      });
+      const block = worldOf(engine).entities.find((e) => e.kind === 'block' && e.x === FORCE_START_X);
+      if (block === undefined) throw new Error('the room has a block');
+      block.isSliding = true;
+      block.dir = 'E';
+      block.cooldownTicks = 0;
+      const target = worldOf(engine).entities.find((e) => e.kind === 'block' && e.x === FORCE_START_X + 1);
+      if (target !== undefined) {
+        // A block that stays put (it is not sliding and not on a drifting cell this tick).
+        target.isSliding = false;
+      }
+      return stepSlidingBlock(ctxOf(engine), block);
+    };
+    expect(run(false).retryDir).toBeUndefined();
+    expect(run(true).retryDir).toBe('E');
+  });
+});
+
 describe('melted ice block splash (MS)', () => {
   function melt(mode: RoomMode): GameEngine {
     const engine = load(mode, {

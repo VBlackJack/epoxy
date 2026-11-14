@@ -142,6 +142,18 @@ describe('yellow tank on ice and force floors (YI)', () => {
     expect(tankIn(engine).x).toBeGreaterThanOrEqual(TANK_X + 3);
   });
 
+  it('forgets its load cell with its first step away, so the ice carries it afterwards', () => {
+    const engine = load('cc2', {
+      terrain: { [`${TANK_X},${ROOM_ROW}`]: ICE, [`${TANK_X + 1},${ROOM_ROW}`]: ICE, [`${TANK_X + 2},${ROOM_ROW}`]: ICE, [`${TANK_X + 3},${ROOM_ROW}`]: ICE },
+      entities: [{ type: TANK, x: TANK_X, y: ROOM_ROW, dir: 'E' }]
+    });
+    expect(tankIn(engine).atLoadCell).toBe(true);
+    tankIn(engine).pendingSteer = 'E';
+    for (let i = 0; i < WATCH_TICKS && tankIn(engine).x === TANK_X; i++) engine.tick();
+    expect(tankIn(engine).x).toBeGreaterThan(TANK_X);
+    expect(tankIn(engine).atLoadCell).toBeUndefined();
+  });
+
   it('leaves the classic and the native level alone', () => {
     for (const mode of ['cc', 'native'] as const) {
       const engine = loadTank(mode, FORCE_EAST, 'N');

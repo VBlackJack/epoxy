@@ -536,6 +536,8 @@ function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
  */
 export interface BlockStepResult {
   refusedOnForce?: true;
+  /** The way the refused slide was going: set only when another actor or block refused it (never terrain), for the retry to reuse. */
+  retryDir?: Direction;
 }
 
 /** The result of a block step that was not refused on a force floor. */
@@ -646,5 +648,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
   } else {
     entity.isSliding = false;
   }
-  return tile.slideType === 'force' ? BLOCK_STEP_REFUSED_ON_FORCE : BLOCK_STEP_DONE;
+  if (tile.slideType !== 'force') return BLOCK_STEP_DONE;
+  // Only a cell held by another actor or block can free up in the next frame; a wall never does.
+  const heldByActor = ahead !== undefined || playerAtCell(w, nx, ny) !== undefined;
+  return heldByActor ? { refusedOnForce: true, retryDir: slideDir } : BLOCK_STEP_REFUSED_ON_FORCE;
 }

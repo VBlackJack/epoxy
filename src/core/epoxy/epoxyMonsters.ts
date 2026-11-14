@@ -356,7 +356,7 @@ function runEntityPass(ctx: EpoxyContext): void {
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
   // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
-  const refusedOnForce: RuntimeEntity[] = [];
+  const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
     if (w.cc3dPace) {
@@ -378,17 +378,26 @@ function runEntityPass(ctx: EpoxyContext): void {
     }
 
     if (entity.kind === 'block') {
-      if (stepSlidingBlock(ctx, entity).refusedOnForce === true) refusedOnForce.push(entity);
+      const refusal = stepSlidingBlock(ctx, entity);
+      if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) refusedOnForce.push({ block: entity, dir: refusal.retryDir });
       continue;
     }
 
+    const fromX = entity.x;
+    const fromY = entity.y;
     if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+    // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
+    if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
   }
   // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
   // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
   if (usesCc2Engine(w.level)) {
-    for (const block of refusedOnForce) {
+    for (const { block, dir } of refusedOnForce) {
       if (w.removedUids.has(block.uid) || !w.entities.includes(block) || block.isSliding) continue;
+      // The retry keeps the way already drawn this tick: no second draw of a turning floor.
+      block.isSliding = true;
+      block.dir = dir;
+      block.cooldownTicks = 0;
       stepSlidingBlock(ctx, block);
     }
   }
