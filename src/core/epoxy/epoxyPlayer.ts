@@ -448,7 +448,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       // on its own as the step goes on (Cc3dSimulation.tryStep), so he is judged on the cell as it stood when the step
       // began (the character signs, boots and no-signs that bar him still do) and enters whatever it has become.
       const cc3dStep = isCc3dPush(entityAtTarget);
+      // CC2 engine: the cell he steps into was judged once, before the push, and is entered whatever the push made of it: a popwall
+      // the block left is a wall by now and he still walks in (Lexy attempt_step: check_movement, then move_to, game.js:2020-2036;
+      // steam-strict emulate_spring_mining, defs.js:294-297). Blocks in a push chain keep their re-check (epoxyBlocks planPushLine).
+      const judgedBefore = usesCc2Engine(w.level) && !w.cc3dPace;
       if (
+        !judgedBefore &&
         !canPlayerEnter(
           w,
           cc3dStep ? updatedTargetTile : ConfigRegistry.getTile(w.terrain[targetY][targetX]),
