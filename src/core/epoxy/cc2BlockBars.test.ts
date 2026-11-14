@@ -15,7 +15,7 @@
  */
 
 /**
- * CC2 engine block bars (Lexy's Labyrinth tiletypes.js): a hint bars the dirt block,.
+ * CC2 engine block bars (Lexy's Labyrinth tiletypes.js): a hint bars the dirt block, and lit dynamite bars every block.
  * Levels outside the CC2 engine are unchanged.
  */
 
@@ -36,6 +36,8 @@ const SETTLE_TICKS = 60;
 const DIRT_BLOCK = 'dirt_block';
 const OTHER_BLOCKS = ['ice_block', 'arrow_block_cross'];
 const HINT = 'hint';
+const LIT_DYNAMITE = 'dynamite_lit';
+const ALL_BLOCKS = [DIRT_BLOCK, ...OTHER_BLOCKS];
 
 function pushOnto(mode: RoomMode, blockType: string, terrain: string | null, item: string | null) {
   const engine = new GameEngine();
@@ -76,5 +78,18 @@ describe('CC2 hint and blocks', () => {
   it.each(['cc', 'native'] as RoomMode[])('leaves the dirt block free to enter a hint outside the CC2 engine (%s)', (mode) => {
     const { block } = pushOnto(mode, DIRT_BLOCK, HINT, null);
     expect(block).toMatchObject({ x: TARGET_X, y: ROOM_ROW });
+  });
+});
+
+describe('CC2 lit dynamite and blocks', () => {
+  it.each(ALL_BLOCKS)('keeps a %s out of a cell holding lit dynamite', (blockType) => {
+    const { block, player } = pushOnto('cc2', blockType, null, LIT_DYNAMITE);
+    expect(block).toMatchObject({ x: BLOCK_X, y: ROOM_ROW });
+    expect(player.x).toBe(PLAYER_X);
+  });
+
+  it.each(['cc', 'native'] as RoomMode[])('does not bar a block from lit dynamite outside the CC2 engine (%s)', (mode) => {
+    const { block } = pushOnto(mode, 'ice_block', null, LIT_DYNAMITE);
+    expect(block?.x).not.toBe(BLOCK_X);
   });
 });
