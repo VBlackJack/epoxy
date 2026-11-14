@@ -30,7 +30,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
-import { steerMirrors } from './epoxyMirrors';
+import { hasCc2MirrorCadence, rememberPlayerMove, steerMirrors } from './epoxyMirrors';
 import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } from './epoxyRollingBall';
@@ -162,6 +162,12 @@ function exitHandsControlLater(w: EpoxyWorld): boolean {
 /** Steers the mirror players toward `dir` when the controlled player is still on the map and not parked: the one copy of a step. */
 export function steerMirrorsOnce(ctx: EpoxyContext, dir: Direction): void {
   const w = ctx.world;
+  // CC2 engine: the mirrors are actors with their own cadence; they read the move the player decided (Lexy
+  // remember_player_move), a blocked try included, at their own pace.
+  if (hasCc2MirrorCadence(w)) {
+    if (w.swappedIn === null) rememberPlayerMove(w, dir);
+    return;
+  }
   if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, dir);
 }
 

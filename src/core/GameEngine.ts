@@ -85,6 +85,7 @@ import {
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
+import { beginCc2MirrorTick, endCc2MirrorTick } from './epoxy/epoxyMirrors';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
@@ -1141,19 +1142,18 @@ export class GameEngine {
   }
 
   /**
-   * CC2 engine, start of a tick (before the player's cooldown runs): the place where a player free to decide who decided
-   * nothing leaves no move for the mirror players to copy. A no-op until the mirror rules fill it in.
+   * CC2 engine, start of a tick (before the player's cooldown runs): a player free to decide who decided nothing leaves no
+   * move for the mirror players to copy, and the mirrors loaded at the start are ready to decide in the first tick.
    */
   private beginMirrorTick(): void {
-    // Intentionally empty: the mirror cadence is not modelled yet.
+    beginCc2MirrorTick(this.w, this.ticksElapsed === 1);
   }
 
   /**
-   * CC2 engine, end of a tick: the place where the mirror players' remembered decision is carried to the next tick.
-   * A no-op until the mirror rules fill it in.
+   * CC2 engine, end of a tick: the mirror players' remembered decision is carried to the next tick.
    */
   private endMirrorTick(): void {
-    // Intentionally empty: the mirror cadence is not modelled yet.
+    endCc2MirrorTick(this.w);
   }
 
   /**

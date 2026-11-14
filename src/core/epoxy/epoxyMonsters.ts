@@ -913,6 +913,8 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
   // neither waits for the step to end.
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
+  // CC2 engine: a mirror player has its own cadence and presses when its step ends, like the monsters.
+  if (usesCc2Engine(w.level) && w.inTick && ConfigRegistry.getEntityDef(entity.type)?.mirrorsCharacter !== undefined) return true;
   return w.ccRules && w.inTick && followsCcCadence(entity.type, usesCc2Engine(w.level));
 }
 

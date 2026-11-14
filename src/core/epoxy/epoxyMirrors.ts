@@ -25,17 +25,24 @@
  * the other character), pushes blocks, takes the items lying on its way, presses the buttons it steps on and dies in
  * water, fire and bombs. Chip's mirror slides on ice; Melinda's does not. It kills the player on contact, whoever
  * moves into the other, and its own death does not end the level.
+ *
+ * On a level played by the CC2 engine the mirrors are actors of their own (Lexy tiletypes.js doppelganger1 and doppelganger2):
+ * they walk a step every four ticks (two onto ice or a force floor), read the move the player last decided (game.js
+ * remember_player_move: a blocked try too, cleared when his step ends or when he decides nothing), press buttons when their
+ * step ends and are pushed out of a trap forward when it opens (tiletypes.js trap add_press). Native Epoxy levels keep the
+ * copy of each input.
  */
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
-import { FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION } from '../coreConstants';
-import { Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
+import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION } from '../coreConstants';
+import { Cc2MirrorMove, Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
+import { usesCc2Engine } from './ccRules';
 import { resolveMonsterArrival } from './epoxyMonsters';
 import { shieldedPlayerAt } from './epoxyWard';
 import { leaveSwivel } from './epoxySwivels';
-import { EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
+import { currentEntityPass, EpoxyContext, EpoxyWorld, getEntityAt, isCellClosedTrap, isEdgeBlocked, isInBounds, isOpenFishGate, leaveCell, mapWidth, playerAtCell, playerCharacterOf, shotAt, takeRevealedTerrain } from './epoxyWorld';
 
 /** Extra ticks a mirror waits between two steps of a force floor, on top of the shared slide delay. */
 const FORCE_SLIDE_EXTRA_COOLDOWN_TICKS = 1;
@@ -56,6 +63,58 @@ function mirrorDefOf(entity: RuntimeEntity): EntityDefinition | undefined {
 /** Whether the entity is a mirror player. */
 export function isMirrorEntity(entity: RuntimeEntity): boolean {
   return mirrorDefOf(entity) !== undefined;
+}
+
+/**
+ * CC2 engine: whether this world plays its mirror players as actors with their own cadence. Only a level with a mirror
+ * (or a mirror clone template) carries load-order ordinals, so any other CC2 level never records a decision.
+ */
+export function hasCc2MirrorCadence(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && w.player.listOrdinal !== undefined;
+}
+
+/** The decisions the mirror players copy, created on first use. */
+function mirrorMoveOf(w: EpoxyWorld): Cc2MirrorMove {
+  w.mirrorMove ??= { remembered: null, snapshot: null, attempted: false };
+  return w.mirrorMove;
+}
+
+/** CC2 engine: the controlled player decided to move `dir` (a blocked try too): the mirrors read it from now on. */
+export function rememberPlayerMove(w: EpoxyWorld, dir: Direction): void {
+  const move = mirrorMoveOf(w);
+  move.remembered = dir;
+  move.attempted = true;
+}
+
+/** Whether the controlled player is free to decide: no step under way and no slide. */
+function playerIsFreeToDecide(w: EpoxyWorld): boolean {
+  return w.player.moveCooldown === 0 && !w.player.isSliding;
+}
+
+/**
+ * CC2 engine, start of a tick: a mirror loaded at the start is ready to decide from the first tick (Lexy starts every actor
+ * with a cooldown of 0), and a player free to decide who decided nothing leaves no move to copy (remember_player_move(null)).
+ */
+export function beginCc2MirrorTick(w: EpoxyWorld, firstTick: boolean): void {
+  if (!hasCc2MirrorCadence(w)) return;
+  if (firstTick) {
+    for (const e of w.entities) if (mirrorDefOf(e) !== undefined) e.cooldownTicks = 0;
+  }
+  const move = w.mirrorMove;
+  if (move !== undefined && !move.attempted && playerIsFreeToDecide(w)) move.remembered = null;
+}
+
+/**
+ * CC2 engine, end of a tick: a player at rest who decided nothing, or whose step just ended, leaves no move to copy; what is
+ * left is what a mirror reads in the next tick.
+ */
+export function endCc2MirrorTick(w: EpoxyWorld): void {
+  if (!hasCc2MirrorCadence(w)) return;
+  const move = w.mirrorMove;
+  if (move === undefined) return;
+  if (!move.attempted && playerIsFreeToDecide(w)) move.remembered = null;
+  move.snapshot = move.remembered;
+  move.attempted = false;
 }
 
 /** Whether the entity is still on the grid: a step of a mirror earlier in the line may have removed it. */
@@ -219,18 +278,27 @@ export function steerMirrors(ctx: EpoxyContext, dir: Direction): boolean {
  */
 export function stepMirrorFloor(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
+  const cc2 = hasCc2MirrorCadence(w);
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
+    // CC2 engine: the pass in which the countdown ends is the pass its step ends in (see RuntimeEntity.stepEndedPass).
+    if (cc2 && entity.cooldownTicks === 0) {
+      entity.stepEndedPass = currentEntityPass(w);
+      entity.stepEndedCell = entity.y * mapWidth(w) + entity.x;
+    }
     return true;
   }
   const def = mirrorDefOf(entity);
   if (def === undefined) return true;
   const tile = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
   const carried = floorCarry(entity, def, tile, w);
+  if (cc2 && carried === null) return decideMirrorStep(ctx, entity, def);
   if (carried === null) return true;
   const slideCooldown = ConfigRegistry.getGame().timing.slideCooldownTicks;
   entity.cooldownTicks = tile.slideType === 'force' ? slideCooldown + FORCE_SLIDE_EXTRA_COOLDOWN_TICKS : slideCooldown;
   let outcome = stepMirror(ctx, entity, def, carried);
+  // CC2 engine: the step time comes from the cell entered (half a walking step onto ice or a force floor), as any actor's.
+  if (cc2) entity.cooldownTicks = mirrorStepCooldown(w, entity);
   if (outcome === 'stayed' && tile.slideType === 'ice') {
     // Blocked on ice, the mirror bounces back the way it came.
     const bounce = OPPOSITE_DIRECTION[carried];
@@ -238,6 +306,48 @@ export function stepMirrorFloor(ctx: EpoxyContext, entity: RuntimeEntity): boole
     // A refused bounce on a CC3D corner leaves the mirror facing the exit again, so the corner does not turn it back out.
     if (outcome === 'stayed' && tile.cc3dCornerBounce === true) entity.dir = carried;
   }
+  if (outcome !== 'stayed') w.beamDirty = true;
+  return outcome !== 'killed';
+}
+
+/** CC2 engine: the cooldown a mirror's step ends with, read from the cell it entered: half a walking step onto ice or a force floor. */
+function mirrorStepCooldown(w: EpoxyWorld, entity: RuntimeEntity): number {
+  const tile = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  return tile.slideType !== undefined ? CC2_MIRROR_SLIDE_COOLDOWN_TICKS : CC2_MIRROR_WALK_COOLDOWN_TICKS;
+}
+
+/** CC2 engine: the move a mirror reads this pass, or null when there is none. */
+function decidedMoveFor(w: EpoxyWorld): Direction | null {
+  return w.mirrorMove?.snapshot ?? null;
+}
+
+/**
+ * CC2 engine: the decision of a mirror that no floor carries. It steps the way the player decided while he is the character
+ * it mirrors, then waits a walking step. A mirror a shut trap held is pushed out forward the pass the trap opens, whatever
+ * the player decided and whoever he is (Lexy attempt_out_of_turn_step, tiletypes.js:1768-1777).
+ */
+function decideMirrorStep(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityDefinition): boolean {
+  const w = ctx.world;
+  let ejected = false;
+  if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isTrap === true) {
+    if (isCellClosedTrap(w, entity.x, entity.y)) entity.trapHeld = true;
+    else if (entity.trapHeld === true) {
+      delete entity.trapHeld;
+      ejected = true;
+    }
+  }
+  let want: Direction | null;
+  if (ejected) want = entity.dir;
+  else {
+    if (def.mirrorsCharacter !== playerCharacterOf(w) || !w.player.alive || w.levelCompleted) return true;
+    want = decidedMoveFor(w);
+  }
+  if (want === null) return true;
+  // The step's own cooldown is set before the arrival, so a button press it queues lands when the step ends.
+  entity.cooldownTicks = CC2_MIRROR_WALK_COOLDOWN_TICKS;
+  const outcome = stepMirror(ctx, entity, def, want);
+  entity.cooldownTicks = outcome === 'moved' ? mirrorStepCooldown(w, entity) : 0;
+  if (outcome === 'moved' && isCellClosedTrap(w, entity.x, entity.y)) entity.trapHeld = true;
   if (outcome !== 'stayed') w.beamDirty = true;
   return outcome !== 'killed';
 }
