@@ -17,7 +17,8 @@
 /**
  * CC2 wave 7, monsters: a monster loaded on ice decides normally until it has left its load cell (IL), and a yellow tank that
  * stands on ice or a force floor is carried by it unless it still stands on its load cell on ice (YI), and a block refused on a
- * force floor tries once more after the entity pass (FB2). Every rule is off on classic and native levels.
+ * force floor tries once more after the entity pass (FB2), and a monster on a green button toggles the walls when its step ends,
+ * after the entity pass (GB, GB2). Every rule is off on classic and native levels.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -181,5 +182,53 @@ describe('block refused on a force floor, retried after the pass (FB2)', () => {
       engine.tick();
       expect(columns(engine), mode).toEqual([BLOCK_X, BLOCK_X + 1]);
     }
+  });
+});
+
+describe('monster on a green button (GB, GB2)', () => {
+  const BUTTON = 'button_green';
+  const WALL_CLOSED = 'toggle_wall_closed';
+  const WALL_OPEN = 'toggle_wall_open';
+  const BALL = 'pink_ball';
+  const BALL_X = 5;
+  const WALL_CELL = { x: 3, y: 3 };
+  const WATCH_TICKS = 30;
+  const options = {
+    terrain: {
+      [`${BALL_X + 1},${ROOM_ROW}`]: BUTTON,
+      [`${BALL_X + 2},${ROOM_ROW}`]: 'wall',
+      [`${WALL_CELL.x},${WALL_CELL.y}`]: WALL_CLOSED
+    },
+    entities: [{ type: BALL, x: BALL_X, y: ROOM_ROW, dir: 'E' as const }]
+  };
+  const wallOf = (engine: GameEngine): string => engine.getTerrain()[WALL_CELL.y][WALL_CELL.x];
+
+  /** The tick, counted from 1, at which the walls first changed; 0 when they never did. */
+  function toggleTick(mode: RoomMode): { tick: number; ballArrival: number } {
+    const engine = load(mode, options);
+    let tick = 0;
+    let ballArrival = 0;
+    for (let i = 1; i <= WATCH_TICKS && tick === 0; i++) {
+      engine.tick();
+      if (ballArrival === 0 && monsterOf(engine, BALL).x > BALL_X) ballArrival = i;
+      if (wallOf(engine) === WALL_OPEN) tick = i;
+    }
+    return { tick, ballArrival };
+  }
+
+  it('does not toggle the walls in the tick the monster arrives, but a few passes later, on a CC2 level', () => {
+    const { tick, ballArrival } = toggleTick('cc2');
+    expect(ballArrival).toBeGreaterThan(0);
+    expect(tick).toBeGreaterThan(ballArrival);
+  });
+
+  it('toggles at the same tick as a classic level, which always queued the press', () => {
+    expect(toggleTick('cc2').tick).toBe(toggleTick('cc').tick);
+  });
+
+  it('still toggles at once on a native level', () => {
+    const { tick, ballArrival } = toggleTick('native');
+    expect(ballArrival).toBeGreaterThan(0);
+    expect(tick).toBe(ballArrival);
   });
 });

@@ -870,15 +870,14 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
 
 /**
  * Classic rules: a classic monster's button press takes effect a few passes after the step (see
- * CC_MONSTER_BUTTON_DELAY_PASSES). The green button (toggle walls) is not delayed on a level imported from Chip's
- * Challenge 2, whose engine toggles the walls at once.
+ * CC_MONSTER_BUTTON_DELAY_PASSES). On a level imported from Chip's Challenge 2 the green button (toggle walls) is queued like
+ * the others: the reference toggles when the monster's step ends.
  */
 function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
   // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
   // neither waits for the step to end.
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
-  if (!w.ccRules || !w.inTick || !followsCcCadence(entity.type, usesCc2Engine(w.level))) return false;
-  return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
+  return w.ccRules && w.inTick && followsCcCadence(entity.type, usesCc2Engine(w.level));
 }
 
 function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {
