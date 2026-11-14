@@ -25,6 +25,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { GameEngine } from '../GameEngine';
@@ -104,7 +105,7 @@ describe('CC2 engine: a cloner wired to a source held at load', () => {
     const level = lane('cc2', false);
     level.playerStart = { x: PLATE_X, y: ROW, dir: 'W' };
     const engine = load(level);
-    expect(engine.attemptPlayerMove('W')).toBe(true);
+    expect(playMove(engine, 'W').moved).toBe(true);
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
     expect(clonesAt(engine)).toBe(0);
     expect(engine.getPlayer().x).toBe(PLAYER_X);

@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -46,7 +47,7 @@ function jump(mode: RoomMode, opts: { blockType?: string; wallBehind?: boolean }
       entities: [{ type: opts.blockType ?? 'dirt_block', x: EXIT_X, y: ROOM_ROW, dir: 'E' }]
     })
   );
-  engine.attemptPlayerMove('E');
+  playMove(engine, 'E');
   return engine;
 }
 

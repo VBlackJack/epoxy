@@ -22,6 +22,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ROOM_ROW, room as flatRoom } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
+import { playDrop } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CELL_EDGE_CANOPY_BIT, DYNAMITE_ITEM_ID, FLOOR_TILE_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
@@ -78,7 +79,8 @@ function load(level: CompiledLevel): GameEngine {
 
 function setDownAndLeave(engine: GameEngine): void {
   engine.getPlayer().keys[DYNAMITE_ITEM_ID] = 1;
-  expect(engine.dropItem(DYNAMITE_ITEM_ID)).toBe(true);
+  // The drop is played at the turn of the tick, with the player still on the cell.
+  expect(playDrop(engine, DYNAMITE_ITEM_ID)).toBe(true);
   worldOf(engine).player.x = FAR_CELL.x;
   worldOf(engine).player.y = FAR_CELL.y;
   engine.tick();

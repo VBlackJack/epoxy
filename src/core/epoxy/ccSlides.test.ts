@@ -15,6 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { GameEngine } from '../GameEngine';
@@ -320,6 +321,9 @@ describe('classic walk wait after a slide', () => {
   });
 });
 
+/** The tick that plays a step on a CC2 actor-order level has already run one tick of its wait when the step is read. */
+const PLAYED_TICKS = 1;
+
 /** A level converted from a CC2-engine source: the classic rules plus the stored CC2 data that selects the CC2 step timing. */
 function startCc2(rows: string[]): { engine: GameEngine; w: TestWorld } {
   const engine = new GameEngine();
@@ -329,11 +333,12 @@ function startCc2(rows: string[]): { engine: GameEngine; w: TestWorld } {
 
 /** Ticks from a voluntary step east onto the lane until the player has moved one cell further. */
 function ticksToFirstSlideStep(engine: GameEngine, w: TestWorld): number {
-  engine.attemptPlayerMove('E');
+  // On a level that plays in actor order the step is played by the first tick, which is counted.
+  const playedTicks = engine.playsInActorOrder() ? playMove(engine, 'E') && 1 : (engine.attemptPlayerMove('E'), 0);
   const x = w.player.x;
   for (let t = 1; t <= 12; t++) {
     engine.tick();
-    if (w.player.x !== x) return t;
+    if (w.player.x !== x) return playedTicks + t;
   }
   return -1;
 }
@@ -351,9 +356,9 @@ describe('CC2 engine player step timing', () => {
     const shared = start(FORCE_LANE, true);
     const cc2 = startCc2(FORCE_LANE);
     shared.engine.attemptPlayerMove('E');
-    cc2.engine.attemptPlayerMove('E');
+    playMove(cc2.engine, 'E');
     expect(shared.engine.getPlayer().moveCooldown).toBe(1);
-    expect(cc2.engine.getPlayer().moveCooldown).toBe(2);
+    expect(cc2.engine.getPlayer().moveCooldown + PLAYED_TICKS).toBe(2);
   });
 
   it('does not let speed boots shorten the step onto a slide tile', () => {

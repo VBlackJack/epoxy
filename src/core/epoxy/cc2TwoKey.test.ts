@@ -22,6 +22,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { ROOM_ROW, room, type RoomOptions } from '../../test/cc2Room';
+import { idleTicks, playHeld, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { applyTimedMove, sanitizeTimedMoves } from '../../ui/replaySchedule';
 import { stableStringify } from '../engineSimHash';
@@ -52,9 +53,11 @@ function settle(engine: GameEngine): void {
   for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; waited++) engine.tick();
 }
 
+/** The held keys given once the step before is over: whether they did something. On a CC2 actor-order level the turn is played by a tick. */
 function hold(engine: GameEngine, dirs: Direction[]): boolean {
   settle(engine);
-  return engine.attemptPlayerMoveHeld!(dirs);
+  if (!engine.playsInActorOrder()) return engine.attemptPlayerMoveHeld!(dirs);
+  return playHeld(engine, dirs).moved;
 }
 
 /** Ticks until a mirror listed after the player reads his decision (the previous tick's). */
@@ -120,10 +123,12 @@ describe('two keys on a CC2-engine level', () => {
 
   it('slaps the block beside him, then moves: one undo restores both', () => {
     const engine = load({ entities: [block(START_X, START_Y + 1)] });
+    // The move is recorded with the tick the keys were given in.
+    const givenAt = engine.getTick();
     expect(hold(engine, ['E', 'S'])).toBe(true);
     expect(cellOfEntity(engine, 'dirt_block')).toBe(`${START_X},${START_Y + 2}`);
     expect(at(engine)).toBe(`${START_X + 1},${START_Y}`);
-    expect(engine.getTimedMoveHistory()).toEqual([{ tick: engine.getTick(), dir: 'E', alt: 'S' }]);
+    expect(engine.getTimedMoveHistory()).toEqual([{ tick: givenAt, dir: 'E', alt: 'S' }]);
     expect(engine.undo()).toBe(true);
     expect(at(engine)).toBe(`${START_X},${START_Y}`);
     expect(cellOfEntity(engine, 'dirt_block')).toBe(`${START_X},${START_Y + 1}`);
@@ -138,11 +143,11 @@ describe('two keys on a CC2-engine level', () => {
     for (const engine of [plain, twoKeys]) {
       for (let i = 0; i < SMALL_UNDO_CAP; i++) {
         settle(engine);
-        engine.attemptPlayerMove(i % 2 === 0 ? 'E' : 'W');
+        playMove(engine, i % 2 === 0 ? 'E' : 'W');
       }
     }
     settle(plain);
-    plain.attemptPlayerMove('N');
+    playMove(plain, 'N');
     hold(twoKeys, ['N', 'E']);
     expect(undoCount(plain)).toBe(SMALL_UNDO_CAP);
     expect(undoCount(twoKeys)).toBe(SMALL_UNDO_CAP);
@@ -216,7 +221,7 @@ describe('two keys on a CC2-engine level', () => {
 
   it('does not slap while the player waits out a step', () => {
     const engine = load({ entities: [block(START_X, START_Y + 1)] });
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
     expect(engine.attemptPlayerMoveHeld!(['E', 'S'])).toBe(false);
     expect(cellOfEntity(engine, 'dirt_block')).toBe(`${START_X},${START_Y + 1}`);
@@ -251,12 +256,14 @@ describe('two keys on a force floor', () => {
 
   it('refuses a player carried without permission: no turn, no mirror move, no record, no undo step', () => {
     const engine = forceRoom();
-    const mirrorBefore = cellOfEntity(engine, 'mirror_chip');
-    const dirBefore = engine.getPlayer().dir;
+    // The tick that plays the refused hold also carries him on the force floor: a twin that is given no keys shows what that tick does alone.
+    const twin = forceRoom();
+    twin.getPlayer().forcePermission = false;
+    idleTicks(twin);
     engine.getPlayer().forcePermission = false;
-    expect(engine.attemptPlayerMoveHeld!(['N', 'E'])).toBe(false);
-    expect(engine.getPlayer().dir).toBe(dirBefore);
-    expect(cellOfEntity(engine, 'mirror_chip')).toBe(mirrorBefore);
+    expect(playHeld(engine, ['N', 'E']).moved).toBe(false);
+    expect(engine.getPlayer().dir).toBe(twin.getPlayer().dir);
+    expect(cellOfEntity(engine, 'mirror_chip')).toBe(cellOfEntity(twin, 'mirror_chip'));
     expect(engine.getTimedMoveHistory()).toHaveLength(0);
     expect(undoCount(engine)).toBe(0);
   });
@@ -264,7 +271,7 @@ describe('two keys on a force floor', () => {
   it('plays the hold as ever once the player has the permission', () => {
     const engine = forceRoom();
     engine.getPlayer().forcePermission = true;
-    expect(engine.attemptPlayerMoveHeld!(['N', 'E'])).toBe(true);
+    expect(playHeld(engine, ['N', 'E']).moved).toBe(true);
     expect(engine.getTimedMoveHistory()).toHaveLength(1);
   });
 });
@@ -282,7 +289,7 @@ describe('two keys off the CC2 engine', () => {
     const held = load();
     const plain = load();
     hold(held, ['E']);
-    plain.attemptPlayerMove('E');
+    playMove(plain, 'E');
     expect(stateOf(held)).toBe(stateOf(plain));
   });
 });

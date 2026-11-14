@@ -34,6 +34,7 @@ vi.mock('./epoxyPlayer', async (importOriginal) => {
 });
 
 import { ROOM_ROW, room } from '../../test/cc2Room';
+import { playHeld } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
 import type { EpoxyWorld } from './epoxyWorld';
@@ -57,7 +58,7 @@ describe('a slap that ends the play', () => {
     slapEffect.run = (world) => {
       (world as EpoxyWorld).player.alive = false;
     };
-    expect(engine.attemptPlayerMoveHeld!(['E', 'S'])).toBe(false);
+    expect(playHeld(engine, ['E', 'S']).moved).toBe(false);
     expect(engine.getPlayer()).toMatchObject({ x: START_X, y: ROOM_ROW });
     expect(engine.getTimedMoveHistory()).toEqual([{ tick: 0, dir: 'E', alt: 'S' }]);
     expect(engine.canUndo()).toBe(true);
@@ -68,7 +69,7 @@ describe('a slap that ends the play', () => {
     slapEffect.run = (world) => {
       (world as EpoxyWorld).levelCompleted = true;
     };
-    expect(engine.attemptPlayerMoveHeld!(['E', 'S'])).toBe(false);
+    expect(playHeld(engine, ['E', 'S']).moved).toBe(false);
     expect(engine.getPlayer()).toMatchObject({ x: START_X, y: ROOM_ROW });
     expect(engine.getTimedMoveHistory()).toEqual([{ tick: 0, dir: 'E', alt: 'S' }]);
   });

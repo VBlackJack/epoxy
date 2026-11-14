@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -35,6 +36,8 @@ const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, g
 const ROWS = ['#######', '#@....#', '#######'];
 const BOOTS_CELL = { x: 2, y: 1 };
 const SPEED_BOOTS = 'boots_speed';
+/** The tick that plays a step has already run one tick of its wait when the step is read. */
+const PLAYED_TICKS = 1;
 
 type Mode = 'cc2' | 'cc' | 'native';
 
@@ -55,14 +58,14 @@ describe('the speed boots a step takes act from the next step', () => {
   it('lasts a plain walk on the step that takes them (CC2 engine), then the quick one', () => {
     const { engine, w } = fixture('cc2');
     const plainWalk = playerWalkCooldown(w);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(playerHaste(w)).toBeGreaterThan(1);
     expect(playerWalkCooldown(w)).toBeLessThan(plainWalk);
-    expect(w.player.moveCooldown).toBe(plainWalk);
+    expect(w.player.moveCooldown + PLAYED_TICKS).toBe(plainWalk);
     // The next step, taken once the first one has run out, is timed with the boots.
     while (w.player.moveCooldown > 0) engine.tick();
-    expect(engine.attemptPlayerMove('E')).toBe(true);
-    expect(w.player.moveCooldown).toBe(playerWalkCooldown(w));
+    expect(playMove(engine, 'E').moved).toBe(true);
+    expect(w.player.moveCooldown + PLAYED_TICKS).toBe(playerWalkCooldown(w));
     expect(w.player.moveCooldown).toBeLessThan(plainWalk);
   });
 

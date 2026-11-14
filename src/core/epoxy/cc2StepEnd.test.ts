@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -74,7 +75,7 @@ describe('CC2 engine: a chip is taken when the step onto it ends', () => {
   it('leaves the chip on the floor during the step and takes it at the end', () => {
     const engine = load(chipRoom('cc2'));
     expect(world(engine).chipsRemaining).toBe(1);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(world(engine).chipsRemaining).toBe(1);
     expect(world(engine).items[ROOM_ROW][TARGET_X]).toBe(CHIP);
     // Not before the wait runs out: the tick that ends the step takes it.
@@ -102,15 +103,14 @@ describe('CC2 engine: a chip is taken when the step onto it ends', () => {
 
   it('undo in the middle of the step puts the chip and the pending effect back', () => {
     const engine = load(chipRoom('cc2'));
-    engine.attemptPlayerMove('E');
-    engine.tick();
+    playMove(engine, 'E');
     expect(engine.getPlayer().cc3dArrival).toBeDefined();
     expect(engine.undo()).toBe(true);
     expect(engine.getPlayer().cc3dArrival).toBeUndefined();
     expect(engine.getPlayer().x).toBe(START_X);
     expect(world(engine).items[ROOM_ROW][TARGET_X]).toBe(CHIP);
     // The same step taken again still ends with the chip taken.
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
     engine.tick();
     expect(world(engine).chipsRemaining).toBe(0);
@@ -120,7 +120,7 @@ describe('CC2 engine: a chip is taken when the step onto it ends', () => {
 describe('CC2 engine: a button is pressed when the step onto it ends', () => {
   it('presses at the end of the step, not at its start', () => {
     const engine = load(buttonRoom('cc2'));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(wallAt(engine)).toBe(CLOSED_WALL);
     waitOut(engine);
     engine.tick();
@@ -139,7 +139,7 @@ describe('CC2 engine: a button is pressed when the step onto it ends', () => {
 
   it('does not press when the player is gone from the button as the step ends', () => {
     const engine = load(buttonRoom('cc2'));
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     engine.undo();
     for (let i = 0; i < 8; i++) engine.tick();
     expect(wallAt(engine)).toBe(CLOSED_WALL);
@@ -148,11 +148,11 @@ describe('CC2 engine: a button is pressed when the step onto it ends', () => {
   it('a press does not apply after the player died in the step', () => {
     const level = room({ mode: 'cc2', terrain: { [`${TARGET_X},${ROOM_ROW}`]: GREEN_BUTTON, [WALL_CELL]: CLOSED_WALL, [`${TARGET_X + 1},${ROOM_ROW}`]: 'water' } });
     const engine = load(level);
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     waitOut(engine);
     engine.tick();
     expect(wallAt(engine)).toBe(OPEN_WALL);
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(engine.getPlayer().alive).toBe(false);
     engine.tick();
     expect(wallAt(engine)).toBe(OPEN_WALL);

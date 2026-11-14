@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { GameEngine } from '../GameEngine';
@@ -66,11 +67,11 @@ function load(level: CompiledLevel): GameEngine {
 
 const jetAt = (engine: GameEngine): string => engine.getTerrain()[ROW][JET_X];
 const MAX_WAIT_TICKS = 40;
-/** Walks one step east, waiting out the cooldown of the step before. */
+/** Walks one step east (the input and the tick that plays it), waiting out the cooldown of the step before. */
 function stepEast(engine: GameEngine): void {
   for (let waited = 0; waited <= MAX_WAIT_TICKS; waited++) {
     if (engine.getPlayer().moveCooldown === 0) {
-      engine.attemptPlayerMove('E');
+      playMove(engine, 'E');
       return;
     }
     engine.tick();
@@ -191,9 +192,10 @@ describe('CC2 engine: a wire-fired clone machine acts one wire phase later', () 
 
   it('fires an edge of the move phase at the end of the same tick', () => {
     const engine = load(cloneLane('cc2', ORANGE, false));
-    stepEast(engine);
+    // The step is stored for the turn of the tick: nothing has happened yet, and the edge of his move is played and fired inside it.
+    expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(clonesAt(engine)).toBe(0);
-    expect(deferredCount(engine)).toBe(1);
+    expect(deferredCount(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
     expect(deferredCount(engine)).toBe(0);

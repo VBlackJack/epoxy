@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -56,7 +57,7 @@ describe('CC2 engine: a blue button pressed at step end', () => {
 
   it('marks the tank only at the end of the step, due at the current pass', () => {
     const engine = load(tankRoom('cc2'));
-    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(playMove(engine, 'E').moved).toBe(true);
     expect(markOf(engine)).toBeUndefined();
     let guard = 0;
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();

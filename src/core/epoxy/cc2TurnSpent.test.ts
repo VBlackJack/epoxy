@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { GameEngine } from '../GameEngine';
@@ -134,8 +135,7 @@ describe('CC2 dirt block sunk in water', () => {
       for (const dir of ['S', 'S', 'S', 'E', 'N', 'N', 'N'] as const) {
         for (let i = 0; i < WALK_WAIT_PASSES; i++) {
           engine.getPlayer().moveCooldown = 0;
-          if (engine.attemptPlayerMove(dir)) break;
-          engine.tick();
+          if (playMove(engine, dir).moved) break;
         }
       }
       for (let i = 0; i < RUN_PASSES; i++) engine.tick();

@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -46,7 +47,7 @@ function load(mode: RoomMode, linked: boolean): GameEngine {
 
 /** Steps onto the button, waits the step out and lets the step-end effects act. */
 function standOnButton(engine: GameEngine): void {
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').moved).toBe(true);
   let guard = 0;
   while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
   engine.tick();

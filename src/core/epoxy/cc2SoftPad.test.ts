@@ -26,6 +26,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { playHeld, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -52,7 +53,7 @@ function landed(mode: RoomMode, pad: string, extra: Record<string, string> = {})
   engine.loadLevel(
     room({ mode, startX: NEAR_PAD - 1, terrain: { [`${NEAR_PAD},${ROOM_ROW}`]: pad, [`${FAR_PAD},${ROOM_ROW}`]: pad, ...extra } })
   );
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').moved).toBe(true);
   expect(engine.getPlayer().x).toBe(FAR_PAD);
   expect(engine.getPlayer().teleportExit).toBe('E');
   return engine;
@@ -67,9 +68,10 @@ function waitOutLanding(engine: GameEngine): void {
 /** The number of ticks from the landing until the forced exit step is taken. */
 function ticksToExit(mode: RoomMode, pad: string): number {
   const engine = landed(mode, pad);
+  // The landing tick (the one that played the step) is part of the count.
   for (let t = 1; t <= SETTLE_TICKS; t++) {
     engine.tick();
-    if (engine.getPlayer().x === EXIT_X) return t;
+    if (engine.getPlayer().x === EXIT_X) return t + 1;
   }
   throw new Error('the player never left the pad');
 }
@@ -119,7 +121,7 @@ describe('a direction held at the decision on a soft pad', () => {
     const engine = landed('cc2', RED_PAD);
     waitOutLanding(engine);
     expect(engine.getPlayer().softPadDue).toBe(true);
-    expect(engine.attemptPlayerMove('N')).toBe(true);
+    expect(playMove(engine, 'N').moved).toBe(true);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
     expect(engine.getPlayer().y).toBe(ROOM_ROW - 1);
     expect(engine.getPlayer().teleportExit).toBeUndefined();
@@ -129,7 +131,7 @@ describe('a direction held at the decision on a soft pad', () => {
   it('leaves him on the pad with the forced exit gone when the move is refused', () => {
     const engine = landed('cc2', RED_PAD, { [`${FAR_PAD},${ROOM_ROW - 1}`]: 'wall' });
     waitOutLanding(engine);
-    expect(engine.attemptPlayerMove('N')).toBe(false);
+    expect(playMove(engine, 'N').moved).toBe(false);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
     expect(engine.getPlayer().y).toBe(ROOM_ROW);
     expect(engine.getPlayer().teleportExit).toBeUndefined();
@@ -159,7 +161,7 @@ describe('a direction held at the decision on a soft pad', () => {
     const engine = landed('cc2', YELLOW_PAD);
     waitOutLanding(engine);
     expect(engine.getPlayer().softPadDue).toBe(true);
-    expect(engine.attemptPlayerMove('N')).toBe(true);
+    expect(playMove(engine, 'N').moved).toBe(true);
     expect(engine.undo()).toBe(true);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
     expect(engine.getPlayer().y).toBe(ROOM_ROW);
@@ -174,7 +176,7 @@ describe('two keys held at the decision on a soft pad', () => {
     waitOutLanding(engine);
     expect(engine.getPlayer().softPadDue).toBe(true);
     // North and west: the horizontal key leads, so he steps west off the pad.
-    expect(engine.attemptPlayerMoveHeld(['N', 'W'])).toBe(true);
+    expect(playHeld(engine, ['N', 'W']).moved).toBe(true);
     expect(engine.getPlayer().x).toBe(FAR_PAD - 1);
     expect(engine.getPlayer().y).toBe(ROOM_ROW);
     expect(engine.getPlayer().teleportExit).toBeUndefined();
@@ -184,7 +186,7 @@ describe('two keys held at the decision on a soft pad', () => {
   it('fall back on the other key when the first is blocked', () => {
     const engine = landed('cc2', RED_PAD, { [`${FAR_PAD - 1},${ROOM_ROW}`]: 'wall' });
     waitOutLanding(engine);
-    expect(engine.attemptPlayerMoveHeld(['N', 'W'])).toBe(true);
+    expect(playHeld(engine, ['N', 'W']).moved).toBe(true);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
     expect(engine.getPlayer().y).toBe(ROOM_ROW - 1);
     expect(engine.getPlayer().teleportExit).toBeUndefined();
@@ -193,7 +195,7 @@ describe('two keys held at the decision on a soft pad', () => {
   it('leave him on the pad with the forced exit gone when both are blocked', () => {
     const engine = landed('cc2', RED_PAD, { [`${FAR_PAD - 1},${ROOM_ROW}`]: 'wall', [`${FAR_PAD},${ROOM_ROW - 1}`]: 'wall' });
     waitOutLanding(engine);
-    engine.attemptPlayerMoveHeld(['N', 'W']);
+    playHeld(engine, ['N', 'W']);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
     expect(engine.getPlayer().y).toBe(ROOM_ROW);
     expect(engine.getPlayer().teleportExit).toBeUndefined();

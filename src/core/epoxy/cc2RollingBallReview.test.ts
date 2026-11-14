@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { findDroppedActorConfigErrors, findGateConfigErrors, findSteeringConfigErrors } from '../../config/ConfigValidation';
+import { playDrop, playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW, ROOM_SIZE } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
@@ -56,12 +57,12 @@ const ballOf = (engine: GameEngine) => engine.getEntities().find(isRollingBall);
 describe('a ball set down after an undo', () => {
   it('leaves the cell at once, although a ball spent against a wall took the same uid before the undo', () => {
     const engine = bowler({ startX: LAST_FLOOR_X });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toBeUndefined();
     expect(engine.undo()).toBe(true);
     expect(engine.getPlayer().keys[STONE_ITEM_ID]).toBe(1);
     world(engine).player.dir = 'W';
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toMatchObject({ x: LAST_FLOOR_X - 1, y: ROOM_ROW });
   });
 });
@@ -69,11 +70,10 @@ describe('a ball set down after an undo', () => {
 describe('a player who walks into a ball', () => {
   it('dies of the stone and the ball blows up with him, without a helmet', () => {
     const engine = bowler();
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
-    engine.tick();
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     while (engine.getPlayer().moveCooldown > 0) engine.tick();
     expect(ballOf(engine)).toBeDefined();
-    engine.attemptPlayerMove('E');
+    playMove(engine, 'E');
     expect(engine.getPlayer().alive).toBe(false);
     expect(engine.getPlayer().deathReasonKey).toBe(STONE_DEATH_REASON_KEY);
     expect(ballOf(engine)).toBeUndefined();
@@ -104,7 +104,7 @@ describe('a ball spent at launch and the button under the player', () => {
   for (const button of [ORANGE_BUTTON, BROWN_BUTTON]) {
     it(`does not toggle the ${button} the player stands on`, () => {
       const engine = bowler({ terrain: { [`${START_X},${ROOM_ROW}`]: button, [`${FACED_X},${ROOM_ROW}`]: 'wall' } });
-      expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+      expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
       expect(ballOf(engine)).toBeUndefined();
       expect(engine.getCc2WaveState()?.toggledButtons).toBeUndefined();
     });
@@ -114,7 +114,7 @@ describe('a ball spent at launch and the button under the player', () => {
         terrain: { [`${FACED_X},${ROOM_ROW}`]: button },
         entities: [{ type: 'lurker_dormant', x: FACED_X, y: ROOM_ROW, dir: 'N' }]
       });
-      expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+      expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
       expect(engine.getEntities()).toEqual([]);
       expect(engine.getCc2WaveState()?.toggledButtons).toEqual([ROOM_ROW * ROOM_SIZE + FACED_X]);
     });
@@ -176,7 +176,7 @@ describe('the search key of a teleport waiting for its monster', () => {
 describe('a ball that does not blow up on terrain', () => {
   it('is erased with no sound and no blast when set down on ice against a wall', () => {
     const engine = bowler({ startX: LAST_FLOOR_X, terrain: { [`${LAST_FLOOR_X},${ROOM_ROW}`]: 'ice' } });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toBeUndefined();
     expect(world(engine).blockSplashes.size).toBe(0);
     expect(engine.getPlayer().alive).toBe(true);
@@ -185,7 +185,7 @@ describe('a ball that does not blow up on terrain', () => {
 
   it('leaves no blast when it is spent against a wall as it is set down on plain floor', () => {
     const engine = bowler({ startX: LAST_FLOOR_X });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     expect(ballOf(engine)).toBeUndefined();
     expect(world(engine).blockSplashes.size).toBe(0);
   });
@@ -193,7 +193,7 @@ describe('a ball that does not blow up on terrain', () => {
   /** A ball on the last floor cell of the row, facing the wall, with the given terrain under it. */
   function ballAtWall(terrain?: string): { engine: GameEngine; ball: RuntimeEntity } {
     const engine = bowler({ terrain: terrain === undefined ? {} : { [`${LAST_FLOOR_X},${ROOM_ROW}`]: terrain } });
-    expect(engine.dropItem(STONE_ITEM_ID)).toBe(true);
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     const ball = ballOf(engine) as RuntimeEntity;
     ball.x = LAST_FLOOR_X;
     ball.y = ROOM_ROW;

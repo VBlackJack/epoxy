@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { findCharacterItemConfigErrors, isCc2LevelData } from '../../config/ConfigValidation';
+import { idleTicks, playCycle } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { applyTimedMove, sanitizeTimedMoves } from '../../ui/replaySchedule';
@@ -62,7 +63,7 @@ describe('cycle key', () => {
   it('turns the oldest pair of boots to the end, once per call, and records it', () => {
     const engine = load('cc2');
     engine.getPlayer().boots = new Set([FIRST_BOOTS, SECOND_BOOTS, THIRD_BOOTS]);
-    expect(engine.cycleInventory()).toBe(true);
+    expect(playCycle(engine)).toBe(true);
     expect([...engine.getPlayer().boots]).toEqual([SECOND_BOOTS, THIRD_BOOTS, FIRST_BOOTS]);
     expect(engine.getTimedMoveHistory().at(-1)).toMatchObject({ cycle: true });
   });
@@ -71,7 +72,7 @@ describe('cycle key', () => {
     const engine = load('cc2');
     engine.getPlayer().boots = new Set([FIRST_BOOTS, SECOND_BOOTS]);
     const recordedBefore = engine.getTimedMoveHistory().length;
-    engine.cycleInventory();
+    playCycle(engine);
     expect(engine.undo()).toBe(true);
     expect([...engine.getPlayer().boots]).toEqual([FIRST_BOOTS, SECOND_BOOTS]);
     expect(engine.getTimedMoveHistory()).toHaveLength(recordedBefore);
@@ -93,12 +94,14 @@ describe('cycle key', () => {
   it('replays from the timed history and survives a stored-solution round trip', () => {
     const engine = load('cc2');
     engine.getPlayer().boots = new Set([FIRST_BOOTS, SECOND_BOOTS]);
-    engine.cycleInventory();
+    playCycle(engine);
     const recorded = engine.getTimedMoveHistory();
     expect(sanitizeTimedMoves(JSON.parse(JSON.stringify(recorded)))).toEqual(recorded);
     const replay = load('cc2');
     replay.getPlayer().boots = new Set([FIRST_BOOTS, SECOND_BOOTS]);
     for (const move of recorded) applyTimedMove(replay, move);
+    // The cycle is stored for the turn of the tick it was given in.
+    idleTicks(replay);
     expect([...replay.getPlayer().boots]).toEqual([SECOND_BOOTS, FIRST_BOOTS]);
   });
 });

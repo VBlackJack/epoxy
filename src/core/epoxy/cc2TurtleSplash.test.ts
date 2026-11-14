@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -44,7 +45,7 @@ const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: Epo
 function leaveTurtle(mode: RoomMode): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(room({ mode, startX: TURTLE_X, terrain: { [`${TURTLE_X},${ROOM_ROW}`]: TURTLE_CC2 } }));
-  expect(engine.attemptPlayerMove('E')).toBe(true);
+  expect(playMove(engine, 'E').moved).toBe(true);
   return engine;
 }
 
