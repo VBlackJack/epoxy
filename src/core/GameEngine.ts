@@ -105,6 +105,7 @@ import {
   cc2PlayerViewKey,
   cc2HiddenStateKey,
   copyCc2PlayerView,
+  copyPendingDecision,
   copyCc3dArrival,
   buildGhostBar,
   blastedEdgeDiff,
@@ -198,7 +199,10 @@ export class GameEngine {
       completeLevel: () => this.completeLevel(),
       checkTargetsWin: () => this.checkTargetsWin(),
       triggerButton: (x, y, action) => triggerButton(this.ctx, x, y, action),
-      teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad)
+      teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad),
+      // Wave 9 hooks of the actor order: nothing plays at the player's place yet.
+      cc2PlayerDecides: () => {},
+      cc2PlayerActs: () => {}
     };
   }
 
@@ -869,6 +873,8 @@ export class GameEngine {
       ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
       // Only a CC2-engine level with a decision for the mirror players to copy, a blasted wall or a blasted ghost bar cell has them to put back.
       ...(this.w.mirrorMove !== undefined ? { mirrorMove: { ...this.w.mirrorMove } } : {}),
+      // Only a CC2-engine level with an input stored for the player's turn has one to put back.
+      ...(this.w.cc2PendingDecision !== undefined ? { cc2PendingDecision: copyPendingDecision(this.w.cc2PendingDecision) } : {}),
       ...(this.w.blastedEdgeMask !== undefined ? { blastedEdgeMask: Array.from(this.w.blastedEdgeMask) } : {}),
       ...(ghostBarEdited(this.w) ? { ghostBar: [...(this.w.ghostBar as Set<number>)] } : {}),
       // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
@@ -909,6 +915,7 @@ export class GameEngine {
       ...(p.belt !== undefined && p.belt.length > 0 ? { belt: [...p.belt] } : {}),
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
+      ...(p.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -934,6 +941,7 @@ export class GameEngine {
       ...(snap.belt !== undefined ? { belt: [...snap.belt] } : {}),
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
+      ...(snap.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -986,6 +994,7 @@ export class GameEngine {
     this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.cc2ToggledButtonCells = snap.cc2ToggledButtonCells !== undefined ? [...snap.cc2ToggledButtonCells] : [];
     this.w.mirrorMove = snap.mirrorMove !== undefined ? { ...snap.mirrorMove } : undefined;
+    this.w.cc2PendingDecision = snap.cc2PendingDecision !== undefined ? copyPendingDecision(snap.cc2PendingDecision) : undefined;
     // The walls a blast removed come back as an array of their own; with none removed the level's memoized mask is the live one again.
     if (snap.blastedEdgeMask !== undefined) {
       this.w.blastedEdgeMask = Uint8Array.from(snap.blastedEdgeMask);
@@ -1399,6 +1408,14 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier, the deferred wire-fired
    * sink edges, the mirror players' remembered decision, the blasted walls and the edited ghost bar. Undefined while none is set, so a level that uses none hashes as before.
    */
+  /**
+   * CC2 engine, actor order: what the player's turn of the last tick did (the way he faced or stepped, and whether he moved),
+   * or undefined when the level does not play in the actor order or he took no turn. Not played yet: always undefined.
+   */
+  public getLastPlayerTurn(): { dir: Direction; moved: boolean } | undefined {
+    return undefined;
+  }
+
   public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: { remembered: Direction | null; snapshot: Direction | null; attempted: boolean }; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
@@ -1548,6 +1565,7 @@ export class GameEngine {
     // Nothing fires after the win: the wire-fired edges still waiting are dropped.
     this.w.cc2DeferredSinkEdges = [];
     this.w.cc2BrownHeld = undefined;
+    this.w.cc2PendingDecision = undefined;
     this.w.player.isSliding = false;
     const timing = ConfigRegistry.getGame().timing;
     const timeRemaining = this.getTimeRemainingSeconds();

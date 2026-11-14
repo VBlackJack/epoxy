@@ -2209,6 +2209,22 @@ export interface Cc2MirrorMove {
   attempted: boolean;
 }
 
+/** CC2 engine, actor order: a drop or an inventory cycle given before the tick, played at the player's turn before his move. */
+export type Cc2PendingAction = { kind: 'drop'; itemId: string | null } | { kind: 'cycle' };
+
+/**
+ * CC2 engine, actor order: the input given before the tick, stored until the player's turn in the entity pass.
+ * `dirs` holds the keys in the order the decision reads them (one key, or the two of a held pair), `held` whether the
+ * input was a held one, `tick` the tick the input was given in (the move history is written with it), `actions` the
+ * drops and cycles queued with it, in the order they were given.
+ */
+export interface Cc2PendingDecision {
+  dirs: Direction[];
+  held: boolean;
+  tick: number;
+  actions?: Cc2PendingAction[];
+}
+
 /** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */
 export interface CcArrival {
   /** The monster that stepped on the button; the press is void when it is gone or has left the cell. */
@@ -2373,8 +2389,9 @@ export interface RuntimeEntity {
   /** CC2 engine, a mirror: held by a shut trap, to be ejected forward when it opens. Absent otherwise. */
   trapHeld?: true;
   /**
-   * CC2 engine, on a level with mirror players: the position of this actor in the order the source lists its actors
+   * CC2 engine: the position of this actor in the order the source lists its actors
    * (reading order of the load grid). An entity without one was spawned after load and counts as after every other.
+   * Present on every CC2-engine level.
    */
   listOrdinal?: number;
 }
@@ -2458,8 +2475,10 @@ export interface PlayerState {
   belt?: string[];
   /** CC2-engine level only: the player stands on a soft pad (red or yellow teleporter) and decides his exit at his next decision. Set only while due. */
   softPadDue?: true;
-  /** CC2-engine level with mirror players only: the position of this player in the actor order of the source (see RuntimeEntity.listOrdinal). Absent otherwise. */
+  /** CC2-engine level: the position of this player in the actor order of the source (see RuntimeEntity.listOrdinal). Absent on every other level. */
   listOrdinal?: number;
+  /** CC2-engine level, actor order: the player's trap was shut at his last turn; when it is open at the start of a pass he steps out of it. Set only while true. */
+  trapShutAtTurn?: true;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2529,6 +2548,8 @@ export interface PlayerSnapshot {
   softPadDue?: true;
   /** The player's listOrdinal; written only when set. */
   listOrdinal?: number;
+  /** The player's trapShutAtTurn; written only while true. */
+  trapShutAtTurn?: true;
 }
 
 export interface UndoSnapshot {
@@ -2596,6 +2617,8 @@ export interface UndoSnapshot {
   cc2ToggledButtonCells?: number[];
   /** The decisions the mirror players copy (CC2 engine): written only once one was recorded, absent otherwise. */
   mirrorMove?: Cc2MirrorMove;
+  /** The input stored for the player's turn (CC2 actor order): written only while one is stored, absent otherwise. */
+  cc2PendingDecision?: Cc2PendingDecision;
   /** The thin wall edge mask after dynamite blasts removed some of its sides (CC2 engine); written only after a blast changed it, absent otherwise. */
   blastedEdgeMask?: number[];
   /** The cells that still bar ghosts (CC2 engine custom floors and walls); written only once a blast removed one, absent otherwise. */

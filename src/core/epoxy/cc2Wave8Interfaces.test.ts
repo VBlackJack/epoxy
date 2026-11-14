@@ -171,8 +171,13 @@ describe('actor order', () => {
     expect(world(engine).player.listOrdinal).toBe(1);
   });
 
-  it('leaves a level without a mirror, and any other ruleset, without ordinals', () => {
-    for (const mode of ['cc2', 'cc', 'native'] as const) {
+  it('numbers every CC2-engine level, mirror or not, and leaves any other ruleset without ordinals', () => {
+    const cc2 = new GameEngine();
+    cc2.loadLevel(room({ mode: 'cc2', entities: [{ type: 'bug', x: 3, y: 2, dir: 'N' }] }));
+    expect(world(cc2).player.listOrdinal).toBeDefined();
+    expect(world(cc2).entities[0].listOrdinal).toBeDefined();
+    expect(world(cc2).cc2MirrorCadence).toBeUndefined();
+    for (const mode of ['cc', 'native'] as const) {
       const engine = new GameEngine();
       engine.loadLevel(room({ mode, entities: [{ type: 'bug', x: 3, y: 2, dir: 'N' }] }));
       expect(world(engine).player.listOrdinal).toBeUndefined();

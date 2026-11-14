@@ -188,6 +188,17 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
 }
 
 /**
+ * CC2 engine, actor order (wave 9): the player's early push at his decision, for each key in the order he reads them.
+ * `movingAtDecision` receives the uids of the blocks that were in motion when he decided (the step at his place must not
+ * push them). Declared by the interface batch; the rule is written by the player batch. Does nothing yet.
+ */
+export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movingAtDecision: Set<number>): void {
+  void ctx;
+  void dirs;
+  void movingAtDecision;
+}
+
+/**
  * The block slap of the CC2 engine: with two direction keys held the player pushes the block next to him toward each of
  * them before he chooses, without moving. Refused while he slides or waits out a step, and across whatever would refuse
  * the step itself (a thin wall, the map edge, a splash); on a track cell the push follows the track redirect. His facing

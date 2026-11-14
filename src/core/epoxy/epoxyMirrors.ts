@@ -70,10 +70,11 @@ export function isMirrorEntity(entity: RuntimeEntity): boolean {
 
 /**
  * CC2 engine: whether this world plays its mirror players as actors with their own cadence. Only a level with a mirror
- * (or a mirror clone template) carries load-order ordinals, so any other CC2 level never records a decision.
+ * (or a mirror clone template) sets the load flag, so any other CC2 level never records a decision. Every CC2-engine
+ * level carries load-order ordinals, so the ordinals no longer mark a mirror level.
  */
 export function hasCc2MirrorCadence(w: EpoxyWorld): boolean {
-  return usesCc2Engine(w.level) && !w.cc3dPace && w.player.listOrdinal !== undefined;
+  return usesCc2Engine(w.level) && !w.cc3dPace && w.cc2MirrorCadence === true;
 }
 
 /** The decisions the mirror players copy, created on first use. */

@@ -507,7 +507,7 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
  * block, never ends a push on the live player. Counts as a chain push; a slide happens in the tick, not in a
  * player move, so the move-level partial-push flag is left as it was.
  */
-function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, ny: number, dir: Direction): boolean {
+export function slidePushesAhead(ctx: EpoxyContext, slider: RuntimeEntity, nx: number, ny: number, dir: Direction): boolean {
   const w = ctx.world;
   if (!isInBounds(w, nx, ny)) return false;
   const ahead = getEntityAt(w, nx, ny);

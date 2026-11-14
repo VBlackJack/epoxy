@@ -26,7 +26,7 @@ import { usesCc2Engine, usesCcRules } from './ccRules';
 import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
 import type { SignalEdge } from './signalNetwork';
-import type { CcArrival, Cc2MirrorMove, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
+import type { CcArrival, Cc2MirrorMove, Cc2PendingDecision, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -227,6 +227,26 @@ export interface EpoxyWorld {
    */
   cc2BeforePass?: boolean;
   /**
+   * CC2 engine, wave 9: true when the player takes his turn at his place in the actor list (CC2 engine, not cc3dPace, classic
+   * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
+   */
+  cc2ActorOrder?: true;
+  /** CC2 engine: true when the level has a mirror player (or a mirror clone template), so the mirrors copy the player's decisions. Decided once at load; absent otherwise. */
+  cc2MirrorCadence?: true;
+  /**
+   * CC2 engine, actor order: the input given before the tick, kept until the player's turn in the entity pass. Written to
+   * snapshots, restored and hashed while set; cleared when a level loads and at the end of the tick.
+   */
+  cc2PendingDecision?: Cc2PendingDecision;
+  /** CC2 engine, actor order: the uids of the entities that already had their turn in the running pass. Transient, never saved. */
+  cc2TurnSeen?: Set<number>;
+  /** CC2 engine, actor order: the uids of the blocks in motion when the player decided. Transient, never saved. */
+  cc2MovingAtDecision?: Set<number>;
+  /** CC2 engine, actor order: the uids of the blocks the player's turn pushed after their own turn in the pass. Transient, never saved. */
+  cc2PushedLate?: number[];
+  /** CC2 engine, actor order: the uids of the entities that skip the rest of the running pass (a cloner template that went out). Transient, never saved. */
+  cc2SkipTurn?: Set<number>;
+  /**
    * CC2 engine: the cell indices (ascending) of the brown buttons the players' steps ended on, held for the rest of the
    * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
    */
@@ -308,6 +328,13 @@ export interface EpoxyContext {
   /** Returns false when a clone spawned by the button killed the player. */
   triggerButton(x: number, y: number, action: ButtonAction): boolean;
   teleportEntity(entity: RuntimeEntity, fromX: number, fromY: number, dir: Direction, landOnPad?: boolean): boolean;
+  /**
+   * CC2 engine, actor order: the player's decision at his place among the decisions of the pass (his early push). The engine
+   * sets a no-op; a context built by hand may leave it out.
+   */
+  cc2PlayerDecides?(): void;
+  /** CC2 engine, actor order: the player's turn at his place among the actions of the pass. The engine sets a no-op; a context built by hand may leave it out. */
+  cc2PlayerActs?(): void;
 }
 
 /** The state of an engine before any level is loaded. */
@@ -417,16 +444,14 @@ export function buildGhostBar(level: CompiledLevel, width: number, height: numbe
 }
 
 /**
- * CC2 engine, on a level with a mirror player: numbers every actor (entities and players) in the reading order of the
- * load grid, which is the order the source lists them in. Entities spawned later keep no ordinal and count as after every
- * other. Any other level, and a level without a mirror, is left without ordinals, so nothing about them reaches its snapshots or hash.
+ * CC2 engine: numbers every actor (entities and players) in the reading order of the load grid, which is the order the
+ * source lists them in. Entities spawned later keep no ordinal and count as after every other. Any other level is left
+ * without ordinals, so nothing about it reaches its snapshots or hash.
  */
 export function assignListOrdinals(w: EpoxyWorld): void {
   for (const e of w.entities) delete e.listOrdinal;
   for (const p of playersOf(w)) delete p.listOrdinal;
-  const hasMirror = (type: string): boolean => ConfigRegistry.getEntityDef(type)?.mirrorsCharacter !== undefined;
   if (!usesCc2Engine(w.level)) return;
-  if (!w.entities.some((e) => hasMirror(e.type)) && !w.cloneLinks.some((link) => hasMirror(link.templateType))) return;
   const width = mapWidth(w);
   const actors: { cell: number; assign: (ordinal: number) => void }[] = [];
   for (const e of w.entities) actors.push({ cell: e.y * width + e.x, assign: (ordinal) => { e.listOrdinal = ordinal; } });
@@ -454,6 +479,16 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.hasShots = false;
   w.ccRules = usesCcRules(w.level);
   w.cc3dPace = !w.ccRules && isConvertedCc3dLevel(w.level);
+  // The actor order and the mirror cadence are decided here, once per level; the per-pass sets and the stored input start empty.
+  const hasMirror = (type: string): boolean => ConfigRegistry.getEntityDef(type)?.mirrorsCharacter !== undefined;
+  const cc2Level = usesCc2Engine(w.level) && !w.cc3dPace;
+  w.cc2ActorOrder = cc2Level && w.ccRules && w.parked.length === 0 ? true : undefined;
+  w.cc2MirrorCadence = cc2Level && (w.entities.some((e) => hasMirror(e.type)) || w.cloneLinks.some((link) => hasMirror(link.templateType))) ? true : undefined;
+  w.cc2PendingDecision = undefined;
+  w.cc2TurnSeen = undefined;
+  w.cc2MovingAtDecision = undefined;
+  w.cc2PushedLate = undefined;
+  w.cc2SkipTurn = undefined;
   w.trapLatch = null;
   w.shotStepTicks = 0;
   w.shots = [];
@@ -794,6 +829,11 @@ export function copyCc2PlayerView(v: Cc2PlayerView): Cc2PlayerView {
   return { ...v, ...(v.sourcePad !== undefined ? { sourcePad: { ...v.sourcePad } } : {}) };
 }
 
+/** A copy of the input stored for the player's turn on a CC2-engine level. */
+export function copyPendingDecision(d: Cc2PendingDecision): Cc2PendingDecision {
+  return { ...d, dirs: [...d.dirs], ...(d.actions !== undefined ? { actions: d.actions.map((a) => ({ ...a })) } : {}) };
+}
+
 /** The search key of the apparent player position: empty when there is none. */
 export function cc2PlayerViewKey(w: EpoxyWorld): string {
   const v = w.cc2PlayerView;
@@ -832,6 +872,14 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);
   const soft = playersOf(w).flatMap((p, index) => (p.softPadDue === true ? [index] : []));
   if (soft.length > 0) parts.push(`f${soft.join(',')}`);
+  // The input stored for the player's turn (its tick is always the running one, so it stays out of the key) and the trap that was shut at his last turn decide what the next tick does.
+  const pending = w.cc2PendingDecision;
+  if (pending !== undefined) {
+    const actions = (pending.actions ?? []).map((a) => (a.kind === 'drop' ? `d${a.itemId ?? ''}` : 'c')).join('+');
+    parts.push(`P${pending.dirs.join('')}${pending.held ? 'h' : ''}${actions !== '' ? `:${actions}` : ''}`);
+  }
+  const trapShut = playersOf(w).flatMap((p, index) => (p.trapShutAtTurn === true ? [index] : []));
+  if (trapShut.length > 0) parts.push(`T${trapShut.join(',')}`);
   // The decisions the mirror players copy, the mirrors held by a shut trap and the steps that ended in the running pass.
   const mirror = w.mirrorMove;
   if (mirror !== undefined) parts.push(`M${mirror.remembered ?? '-'}${mirror.snapshot ?? '-'}${mirror.attempted ? 1 : 0}`);
