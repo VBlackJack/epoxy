@@ -706,8 +706,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
     if (removal !== null) {
-      if (w.cc3dPace) {
-        // CC3D keeps the monster in the cell for the whole step and removes it, and the bomb, when the step ends.
+      if (w.cc3dPace || (removal === 'bomb' && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
+        // CC3D, and a bomb on a CC2-engine level, keep the monster in the cell for the whole step and remove it, and the bomb, when the step ends.
         w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
       } else {
         applyPendingRemoval(ctx, entity);

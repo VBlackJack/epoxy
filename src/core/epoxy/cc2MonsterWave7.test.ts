@@ -18,7 +18,8 @@
  * CC2 wave 7, monsters: a monster loaded on ice decides normally until it has left its load cell (IL), and a yellow tank that
  * stands on ice or a force floor is carried by it unless it still stands on its load cell on ice (YI), and a block refused on a
  * force floor tries once more after the entity pass (FB2), and a monster on a green button toggles the walls when its step ends,
- * after the entity pass (GB, GB2). Every rule is off on classic and native levels.
+ * after the entity pass (GB, GB2), and a monster stepping onto a bomb sets it off when its step ends (MB). Every rule is off on
+ * classic and native levels.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -253,5 +254,39 @@ describe('monster on a green button (GB, GB2)', () => {
     engine.tick();
     expect(engine.getTerrain()[ROOM_ROW][walkerX + 1]).toBe(WALL_OPEN);
     expect(walker.x).toBeLessThanOrEqual(walkerX);
+  });
+});
+
+describe('monster stepping onto a bomb (MB)', () => {
+  const BALL = 'pink_ball';
+  const BOMB = 'bomb';
+  const BALL_X = 5;
+  const WATCH_TICKS = 12;
+
+  /** The tick, counted from 1, at which the ball moved onto the bomb and the tick at which it was gone; 0 for never. */
+  function trace(mode: RoomMode): { arrived: number; gone: number; bombLeft: boolean } {
+    const engine = load(mode, { items: { [`${BALL_X + 1},${ROOM_ROW}`]: BOMB }, entities: [{ type: BALL, x: BALL_X, y: ROOM_ROW, dir: 'E' }] });
+    let arrived = 0;
+    let gone = 0;
+    for (let i = 1; i <= WATCH_TICKS && gone === 0; i++) {
+      engine.tick();
+      const ball = engine.getEntities().find((e) => e.type === BALL);
+      if (ball === undefined) gone = i;
+      else if (arrived === 0 && ball.x > BALL_X) arrived = i;
+    }
+    return { arrived, gone, bombLeft: engine.getItems()[ROOM_ROW][BALL_X + 1] === BOMB };
+  }
+
+  it('keeps the monster on the bomb until its step ends on a CC2 level', () => {
+    const { arrived, gone, bombLeft } = trace('cc2');
+    expect(arrived).toBeGreaterThan(0);
+    expect(gone).toBeGreaterThan(arrived);
+    expect(bombLeft).toBe(false);
+  });
+
+  it('removes the monster at once on a native level', () => {
+    const { arrived, gone } = trace('native');
+    expect(arrived).toBe(0);
+    expect(gone).toBeGreaterThan(0);
   });
 });
