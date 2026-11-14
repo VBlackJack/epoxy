@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC2_SLAP_REVEALED_TILE_IDS, DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, CC2_TOOL_BELT_CAPACITY, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
@@ -33,7 +33,8 @@ import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
-import { explodeRollingBall, isRollingBall } from './epoxyRollingBall';
+import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } from './epoxyRollingBall';
+import { setDownDynamite } from './epoxyDynamite';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -43,6 +44,7 @@ import {
   entityPressesPlate,
   getEntityAt,
   holdsItem,
+  isCovered,
   isEdgeBlocked,
   isInBounds,
   dropExitedController,
@@ -467,6 +469,115 @@ function spendTollToken(w: EpoxyWorld): boolean {
 }
 
 /**
+ * CC2 engine: whether the player's tools are kept on a four-tool belt (Lexy game.js:3237-3275). A level that asks for the CC1
+ * boot rules (OPTN byte 23, Cc2LevelData.useCc1Boots) keeps the classic boots and no belt.
+ */
+export function usesToolBelt(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && w.level.cc2?.useCc1Boots !== true;
+}
+
+/** Whether the item is a tool of the belt: boots and the counted items that are not keys (dynamite, pads, stones, tokens). */
+function isBeltTool(def: TileDefinition): boolean {
+  return def.collectible === 'boot' || def.collectible === 'charge' || def.collectible === 'gate' || def.collectible === 'stone' || def.collectible === 'token';
+}
+
+/**
+ * Boots the player cannot hold twice (the boots are a set) or a second ward: the pickup is the plain one and never pushes
+ * a tool off the belt.
+ */
+function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinition): boolean {
+  if (def.collectible !== 'boot') return false;
+  return w.player.boots.has(itemId) || (def.absorbsMonsterContact === true && wardBootsHeld(w.player.boots) !== undefined);
+}
+
+/**
+ * Brings the belt of `p` in line with what he holds and returns it: tools that left (put down, spent, stolen) are dropped
+ * from it, tools that arrived by another route join at the end. The array, duplicates included, is the order of the belt.
+ */
+export function syncToolBelt(p: PlayerState): string[] {
+  const held: string[] = [...p.boots];
+  for (const [id, count] of Object.entries(p.keys)) {
+    if (ConfigRegistry.getTile(id).collectible === 'key') continue;
+    for (let i = 0; i < count; i++) held.push(id);
+  }
+  const belt: string[] = [];
+  for (const id of p.belt ?? []) {
+    const at = held.indexOf(id);
+    if (at < 0) continue;
+    belt.push(id);
+    held.splice(at, 1);
+  }
+  belt.push(...held);
+  if (belt.length > 0) p.belt = belt;
+  else delete p.belt;
+  return belt;
+}
+
+/** Takes one `itemId` out of what the player holds (boots or a counted tool). */
+function removeHeldTool(p: PlayerState, itemId: string, def: TileDefinition): void {
+  if (def.collectible === 'boot') {
+    p.boots.delete(itemId);
+    return;
+  }
+  const left = (p.keys[itemId] ?? 0) - 1;
+  if (left > 0) p.keys[itemId] = left;
+  else delete p.keys[itemId];
+}
+
+/**
+ * Picks the tool at (x, y) up onto the belt. With four tools held the oldest goes out first (Lexy attempt_take): a yellow
+ * pad that cannot be set down here (the cell is not plain floor) refuses the whole pickup, otherwise the oldest is put down
+ * on the cell once the new tool is taken, by the same rules as a drop.
+ */
+function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string, def: TileDefinition): void {
+  const w = ctx.world;
+  const p = w.player;
+  const belt = syncToolBelt(p);
+  let pushedOut: string | undefined;
+  if (belt.length >= CC2_TOOL_BELT_CAPACITY) {
+    const oldest = belt[0];
+    const oldestDef = ConfigRegistry.getTile(oldest);
+    if (oldestDef.collectible === 'gate' && !canSetDownPad(w, x, y)) return;
+    removeHeldTool(p, oldest, oldestDef);
+    belt.shift();
+    pushedOut = oldest;
+  }
+  w.items[y][x] = null;
+  if (def.collectible === 'boot') p.boots.add(itemId);
+  else p.keys[itemId] = (p.keys[itemId] || 0) + 1;
+  belt.push(itemId);
+  p.belt = belt;
+  AudioManager.playSfx('item');
+  ctx.emitVisual('item', x, y, def.colorKey || 'blue');
+  if (pushedOut !== undefined) setDownPushedOutTool(ctx, x, y, pushedOut);
+}
+
+/** A pad is set down only on plain floor with nothing hidden under it. */
+function canSetDownPad(w: EpoxyWorld, x: number, y: number): boolean {
+  return w.terrain[y][x] === FLOOR_TILE_ID && !isCovered(w, x, y);
+}
+
+/**
+ * Sets the tool pushed off the belt down on the cell the player stands on, as a drop would: dynamite unlit (it lights when he
+ * leaves), a pad as the terrain it makes, the bowling ball as a ball that rolls off, anything else as the item.
+ */
+function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: string): void {
+  const w = ctx.world;
+  const def = ConfigRegistry.getTile(itemId);
+  w.beamDirty = true;
+  if (def.collectible === 'charge' && def.cc2Dynamite === true) {
+    setDownDynamite(w, x, y, itemId);
+  } else if (def.collectible === 'gate' && def.dropsAsTerrain !== undefined) {
+    w.terrain[y][x] = def.dropsAsTerrain;
+    w.gridMutatedByMove = true;
+  } else if (def.collectible === 'stone' && droppedActorId(itemId) !== undefined) {
+    launchRollingBall(ctx, x, y, w.player.dir, itemId);
+  } else {
+    w.items[y][x] = itemId;
+  }
+}
+
+/**
  * Applies the effects of the cell the player just entered. A teleporter is
  * resolved first: the player jumps, then the arrival cell (items, thief,
  * buttons, hazards, exit) is resolved at the destination coordinates.
@@ -527,6 +638,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       cc3dArrivalOf(w.player).chip = { x, y };
     } else if (itemDef.collectible === 'chip') {
       takeChip(ctx, x, y, itemDef);
+    } else if (usesToolBelt(w) && isBeltTool(itemDef) && !isRedundantBootPickup(w, itemId, itemDef)) {
+      // CC2 engine: the belt holds four tools; a fifth pushes the oldest out onto the cell.
+      pickUpBeltTool(ctx, x, y, itemId, itemDef);
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;

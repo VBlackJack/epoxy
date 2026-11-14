@@ -255,17 +255,29 @@ function dropOldestBoots(engine: PlayEngine): void {
   if (!oldest.done) engine.dropItem(oldest.value);
 }
 
+/** The belt the engine keeps itself (a CC2-engine level without the CC1 boot rules), or undefined when it keeps none. */
+function engineBeltOf(engine: PlayEngine): readonly string[] | undefined {
+  return engine instanceof GameEngine ? engine.getToolBelt() : undefined;
+}
+
 /**
- * The CC2 tool belt in pickup order, kept by the harness for one run: the boots and the counted tools such as dynamite
+ * The CC2 tool belt in pickup order, for the drop and cycle keys: the boots and the counted tools such as dynamite
  * or stones. The drop key puts down its oldest tool and the cycle key sends that tool to the end, as Lexy's drop_item
- * and cycle_inventory do. Keys are not tools, and a toll token or bribe stays off the belt: the engine never sets one
- * down, so a bribe at the head would block every later drop (Lexy does drop a bribe; the belt capacity is not modelled).
+ * and cycle_inventory do. A level the engine keeps the belt of (see GameEngine.getToolBelt) is read from the engine, which
+ * pushes the oldest tool out on a fifth pickup; any other level (the CC1 boot rules) keeps a belt of its own here. Keys are
+ * not tools, and in that own belt a toll token or bribe stays off the belt: the engine never sets one down, so a bribe at
+ * the head would block every later drop (Lexy does drop a bribe; the belt capacity is not modelled there).
  */
 class ToolBelt {
   private order: string[] = [];
 
   /** Brings the belt in line with what the player holds: tools put down or spent leave, new pickups join at the end. */
   private sync(engine: PlayEngine): void {
+    const own = engineBeltOf(engine);
+    if (own !== undefined) {
+      this.order = [...own];
+      return;
+    }
     const player = engine.getPlayer();
     const held: string[] = [...player.boots];
     for (const [id, count] of Object.entries(player.keys ?? {})) {
@@ -285,8 +297,13 @@ class ToolBelt {
 
   /** The cycle key: the oldest tool goes to the end of the belt. */
   cycle(engine: PlayEngine): void {
+    if (engineBeltOf(engine) !== undefined) {
+      engine.cycleInventory?.();
+      return;
+    }
     this.sync(engine);
     if (this.order.length > 1) this.order.push(this.order.shift() as string);
+    engine.cycleInventory?.();
   }
 
   /** The drop key: puts the oldest tool down; it leaves the belt when the engine let it go. */
@@ -316,8 +333,8 @@ function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: numbe
   if (fresh === 0 || player.moveCooldown !== 0) return false;
   if (fresh & CC2_REPLAY_ACTION_BITS.cycleInventory) {
     consume(CC2_REPLAY_ACTION_BITS.cycleInventory);
-    belt?.cycle(engine);
-    engine.cycleInventory?.();
+    if (belt) belt.cycle(engine);
+    else engine.cycleInventory?.();
   }
   if (fresh & CC2_REPLAY_ACTION_BITS.drop && !player.isSliding) {
     consume(CC2_REPLAY_ACTION_BITS.drop);

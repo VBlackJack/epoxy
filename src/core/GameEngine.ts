@@ -78,6 +78,8 @@ import {
   processTeleportExit,
   softPadOverrideDue,
   takeSoftPadOverride,
+  syncToolBelt,
+  usesToolBelt,
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
@@ -589,6 +591,18 @@ export class GameEngine {
    * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
+    const dropped = this.dropItemNow(itemId);
+    // CC2 engine: what was put down leaves the belt, the oldest tool of its kind first.
+    if (dropped && usesToolBelt(this.w) && itemId !== null) {
+      const player = this.w.player;
+      const at = player.belt?.indexOf(itemId) ?? -1;
+      if (player.belt !== undefined && at >= 0) player.belt.splice(at, 1);
+      syncToolBelt(player);
+    }
+    return dropped;
+  }
+
+  private dropItemNow(itemId: string | null): boolean {
     if (!this.beginInput()) return false;
     if (!itemId || !this.holdsItem(itemId)) {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
@@ -1289,6 +1303,7 @@ export class GameEngine {
    */
   public cycleInventory(): boolean {
     if (!usesCc2Engine(this.w.level) || !this.beginInput()) return false;
+    if (usesToolBelt(this.w)) return this.cycleToolBelt();
     const boots = this.w.player.boots;
     if (boots.size < MIN_BOOTS_TO_CYCLE) return false;
     this.saveUndoSnapshot();
@@ -1297,6 +1312,31 @@ export class GameEngine {
     boots.add(oldest);
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, cycle: true });
     return true;
+  }
+
+  /**
+   * CC2 engine, four-tool belt: the tool held longest goes to the end of the belt, so the next tool is the one the drop key
+   * puts down (a boot keeps its place in the boots too). Needs two tools or more; one undo step, recorded like the boots cycle.
+   */
+  private cycleToolBelt(): boolean {
+    const belt = syncToolBelt(this.w.player);
+    if (belt.length < MIN_BOOTS_TO_CYCLE) return false;
+    this.saveUndoSnapshot();
+    const oldest = belt.shift() as string;
+    belt.push(oldest);
+    this.w.player.belt = belt;
+    const boots = this.w.player.boots;
+    if (boots.has(oldest)) {
+      boots.delete(oldest);
+      boots.add(oldest);
+    }
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, cycle: true });
+    return true;
+  }
+
+  /** CC2 engine: the tools of the controlled player in belt order, oldest first; undefined when the level keeps no belt. */
+  public getToolBelt(): readonly string[] | undefined {
+    return usesToolBelt(this.w) ? [...syncToolBelt(this.w.player)] : undefined;
   }
 
   /**

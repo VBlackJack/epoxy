@@ -104,6 +104,8 @@ const DEFAULT_ACTOR_DIR: Direction = 'S';
 const DIRECTION_MASK = 0x03;
 /** Offset of the blob behavior byte in the options section. */
 const OPTIONS_BLOB_BEHAVIOR_AT = 24;
+/** Offset of the use_cc1_boots byte in the options section (nonzero: the level plays with the CC1 boot rules and has no four-tool belt). */
+const OPTIONS_USE_CC1_BOOTS_AT = 23;
 /** Edge and arrow bits: north 1, east 2, south 4, west 8. */
 const SIDE_BITS: readonly number[] = [0x01, 0x02, 0x04, 0x08];
 const CANOPY_BIT = 0x10;
@@ -193,6 +195,8 @@ export interface Cc2ConvertOptions {
   hintBlocks?: readonly string[];
   /** The blob behavior byte of the options section (0 to 255); absent when the file has none. */
   blobBehavior?: number;
+  /** The use_cc1_boots byte of the options section as a flag; absent when the file has none. */
+  useCc1Boots?: boolean;
 }
 
 /** One element of a verdict list in the report. */
@@ -349,7 +353,7 @@ function assignHintBlocks(terrain: readonly (readonly string[])[], blocks: reado
 }
 
 /** Converts a whole decoded file: reads the map, the options and the texts, then converts the map. */
-export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint' | 'hintBlocks' | 'blobBehavior'>): Cc2ConversionResult {
+export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, 'timeLimit' | 'title' | 'author' | 'hint' | 'hintBlocks' | 'blobBehavior' | 'useCc1Boots'>): Cc2ConversionResult {
   const map = cc2Map(file);
   if (map === undefined) throw new Error(`CC2 converter: ${options.file} holds no decodable map`);
   const title = cc2Text(file, 'TITL')?.trim();
@@ -358,10 +362,12 @@ export function convertCc2File(file: Cc2File, options: Omit<Cc2ConvertOptions, '
   const hintBlocks = cc2ClueBlocks(file);
   const optionsSection = file.sections.find((s): s is Cc2OptionsSection => s.kind === 'options');
   const blobBehavior = optionsSection !== undefined && optionsSection.raw.length > OPTIONS_BLOB_BEHAVIOR_AT ? optionsSection.raw[OPTIONS_BLOB_BEHAVIOR_AT] : undefined;
+  const useCc1Boots = optionsSection !== undefined && optionsSection.raw.length > OPTIONS_USE_CC1_BOOTS_AT ? optionsSection.raw[OPTIONS_USE_CC1_BOOTS_AT] !== 0 : undefined;
   return convertCc2Map(map, {
     ...options,
     timeLimit: cc2Options(file)?.timeLimit ?? 0,
     ...(blobBehavior !== undefined ? { blobBehavior } : {}),
+    ...(useCc1Boots !== undefined ? { useCc1Boots } : {}),
     ...(title ? { title } : {}),
     ...(author ? { author } : {}),
     ...(hint ? { hint } : {}),
@@ -763,7 +769,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     ...(options.music !== undefined ? { music: options.music } : {}),
     gridHash: cc2GridHash(level),
     coverage,
-    ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {})
+    ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {}),
+    ...(options.useCc1Boots !== undefined ? { useCc1Boots: options.useCc1Boots } : {})
   };
 
   return {
