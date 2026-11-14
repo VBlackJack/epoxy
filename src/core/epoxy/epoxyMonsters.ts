@@ -821,7 +821,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (queuesButtonPress(w, entity, destTile.buttonAction)) {
       // A converted CC3D level applies the press when the step ends (the wrapper of stepMonster sets the final time).
-      const delay = w.cc3dPace ? entity.cooldownTicks - 1 : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
+      // CC2 engine: every monster press but the green and blue buttons lands when the step ends, at the start of the pass after its
+      // cooldown ran out (Lexy on_arrive). The two exceptions are Lexy's pending_green_toggle (applied after the actor pass) and
+      // pending_reverse (applied at the next decision), which keep their own timing.
+      const cc2StepEnd = usesCc2Engine(w.level) && destTile.buttonAction !== CC2_GREEN_TOGGLE_ACTION && destTile.buttonAction !== CC2_BLUE_REVERSE_ACTION;
+      const delay = w.cc3dPace ? entity.cooldownTicks - 1 : cc2StepEnd ? entity.cooldownTicks : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
       // The clock counts the pass of the current tick only once it has started (as markTanksToTurn reads it).
       const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
       w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay });
@@ -862,6 +866,12 @@ export function cc3dReleaseCooldown(w: EpoxyWorld, entity: RuntimeEntity): numbe
 
 /** The collectible kind that an entity takes but never holds as a tool: keys are not tools (a mirror player keeps every key it takes, its own colour too). */
 const TOOL_EXCLUDED_COLLECTIBLE = 'key';
+
+/** The green button action: a CC2 monster press of it is applied after the actor pass (Lexy pending_green_toggle). */
+const CC2_GREEN_TOGGLE_ACTION: ButtonAction = 'toggle_walls';
+
+/** The blue button action: a CC2 monster press of it is applied at the next decision (Lexy pending_reverse). */
+const CC2_BLUE_REVERSE_ACTION: ButtonAction = 'reverse_tanks';
 
 /** The collectible kind of a score bonus: a ball that takes one holds nothing. */
 const SCORE_BONUS_COLLECTIBLE = 'bonus';
