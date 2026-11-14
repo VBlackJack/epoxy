@@ -577,6 +577,18 @@ function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: s
   }
 }
 
+/** CC2 engine: a bomb the player steps onto goes off when his step ends, not when it starts (Lexy tiletypes.js bomb on_arrive). */
+function bombWaitsForStepEnd(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace;
+}
+
+/** The bomb under the player goes off and kills him. */
+function explodePlayerBomb(ctx: EpoxyContext, x: number, y: number): void {
+  ctx.world.items[y][x] = null;
+  ctx.emitVisual('explosion', x, y, 'red');
+  killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
+}
+
 /**
  * Applies the effects of the cell the player just entered. A teleporter is
  * resolved first: the player jumps, then the arrival cell (items, thief,
@@ -626,10 +638,11 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   if (itemId) {
     const itemDef = ConfigRegistry.getTile(itemId);
     if (itemDef.togglesTimer) toggleTimerOnStep(w);
-    if (itemDef.hazard === 'bomb') {
-      w.items[y][x] = null;
-      ctx.emitVisual('explosion', x, y, 'red');
-      killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
+    if (itemDef.hazard === 'bomb' && bombWaitsForStepEnd(w) && !atStepEnd) {
+      // CC2 engine: the bomb goes off when the step onto it ends, if he is still there (a green bomb may be a chip by then).
+      cc3dArrivalOf(w.player).bomb = { x, y };
+    } else if (itemDef.hazard === 'bomb') {
+      explodePlayerBomb(ctx, x, y);
       return;
     }
     if (itemDef.collectible === 'chip' && defersStepEffects(w) && !atStepEnd) {
@@ -794,6 +807,16 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
     if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
+  }
+  if (pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y) {
+    const itemId = w.items[p.y]?.[p.x];
+    const itemDef = itemId ? ConfigRegistry.getTile(itemId) : undefined;
+    if (itemDef?.hazard === 'bomb') {
+      explodePlayerBomb(ctx, p.x, p.y);
+      return true;
+    }
+    // The bomb turned into a chip during the step (a green toggle): it is taken like one.
+    if (itemDef?.collectible === 'chip') takeChip(ctx, p.x, p.y, itemDef);
   }
   if (pending.chip !== undefined) {
     const { x, y } = pending.chip;
