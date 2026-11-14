@@ -1225,7 +1225,10 @@ export function notePulseArrival(w: EpoxyWorld, x: number, y: number, entity: Ru
   // An unwired toggle switch still changes form (only the level reading needs the network), so the tile decides.
   const isToggle = ConfigRegistry.getTile(w.terrain[y][x]).signalSource === 'toggle';
   if (!isPulse && !isToggle) return;
-  if (entity !== null) {
+  // CC2 engine: every actor works a light switch or a pulse source, a fireball or a glider included (Lexy on_arrive, any actor);
+  // only a monster that presses nothing (the wisp) does not.
+  const worksAny = entity !== null && entity.kind === 'monster' && usesCc2Engine(w.level) && !w.cc3dPace && ConfigRegistry.getEntityDef(entity.type)?.pressesPlates !== false;
+  if (entity !== null && !worksAny) {
     const ownColor: ChannelColor = ConfigRegistry.getEntityDef(entity.type)?.plateColor ?? 'red';
     if (!entityPressesPlate(entity.type, entity.kind, ownColor)) return;
   }

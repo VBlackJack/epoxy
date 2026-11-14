@@ -106,3 +106,42 @@ describe('CC2 engine: a monster works a brown button when its step onto it ends 
     expect(closed).toEqual([true, true, true, true, true, false, false, false]);
   });
 });
+
+const SWITCH_OFF = 'toggle_switch_off';
+const SWITCH_ON = 'toggle_switch_on';
+const SWITCH_X = 5;
+const FIREBALL_START_X = 8;
+
+/** A fireball flies west onto a light switch. Returns the tick it stands on the switch and the tick the switch flips (-1: never). */
+function fireballOnSwitch(mode: RoomMode): { arrived: number; flipped: number } {
+  const level = room({
+    mode,
+    startX: 1,
+    terrain: { [`${SWITCH_X},${ROOM_ROW}`]: SWITCH_OFF },
+    entities: [{ type: 'fireball', x: FIREBALL_START_X, y: ROOM_ROW, dir: 'W' }]
+  });
+  const engine = new GameEngine();
+  engine.loadLevel(level);
+  const grid = (engine as unknown as { w: { terrain: string[][] } }).w.terrain;
+  let arrived = -1;
+  let flipped = -1;
+  for (let t = 1; t <= 30 && flipped < 0; t++) {
+    engine.tick();
+    const ball = engine.getEntities().find((e) => e.type === 'fireball');
+    if (arrived < 0 && ball?.x === SWITCH_X) arrived = t;
+    if (grid[ROOM_ROW][SWITCH_X] === SWITCH_ON) flipped = t;
+  }
+  return { arrived, flipped };
+}
+
+describe('CC2 engine: any actor works a light switch when its step ends (FP, FP2)', () => {
+  it('a fireball toggles a light switch, and only after its step has ended', () => {
+    const { arrived, flipped } = fireballOnSwitch('cc2');
+    expect(arrived).toBeGreaterThan(0);
+    expect(flipped).toBeGreaterThan(arrived);
+  });
+
+  it('a classic level keeps its flyer away from the switch: it never flips', () => {
+    expect(fireballOnSwitch('cc').flipped).toBe(-1);
+  });
+});

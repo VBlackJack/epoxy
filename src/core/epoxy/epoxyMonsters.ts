@@ -164,6 +164,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
         applyPendingRemoval(ctx, monster);
         continue;
       }
+      if (arrival.pulse === true) {
+        notePulseArrival(w, arrival.x, arrival.y, monster);
+        continue;
+      }
       if (arrival.teleport === true) {
         if (!(cc2 ? applyStepEndTeleport(ctx, monster) : applyQueuedTeleport(ctx, monster, arrival, pass))) return false;
         continue;
@@ -764,7 +768,12 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // not judge it again on what shows, so neither does Epoxy. A monster that walks through solid tiles leaves it shut.
   if (def?.passesSolidTiles !== true && isOpenFishGate(w, destTile)) consumeFishGate(ctx, nx, ny);
 
-  notePulseArrival(w, nx, ny, entity);
+  // CC2 engine: a monster works a light switch or pulse source when its step onto it ends (Lexy on_arrive, any actor, flyers
+  // included); the next settle reads it, so monsters deciding in the arrival pass still see the old wire state.
+  const worksAtStepEnd = usesCc2Engine(w.level) && !w.cc3dPace && w.inTick && entity.kind === 'monster' && def?.pressesPlates !== false &&
+    (ConfigRegistry.getTile(w.terrain[ny][nx]).signalSource === 'toggle' || w.signals?.pulseCells.has(ny * mapWidth(w) + nx) === true);
+  if (worksAtStepEnd) w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, due: currentEntityPass(w) + entity.cooldownTicks, pulse: true });
+  else notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
   const cycleDir = floorFree || def?.ignoresSlidingFloors === true ? undefined : forceCycleArrival(w, destTile);
