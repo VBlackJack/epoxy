@@ -1080,6 +1080,8 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
 
   // The mover may leave through an exit during the step, which hands control to the next player.
   const mover = w.player;
+  // CC2 engine: speed boots taken by this step act from the next one, so the walking wait is read before it.
+  const walkWaitAtStart = playerWalkCooldown(w);
   const moved = executePlayerMove(ctx, dir, true);
   let steppedOff = moved;
   if (!moved) {
@@ -1117,7 +1119,8 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
     // A player who slid onto a teleporter waits the time of a slide step before the forced exit. On a CC2-engine level the
     // step time comes from the cell entered (Lexy game.js:2177-2194, the speed of the goal cell): a pad is plain floor, so the
     // slide onto it lasts a walking step.
-    const wait = w.player.teleportExit !== undefined && !slideOntoPadWalks(w) ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
+    const cc2WalkWait = usesCc2Engine(w.level) && !w.cc3dPace ? walkWaitAtStart : playerWalkCooldown(w);
+    const wait = w.player.teleportExit !== undefined && !slideOntoPadWalks(w) ? CC_TELEPORT_SLIDE_WAIT_TICKS : cc2WalkWait;
     w.player.moveCooldown = Math.max(w.player.moveCooldown, wait);
     // CC2 engine: the slide step that ends on plain floor is an in-tick move, so the wait is one tick shorter. A slide that ends on a
     // pad keeps the whole walking wait: measured on the official CC2 replays, taking that tick off the pad slide as well wins one level

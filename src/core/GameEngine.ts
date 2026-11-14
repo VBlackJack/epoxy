@@ -1287,6 +1287,8 @@ export class GameEngine {
     const permissionBefore = mover.forcePermission;
     const fromX = mover.x;
     const fromY = mover.y;
+    // CC2 engine: the speed boots a step takes act from the next step (Lexy game.js:2170-2195), so the walk is timed before it.
+    const walkWaitAtStart = playerWalkCooldown(this.w);
     const moved = executePlayerMove(this.ctx, dir, false);
     this.w.beamDirty = true;
     // A converted CC3D level: a step into a monster kills the player where he stands; it counts as a step (Cc3dSimulation.decidePlayer) but leaves nothing behind.
@@ -1310,7 +1312,9 @@ export class GameEngine {
         // Boots cancel the push, so a booted player keeps the walking cadence.
         this.w.player.moveCooldown = isCarriedByForceFloor(this.w, destTile)
           ? FORCE_FLOOR_MOVE_COOLDOWN_TICKS
-          : playerWalkCooldown(this.w);
+          : usesCc2Engine(this.w.level) && !this.w.cc3dPace
+            ? walkWaitAtStart
+            : playerWalkCooldown(this.w);
         // CC2 engine: a voluntary step onto ice or a force floor lasts the time of the tile it enters; boots do not shorten it.
         if (usesCc2Engine(this.w.level) && this.w.ccRules && this.w.player.isSliding && this.w.player.alive) {
           this.w.player.slideCooldown += CC2_SLIDE_ENTRY_EXTRA_TICKS;
