@@ -1325,7 +1325,9 @@ export function shotAt(w: EpoxyWorld, x: number, y: number): Shot | undefined {
  * position); elsewhere it goes to the end.
  */
 export function addClonedEntity(w: EpoxyWorld, entity: RuntimeEntity): void {
-  if (!w.ccRules) {
+  // CC2 engine: the actor list only appends (Lexy add_actor, no slot reuse on this engine; reuse_actor_slots is Lynx only),
+  // and the classic slots are never rebuilt, which would drop the entities that are not in them.
+  if (!w.ccRules || (usesCc2Engine(w.level) && !w.cc3dPace)) {
     w.entities.push(entity);
     return;
   }

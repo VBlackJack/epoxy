@@ -517,7 +517,8 @@ export function spawnFromCloner(
   };
   // CC2 engine: a cloned block pushes the block standing in the exit out of the way first, by its own pushes table (Lexy
   // tiletypes.js:1716-1731, the template's out-of-turn step; ice_block pushes, dirt does not, :1381-1385).
-  if (usesCc2Engine(w.level) && !w.cc3dPace && kind === 'block' && !isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)) {
+  const cc2Clone = usesCc2Engine(w.level) && !w.cc3dPace;
+  if (cc2Clone && kind === 'block' && !isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)) {
     slidePushesAhead(ctx, probe, spawnX, spawnY, templateDir);
   }
   const canEnter =
@@ -546,7 +547,7 @@ export function spawnFromCloner(
     if (alive && !seen && w.entities.includes(template) && template.cooldownTicks > 0) template.cooldownTicks += 1;
     return alive;
   }
-  const spawned: RuntimeEntity = {
+  let spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
     type: templateType,
     kind,
@@ -561,13 +562,39 @@ export function spawnFromCloner(
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
     ...initialEmulationState(def)
   };
-  // CC2 engine: the mirror let out takes the template's place in the actor list; the template that stays on the machine
-  // (the new template of the original) takes none, so it counts as after every other actor (Lexy tiletypes.js:1703-1731).
-  if (usesCc2Engine(w.level) && template?.listOrdinal !== undefined) {
-    spawned.listOrdinal = template.listOrdinal;
-    delete template.listOrdinal;
+  if (cc2Clone && template !== undefined && w.entities.includes(template)) {
+    // CC2 engine: the template itself goes out, keeping its uid, its place in the actor list and its ordinal, and a fresh
+    // template, at the end of the list with no ordinal, takes its place on the machine (Lexy cloner activate, tiletypes.js:1703-1731;
+    // add_actor appends, game.js:3100-3123). The creature let out is never rebuilt from the classic slots on this engine.
+    const fresh: RuntimeEntity = {
+      uid: spawned.uid,
+      type: template.type,
+      kind,
+      x: clonerX,
+      y: clonerY,
+      dir: template.dir,
+      cooldownTicks: 0,
+      isSliding: false,
+      ...(template.facing !== undefined ? { facing: template.facing } : {}),
+      ...initialEmulationState(def)
+    };
+    template.x = spawned.x;
+    template.y = spawned.y;
+    template.dir = spawned.dir;
+    template.cooldownTicks = spawned.cooldownTicks;
+    template.isSliding = spawned.isSliding;
+    if (spawned.facing !== undefined) template.facing = spawned.facing;
+    else delete template.facing;
+    delete template.restTicks;
+    // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
+    Object.assign(template, initialEmulationState(def));
+    w.entities.push(fresh);
+    // The template that went out has had (or will not have) its turn for this pass: it acts from the next one.
+    if (w.ccPassOpen) (w.cc2SkipTurn ??= new Set<number>()).add(template.uid);
+    spawned = template;
+  } else {
+    addClonedEntity(w, spawned);
   }
-  addClonedEntity(w, spawned);
   // CC2 engine: a creature let out before the entity pass of the tick (a clone press the player's step end made) is counted
   // down by that pass at once. The original runs that creature's step out of turn, ahead of the others, which shortens its
   // step relative to the timing Epoxy gives a clone made during the pass; one tick more makes up for it.
