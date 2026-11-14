@@ -211,6 +211,12 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   return pushed || bumped;
 }
 
+/** CC2 engine: whether a lit (not merely set down) dynamite stands on (x, y), which bars the player from entering it. */
+function litDynamiteBars(w: EpoxyWorld, x: number, y: number): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || w.litCharges.length === 0) return false;
+  return w.litCharges.some((charge) => charge.dynamite === true && charge.awaitingDeparture !== true && charge.x === x && charge.y === y);
+}
+
 /** The player's own step toward `requestedDir`: the track redirect, the checks of the cell ahead, the push of a block and the arrival. */
 function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
@@ -234,6 +240,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
 
   // CC2 engine: the splash a block left in the water bars the real player from its cell while it lasts.
   if (splashBarsPlayer(w, targetX, targetY)) {
+    if (!fromSlide) AudioManager.playSfx('blocked');
+    return false;
+  }
+
+  // CC2 engine: lit dynamite is an actor that bars the player from its cell (Lexy tiletypes.js dynamite_lit blocks_collision).
+  if (litDynamiteBars(w, targetX, targetY)) {
     if (!fromSlide) AudioManager.playSfx('blocked');
     return false;
   }
