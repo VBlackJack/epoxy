@@ -5,6 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Levels imported from CC2 or from CC1 Steam (.c2m files) play closer to CC2 once more, checked tick by tick against an independent CC2 engine: a wire can reverse a force floor, flip a green toggle wall or floor and turn a swivel door, a lightning bolt powers its wire only while the player stands still, a block resting on a force floor is carried by it, a block that melts on fire leaves a splash, a block boxed in on ice keeps bouncing, a slide onto a teleporter takes a walking step, on a red or yellow teleporter the player chooses his way out, an exit hands control over when the step onto it ends, Melinda keeps yellow keys and spends green ones, the tool belt holds four tools and a fifth drops the oldest (the bribe included, which can now be dropped), a yellow tank slides on ice and force floors, a monster still on its starting ice cell decides normally, a monster on a green button switches the walls when its step ends, and bombs go off when a step onto them ends. CC1 .DAT imports, native levels and CC3D levels are unchanged. The CC2 replay check also starts the random force floors where the replay says. Official CC2 replays won on Epoxy go from 132 to 149 of 200 and CC1 Steam .c2m from 129 to 132 of 149; one .c2m level that was won by chance (MAP111) is no longer won. Levels imported before this version keep their old wiring until they are imported again. Replays recorded on .c2m imports before this version are no longer offered (scores are kept).
+- Pack format 19: a pack with a CC2 level whose wires reach a force floor, a green toggle or a swivel door is written in format 19, which older builds refuse instead of dropping those wires.
+
 ## [2.34.0] - 2026-11-13
 
 ### Changed

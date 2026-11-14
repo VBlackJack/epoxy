@@ -20,7 +20,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { findRailConfigErrors, normalizeUnderlays } from '../../config/ConfigValidation';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V9_IDS, PACK_JSON_VERSION_V18 } from '../../config/constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V19, PACK_JSON_VERSION_V8, PACK_JSON_VERSION_V9, PACK_JSON_VERSION_V9_IDS } from '../../config/constants';
 import { tileAvailability } from '../../editor/paletteAvailability';
 import { DatCodec, datRefusalReason } from '../../formats/DatCodec';
 import en from '../../locales/en.json';
@@ -271,7 +271,7 @@ describe('rails: Epoxy-only gating and pack format 9', () => {
 
   it('writes pack format 9 for a rail level and reads it back', () => {
     const version = (levels: CompiledLevel[]): number => JSON.parse(serializePack('N', levels)).version;
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
     expect([...PACK_JSON_VERSION_V9_IDS].sort()).toEqual([...RAIL_IDS].sort());
     for (const id of RAIL_IDS) {
       const level = room({ terrain: [[CENTER, CENTER, id]] });

@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { findFormat16ConfigErrors } from './ConfigValidation';
 import { ConfigRegistry } from './ConfigRegistry';
-import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V15_IDS, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V16_IDS, PACK_JSON_VERSION_V18 } from './constants';
+import { PACK_JSON_MAX_VERSION, PACK_JSON_VERSION_V19, PACK_JSON_VERSION_V15_IDS, PACK_JSON_VERSION_V16, PACK_JSON_VERSION_V16_IDS } from './constants';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { parsePackJson, serializePack } from '../packs/packJson';
 import { idSetVersionOf } from '../core/signalLinks';
@@ -39,7 +39,7 @@ describe('format 16 ids', () => {
   it('lists exactly the new ids, none of them in an older format', () => {
     expect([...PACK_JSON_VERSION_V16_IDS].sort()).toEqual([...NEW_IDS].sort());
     for (const id of NEW_IDS) expect(PACK_JSON_VERSION_V15_IDS.has(id), id).toBe(false);
-    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V18);
+    expect(PACK_JSON_MAX_VERSION).toBe(PACK_JSON_VERSION_V19);
   });
 
   it('defines every new id in the shipped configs', () => {

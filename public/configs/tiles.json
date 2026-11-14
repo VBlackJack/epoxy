@@ -339,7 +339,8 @@
       "passableByBlock": true,
       "blockedEdges": ["N", "E"],
       "swivelTurns": { "cw": "swivel_door_cc2_se", "ccw": "swivel_door_cc2_nw" },
-      "swivelRule": "cc2"
+      "swivelRule": "cc2",
+      "flipsOnPower": true
     },
     "swivel_door_cc2_se": {
       "id": "swivel_door_cc2_se",
@@ -352,7 +353,8 @@
       "passableByBlock": true,
       "blockedEdges": ["S", "E"],
       "swivelTurns": { "cw": "swivel_door_cc2_sw", "ccw": "swivel_door_cc2_ne" },
-      "swivelRule": "cc2"
+      "swivelRule": "cc2",
+      "flipsOnPower": true
     },
     "swivel_door_cc2_sw": {
       "id": "swivel_door_cc2_sw",
@@ -365,7 +367,8 @@
       "passableByBlock": true,
       "blockedEdges": ["S", "W"],
       "swivelTurns": { "cw": "swivel_door_cc2_nw", "ccw": "swivel_door_cc2_se" },
-      "swivelRule": "cc2"
+      "swivelRule": "cc2",
+      "flipsOnPower": true
     },
     "swivel_door_cc2_nw": {
       "id": "swivel_door_cc2_nw",
@@ -378,7 +381,8 @@
       "passableByBlock": true,
       "blockedEdges": ["N", "W"],
       "swivelTurns": { "cw": "swivel_door_cc2_ne", "ccw": "swivel_door_cc2_sw" },
-      "swivelRule": "cc2"
+      "swivelRule": "cc2",
+      "flipsOnPower": true
     },
     "rail_ns": {
       "id": "rail_ns",
@@ -765,7 +769,8 @@
       "slideType": "force",
       "forceDirection": "N",
       "protectedByItem": "boots_force",
-      "grayFlipsTo": "force_s"
+      "grayFlipsTo": "force_s",
+      "flipsOnPower": true
     },
     "force_e": {
       "id": "force_e",
@@ -779,7 +784,8 @@
       "slideType": "force",
       "forceDirection": "E",
       "protectedByItem": "boots_force",
-      "grayFlipsTo": "force_w"
+      "grayFlipsTo": "force_w",
+      "flipsOnPower": true
     },
     "force_s": {
       "id": "force_s",
@@ -793,7 +799,8 @@
       "slideType": "force",
       "forceDirection": "S",
       "protectedByItem": "boots_force",
-      "grayFlipsTo": "force_n"
+      "grayFlipsTo": "force_n",
+      "flipsOnPower": true
     },
     "force_w": {
       "id": "force_w",
@@ -807,7 +814,8 @@
       "slideType": "force",
       "forceDirection": "W",
       "protectedByItem": "boots_force",
-      "grayFlipsTo": "force_e"
+      "grayFlipsTo": "force_e",
+      "flipsOnPower": true
     },
     "force_random": {
       "id": "force_random",
@@ -2904,7 +2912,8 @@
       "isTeleporter": true,
       "teleportGroup": "forward",
       "teleportExitOrder": "forward_only",
-      "colorKey": "blue"
+      "colorKey": "blue",
+      "teleportSoftCc2": true
     },
     "teleport_turning": {
       "id": "teleport_turning",
@@ -3039,7 +3048,8 @@
       "teleportGroup": "red_cc2",
       "teleportExitOrder": "cc2_red",
       "colorKey": "red",
-      "poweredTwin": "teleport_red_cc2_off"
+      "poweredTwin": "teleport_red_cc2_off",
+      "teleportSoftCc2": true
     },
     "helmet": {
       "id": "helmet",
@@ -3130,7 +3140,8 @@
       "passableByBlock": true,
       "poweredTwin": "teleport_red_cc2",
       "teleportsToSelf": true,
-      "colorKey": "red"
+      "colorKey": "red",
+      "teleportSoftCc2": true
     },
     "transmogrifier_cc2_off": {
       "id": "transmogrifier_cc2_off",

@@ -91,7 +91,7 @@ function plateColors(level: CompiledLevel): Set<ChannelColor> {
 function danglingCells(level: CompiledLevel): GridPoint[] {
   const raw = level.signalLinks;
   if (!Array.isArray(raw) || raw.length === 0) return [];
-  const kept = normalizeSignalLinks(raw, level.terrain, level.ruleset, level.underlays ?? null, registryTileLookup) ?? [];
+  const kept = normalizeSignalLinks(raw, level.terrain, level.ruleset, level.underlays ?? null, registryTileLookup, level.cc2 !== undefined) ?? [];
   const keys = new Set(kept.map((l) => `${l.fromY},${l.fromX},${l.toY},${l.toX}`));
   const height = level.terrain.length;
   const width = level.terrain[0]?.length ?? 0;

@@ -27,6 +27,11 @@ export interface SignalLinkHolder {
   terrain: string[][];
   underlays?: CellUnderlay[];
   signalLinks?: SignalLink[];
+  /**
+   * The map belongs to a CC2-engine level: a force floor or a swivel door is then a valid wire target (see signalSinkOf).
+   * Absent for every native map, which keeps today's targets.
+   */
+  cc2Engine?: boolean;
 }
 
 /** Deep copy of one link; the port is carried only when present. */
@@ -109,7 +114,7 @@ export function translateSignalLinks(links: readonly SignalLink[], dx: number, d
 export function pruneSignalLinks(map: SignalLinkHolder): number {
   const before = map.signalLinks;
   if (!before || before.length === 0) return 0;
-  const canonical = normalizeSignalLinks(before, map.terrain, DEFAULT_RULESET, map.underlays ?? null) ?? undefined;
+  const canonical = normalizeSignalLinks(before, map.terrain, DEFAULT_RULESET, map.underlays ?? null, undefined, map.cc2Engine === true) ?? undefined;
   if (canonical) map.signalLinks = canonical;
   else delete map.signalLinks;
   return before.length - (canonical?.length ?? 0);
@@ -123,14 +128,14 @@ export type SignalEnd = 'output' | 'input';
 /**
  * Whether the tile can be that end of a signal wire, read from the tile flags as normalizeSignalLinks reads them: a
  * laser receiver or a held or pulse source is an output only, a gate is both, a sink (see signalSinkOf: a hold door, a
- * shot launcher, a clone machine, a green toggle wall or a rail switch) is an input only. All but the hold door act
+ * shot launcher, a clone machine, a green toggle wall or a rail switch; on a CC2-engine level also a force floor or a swivel door) is an input only. All but the hold door act
  * once, on the rising edge of their input.
  */
-export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd): boolean {
+export function signalTileHoldsEnd(tile: TileDefinition | undefined, end: SignalEnd, cc2Engine: boolean = false): boolean {
   if (!tile) return false;
   const isSource = tile.laserReceiverGroup !== undefined || tile.signalSource !== undefined;
   const isGate = tile.signalGate !== undefined;
-  const isSink = signalSinkOf(tile) !== null;
+  const isSink = signalSinkOf(tile, { cc2Engine }) !== null;
   return end === 'output' ? isSource || isGate : isGate || isSink;
 }
 
@@ -230,6 +235,6 @@ export function signalLinkClosesCycle(map: Pick<SignalLinkHolder, 'signalLinks'>
 }
 
 /** Whether the tile is a signal sink that takes one input link only (the validator refuses more): a hold door, a shot launcher, a clone machine or a flip tile. */
-export function signalTileTakesOneInput(tile: TileDefinition | undefined): boolean {
-  return tile !== undefined && signalSinkOf(tile) !== null;
+export function signalTileTakesOneInput(tile: TileDefinition | undefined, cc2Engine: boolean = false): boolean {
+  return tile !== undefined && signalSinkOf(tile, { cc2Engine }) !== null;
 }

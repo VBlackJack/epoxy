@@ -602,6 +602,7 @@ export function isCc2LevelData(value: unknown): value is Cc2LevelData {
     typeof value.file === 'string' &&
     Number.isInteger(value.order) && (value.order as number) >= 1 &&
     (value.music === undefined || typeof value.music === 'string') &&
+    (value.useCc1Boots === undefined || typeof value.useCc1Boots === 'boolean') &&
     (value.blobBehavior === undefined || (Number.isInteger(value.blobBehavior) && (value.blobBehavior as number) >= 0 && (value.blobBehavior as number) <= CC2_BYTE_MAX)) &&
     typeof value.gridHash === 'string' &&
     isRecord(coverage) &&
@@ -950,7 +951,9 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
       record.signalLinks,
       level.terrain,
       record.ruleset,
-      normalizeUnderlays(record.underlays, level.terrain, record.ruleset)
+      normalizeUnderlays(record.underlays, level.terrain, record.ruleset),
+      undefined,
+      isCc2LevelData(record.cc2)
     );
     if (wires === null || JSON.stringify(wires) !== JSON.stringify(record.signalLinks)) bad.push('signalLinks');
   }
@@ -2110,6 +2113,10 @@ export function findGateConfigErrors(tiles: Record<string, TileDefinition>): str
       if (tile.teleportJumpsAtStepStartCc2 !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: expected true`);
       if (tile.isTeleporter !== true) errors.push(`${tile.id}.teleportJumpsAtStepStartCc2: only a teleporter has this field`);
     }
+    if (tile.teleportSoftCc2 !== undefined) {
+      if (tile.teleportSoftCc2 !== true) errors.push(`${tile.id}.teleportSoftCc2: expected true`);
+      if (tile.isTeleporter !== true && tile.teleportsToSelf !== true) errors.push(`${tile.id}.teleportSoftCc2: only a teleporter has this field`);
+    }
     if (tile.portableTeleporter === undefined) continue;
     if (tile.portableTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: expected true`);
     if (tile.isTeleporter !== true) errors.push(`${tile.id}.portableTeleporter: only a teleporter can be portable`);
@@ -2439,6 +2446,23 @@ export function findRelayPadConfigErrors(tiles: Record<string, TileDefinition>):
 }
 
 /**
+ * Problems of the CC2 per-character rules: each character named by `cc2Characters.keptKeyByCharacter` is a known
+ * character and the key it keeps is a key item of the tile config.
+ */
+export function findCc2CharacterConfigErrors(game: GameConfig, tiles: Record<string, TileDefinition>): string[] {
+  const errors: string[] = [];
+  const kept = game.cc2Characters?.keptKeyByCharacter;
+  if (game.cc2Characters === undefined) return errors;
+  if (!isRecord(kept)) return ['cc2Characters.keptKeyByCharacter: expected an object keyed by character'];
+  for (const [character, keyId] of Object.entries(kept)) {
+    if (!isPlayerCharacter(character)) errors.push(`cc2Characters.keptKeyByCharacter.${character}: unknown character`);
+    const key = typeof keyId === 'string' ? tiles[keyId] : undefined;
+    if (key === undefined || key.collectible !== 'key') errors.push(`cc2Characters.keptKeyByCharacter.${character}: expected the id of a key item`);
+  }
+  return errors;
+}
+
+/**
  * Problems of the wired device fields: `wireTogglesTo` names a terrain that names this tile back (a purple wall, a purple
  * floor or a wired flame jet, which no button of the toggle families touches, so the tile carries neither togglesTo nor
  * flameTogglesTo nor a channel); `wiredTrap` sits on a trap; the gray area button is a plain terrain button. Each entry
@@ -2470,6 +2494,13 @@ export function findWiredDeviceConfigErrors(tiles: Record<string, TileDefinition
         errors.push(`${id}.grayFlipsTo: expected the id of the terrain of the other form, which names this tile back`);
       }
       if (tile.layer !== 'terrain') errors.push(`${id}.grayFlipsTo: a gray button flips a terrain`);
+    }
+    if (tile.flipsOnPower !== undefined) {
+      if (tile.flipsOnPower !== true) errors.push(`${id}.flipsOnPower: expected true`);
+      if (tile.layer !== 'terrain') errors.push(`${id}.flipsOnPower: a powered flip is a terrain`);
+      if (tile.grayFlipsTo === undefined && tile.swivelTurns === undefined) {
+        errors.push(`${id}.flipsOnPower: expected grayFlipsTo or swivelTurns to name what the tile flips to`);
+      }
     }
     if (tile.wiredTrap !== undefined && (tile.wiredTrap !== true || tile.isTrap !== true || tile.layer !== 'terrain')) {
       errors.push(`${id}.wiredTrap: expected true, on a terrain trap`);

@@ -102,7 +102,10 @@ export function updateEntities(ctx: EpoxyContext): void {
   w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
     if (w.ccRules && !planClassicDecisions(ctx)) return;
+    const passClock = w.ccMonsterClock;
     runEntityPass(ctx);
+    // CC2 engine: a green toggle a monster's step queued is applied after the entity pass (Lexy do_post_actor_phase).
+    if (w.ccRules && usesCc2Engine(w.level) && w.player.alive && !applyQueuedArrivals(ctx, undefined, passClock, true)) return;
   } finally {
     w.ccPassOpen = false;
     w.ccPlans.clear();
@@ -136,14 +139,18 @@ function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number): boolean {
+function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
-  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster.
+  // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster, the green
+  // toggles after the pass (endOfPass).
   const cc2 = usesCc2Engine(w.level);
   const isDue = (a: CcArrival): boolean =>
-    a.due <= pass && (ownerUid === undefined || a.uid === ownerUid) && (!cc2 || (a.teleport === true) === (ownerUid !== undefined));
+    a.due <= pass &&
+    (ownerUid === undefined || a.uid === ownerUid) &&
+    (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
+    (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
   const due = w.ccArrivals.filter(isDue);
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
@@ -232,7 +239,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
     if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
-      planYellowTank(w, entity, clock);
+      if (!planYellowTankCarried(w, entity)) planYellowTank(w, entity, clock);
       continue;
     }
     if (entity.kind === 'block' || !followsCcCadence(entity.type, usesCc2Engine(w.level)) || entity.cooldownTicks !== 0) continue;
@@ -264,7 +271,8 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
-      if (iceHere.slideType === 'ice') plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+      // Lexy ice has no on_ready: a monster still on its load cell has no pending slide and decides normally.
+      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
     }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
@@ -282,6 +290,27 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
 }
 
 /**
+ * CC2 engine: a yellow tank that stands on ice or on a force floor is carried by it (its pending steer waits for the first
+ * decision after the slide). A tank still on its load cell on ice is not: ice has no pending slide at load, so it takes its
+ * pending steer there (a tank loaded on a force floor is carried on its first idle tick). Returns whether the floor planned it.
+ */
+function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
+  if (tank.cooldownTicks !== 0 || tank.atLoadCell === true) return false;
+  const def = ConfigRegistry.getEntityDef(tank.type);
+  if (def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true) return false;
+  const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
+  if (here.slideType === 'ice') {
+    w.ccPlans.set(tank.uid, here.deflectionMap?.[tank.dir] || tank.dir);
+    return true;
+  }
+  if (here.slideType === 'force' && here.forceDirection !== undefined && here.forceDirection !== 'RANDOM') {
+    w.ccPlans.set(tank.uid, here.forceDirection);
+    return true;
+  }
+  return false;
+}
+
+/**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
  * ended. The way is judged now, so a tank blocked then only turns (Lexy tank_yellow decides [way, null]).
  */
@@ -295,7 +324,7 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
   const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
   if (here.isCloneMachine) return;
   if (def?.ignoresFloorEffects !== true && isCellClosedTrap(w, tank.x, tank.y)) return;
-  if (!floorFree && here.slideType !== undefined) return;
+  if (!floorFree && here.slideType !== undefined && tank.atLoadCell !== true) return;
   delete tank.pendingSteer;
   delete tank.pendingSteerDue;
   tank.dir = pending;
@@ -326,6 +355,8 @@ function runEntityPass(ctx: EpoxyContext): void {
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
+  // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
+  const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
   for (const entity of snapshotEntities) {
     if (w.removedUids.has(entity.uid)) continue;
     if (w.cc3dPace) {
@@ -347,11 +378,28 @@ function runEntityPass(ctx: EpoxyContext): void {
     }
 
     if (entity.kind === 'block') {
-      stepSlidingBlock(ctx, entity);
+      const refusal = stepSlidingBlock(ctx, entity);
+      if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) refusedOnForce.push({ block: entity, dir: refusal.retryDir });
       continue;
     }
 
+    const fromX = entity.x;
+    const fromY = entity.y;
     if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+    // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
+    if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
+  }
+  // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
+  // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
+  if (usesCc2Engine(w.level)) {
+    for (const { block, dir } of refusedOnForce) {
+      if (w.removedUids.has(block.uid) || !w.entities.includes(block) || block.isSliding) continue;
+      // The retry keeps the way already drawn this tick: no second draw of a turning floor.
+      block.isSliding = true;
+      block.dir = dir;
+      block.cooldownTicks = 0;
+      stepSlidingBlock(ctx, block);
+    }
   }
 }
 
@@ -368,6 +416,8 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   const x = entity.x;
   const y = entity.y;
   const alive = stepMonster(ctx, entity);
+  // The first step away from the load cell forgets it: the ice there is an ordinary slide from now on.
+  if (entity.atLoadCell === true && (entity.x !== x || entity.y !== y)) delete entity.atLoadCell;
   // Like the original, a creature that could not move (a blocked decision, a held trap, a blocked forced move on a
   // slide tile) tries again on the next tick.
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
@@ -665,8 +715,8 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
     if (removal !== null) {
-      if (w.cc3dPace) {
-        // CC3D keeps the monster in the cell for the whole step and removes it, and the bomb, when the step ends.
+      if (w.cc3dPace || (removal === 'bomb' && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
+        // CC3D, and a bomb on a CC2-engine level, keep the monster in the cell for the whole step and remove it, and the bomb, when the step ends.
         w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
       } else {
         applyPendingRemoval(ctx, entity);
@@ -836,15 +886,14 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
 
 /**
  * Classic rules: a classic monster's button press takes effect a few passes after the step (see
- * CC_MONSTER_BUTTON_DELAY_PASSES). The green button (toggle walls) is not delayed on a level imported from Chip's
- * Challenge 2, whose engine toggles the walls at once.
+ * CC_MONSTER_BUTTON_DELAY_PASSES). On a level imported from Chip's Challenge 2 the green button (toggle walls) is queued like
+ * the others: the reference toggles when the monster's step ends.
  */
 function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonAction): boolean {
   // CC3D works the blue golem control (reverse_tanks) when the press step starts and a trap by occupancy, so
   // neither waits for the step to end.
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
-  if (!w.ccRules || !w.inTick || !followsCcCadence(entity.type, usesCc2Engine(w.level))) return false;
-  return !(action === 'toggle_walls' && w.level.cc2 !== undefined);
+  return w.ccRules && w.inTick && followsCcCadence(entity.type, usesCc2Engine(w.level));
 }
 
 function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {

@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC2_SLAP_REVEALED_TILE_IDS, DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, BRIBE_ITEM_ID, CC2_TOOL_BELT_CAPACITY, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
@@ -33,7 +33,8 @@ import { killPlayerByShot, spendShotAt } from './epoxyShots';
 import { steerMirrors } from './epoxyMirrors';
 import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
-import { explodeRollingBall, isRollingBall } from './epoxyRollingBall';
+import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } from './epoxyRollingBall';
+import { setDownDynamite } from './epoxyDynamite';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
 import {
@@ -43,6 +44,7 @@ import {
   entityPressesPlate,
   getEntityAt,
   holdsItem,
+  isCovered,
   isEdgeBlocked,
   isInBounds,
   dropExitedController,
@@ -73,6 +75,9 @@ export const CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS = 2;
 export const CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS = 1;
 /** CC2 engine: ticks a slide that ends on plain floor waits less than a walking step (the last slide step is an in-tick move). */
 export const CC2_SLIDE_END_WAIT_REDUCTION_TICKS = 1;
+
+/** CC2 engine: ticks the step that leaves a soft pad lasts less, since the forced exit is taken a tick after the wait. */
+const CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS = 1;
 
 /** Shortest wait between two voluntary moves, whatever the haste. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
@@ -132,8 +137,12 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   const w = ctx.world;
   if (w.ccRules) updateForcePermission(w, fromSlide);
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
+  // The step onto an exit lasts the leaver's walking step (read before control changes hands).
+  const leaverWait = playerWalkCooldown(w);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
   if (dropExitedController(w)) {
+    // CC2 engine: the exit acts when the step onto it ends, so the next player takes control one walking step later.
+    if (exitHandsControlLater(w)) w.player.moveCooldown = Math.max(w.player.moveCooldown, leaverWait);
     resetCc2PlayerView(w);
     return moved;
   }
@@ -143,6 +152,11 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   // A two-key move steers the mirrors once with its decision (steerMirrorsOnce), not once per attempt.
   if (!w.mirrorsHeldBack) steerMirrorsOnce(ctx, requestedDir);
   return moved;
+}
+
+/** CC2 engine: whether the player who takes control after an exit waits out the exit step (Lexy tiletypes.js exit on_arrive, game.js:1377-1420). */
+function exitHandsControlLater(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && !w.levelCompleted;
 }
 
 /** Steers the mirror players toward `dir` when the controlled player is still on the map and not parked: the one copy of a step. */
@@ -280,7 +294,7 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   if (targetTile.requiredKey) {
     const keyCount = w.player.keys[targetTile.requiredKey] || 0;
     if (keyCount > 0) {
-      if (targetTile.consumesKey) {
+      if (spendsKeyOn(w, targetTile)) {
         w.player.keys[targetTile.requiredKey] = keyCount - 1;
       }
       const revealed = takeRevealedTerrain(w, targetX, targetY);
@@ -435,6 +449,16 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
   return true;
 }
 
+/**
+ * Whether the step through a door spends the key. On a CC2-engine level each character has a key it never spends
+ * (cc2Characters.keptKeyByCharacter: Chip's green, Melinda's yellow; Lexy tiletypes.js infinite_items) and spends every other
+ * one; elsewhere the door's own consumesKey decides.
+ */
+function spendsKeyOn(w: EpoxyWorld, door: TileDefinition): boolean {
+  const kept = usesCc2Engine(w.level) ? ConfigRegistry.getGame().cc2Characters?.keptKeyByCharacter[playerCharacterOf(w)] : undefined;
+  return kept !== undefined ? door.requiredKey !== kept : door.consumesKey === true;
+}
+
 /** Spends one held toll token; false when the player holds none. */
 function spendTollToken(w: EpoxyWorld): boolean {
   const held = w.player.keys[TOKEN_ITEM_ID] || 0;
@@ -442,6 +466,159 @@ function spendTollToken(w: EpoxyWorld): boolean {
   if (held === 1) delete w.player.keys[TOKEN_ITEM_ID];
   else w.player.keys[TOKEN_ITEM_ID] = held - 1;
   return true;
+}
+
+/**
+ * CC2 engine: whether the player's tools are kept on a four-tool belt (Lexy game.js:3237-3275). A level that asks for the CC1
+ * boot rules (OPTN byte 23, Cc2LevelData.useCc1Boots) keeps the classic boots and no belt.
+ */
+export function usesToolBelt(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && w.level.cc2?.useCc1Boots !== true;
+}
+
+/**
+ * Whether the item is a tool of the belt: boots and the counted items that are not keys (dynamite, pads, stones) and the bribe
+ * (a tool of Lexy's Labyrinth, tiletypes.js bribe, put down like any other). The toll token is Epoxy's own: it is never set down
+ * and so never sits on the belt, where it would block every drop behind it.
+ */
+export function isBeltTool(def: TileDefinition): boolean {
+  return def.collectible === 'boot' || def.collectible === 'charge' || def.collectible === 'gate' || def.collectible === 'stone' || def.id === BRIBE_ITEM_ID;
+}
+
+/**
+ * Boots the player cannot hold twice (the boots are a set) or a second ward: the pickup is the plain one and never pushes
+ * a tool off the belt.
+ */
+function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinition): boolean {
+  if (def.collectible !== 'boot') return false;
+  return w.player.boots.has(itemId) || (def.absorbsMonsterContact === true && wardBootsHeld(w.player.boots) !== undefined);
+}
+
+/**
+ * Brings the belt of `p` in line with what he holds and returns it: tools that left (put down, spent, stolen) are dropped
+ * from it, tools that arrived by another route join at the end. The array, duplicates included, is the order of the belt.
+ */
+export function syncToolBelt(p: PlayerState): string[] {
+  const belt = toolBeltOf(p);
+  if (belt.length > 0) p.belt = belt;
+  else delete p.belt;
+  return belt;
+}
+
+/** The belt of `p` as syncToolBelt would settle it, without touching the player: a pure read. */
+export function toolBeltOf(p: PlayerState): string[] {
+  const held: string[] = [...p.boots];
+  for (const [id, count] of Object.entries(p.keys)) {
+    if (!isBeltTool(ConfigRegistry.getTile(id))) continue;
+    for (let i = 0; i < count; i++) held.push(id);
+  }
+  const belt: string[] = [];
+  for (const id of p.belt ?? []) {
+    const at = held.indexOf(id);
+    if (at < 0) continue;
+    belt.push(id);
+    held.splice(at, 1);
+  }
+  belt.push(...held);
+  return belt;
+}
+
+/** Takes one `itemId` out of what the player holds (boots or a counted tool). */
+function removeHeldTool(p: PlayerState, itemId: string, def: TileDefinition): void {
+  if (def.collectible === 'boot') {
+    p.boots.delete(itemId);
+    return;
+  }
+  const left = (p.keys[itemId] ?? 0) - 1;
+  if (left > 0) p.keys[itemId] = left;
+  else delete p.keys[itemId];
+}
+
+/**
+ * Picks the tool at (x, y) up onto the belt. With four tools held the oldest goes out first (Lexy attempt_take): a yellow
+ * pad that cannot be set down here (the cell is not plain floor) refuses the whole pickup, otherwise the oldest is put down
+ * on the cell once the new tool is taken, by the same rules as a drop.
+ */
+function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string, def: TileDefinition, fromPad = false): void {
+  const w = ctx.world;
+  const p = w.player;
+  const belt = syncToolBelt(p);
+  let pushedOut: string | undefined;
+  if (belt.length >= CC2_TOOL_BELT_CAPACITY) {
+    const oldest = belt[0];
+    const oldestDef = ConfigRegistry.getTile(oldest);
+    if (oldestDef.collectible === 'gate' && !canSetDownPad(w, x, y)) return;
+    removeHeldTool(p, oldest, oldestDef);
+    belt.shift();
+    pushedOut = oldest;
+  }
+  if (fromPad) {
+    // A yellow pad taken from the terrain: the cell turns to plain floor, and the oldest tool goes down only if no item lies there.
+    w.terrain[y][x] = FLOOR_TILE_ID;
+    w.gridMutatedByMove = true;
+  } else {
+    w.items[y][x] = null;
+  }
+  if (def.collectible === 'boot') p.boots.add(itemId);
+  else p.keys[itemId] = (p.keys[itemId] || 0) + 1;
+  belt.push(itemId);
+  p.belt = belt;
+  AudioManager.playSfx('item');
+  ctx.emitVisual('item', x, y, def.colorKey || 'blue');
+  if (pushedOut !== undefined && w.items[y][x] === null) setDownPushedOutTool(ctx, x, y, pushedOut);
+}
+
+/**
+ * CC2 engine: the yellow pad at (x, y) joins the belt like any other tool (Lexy attempt_take): with four tools held the oldest
+ * is put down on the cell, and a pad that cannot be set down there (the cell is the yellow pad itself, not plain floor)
+ * refuses the pickup. Returns false when the level keeps no belt, so the caller takes the pad the plain way.
+ */
+export function takeYellowPadOntoBelt(ctx: EpoxyContext, x: number, y: number, item: TileDefinition): boolean {
+  if (!usesToolBelt(ctx.world) || !isBeltTool(item)) return false;
+  pickUpBeltTool(ctx, x, y, item.id, item, true);
+  return true;
+}
+
+/** A pad is set down only on plain floor with nothing hidden under it. */
+function canSetDownPad(w: EpoxyWorld, x: number, y: number): boolean {
+  return w.terrain[y][x] === FLOOR_TILE_ID && !isCovered(w, x, y);
+}
+
+/**
+ * Sets the tool pushed off the belt down on the cell the player stands on, as a drop would: dynamite unlit (it lights when he
+ * leaves), a pad as the terrain it makes, the bowling ball as a ball that rolls off, anything else as the item.
+ */
+function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: string): void {
+  const w = ctx.world;
+  const def = ConfigRegistry.getTile(itemId);
+  w.beamDirty = true;
+  if (def.collectible === 'charge' && def.cc2Dynamite === true) {
+    setDownDynamite(w, x, y, itemId);
+  } else if (def.collectible === 'gate' && def.dropsAsTerrain !== undefined) {
+    w.terrain[y][x] = def.dropsAsTerrain;
+    w.gridMutatedByMove = true;
+  } else if (def.collectible === 'stone' && droppedActorId(itemId) !== undefined) {
+    launchRollingBall(ctx, x, y, w.player.dir, itemId);
+  } else {
+    w.items[y][x] = itemId;
+  }
+}
+
+/** CC2 engine: a bomb the player steps onto goes off when his step ends, not when it starts (Lexy tiletypes.js bomb on_arrive). */
+function bombWaitsForStepEnd(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace;
+}
+
+/** CC2 engine: a chip the player stepped onto that has become a green bomb by the time his step ends goes off (the green toggle acts during the step). */
+function chipTurnedBombKills(w: EpoxyWorld): boolean {
+  return bombWaitsForStepEnd(w);
+}
+
+/** The bomb under the player goes off and kills him. */
+function explodePlayerBomb(ctx: EpoxyContext, x: number, y: number): void {
+  ctx.world.items[y][x] = null;
+  ctx.emitVisual('explosion', x, y, 'red');
+  killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
 }
 
 /**
@@ -463,12 +640,14 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     return;
   }
 
+  // The item of the cell he arrived on, read before a pad is taken: the tool it pushes off the belt lands here and is not picked up again.
+  const arrivalItem = w.items[y][x];
   if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && w.cc3dPace) {
     // CC3D: the jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
     cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
   } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
-    if (teleportPlayer(w, x, y, entryDir, w.ccRules)) {
+    if (teleportPlayer(w, x, y, entryDir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) {
       markCc2Teleport(w, x, y);
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
@@ -489,14 +668,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     else w.player.character = switched;
   }
 
-  const itemId = w.items[y][x];
+  const itemId = arrivalItem;
   if (itemId) {
     const itemDef = ConfigRegistry.getTile(itemId);
     if (itemDef.togglesTimer) toggleTimerOnStep(w);
-    if (itemDef.hazard === 'bomb') {
-      w.items[y][x] = null;
-      ctx.emitVisual('explosion', x, y, 'red');
-      killPlayer(ctx, 'hud.messages.death_bomb', 'bomb');
+    if (itemDef.hazard === 'bomb' && bombWaitsForStepEnd(w) && !atStepEnd) {
+      // CC2 engine: the bomb goes off when the step onto it ends, if he is still there (a green bomb may be a chip by then).
+      cc3dArrivalOf(w.player).bomb = { x, y };
+    } else if (itemDef.hazard === 'bomb') {
+      explodePlayerBomb(ctx, x, y);
       return;
     }
     if (itemDef.collectible === 'chip' && defersStepEffects(w) && !atStepEnd) {
@@ -505,6 +685,9 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
       cc3dArrivalOf(w.player).chip = { x, y };
     } else if (itemDef.collectible === 'chip') {
       takeChip(ctx, x, y, itemDef);
+    } else if (usesToolBelt(w) && isBeltTool(itemDef) && !isRedundantBootPickup(w, itemId, itemDef)) {
+      // CC2 engine: the belt holds four tools; a fifth pushes the oldest out onto the cell.
+      pickUpBeltTool(ctx, x, y, itemId, itemDef);
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
@@ -659,12 +842,27 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
   }
+  if (pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y) {
+    const itemId = w.items[p.y]?.[p.x];
+    const itemDef = itemId ? ConfigRegistry.getTile(itemId) : undefined;
+    if (itemDef?.hazard === 'bomb') {
+      explodePlayerBomb(ctx, p.x, p.y);
+      return true;
+    }
+    // The bomb turned into a chip during the step (a green toggle): it is taken like one.
+    if (itemDef?.collectible === 'chip') takeChip(ctx, p.x, p.y, itemDef);
+  }
   if (pending.chip !== undefined) {
     const { x, y } = pending.chip;
     const itemId = w.items[y]?.[x];
     if (itemId) {
       const itemDef = ConfigRegistry.getTile(itemId);
       if (itemDef.collectible === 'chip') takeChip(ctx, x, y, itemDef);
+      else if (itemDef.hazard === 'bomb' && chipTurnedBombKills(w) && p.x === x && p.y === y) {
+        // The chip he stepped onto became a green bomb during the step: it goes off.
+        explodePlayerBomb(ctx, x, y);
+        return true;
+      }
     }
   }
   if (pending.teleport !== undefined) {
@@ -793,6 +991,14 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   const w = ctx.world;
   const dir = w.player.teleportExit;
   if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
+  // CC2 engine, red and yellow pads: the exit is the player's own decision at his next decision (see softPadOverrideDue). The
+  // first tick after the wait only opens that decision; the forced exit is taken on the following tick when he held nothing.
+  const soft = onSoftPad(w);
+  if (soft && w.player.softPadDue !== true) {
+    w.player.softPadDue = true;
+    return;
+  }
+  delete w.player.softPadDue;
   delete w.player.teleportExit;
   const mover = w.player;
   // CC2 engine: the exit step begins from the destination pad, which is where the teeth aim on this first exit tick.
@@ -803,9 +1009,43 @@ export function processTeleportExit(ctx: EpoxyContext): void {
     if (w.player.isSliding) w.player.slideCooldown = Math.min(w.player.slideCooldown, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS - 1);
     else w.player.moveCooldown = Math.max(w.player.moveCooldown, STEP_TICKS.fast - CC3D_TELEPORT_LANDING_WAIT_TICKS);
   } else if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w));
+    // The exit of a soft pad was taken a tick later, so its step is one tick shorter.
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (soft ? CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS : 0));
   }
   ctx.checkTargetsWin();
+}
+
+/**
+ * CC2 engine: whether the controlled-or-parked player waits on a soft pad for his exit: a red or yellow teleporter (the
+ * pads whose exit he may decide himself, Lexy's teleport-soft slide, tiletypes.js teleport_red and teleport_yellow). The
+ * other pads force the exit.
+ */
+function onSoftPad(w: EpoxyWorld): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || w.player.teleportExit === undefined) return false;
+  const here = w.terrain[w.player.y]?.[w.player.x];
+  return here !== undefined && ConfigRegistry.getTile(here).teleportSoftCc2 === true;
+}
+
+/**
+ * CC2 engine: whether the controlled player may decide the exit of the soft pad he stands on now: the decision was opened
+ * (softPadDue) and his step wait is over. A direction held then is a normal move from the destination pad (Lexy
+ * game.js:1578-1620: a pending teleport-soft slide yields to a direction); a refused one leaves him there with the forced exit
+ * gone.
+ */
+export function softPadOverrideDue(w: EpoxyWorld): boolean {
+  return w.player.softPadDue === true && w.player.moveCooldown <= 0 && onSoftPad(w);
+}
+
+/** CC2 engine: takes the soft pad decision of the controlled player: the forced exit is gone and he decides from the pad. */
+export function takeSoftPadOverride(w: EpoxyWorld): void {
+  delete w.player.softPadDue;
+  delete w.player.teleportExit;
+  resetCc2PlayerView(w, w.player.dir);
+}
+
+/** CC2 engine: a player who slides onto a teleporter pad takes a walking step to reach it, not the slide wait of the classic rules. */
+function slideOntoPadWalks(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level);
 }
 
 export function processPlayerSlideStep(ctx: EpoxyContext): void {
@@ -849,10 +1089,14 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   // Classic rules: a move takes the time of the tile it enters, so the step that leaves a slide onto plain floor is
   // followed by a full walking wait (ice and force floor alike).
   if (w.ccRules && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    // A player who slid onto a teleporter waits the time of a slide step before the forced exit.
-    const wait = w.player.teleportExit !== undefined ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
+    // A player who slid onto a teleporter waits the time of a slide step before the forced exit. On a CC2-engine level the
+    // step time comes from the cell entered (Lexy game.js:2177-2194, the speed of the goal cell): a pad is plain floor, so the
+    // slide onto it lasts a walking step.
+    const wait = w.player.teleportExit !== undefined && !slideOntoPadWalks(w) ? CC_TELEPORT_SLIDE_WAIT_TICKS : playerWalkCooldown(w);
     w.player.moveCooldown = Math.max(w.player.moveCooldown, wait);
-    // CC2 engine: the slide step that ends on plain floor is an in-tick move, so the wait is one tick shorter.
+    // CC2 engine: the slide step that ends on plain floor is an in-tick move, so the wait is one tick shorter. A slide that ends on a
+    // pad keeps the whole walking wait: measured on the official CC2 replays, taking that tick off the pad slide as well wins one level
+    // fewer (eightway) than leaving it, and Lexy times the step by the goal cell, which is plain floor for a pad.
     if (usesCc2Engine(w.level) && w.player.teleportExit === undefined && w.player.moveCooldown > 0) {
       w.player.moveCooldown -= CC2_SLIDE_END_WAIT_REDUCTION_TICKS;
     }

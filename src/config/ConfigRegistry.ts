@@ -35,6 +35,7 @@ import {
   ensureUniqueLevelIds,
   findColorChannelConfigErrors,
   findLaserConfigErrors,
+  findCc2CharacterConfigErrors,
   findCharacterItemConfigErrors,
   findSwivelConfigErrors,
   findRailConfigErrors,
@@ -387,6 +388,10 @@ class ConfigRegistryService {
     const tunableErrors = findGameTunableErrors(bundle.game);
     if (tunableErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, tunableErrors.join('; '));
+    }
+    const cc2CharacterErrors = findCc2CharacterConfigErrors(bundle.game, bundle.tiles.tiles);
+    if (cc2CharacterErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, cc2CharacterErrors.join('; '));
     }
     const laserErrors = findLaserConfigErrors(bundle.tiles.tiles);
     if (laserErrors.length > 0) {
@@ -1556,7 +1561,7 @@ class ConfigRegistryService {
     const railTracks = normalizeRailTracks(bp.railTracks, terrain, bp.ruleset);
     const underlays = normalizeUnderlays(bp.underlays, terrain, bp.ruleset);
     const launcherLinks = normalizeLauncherLinks(bp.launcherLinks, terrain, bp.ruleset, underlays);
-    const signalLinks = normalizeSignalLinks(bp.signalLinks, terrain, bp.ruleset, underlays);
+    const signalLinks = normalizeSignalLinks(bp.signalLinks, terrain, bp.ruleset, underlays, undefined, isCc2LevelData(bp.cc2));
 
     return {
       id: levelId,

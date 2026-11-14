@@ -186,9 +186,14 @@ function samplePulse(runtime: SignalRuntime, index: number, cell: number, prime:
   return true;
 }
 
-/** Whether the player stands on the cell holding the lightning bolt. */
-function chargedCellOccupied(w: EpoxyWorld, x: number, y: number): boolean {
+/**
+ * Whether the player stands on the cell holding the lightning bolt. On a CC2-engine level the bolt powers the wire under him
+ * only while he stands still: with a move cooldown running, or in the settle right after his own move, he powers nothing
+ * (Lexy do_wire_phase: movement_cooldown 0).
+ */
+function chargedCellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
   const here = playerAtCell(w, x, y);
+  if (here !== undefined && usesCc2Engine(w.level) && (here.moveCooldown !== 0 || phase === SIGNAL_PHASE_MOVE)) return false;
   return here !== undefined && here.boots.has(LIGHTNING_BOLT_ITEM_ID);
 }
 
@@ -222,7 +227,7 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, ph
     // A toggle switch is powered while its terrain is the powered form; the arrivals flipped the terrain already.
     else if (def.sample === 'toggle') levels.set(cell, ConfigRegistry.getTile(w.terrain[y][x]).signalToggleOn === true);
     // A wire floor is powered while the player stands on it holding the lightning bolt: the whole wire net it feeds is on.
-    else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y));
+    else if (def.sample === 'charged') levels.set(cell, chargedCellOccupied(w, x, y, phase));
     else levels.set(cell, cellOccupied(w, x, y, phase));
   }
   return levels;

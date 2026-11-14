@@ -76,6 +76,11 @@ import {
   recordCc2PlayerView,
   resetCc2PlayerView,
   processTeleportExit,
+  softPadOverrideDue,
+  takeSoftPadOverride,
+  syncToolBelt,
+  toolBeltOf,
+  usesToolBelt,
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
@@ -243,6 +248,16 @@ export class GameEngine {
     this.undoStack = [];
     this.moveHistory = [];
     this.timedMoveHistory = [];
+  }
+
+  /**
+   * Replay option of the CC2 replay check: the random force floors start their shared turn at `dir` (the replay header's force
+   * floor start, Lexy game.js:3061-3069). Only a CC2-engine level honours it, and only a call made right after loadLevel; live
+   * play keeps the default start.
+   */
+  public setReplayForceStart(dir: Direction): void {
+    if (!usesCc2Engine(this.w.level)) return;
+    this.w.forceCycleTurn = FORCE_CYCLE_ORDER.indexOf(dir as (typeof FORCE_CYCLE_ORDER)[number]);
   }
 
   /** Successful player moves, in order. */
@@ -499,7 +514,9 @@ export class GameEngine {
           .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
           .map(([id, count]) => `${id}x${count}`)
           .join('+'),
-        [...p.boots].sort().join('+')
+        [...p.boots].sort().join('+'),
+        p.belt !== undefined && p.belt.length > 0 ? p.belt.join('+') : '',
+        p.softPadDue === true ? 'f' : ''
       ].join(',');
     return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
@@ -585,13 +602,26 @@ export class GameEngine {
    * pad on a plain floor cell. Returns false when nothing was dropped.
    */
   public dropItem(itemId: string | null): boolean {
+    const dropped = this.dropItemNow(itemId);
+    // CC2 engine: what was put down leaves the belt, the oldest tool of its kind first.
+    if (dropped && usesToolBelt(this.w) && itemId !== null) {
+      const player = this.w.player;
+      const at = player.belt?.indexOf(itemId) ?? -1;
+      if (player.belt !== undefined && at >= 0) player.belt.splice(at, 1);
+      syncToolBelt(player);
+    }
+    return dropped;
+  }
+
+  private dropItemNow(itemId: string | null): boolean {
     if (!this.beginInput()) return false;
     if (!itemId || !this.holdsItem(itemId)) {
       this.w.statusBannerKey = 'hud.messages.drop_nothing';
       return false;
     }
     // A toll token is never set down: it is spent at a thief or kept.
-    if (ConfigRegistry.getTile(itemId).collectible === 'token') {
+    // On a belt level the bribe is a tool like the others (Lexy tiletypes.js bribe) and is set down; the toll token never is.
+    if (ConfigRegistry.getTile(itemId).collectible === 'token' && !(itemId === BRIBE_ITEM_ID && usesToolBelt(this.w))) {
       this.w.statusBannerKey = itemId === BRIBE_ITEM_ID ? 'hud.messages.drop_bribe' : 'hud.messages.drop_token';
       AudioManager.playSfx('blocked');
       return false;
@@ -867,6 +897,8 @@ export class GameEngine {
       ...(p.forcePermission !== undefined ? { forcePermission: p.forcePermission } : {}),
       ...(p.teleportExit !== undefined ? { teleportExit: p.teleportExit } : {}),
       ...(p.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(p.cc3dArrival) } : {}),
+      ...(p.belt !== undefined && p.belt.length > 0 ? { belt: [...p.belt] } : {}),
+      ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -889,6 +921,8 @@ export class GameEngine {
       ...(snap.forcePermission !== undefined ? { forcePermission: snap.forcePermission } : {}),
       ...(snap.teleportExit !== undefined ? { teleportExit: snap.teleportExit } : {}),
       ...(snap.cc3dArrival !== undefined ? { cc3dArrival: copyCc3dArrival(snap.cc3dArrival) } : {}),
+      ...(snap.belt !== undefined ? { belt: [...snap.belt] } : {}),
+      ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -1078,6 +1112,8 @@ export class GameEngine {
     // (flushCc2StepEnd); a brown button it held was held for this tick only.
     // Cleared at the tick end, so a held button is only ever visible between an input (or flush) and the tick.
     this.w.cc2BrownHeld = undefined;
+    // CC2 engine: the belt follows what the tick took from the player (a thief, a spent bribe); getToolBelt is a pure read.
+    if (usesToolBelt(this.w)) syncToolBelt(this.w.player);
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }
@@ -1097,8 +1133,10 @@ export class GameEngine {
     if (keys.length > CC2_MAX_HELD_KEYS || hasOpposingPair(keys)) return false;
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     const player = this.w.player;
+    // A soft pad (red, yellow) leaves the exit to the player's own decision: a held pair is a move from the pad.
+    const softOverride = softPadOverrideDue(this.w);
     // A player who cannot decide this tick (waiting out a step, locked on ice, leaving a teleporter) does nothing at all.
-    if (player.moveCooldown > 0 || player.teleportExit !== undefined || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
+    if (player.moveCooldown > 0 || (player.teleportExit !== undefined && !softOverride) || (player.isSliding && ConfigRegistry.getTile(this.w.terrain[player.y][player.x]).slideType === 'ice')) {
       return false;
     }
     // The force-floor refusal of attemptPlayerMove: a player still being carried has no choice yet, so nothing turns.
@@ -1116,6 +1154,7 @@ export class GameEngine {
     const permissionBefore = player.forcePermission;
     let mutated = false;
     this.saveUndoSnapshot();
+    if (softOverride) takeSoftPadOverride(this.w);
     const undoWithSlap = [...this.undoStack];
     let slapped = false;
     for (const slapDir of CC2_SLAP_ORDER) {
@@ -1144,7 +1183,7 @@ export class GameEngine {
       // The controlled player stays in place unless he left through an exit, which hands control on without a copy.
       if (this.w.player === player && player.exited !== true) steerMirrorsOnce(this.ctx, decision);
     }
-    const changed = slapped || moved || mutated || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
+    const changed = slapped || moved || mutated || softOverride || player.dir !== dirBefore || player.forcePermission !== permissionBefore;
     // The attempts recorded and pushed snapshots of their own; the hold keeps one of each, or none.
     this.timedMoveHistory.length = historyBefore;
     this.undoStack.length = 0;
@@ -1161,9 +1200,11 @@ export class GameEngine {
     if (!this.beginInput()) return false;
     const currentTile = ConfigRegistry.getTile(this.w.terrain[this.w.player.y][this.w.player.x]);
     const isLockedByIce = this.w.player.isSliding && currentTile.slideType === 'ice';
+    // A soft pad (red, yellow) leaves the exit to the player's own decision: a direction is a normal move from the pad.
+    const softOverride = softPadOverrideDue(this.w);
     // A converted CC3D level: the player decides only once his step is over, so one still waiting to act (a chip, a clone
     // switch, a jump) bars the input. It always acts at the true end of the step (see applyCc3dStepEnd), so this never sticks.
-    if (isLockedByIce || this.w.player.moveCooldown > 0 || this.w.player.teleportExit !== undefined || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
+    if (isLockedByIce || this.w.player.moveCooldown > 0 || (this.w.player.teleportExit !== undefined && !softOverride) || (this.w.cc3dPace && this.w.player.cc3dArrival !== undefined)) {
       return false;
     }
 
@@ -1198,6 +1239,7 @@ export class GameEngine {
     }
 
     this.saveUndoSnapshot();
+    if (softOverride) takeSoftPadOverride(this.w);
     // CC2 engine: the teeth of the coming tick aim at where he stands now, not at the cell this move takes him to.
     if (usesCc2Engine(this.w.level) && this.w.cc2PlayerView === undefined) this.w.cc2PlayerView = cc2PlayerViewOf(this.w);
     this.w.gridMutatedByMove = false;
@@ -1243,8 +1285,9 @@ export class GameEngine {
       // A move that revealed an underlay and was then rejected still spends the key and drops its undo
       // snapshot; the bump is not in moveHistory, only the timed history records it (below).
       // A chain push that stopped partway moved blocks: its snapshot stays so that undo puts them back.
-      if (!this.w.rejectedPushMovedBlocks) this.undoStack.pop();
-      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
+      // A refused move on a soft pad still ended the forced exit: it keeps its undo step.
+      if (!this.w.rejectedPushMovedBlocks && !softOverride) this.undoStack.pop();
+      if (this.w.gridMutatedByMove || this.w.rejectedPushMovedBlocks || softOverride || this.w.player.dir !== dirBefore || mover.forcePermission !== permissionBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
       }
     }
@@ -1274,6 +1317,7 @@ export class GameEngine {
    */
   public cycleInventory(): boolean {
     if (!usesCc2Engine(this.w.level) || !this.beginInput()) return false;
+    if (usesToolBelt(this.w)) return this.cycleToolBelt();
     const boots = this.w.player.boots;
     if (boots.size < MIN_BOOTS_TO_CYCLE) return false;
     this.saveUndoSnapshot();
@@ -1282,6 +1326,31 @@ export class GameEngine {
     boots.add(oldest);
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, cycle: true });
     return true;
+  }
+
+  /**
+   * CC2 engine, four-tool belt: the tool held longest goes to the end of the belt, so the next tool is the one the drop key
+   * puts down (a boot keeps its place in the boots too). Needs two tools or more; one undo step, recorded like the boots cycle.
+   */
+  private cycleToolBelt(): boolean {
+    const belt = syncToolBelt(this.w.player);
+    if (belt.length < MIN_BOOTS_TO_CYCLE) return false;
+    this.saveUndoSnapshot();
+    const oldest = belt.shift() as string;
+    belt.push(oldest);
+    this.w.player.belt = belt;
+    const boots = this.w.player.boots;
+    if (boots.has(oldest)) {
+      boots.delete(oldest);
+      boots.add(oldest);
+    }
+    this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, cycle: true });
+    return true;
+  }
+
+  /** CC2 engine: the tools of the controlled player in belt order, oldest first; undefined when the level keeps no belt. */
+  public getToolBelt(): readonly string[] | undefined {
+    return usesToolBelt(this.w) ? toolBeltOf(this.w.player) : undefined;
   }
 
   /**

@@ -722,7 +722,8 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
     ...(a.teleport !== undefined ? { teleport: { ...a.teleport } } : {}),
     ...(a.opening !== undefined ? { opening: { ...a.opening } } : {}),
     ...(a.pulse !== undefined ? { pulse: { ...a.pulse } } : {}),
-    ...(a.brown !== undefined ? { brown: { ...a.brown } } : {})
+    ...(a.brown !== undefined ? { brown: { ...a.brown } } : {}),
+    ...(a.bomb !== undefined ? { bomb: { ...a.bomb } } : {})
   };
 }
 
@@ -759,6 +760,14 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
   const keys = w.entities.filter((e) => e.heldKeys !== undefined && e.heldKeys.length > 0).map((e) => `${e.uid}:${(e.heldKeys as string[]).join('+')}`);
   if (keys.length > 0) parts.push(`k${keys.join(',')}`);
+  // An entity that has not left its load cell decides differently from one that has.
+  const atLoad = w.entities.filter((e) => e.atLoadCell === true).map((e) => e.uid);
+  if (atLoad.length > 0) parts.push(`l${atLoad.join(',')}`);
+  // The tool belt (order matters) and the soft pad decision of each player.
+  const belts = playersOf(w).map((p, index) => (p.belt !== undefined && p.belt.length > 0 ? `${index}:${p.belt.join('+')}` : '')).filter((part) => part !== '');
+  if (belts.length > 0) parts.push(`B${belts.join(',')}`);
+  const soft = playersOf(w).flatMap((p, index) => (p.softPadDue === true ? [index] : []));
+  if (soft.length > 0) parts.push(`f${soft.join(',')}`);
   return parts.join(';');
 }
 
@@ -769,7 +778,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}${a.bomb === undefined ? '' : `:x${cell(a.bomb)}`}`);
   });
   return parts.join(';');
 }

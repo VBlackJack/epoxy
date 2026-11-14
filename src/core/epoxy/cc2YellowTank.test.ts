@@ -195,6 +195,8 @@ describe('yellow tank decisions that wait', () => {
     try {
       const engine = steered('ice');
       const first = tankOf(engine);
+      // A tank still on its load cell on ice takes its steer there; this one stands for a tank that has moved on.
+      delete first.atLoadCell;
       world(engine).ccPlans.clear();
       engine.tick();
       expect(first.pendingSteer).toBe(STEER);
