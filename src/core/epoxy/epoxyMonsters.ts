@@ -72,6 +72,7 @@ import {
   EpoxyWorld,
   applyRelativeTurn,
   consumeFishGate,
+  currentEntityPass,
   getEntityAt,
   isCellClosedTrap,
   isEdgeBlocked,
@@ -497,6 +498,11 @@ function retimeQueuedPresses(w: EpoxyWorld, entity: RuntimeEntity, first: number
 
 function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   const w = ctx.world;
+  // The record of a step end matters for the pass it happened in and the next one only; dropping it keeps the state key small.
+  if (entity.stepEndedPass !== undefined && entity.stepEndedPass < currentEntityPass(w) - 1) {
+    delete entity.stepEndedPass;
+    delete entity.stepEndedCell;
+  }
   // A steered monster never decides a step by itself. On a CC2-engine level a yellow tank takes the decision a button
   // arrival set for it (planned in the decision pass); on any other level it moves only when a steering pad is worked.
   const yellowTank = isCc2YellowTank(w, entity);
@@ -513,6 +519,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   if (ConfigRegistry.getEntityDef(entity.type)?.movementPattern === STATIONARY_PATTERN) return true;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;
+    // CC2 engine: the pass in which the countdown ends is the pass its step ends in (see RuntimeEntity.stepEndedPass).
+    if (entity.cooldownTicks === 0 && usesCc2Engine(w.level) && !w.cc3dPace) {
+      entity.stepEndedPass = currentEntityPass(w);
+      entity.stepEndedCell = entity.y * mapWidth(w) + entity.x;
+    }
     return true;
   }
 

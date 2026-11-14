@@ -93,7 +93,7 @@ export interface EpoxyWorld {
    * an entity: it is no occupant of a cell for the hold doors, the traps or the targets.
    */
   shots: Shot[];
-  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask); static, null when none. */
+  /** Thin walls of the level's cell edges, one bit per side (see cellEdgeMask), null when none; the level's memoized mask until a CC2 blast replaces it with a world-owned copy (blastedEdgeMask). */
   edgeMask: Uint8Array | null;
   /**
    * CC2 engine: the thin walls after dynamite blasts removed some sides, an array owned by the world (never the level's
@@ -1142,7 +1142,25 @@ export function isCellClosedTrap(w: EpoxyWorld, tx: number, ty: number): boolean
   );
 }
 
+/** The entity pass the world is in, or about to start: the clock counts a pass only once it has started. */
+export function currentEntityPass(w: EpoxyWorld): number {
+  return w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+}
+
+/** CC2 engine: whether a monster's step onto a cell ended in the given pass (see RuntimeEntity.stepEndedPass). */
+function monsterStepEndedAt(e: RuntimeEntity, pass: number, cell: number): boolean {
+  return e.kind === 'monster' && e.stepEndedPass === pass && e.stepEndedCell === cell;
+}
+
 export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean {
+  // CC2 engine: a monster whose step ended on the button in the previous pass holds it for this whole pass, even if it leaves in
+  // its own turn. Approximation of Lexy's out-of-turn release: its add_press on arrival frees a trapped actor before the presser
+  // decides and leaves, and remove_press closes the trap again only when the presser has left (tiletypes.js:1764-1779).
+  if (usesCc2Engine(w.level) && !w.cc3dPace) {
+    const pass = currentEntityPass(w) - 1;
+    const cell = by * mapWidth(w) + bx;
+    if (w.entities.some((e) => monsterStepEndedAt(e, pass, cell))) return true;
+  }
   // CC2 engine: a brown button a player's step ended on is held for the rest of the tick, even if he leaves at once.
   if (w.cc2BrownHeld?.includes(by * mapWidth(w) + bx)) return true;
   // CC2 engine: a brown button an actor was removed from in place with no departure stays pressed for good (Lexy add_press without remove_press).
@@ -1165,6 +1183,9 @@ function isAtRest(w: EpoxyWorld, e: RuntimeEntity): boolean {
 
 /** A converted CC3D level counts a brown button's occupant only at rest: a monster after its step, a block neither sliding nor arriving. */
 function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  // CC2 engine: a monster works a brown button when its step onto it ends (Lexy on_arrive), not while that step runs, and the pass
+  // in which it ends still counts as under way: the press holds from the next pass (see isButtonPressed).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && e.kind === 'monster' && (e.cooldownTicks > 0 || e.stepEndedPass === currentEntityPass(w))) return false;
   return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
 }
 
