@@ -65,7 +65,9 @@ function yellowPadItemOf(w: EpoxyWorld, origin: TileDefinition): TileDefinition 
 }
 
 /** The player picks the yellow pad at (x, y) up: the cell turns to plain floor and the pad joins the counted items he holds. */
-function takeYellowPad(w: EpoxyWorld, x: number, y: number, item: TileDefinition): void {
+function takeYellowPad(w: EpoxyWorld, x: number, y: number, item: TileDefinition, takeOntoBelt?: (x: number, y: number, item: TileDefinition) => boolean): void {
+  // A level with a tool belt takes the pad onto it (the cap of four, the oldest put down); it may refuse, and the pad stays.
+  if (takeOntoBelt?.(x, y, item) === true) return;
   w.terrain[y][x] = FLOOR_TILE_ID;
   w.gridMutatedByMove = true;
   w.player.keys[item.id] = (w.player.keys[item.id] || 0) + 1;
@@ -241,7 +243,14 @@ function exitHeldByPushableBlock(w: EpoxyWorld, exitX: number, exitY: number, di
  * direction the player entered in.
  * Returns false when no exit exists.
  */
-export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir: Direction, landOnPad = false): boolean {
+export function teleportPlayer(
+  w: EpoxyWorld,
+  fromX: number,
+  fromY: number,
+  dir: Direction,
+  landOnPad = false,
+  takeOntoBelt?: (x: number, y: number, item: TileDefinition) => boolean
+): boolean {
   const origin = ConfigRegistry.getTile(w.terrain[fromY][fromX]);
   const selfPad = origin.teleportsToSelf === true;
   const teleporters = selfPad ? [] : teleportersLinkedTo(w, fromX, fromY);
@@ -299,7 +308,7 @@ export function teleportPlayer(w: EpoxyWorld, fromX: number, fromY: number, dir:
   }
   // Every other pad failed (the search reaches the entered pad last, which a yellow pad that can be picked up takes before
   // trying its own exit): the pad is taken and the player stays where he is, with no jump and no exit step.
-  if (yellowItem !== undefined) takeYellowPad(w, fromX, fromY, yellowItem);
+  if (yellowItem !== undefined) takeYellowPad(w, fromX, fromY, yellowItem, takeOntoBelt);
   return false;
 }
 

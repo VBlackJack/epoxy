@@ -79,6 +79,7 @@ import {
   softPadOverrideDue,
   takeSoftPadOverride,
   syncToolBelt,
+  toolBeltOf,
   usesToolBelt,
   resumeForceCarry,
   tickParkedPlayers
@@ -619,7 +620,8 @@ export class GameEngine {
       return false;
     }
     // A toll token is never set down: it is spent at a thief or kept.
-    if (ConfigRegistry.getTile(itemId).collectible === 'token') {
+    // On a belt level the bribe is a tool like the others (Lexy tiletypes.js bribe) and is set down; the toll token never is.
+    if (ConfigRegistry.getTile(itemId).collectible === 'token' && !(itemId === BRIBE_ITEM_ID && usesToolBelt(this.w))) {
       this.w.statusBannerKey = itemId === BRIBE_ITEM_ID ? 'hud.messages.drop_bribe' : 'hud.messages.drop_token';
       AudioManager.playSfx('blocked');
       return false;
@@ -1110,6 +1112,8 @@ export class GameEngine {
     // (flushCc2StepEnd); a brown button it held was held for this tick only.
     // Cleared at the tick end, so a held button is only ever visible between an input (or flush) and the tick.
     this.w.cc2BrownHeld = undefined;
+    // CC2 engine: the belt follows what the tick took from the player (a thief, a spent bribe); getToolBelt is a pure read.
+    if (usesToolBelt(this.w)) syncToolBelt(this.w.player);
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
   }
@@ -1346,7 +1350,7 @@ export class GameEngine {
 
   /** CC2 engine: the tools of the controlled player in belt order, oldest first; undefined when the level keeps no belt. */
   public getToolBelt(): readonly string[] | undefined {
-    return usesToolBelt(this.w) ? [...syncToolBelt(this.w.player)] : undefined;
+    return usesToolBelt(this.w) ? toolBeltOf(this.w.player) : undefined;
   }
 
   /**

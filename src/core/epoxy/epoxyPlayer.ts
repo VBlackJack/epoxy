@@ -18,7 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { CC2_SLAP_REVEALED_TILE_IDS, DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { stepTerrainOf } from '../../audio/stepTerrain';
-import { BLOCK_TARGET_TILE_ID, CC2_TOOL_BELT_CAPACITY, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
+import { BLOCK_TARGET_TILE_ID, BRIBE_ITEM_ID, CC2_TOOL_BELT_CAPACITY, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
 import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
@@ -476,9 +476,13 @@ export function usesToolBelt(w: EpoxyWorld): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace && w.level.cc2?.useCc1Boots !== true;
 }
 
-/** Whether the item is a tool of the belt: boots and the counted items that are not keys (dynamite, pads, stones, tokens). */
-function isBeltTool(def: TileDefinition): boolean {
-  return def.collectible === 'boot' || def.collectible === 'charge' || def.collectible === 'gate' || def.collectible === 'stone' || def.collectible === 'token';
+/**
+ * Whether the item is a tool of the belt: boots and the counted items that are not keys (dynamite, pads, stones) and the bribe
+ * (a tool of Lexy's Labyrinth, tiletypes.js bribe, put down like any other). The toll token is Epoxy's own: it is never set down
+ * and so never sits on the belt, where it would block every drop behind it.
+ */
+export function isBeltTool(def: TileDefinition): boolean {
+  return def.collectible === 'boot' || def.collectible === 'charge' || def.collectible === 'gate' || def.collectible === 'stone' || def.id === BRIBE_ITEM_ID;
 }
 
 /**
@@ -495,9 +499,17 @@ function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinitio
  * from it, tools that arrived by another route join at the end. The array, duplicates included, is the order of the belt.
  */
 export function syncToolBelt(p: PlayerState): string[] {
+  const belt = toolBeltOf(p);
+  if (belt.length > 0) p.belt = belt;
+  else delete p.belt;
+  return belt;
+}
+
+/** The belt of `p` as syncToolBelt would settle it, without touching the player: a pure read. */
+export function toolBeltOf(p: PlayerState): string[] {
   const held: string[] = [...p.boots];
   for (const [id, count] of Object.entries(p.keys)) {
-    if (ConfigRegistry.getTile(id).collectible === 'key') continue;
+    if (!isBeltTool(ConfigRegistry.getTile(id))) continue;
     for (let i = 0; i < count; i++) held.push(id);
   }
   const belt: string[] = [];
@@ -508,8 +520,6 @@ export function syncToolBelt(p: PlayerState): string[] {
     held.splice(at, 1);
   }
   belt.push(...held);
-  if (belt.length > 0) p.belt = belt;
-  else delete p.belt;
   return belt;
 }
 
@@ -529,7 +539,7 @@ function removeHeldTool(p: PlayerState, itemId: string, def: TileDefinition): vo
  * pad that cannot be set down here (the cell is not plain floor) refuses the whole pickup, otherwise the oldest is put down
  * on the cell once the new tool is taken, by the same rules as a drop.
  */
-function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string, def: TileDefinition): void {
+function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string, def: TileDefinition, fromPad = false): void {
   const w = ctx.world;
   const p = w.player;
   const belt = syncToolBelt(p);
@@ -542,14 +552,31 @@ function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string,
     belt.shift();
     pushedOut = oldest;
   }
-  w.items[y][x] = null;
+  if (fromPad) {
+    // A yellow pad taken from the terrain: the cell turns to plain floor, and the oldest tool goes down only if no item lies there.
+    w.terrain[y][x] = FLOOR_TILE_ID;
+    w.gridMutatedByMove = true;
+  } else {
+    w.items[y][x] = null;
+  }
   if (def.collectible === 'boot') p.boots.add(itemId);
   else p.keys[itemId] = (p.keys[itemId] || 0) + 1;
   belt.push(itemId);
   p.belt = belt;
   AudioManager.playSfx('item');
   ctx.emitVisual('item', x, y, def.colorKey || 'blue');
-  if (pushedOut !== undefined) setDownPushedOutTool(ctx, x, y, pushedOut);
+  if (pushedOut !== undefined && w.items[y][x] === null) setDownPushedOutTool(ctx, x, y, pushedOut);
+}
+
+/**
+ * CC2 engine: the yellow pad at (x, y) joins the belt like any other tool (Lexy attempt_take): with four tools held the oldest
+ * is put down on the cell, and a pad that cannot be set down there (the cell is the yellow pad itself, not plain floor)
+ * refuses the pickup. Returns false when the level keeps no belt, so the caller takes the pad the plain way.
+ */
+export function takeYellowPadOntoBelt(ctx: EpoxyContext, x: number, y: number, item: TileDefinition): boolean {
+  if (!usesToolBelt(ctx.world) || !isBeltTool(item)) return false;
+  pickUpBeltTool(ctx, x, y, item.id, item, true);
+  return true;
 }
 
 /** A pad is set down only on plain floor with nothing hidden under it. */
@@ -613,12 +640,14 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     return;
   }
 
+  // The item of the cell he arrived on, read before a pad is taken: the tool it pushes off the belt lands here and is not picked up again.
+  const arrivalItem = w.items[y][x];
   if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && w.cc3dPace) {
     // CC3D: the jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
     cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
   } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
-    if (teleportPlayer(w, x, y, entryDir, w.ccRules)) {
+    if (teleportPlayer(w, x, y, entryDir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) {
       markCc2Teleport(w, x, y);
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
@@ -639,7 +668,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     else w.player.character = switched;
   }
 
-  const itemId = w.items[y][x];
+  const itemId = arrivalItem;
   if (itemId) {
     const itemDef = ConfigRegistry.getTile(itemId);
     if (itemDef.togglesTimer) toggleTimerOnStep(w);
