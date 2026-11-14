@@ -401,6 +401,12 @@ export function moveBlockTo(
   block.x = destX;
   block.y = destY;
   block.dir = dir;
+  // CC2 engine: a block that lands on a slide cell has a slide mode there (Lexy current_slide_mode, game.js:187); one that lands
+  // elsewhere has none. The push judgement of a jammed block reads the marker, set sparsely (true or absent).
+  if (usesCc2Engine(w.level) && !w.cc3dPace) {
+    if (ConfigRegistry.getTile(w.terrain[destY][destX]).slideType !== undefined) block.cc2SlideArrived = true;
+    else delete block.cc2SlideArrived;
+  }
   eraseSplash(w, destX, destY);
   enterSwivel(w, destX, destY, dir);
 
