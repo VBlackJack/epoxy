@@ -48,6 +48,9 @@ function jump(mode: RoomMode, opts: { blockType?: string; wallBehind?: boolean }
     })
   );
   playMove(engine, 'E');
+  // A CC2-engine level jumps at his turn when the step onto the pad ends (Lexy step_on_cell, game.js:2316-2327; attempt_teleport from
+  // do_actor_idle, game.js:1371-1372): the tick the wait runs out.
+  if (mode === 'cc2') for (let i = 0; i < SETTLE_TICKS && engine.getPlayer().moveCooldown > 0; i++) engine.tick();
   return engine;
 }
 

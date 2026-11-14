@@ -17,8 +17,10 @@
 /**
  * The red and yellow pads of a CC2-engine level let the player decide the exit himself at his next decision (Lexy's Labyrinth
  * teleport-soft slide, game.js:1578-1620): a direction held then is a normal move from the destination pad (refused, he stays
- * and the forced exit is gone); with no direction the forced exit is taken then, one tick later than a plain pad, and its wait
- * is one tick shorter. The plain pads and the classic rules keep the forced exit.
+ * and the forced exit is gone); with no direction the forced exit is taken at his next turn, as on a plain pad. The jump is made
+ * at his turn when the step onto the pad ends (step_on_cell marks the pad, game.js:2316-2327; attempt_teleport runs from
+ * do_actor_idle, game.js:1371-1372), and the decision opens in that very tick. The plain pads and the classic rules keep the
+ * forced exit.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,16 +46,25 @@ const NEAR_PAD = 3;
 const FAR_PAD = 8;
 const EXIT_X = FAR_PAD + 1;
 const SETTLE_TICKS = 20;
+/** On a CC2-engine level: the jump tick, then the exit step at his next turn. */
+const JUMP_TO_EXIT_TICKS = 2;
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
-/** A player who stepped onto the near pad and was sent to the far one; the engine stands at the landing tick. */
-function landed(mode: RoomMode, pad: string, extra: Record<string, string> = {}): GameEngine {
+/** A player who stepped onto the near pad, the step under way (a CC2-engine level jumps when it ends, a classic one at once). */
+function stepped(mode: RoomMode, pad: string, extra: Record<string, string> = {}): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(
     room({ mode, startX: NEAR_PAD - 1, terrain: { [`${NEAR_PAD},${ROOM_ROW}`]: pad, [`${FAR_PAD},${ROOM_ROW}`]: pad, ...extra } })
   );
   expect(playMove(engine, 'E').moved).toBe(true);
+  return engine;
+}
+
+/** A player who stepped onto the near pad and was sent to the far one; the engine stands at the landing tick. */
+function landed(mode: RoomMode, pad: string, extra: Record<string, string> = {}): GameEngine {
+  const engine = stepped(mode, pad, extra);
+  for (let t = 0; t < SETTLE_TICKS && engine.getPlayer().x !== FAR_PAD; t++) engine.tick();
   expect(engine.getPlayer().x).toBe(FAR_PAD);
   expect(engine.getPlayer().teleportExit).toBe('E');
   return engine;
@@ -85,14 +96,14 @@ describe('soft pads', () => {
 });
 
 describe('the exit of a soft pad with no direction held', () => {
-  it('is taken one tick later than the exit of a plain pad', () => {
+  it('is taken at his next turn after the jump, in the same tick as the exit of a plain pad', () => {
     const plain = ticksToExit('cc2', PLAIN_PAD);
-    expect(plain).toBe(playerWalkCooldown(world(landed('cc2', PLAIN_PAD))));
-    expect(ticksToExit('cc2', RED_PAD)).toBe(plain + 1);
-    expect(ticksToExit('cc2', YELLOW_PAD)).toBe(plain + 1);
+    expect(plain).toBe(JUMP_TO_EXIT_TICKS);
+    expect(ticksToExit('cc2', RED_PAD)).toBe(plain);
+    expect(ticksToExit('cc2', YELLOW_PAD)).toBe(plain);
   });
 
-  it('opens the decision on the first tick after the wait and leaves on the next', () => {
+  it('opens the decision in the tick of the jump and leaves on the next', () => {
     const engine = landed('cc2', RED_PAD);
     waitOutLanding(engine);
     expect(engine.getPlayer().x).toBe(FAR_PAD);
@@ -103,12 +114,13 @@ describe('the exit of a soft pad with no direction held', () => {
     expect(engine.getPlayer().softPadDue).toBeUndefined();
   });
 
-  it('makes the exit step one tick shorter, so the next decision comes as it did before', () => {
+  it('gives the exit step the wait of a plain pad: the jump tick counted one tick of it already', () => {
     const plain = landed('cc2', PLAIN_PAD);
     for (let t = 0; plain.getPlayer().x !== EXIT_X; t++) plain.tick();
     const soft = landed('cc2', RED_PAD);
     for (let t = 0; soft.getPlayer().x !== EXIT_X; t++) soft.tick();
-    expect(soft.getPlayer().moveCooldown).toBe(plain.getPlayer().moveCooldown - 1);
+    expect(soft.getPlayer().moveCooldown).toBe(plain.getPlayer().moveCooldown);
+    expect(soft.getPlayer().moveCooldown).toBe(playerWalkCooldown(world(soft)) - 1);
   });
 
   it('is the forced exit of every pad on a classic-rules level', () => {
@@ -140,14 +152,28 @@ describe('a direction held at the decision on a soft pad', () => {
   });
 
   it('is refused before the decision opens, as a forced exit always was', () => {
-    const engine = landed('cc2', RED_PAD);
-    // Still waiting out the landing.
+    const engine = stepped('cc2', RED_PAD);
+    // Still on the source pad: the step onto it is under way, the jump has not been made.
+    expect(engine.getPlayer().x).toBe(NEAR_PAD);
     expect(engine.attemptPlayerMove('N')).toBe(false);
+    expect(engine.getPlayer().softPadDue).toBeUndefined();
+    for (let t = 0; t < SETTLE_TICKS && engine.getPlayer().x !== FAR_PAD; t++) engine.tick();
     expect(engine.getPlayer().teleportExit).toBe('E');
   });
 
-  it('is not offered on a plain pad nor on a classic-rules level: the forced exit is taken as the wait ends', () => {
-    for (const [mode, pad] of [['cc2', PLAIN_PAD], ['cc', RED_PAD]] as const) {
+  it('is not offered on a plain pad: the forced exit is taken at his next turn after the jump', () => {
+    const engine = landed('cc2', PLAIN_PAD);
+    expect(engine.attemptPlayerMove('N')).toBe(false);
+    waitOutLanding(engine);
+    expect(engine.getPlayer().softPadDue).toBeUndefined();
+    expect(engine.getPlayer().teleportExit).toBe('E');
+    engine.tick();
+    expect(engine.getPlayer().teleportExit).toBeUndefined();
+    expect(engine.getPlayer().x).toBe(EXIT_X);
+  });
+
+  it('is not offered on a classic-rules level: the forced exit is taken as the wait ends', () => {
+    for (const [mode, pad] of [['cc', RED_PAD]] as const) {
       const engine = landed(mode, pad);
       expect(engine.attemptPlayerMove('N')).toBe(false);
       waitOutLanding(engine);

@@ -170,6 +170,8 @@ describe('yellow pad picked up on the CC2 engine', () => {
     const engine = load('cc2', [PAD_A, PAD_B], { [key(B_EXIT)]: WALL });
     for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown !== 0; waited++) engine.tick();
     expect(playMove(engine, 'E').moved).toBe(true);
+    // The jump, which takes the pad, is made at his turn when the step onto it ends (Lexy game.js:2316-2327, 1371-1372).
+    for (let waited = 0; waited <= MAX_WAIT_TICKS && held(engine, ITEM) === 0; waited++) engine.tick();
     expect(held(engine, ITEM)).toBe(1);
     expect(engine.undo()).toBe(true);
     expect(terrainAt(engine, PAD_A)).toBe(PAD);

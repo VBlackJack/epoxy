@@ -61,10 +61,37 @@ function cooldownOnLanding(mode: RoomMode): { cooldown: number; walk: number } {
   throw new Error('the player never landed on the far pad');
 }
 
+/**
+ * On a CC2-engine level the jump is made at his turn when the step onto the pad ends (Lexy step_on_cell, game.js:2316-2327;
+ * attempt_teleport from do_actor_idle, game.js:1371-1372): the ticks from the one that put him on the near pad, counted, to the jump.
+ */
+function ticksOnNearPad(): { ticks: number; walk: number } {
+  const engine = new GameEngine();
+  engine.loadLevel(
+    room({
+      mode: 'cc2',
+      startX: START_X,
+      terrain: { [`4,${ROOM_ROW}`]: 'ice', [`5,${ROOM_ROW}`]: 'ice', [`${NEAR_PAD},${ROOM_ROW}`]: 'teleport', [`${FAR_PAD},${ROOM_ROW}`]: 'teleport' }
+    })
+  );
+  const walk = playerWalkCooldown((engine as unknown as { w: EpoxyWorld }).w);
+  engine.attemptPlayerMove('E');
+  let ticks = 0;
+  let onPad = false;
+  for (let t = 0; t < MAX_SLIDE_TICKS; t++) {
+    engine.tick();
+    const p = engine.getPlayer();
+    if (p.x === NEAR_PAD) onPad = true;
+    if (onPad) ticks++;
+    if (p.x === FAR_PAD && p.teleportExit !== undefined) return { ticks, walk };
+  }
+  throw new Error('the player never landed on the far pad');
+}
+
 describe('a slide onto a teleporter pad', () => {
   it('lasts a walking step on a CC2-engine level', () => {
-    const { cooldown, walk } = cooldownOnLanding('cc2');
-    expect(cooldown).toBe(walk);
+    const { ticks, walk } = ticksOnNearPad();
+    expect(ticks).toBe(walk);
   });
 
   it('keeps the shorter slide wait on a classic-rules level', () => {
@@ -90,8 +117,9 @@ describe('a slide onto a teleporter pad', () => {
       if (engine.getPlayer().x === FAR_PAD && engine.getPlayer().teleportExit !== undefined) landed = t;
     }
     expect(landed).toBeGreaterThan(0);
+    // The exit step comes at his next turn with a walking wait less the tick the jump counted: one walking step after the landing.
     let waited = 0;
-    while (engine.getPlayer().x === FAR_PAD && waited < MAX_SLIDE_TICKS) {
+    while ((engine.getPlayer().x === FAR_PAD || engine.getPlayer().moveCooldown > 0) && waited < MAX_SLIDE_TICKS) {
       engine.tick();
       waited++;
     }
