@@ -24,14 +24,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
-const fired = vi.hoisted(() => ({ calls: [] as { x: number; y: number; frame: number | undefined; beforePass: boolean | undefined }[] }));
+const fired = vi.hoisted(() => ({ calls: [] as { x: number; y: number; frame: number | undefined; beforePass: boolean | undefined; tick: number }[], tick: 0 }));
 
 vi.mock('./epoxyDevices', async (importOriginal) => {
   const original = await importOriginal<typeof import('./epoxyDevices')>();
   return {
     ...original,
     fireClonerAt: (ctx: import('./epoxyWorld').EpoxyContext, x: number, y: number): boolean => {
-      fired.calls.push({ x, y, frame: ctx.world.cc2ReleaseFrame, beforePass: ctx.world.cc2BeforePass });
+      fired.calls.push({ x, y, frame: ctx.world.cc2ReleaseFrame, beforePass: ctx.world.cc2BeforePass, tick: fired.tick });
       return original.fireClonerAt(ctx, x, y);
     }
   };
@@ -47,6 +47,7 @@ import type { EpoxyWorld } from './epoxyWorld';
 beforeEach(() => {
   loadTestConfigs();
   fired.calls.length = 0;
+  fired.tick = 0;
 });
 
 const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, gridHash: 'x' } as Cc2LevelData;
@@ -116,6 +117,26 @@ describe('WDP: a multi-player CC2 level fires the press of a step end before the
     expect(fired.calls.some((call) => call.x === CLONER_X && call.beforePass === true)).toBe(true);
   });
 
+  it('fires the clone machine of a player press in the tick after the step end, not at the end of that tick', () => {
+    const engine = load('cc2');
+    const w = worldOf(engine);
+    let stepEnded: number | undefined;
+    engine.attemptPlayerMove('E');
+    for (let guard = 0; guard < MAX_TICKS && fired.calls.length === 0; guard++) {
+      fired.tick++;
+      engine.tick();
+      const onPlate = w.player.x === PLATE_X && w.player.y === ROW && w.player.moveCooldown === 0;
+      if (stepEnded === undefined && onPlate) stepEnded = fired.tick;
+      if (!onPlate && stepEnded === undefined) engine.attemptPlayerMove('E');
+    }
+    expect(stepEnded).toBeDefined();
+    expect(fired.calls).toHaveLength(1);
+    // Lexy fires the wired machine at the start of the next tic (game.js:869-888); the base code fired it at the end of the step-end tick.
+    expect(fired.calls[0].beforePass).toBe(true);
+    expect(fired.calls[0].tick).toBe((stepEnded as number) + 1);
+    expect(fired.calls[0].tick).not.toBe(stepEnded);
+  });
+
   it('keeps the end-of-tick firing on a level that is not CC2', () => {
     const engine = load('native');
     engine.tick();
@@ -130,7 +151,7 @@ describe('W0M: tic 0 of a multi-player CC2 level has the wire phase of the other
   it('fires the clone machine of a plate held at the load with the press frame forced to 0, before the pass', () => {
     const engine = load('cc2', true);
     engine.tick();
-    expect(fired.calls[0]).toEqual({ x: CLONER_X, y: ROW, frame: LOAD_PRESS_FRAME, beforePass: true });
+    expect(fired.calls[0]).toMatchObject({ x: CLONER_X, y: ROW, frame: LOAD_PRESS_FRAME, beforePass: true });
   });
 
   it('does not run on a level that is not CC2', () => {
