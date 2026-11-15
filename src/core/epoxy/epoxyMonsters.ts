@@ -431,6 +431,9 @@ function runEntityPass(ctx: EpoxyContext): void {
     if (wasReady && classic && refusedOnIcePass(w, entity, fromX, fromY)) refusedOnIce.push(entity);
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
     if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
+    // CC2 engine: the frame tag a clone carries ends with its own step (Lexy takes the out-of-turn frame for the first move only,
+    // game.js:2218-2242).
+    if (entity.cc2Frame !== undefined && usesCc2Engine(w.level) && !w.cc3dPace && (entity.x !== fromX || entity.y !== fromY)) delete entity.cc2Frame;
   }
   if (w.cc2ActorOrder === true && !playerActed) {
     ctx.cc2PlayerActs?.();
