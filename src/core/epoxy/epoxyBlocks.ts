@@ -19,7 +19,7 @@ import { DIRECTION_VECTORS } from '../../config/constants';
 import { AudioManager } from '../../audio/AudioManager';
 import { CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS, STEER_MONSTERS_ACTION, CC_BLOCK_SLIDE_COOLDOWN_TICKS, DIRT_BLOCK_ENTITY_ID, FLOOR_TILE_ID, OPPOSITE_DIRECTION, SUNK_BLOCK_TILE_ID } from '../coreConstants';
 import { turnClockwise } from '../lynx/directions';
-import { Direction, RuntimeEntity } from '../types';
+import { Direction, RuntimeEntity, TileDefinition } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
 import { usesCc2Engine } from './ccRules';
 import { forceCycleArrival } from './epoxyForceCycle';
@@ -148,6 +148,8 @@ const CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES = 1;
 function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
   // A CC3D block still finishing its step is refused (Cc3dSimulation planPush: a block in motion cannot be pushed).
   if (block.arrivalTicks !== undefined) return false;
+  // CC2 engine: a clone machine holds the actor on it, only its release lets it out (Lexy cloner traps; tiletypes.js:1700-1702).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).isCloneMachine === true) return false;
   return !isCellClosedTrap(w, block.x, block.y) && isPushAllowed(block, dir);
 }
 
@@ -337,13 +339,21 @@ export function isCc3dPush(block: RuntimeEntity): boolean {
   return ConfigRegistry.getEntityDef(block.type)?.stopsAtWall === true;
 }
 
+/**
+ * CC2 engine: a clone machine bars the dirt block only among the blocks (Lexy cloner blocks_collision holds block_cc1;
+ * tiletypes.js:1693, defs.js:104-107). The type check stays in code: the tile carries no typed list.
+ */
+function clonerAdmitsBlock(w: EpoxyWorld, destTile: TileDefinition, block: RuntimeEntity): boolean {
+  return destTile.isCloneMachine === true && usesCc2Engine(w.level) && !w.cc3dPace && block.type !== CC2_DIRT_BLOCK_TYPE;
+}
+
 /** Whether the terrain of a cell (tile, thin walls, swivel edges) lets a block in, with its items and occupants left aside. */
 function terrainLetsBlockIn(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number, dir: Direction): boolean {
   if (!isInBounds(w, destX, destY)) return false;
   if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
   const slidesOver = ConfigRegistry.getEntityDef(block.type)?.slidesOverTiles?.includes(destTile.id) === true;
-  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver && !clonerAdmitsBlock(w, destTile, block)) return false;
   if (destTile.barsBlocks?.includes(block.type) === true) return false;
   return destTile.blocksBlocks !== true;
 }
@@ -362,7 +372,7 @@ export function isCanBlockEnter(
   const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
   // A block of the CC3D ice kind slides over some tiles that refuse the others (the thieves), without changing them.
   const slidesOver = ConfigRegistry.getEntityDef(block.type)?.slidesOverTiles?.includes(destTile.id) === true;
-  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver && !clonerAdmitsBlock(w, destTile, block)) return false;
   // A tile may bar some blocks although it admits the others (the CC3D dirt and slime bar mirrors and turrets).
   if (destTile.barsBlocks?.includes(block.type) === true) return false;
   // CC2 engine: a hint bars the dirt block only (Lexy: hint blocks_collision holds block_cc1, which the other blocks lack).
