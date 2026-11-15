@@ -191,6 +191,12 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
   w.ccArrivalsRunning = true;
   try {
     for (const arrival of due) {
+      // The press queued behind a bomb removal: its monster is gone by now, so the presence check is skipped. The button fires what it is now.
+      if (arrival.afterRemoval === true) {
+        const under = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
+        if (arrival.action !== undefined && under.buttonAction !== undefined && under.buttonWorkedBy !== 'player' && !ctx.triggerButton(arrival.x, arrival.y, under.buttonAction)) return false;
+        continue;
+      }
       const monster = w.entities.find((e) => e.uid === arrival.uid);
       if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
       if (arrival.removal !== undefined) {
@@ -866,7 +872,15 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
       if (w.cc3dPace || (usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
         // CC3D, and a bomb, water, fire or slime on a CC2-engine level (Lexy on_arrive kills when the step ends), keep the monster
         // in the cell for the whole step and remove it, and the bomb, when the step ends (see applyQueuedArrivals for the due time).
-        w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+        const removalDue = (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1;
+        w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: removalDue });
+        // Lexy step_on_cell walks every layer (game.js:2316-2365): the bomb kills in on_stand and the button under it is still pressed.
+        // Partial: buttons only (the yellow button, a light switch or pulse source and a hold trap are not modelled). The press is a
+        // queued action arrival at the same due, flagged afterRemoval, so it takes the normal action path (pass start with
+        // cc2BeforePass, the green toggle after the pass) and is never pressed inside the removal branch or at input time.
+        if (removal === 'bomb' && usesCc2Engine(w.level) && !w.cc3dPace && destTile.buttonAction !== undefined && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
+          w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: removalDue, afterRemoval: true });
+        }
       } else {
         applyPendingRemoval(ctx, entity);
       }
