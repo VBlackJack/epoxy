@@ -427,7 +427,10 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
     const def = ConfigRegistry.getEntityDef(entity.type);
     if (entity.kind === 'block') {
       if (!def?.destroyedByFire) continue;
-      if (def.meltsInFireTo) {
+      // CC2 engine: a lit flame jet kills the block standing on it and leaves the floor as it is (Lexy flame_jet_on on_stand
+      // kill_actor, tiletypes.js:2163-2168); only real fire melts an ice block into water (tiletypes.js:941-969).
+      const litJetKills = usesCc2Engine(w.level) && !w.cc3dPace && tile.burnsOccupants === true;
+      if (def.meltsInFireTo && !litJetKills) {
         w.terrain[entity.y][entity.x] = def.meltsInFireTo;
       }
     } else if (def?.immuneToFire) {
