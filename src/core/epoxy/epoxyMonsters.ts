@@ -48,6 +48,7 @@ import {
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
   STONE_DEATH_REASON_KEY,
+  teethCycleOf,
   teethMayDecide,
   TURTLE_TILE_ID
 } from '../coreConstants';
@@ -262,7 +263,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     // CC2 engine: a monster a teleporter put on its pad leaves by the forced exit as its next decision: no way is drawn for it.
     if (entity.teleportExit !== undefined && usesCc2Engine(w.level)) continue;
-    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level)) && !teethSlide(w, entity)) continue;
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level), teethCycleOf(entity.type, usesCc2Engine(w.level))) && !teethSlide(w, entity)) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
     const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
@@ -279,7 +280,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
     // A rover imitating teeth chases only in the teeth window and decides nothing otherwise: it waits and decides again next tick.
     const behaviourType = behaviour?.id ?? entity.type;
-    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2)) {
+    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2, teethCycleOf(entity.type, cc2))) {
       w.ccPlans.set(entity.uid, null);
       continue;
     }
@@ -491,7 +492,7 @@ function retryRefusedOnIce(ctx: EpoxyContext, entity: RuntimeEntity, clock: numb
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level)) && !teethSlide(ctx.world, entity)) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity)) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;

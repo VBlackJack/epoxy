@@ -38,7 +38,7 @@ import {
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
 import { ORDERED_DIRECTIONS } from './constants';
-import { SIGNAL_GATE_CC2_ID_SUFFIX, CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
+import { CC_TEETH_ACTIVE_TICKS, SIGNAL_GATE_CC2_ID_SUFFIX, CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
   AudioConfig,
@@ -1798,6 +1798,13 @@ export function findSteeringConfigErrors(
       if (!Number.isInteger(entity.ccStepTicks) || entity.ccStepTicks < 1) errors.push(`${id}.ccStepTicks: expected a whole number of at least 1`);
       if (entity.ccCadence !== true && entity.cc2Cadence !== true) errors.push(`${id}.ccStepTicks: only a monster on the classic cadence has this field`);
     }
+    if (entity.cc2DecisionCycleTicks !== undefined) {
+      if (!Number.isInteger(entity.cc2DecisionCycleTicks) || entity.cc2DecisionCycleTicks < CC_TEETH_ACTIVE_TICKS) {
+        errors.push(`${id}.cc2DecisionCycleTicks: expected a whole number of at least ${CC_TEETH_ACTIVE_TICKS}`);
+      }
+      if (entity.kind !== 'monster') errors.push(`${id}.cc2DecisionCycleTicks: only a monster has this field`);
+      if (entity.cc2Cadence !== true) errors.push(`${id}.cc2DecisionCycleTicks: requires cc2Cadence`);
+    }
     if (entity.runtimeOnly === true && entity.epoxyOnly !== true) errors.push(`${id}.runtimeOnly: a runtime-only entity is epoxyOnly`);
     if (entity.pushesBlocks !== undefined) {
       if (typeof entity.pushesBlocks !== 'boolean') errors.push(`${id}.pushesBlocks: expected a boolean`);
@@ -1878,6 +1885,20 @@ export function findMonsterBehaviourConfigErrors(
         for (const tileId of entity.entersBarredTiles) {
           if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
             errors.push(`${id}.entersBarredTiles: "${String(tileId)}" is not the id of an existing tile`);
+          }
+        }
+      }
+    }
+    if (entity.entersBarredTilesCc2 !== undefined) {
+      if (entity.kind !== 'monster') errors.push(`${id}.entersBarredTilesCc2: only a monster enters barred tiles`);
+      if (!Array.isArray(entity.entersBarredTilesCc2)) {
+        errors.push(`${id}.entersBarredTilesCc2: expected a list of tile ids`);
+      } else {
+        for (const tileId of entity.entersBarredTilesCc2) {
+          if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
+            errors.push(`${id}.entersBarredTilesCc2: "${String(tileId)}" is not the id of an existing tile`);
+          } else if (Array.isArray(entity.entersBarredTiles) && entity.entersBarredTiles.includes(tileId)) {
+            errors.push(`${id}.entersBarredTilesCc2: "${tileId}" is already in entersBarredTiles`);
           }
         }
       }

@@ -1510,6 +1510,11 @@ export interface EntityDefinition {
   ccCadence?: boolean;
   /** The classic cadence on a level played by the CC2 engine only (CC2 gives these monsters the classic step). */
   cc2Cadence?: boolean;
+  /**
+   * Ticks of the decision cycle of this monster on a level played by the CC2 engine (Lexy movement_parity * 4): it decides only
+   * in the first CC_TEETH_ACTIVE_TICKS ticks of each cycle, shifted by CC2_TEETH_PHASE_OFFSET. Needs `cc2Cadence`.
+   */
+  cc2DecisionCycleTicks?: number;
   /** Ticks of one classic-cadence step of this monster; absent means the standard classic step. */
   ccStepTicks?: number;
   /** A monster whose contact kills a player although a helmet shield (shieldsFromContact) would protect from other monsters. */
@@ -1606,6 +1611,11 @@ export interface EntityDefinition {
    * Dirt is packed down as it arrives and a socket opens once no chip is missing; a socket stays a wall until then.
    */
   entersBarredTiles?: string[];
+  /**
+   * Tile ids this monster walks onto on a level played by the CC2 engine only, in addition to `entersBarredTiles` (the CC2
+   * rover, which Lexy keeps outside monster_typical: defs.js:104-107). Read on the CC2 engine alone.
+   */
+  entersBarredTilesCc2?: string[];
   /**
    * Characters whose player this monster runs from: a chasing monster flees them and a fleeing one chases them
    * (the CC2 teeth flee Melinda, the CC2 timid teeth flee Chip). Absent: the pattern applies to every character.
@@ -2234,8 +2244,8 @@ export interface CcArrival {
   /** The button the monster stepped on; absent for a pending removal. */
   action?: ButtonAction;
   /**
-   * A converted CC3D level keeps a monster in its cell for the whole step that took it onto a bomb, water, fire or slime
-   * and removes it when the step ends: the hazard that will remove it then.
+   * A converted CC3D level or a level played by the CC2 engine keeps a monster in its cell for the whole step that took it
+   * onto a bomb, water, fire or slime and removes it when the step ends: the hazard that will remove it then.
    */
   removal?: 'bomb' | 'splash' | 'burn';
   /** A converted CC3D level: the monster's step ended on a teleporter; when the step ends it lands on the destination pad and leaves by a forced fast step one tick later. */

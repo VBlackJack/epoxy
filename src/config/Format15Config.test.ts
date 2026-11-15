@@ -140,14 +140,15 @@ describe('shipped format 15 fields', () => {
     expect(tiles.dirt_3d.barsBlocks).not.toContain('arrow_block_one');
   });
 
-  it('describes the pop-up wall: no dirt block, only rovers and ghosts, a wall behind the leaver', () => {
+  it('describes the pop-up wall: no dirt block, only rovers, ghosts and the rolling ball, a wall behind the leaver', () => {
     const { tiles } = clones();
     expect(tiles.popup_wall_cc2).toMatchObject({
       passableByPlayer: true,
       passableByMonster: true,
       passableByBlock: true,
       barsBlocks: ['dirt_block'],
-      admitsMonsters: ['rover', 'ghost'],
+      // Lexy tiletypes.js:439, 466-475: the pop-up wall also admits the rolling ball.
+      admitsMonsters: ['rover', 'ghost', 'rolling_ball'],
       transformsToOnLeave: 'wall',
       heldWhileOccupied: true
     });
