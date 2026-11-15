@@ -262,7 +262,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     // CC2 engine: a monster a teleporter put on its pad leaves by the forced exit as its next decision: no way is drawn for it.
     if (entity.teleportExit !== undefined && usesCc2Engine(w.level)) continue;
-    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level))) continue;
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level)) && !teethSlide(w, entity)) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
     const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
@@ -450,7 +450,7 @@ function runEntityPass(ctx: EpoxyContext): void {
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level))) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level)) && !teethSlide(ctx.world, entity)) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -916,6 +916,21 @@ function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean 
  */
 function slideImmune(w: EpoxyWorld, entity: RuntimeEntity, tile: TileDefinition): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace && tile.slideType !== undefined && heldToolProtects(entity, tile);
+}
+
+/**
+ * CC2 engine (never CC3D pace): teeth on ice or a force floor slide whatever their phase window: a pending slide is decided
+ * before decide_movement, whose pursue_player holds the teeth window (Lexy make_actor_decision game.js:1714-1719, pursue_player
+ * tiletypes.js:245-249). Excluded: teeth the floor does not carry (a held tool, slideImmune), and teeth still on their load cell
+ * on ice, which have no pending slide there (Lexy ice has no on_ready).
+ */
+function teethSlide(w: EpoxyWorld, entity: RuntimeEntity): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace) return false;
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  if (def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true) return false;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType === undefined || slideImmune(w, entity, here)) return false;
+  return !(here.slideType === 'ice' && entity.atLoadCell === true);
 }
 
 /** Whether the entity holds the tool that protects against the hazard of the cell it stands in (CC2 engine only). */
