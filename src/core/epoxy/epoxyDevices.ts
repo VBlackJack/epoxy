@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
+import { turnClockwise } from '../lynx/directions';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
@@ -112,6 +113,13 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     const links = w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
     if (links.length > 0) {
       for (const link of links) {
+        // CC2 engine: a linked cloner fires from what stands on it now, and spawns nothing when it is empty (Lexy cloner.activate,
+        // tiletypes.js:1704-1706). A press is never a wire edge, so it tries one way only.
+        if (usesCc2Engine(w.level) && !w.cc3dPace) {
+          const occupant = w.entities.find((e) => e.x === link.clonerX && e.y === link.clonerY && !isPhasingEntityType(e.type));
+          if (occupant !== undefined && !spawnFromCloner(ctx, link.clonerX, link.clonerY, occupant.type, occupant.dir)) return false;
+          continue;
+        }
         if (!spawnFromCloner(ctx, link.clonerX, link.clonerY, link.templateType, link.templateDir)) {
           return false;
         }
@@ -468,15 +476,18 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
 /**
  * Triggers the clone machine at (cx, cy) once, as a trigger button would: the template of the first clone link
  * that names this machine, else the entity sitting on the machine. Does nothing when the cell holds no clone
- * machine now. Used by a signal sink. Returns false when the clone's arrival killed the player.
+ * machine now. Used by a signal sink. `byWire` marks a wire edge, which searches clockwise for a free way on the CC2 engine
+ * (see spawnFromCloner). Returns false when the clone's arrival killed the player.
  */
-export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean {
+export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire = false): boolean {
   const w = ctx.world;
   if (!ConfigRegistry.getTile(w.terrain[cy]?.[cx]).isCloneMachine) return true;
   const link = w.cloneLinks.find((l) => l.clonerX === cx && l.clonerY === cy);
-  if (link !== undefined) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir);
+  // CC2 engine: a linked cloner clones its actual occupant, nothing when empty (Lexy tiletypes.js:1704-1706).
+  const fromOccupant = usesCc2Engine(w.level) && !w.cc3dPace;
+  if (link !== undefined && !fromOccupant) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir, byWire);
   const template = w.entities.find((e) => e.x === cx && e.y === cy && !isPhasingEntityType(e.type));
-  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir);
+  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir, byWire);
 }
 
 /** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
@@ -507,7 +518,8 @@ export function spawnFromCloner(
   clonerX: number,
   clonerY: number,
   templateType: string,
-  templateDir: Direction
+  templateDir: Direction,
+  byWire = false
 ): boolean {
   const w = ctx.world;
   // The press frame of the wire edge that fired this clone is read once and dropped, so a clone made while this one arrives
@@ -515,16 +527,46 @@ export function spawnFromCloner(
   const releaseFrame = w.cc2ReleaseFrame;
   delete w.cc2ReleaseFrame;
   if (w.entities.length >= MAX_ACTIVE_ENTITIES) return true;
+  // CC2 engine: a clone machine a wire powers tries the template's way, then each next way clockwise (Lexy cloner.activate with
+  // aggressive, tiletypes.js:1716-1742); the first way the release takes is the way of the clone and of the new template. A red or
+  // gray button tries one way only (tiletypes.js:1745-1748).
+  if (byWire && usesCc2Engine(w.level) && !w.cc3dPace) {
+    for (let turn = 0; turn < CLONER_WAY_COUNT; turn++) {
+      const tryDir = turnClockwise(templateDir, turn);
+      if (spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, tryDir, releaseFrame, true)) return w.player.alive;
+      if (!w.player.alive) return false;
+    }
+    return true;
+  }
+  return spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, templateDir, releaseFrame, false);
+}
 
+/** CC2 engine: the ways a wire-powered clone machine tries, clockwise from the template's own. */
+const CLONER_WAY_COUNT = 4;
+
+/**
+ * One release attempt of spawnFromCloner. With `report`, returns whether a clone went out (true) or nothing did (false), so the
+ * caller can try the next way; else true unless the player died.
+ */
+function spawnFromClonerOneWay(
+  ctx: EpoxyContext,
+  clonerX: number,
+  clonerY: number,
+  templateType: string,
+  templateDir: Direction,
+  releaseFrame: 0 | 1 | 2 | undefined,
+  report: boolean
+): boolean {
+  const w = ctx.world;
   const vec = DIRECTION_VECTORS[templateDir];
   const spawnX = clonerX + vec.dx;
   const spawnY = clonerY + vec.dy;
-  if (!isInBounds(w, spawnX, spawnY)) return true;
-  if (playersOf(w).some((p) => p.x === spawnX && p.y === spawnY)) return true;
+  if (!isInBounds(w, spawnX, spawnY)) return !report;
+  if (playersOf(w).some((p) => p.x === spawnX && p.y === spawnY)) return !report;
 
   const def = ConfigRegistry.getEntityDef(templateType);
   // A phasing monster is never a clone template (the validator refuses it); a stray link spawns nothing.
-  if (def?.movementPattern === PHASE_LINE_PATTERN) return true;
+  if (def?.movementPattern === PHASE_LINE_PATTERN) return !report;
   const kind = def?.kind || 'block';
   const probe: RuntimeEntity = {
     uid: 0,
@@ -546,7 +588,7 @@ export function spawnFromCloner(
     kind === 'block'
       ? isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)
       : canMonsterEnter(w, probe, templateDir);
-  if (!canEnter) return true;
+  if (!canEnter) return !report;
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
@@ -593,7 +635,8 @@ export function spawnFromCloner(
       kind,
       x: clonerX,
       y: clonerY,
-      dir: template.dir,
+      // A wire search leaves the new template facing the way taken (Lexy make_actor(type, direction), tiletypes.js:1731-1733).
+      dir: report ? templateDir : template.dir,
       cooldownTicks: 0,
       isSliding: false,
       ...(template.facing !== undefined ? { facing: template.facing } : {}),

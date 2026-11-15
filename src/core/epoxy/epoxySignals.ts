@@ -434,7 +434,7 @@ function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
     else if (!edge.rising) continue;
     else if (fires === 'flip') flipCellAt(w, x, y);
-    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
+    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true))) return;
   }
 }
 
