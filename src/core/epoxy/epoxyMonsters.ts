@@ -318,7 +318,13 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true && !slideImmune(w, entity, ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]))) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
       // Lexy ice has no on_ready: a monster still on its load cell has no pending slide and decides normally.
-      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) {
+        plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+        // A fireball whose forced slide bumps an ice block melts it (Lexy ice_block.on_after_bumped, tiletypes.js:1386-1395); the step
+        // itself stays blocked and bounces (game.js:1166-1200). Not modelled: the double bonk, where a bounce also blocked by an ice
+        // block melts the second block too (game.js:1197-1200).
+        if (def?.meltsIceOnBumpCc2 === true && !w.cc3dPace && meltIceBlockAhead(w, entity, plan, true)) plan = iceBounceDirection(w, entity, def, plan) ?? plan;
+      }
     }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
