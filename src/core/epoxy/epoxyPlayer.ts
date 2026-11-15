@@ -863,7 +863,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   // Only keys are stolen: a blast charge, a pocket gate, a hurl stone or a toll token stays in the pocket.
   const isKey = (id: string): boolean => ConfigRegistry.getTile(id).collectible === 'key';
-  const takesBoots = tile.stealsBoots === true && w.player.boots.size > 0;
+  // CC2 engine: the tool thief takes every tool of the belt, so the counted ones (dynamite, the bowling ball, yellow teleports)
+  // go with the boots (Lexy take_all_tools_from_actor, tiletypes.js:1236-1256; game.js:3377).
+  const isCountedTool = (id: string): boolean => {
+    const def = ConfigRegistry.getTile(id);
+    return isBeltTool(def) && def.collectible !== 'boot';
+  };
+  const takesCountedTools =
+    tile.stealsBoots === true && usesCc2Engine(w.level) && !w.cc3dPace && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isCountedTool(id));
+  const takesBoots = tile.stealsBoots === true && (w.player.boots.size > 0 || takesCountedTools);
   const takesKeys = tile.stealsKeys === true && Object.entries(w.player.keys).some(([id, count]) => count > 0 && isKey(id));
   if (bribeThief(w, tile)) {
     // A bribe pays any thief visit, even one with nothing to take: the thief takes nothing.
@@ -874,6 +882,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   } else {
     if (takesBoots) {
       w.player.boots.clear();
+      if (takesCountedTools) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isCountedTool(id)));
       w.statusBannerKey = 'hud.messages.thief_stole';
       AudioManager.playSfx('thief');
     }
