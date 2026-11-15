@@ -1458,7 +1458,14 @@ export function canMonsterEnter(
 
   const itemId = w.items[ny][nx];
   const keyPasses = itemId !== null && CC2_MONSTER_PASSABLE_KEYS.includes(itemId) && usesCc2Engine(w.level);
-  if (!keyPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
+  // CC2 engine: an item under an item modifier (a no-sign, forbiddenItem) does not bar collision (Lexy game.js:69-71); the no-sign bars only
+  // an actor that holds the forbidden item, a key or a held tool (tiletypes.js:1283-1290; defs.js:118-125). gift_bow (item_modifier pickup) is not modelled.
+  const forbidden = itemId !== null ? ConfigRegistry.getTile(itemId).forbiddenItem : undefined;
+  if (forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace) {
+    if (monster.heldKeys?.includes(forbidden) === true || monster.heldTools?.includes(forbidden) === true) return false;
+  }
+  const signPasses = forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace;
+  if (!keyPasses && !signPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 
