@@ -3102,7 +3102,7 @@
       "passableByMonster": true,
       "passableByBlock": true,
       "barsBlocks": ["dirt_block"],
-      "admitsMonsters": ["rover", "ghost"],
+      "admitsMonsters": ["rover", "ghost", "rolling_ball"],
       "transformsToOnLeave": "wall",
       "heldWhileOccupied": true
     },

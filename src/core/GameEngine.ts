@@ -60,7 +60,7 @@ import {
   signalLinksOf
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
-import { updateEntities } from './epoxy/epoxyMonsters';
+import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
 import { usesCc2Engine } from './epoxy/ccRules';
 import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
@@ -1156,7 +1156,11 @@ export class GameEngine {
   /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
   private beginInput(): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
-    return this.flushCc2StepEnd();
+    if (!this.flushCc2StepEnd()) return false;
+    // CC2 engine, no actor order: the player steps at the input, so a monster that water, slime or fire kills in the pass about to run
+    // is gone for him as it is for the pass (a level with actor order plays his turn inside the pass, after the removals).
+    if (this.w.cc2ActorOrder !== true) applyDueHazardRemovals(this.ctx);
+    return true;
   }
 
   public tick(): void {
@@ -1221,19 +1225,18 @@ export class GameEngine {
       this.w.inTick = false;
       return;
     }
+    // CC2 engine, with or without actor order (a level with parked players has none): the wire phase before the decisions.
+    // Tic 0 has its own (Lexy _advance_tic_lynx60, game.js:872-876, steam-strict emulate_60fps): the wires settle once as at a
+    // tick end and what rose fires at once, with the press frame forced to 0. Later ticks fire the press made at a step end.
+    // Without actor order the tic-0 phase runs here, after the player's cooldown, slide, teleport exit and the parked players, where Lexy
+    // runs it before every actor of the tic: an approximation of game.js:872-876 (measured neutral on the 190 levels won).
+    if (usesCc2Engine(this.w.level)) {
+      // The removals due in this pass come first (Lexy kills at the step end: water 980-1010, slime 1123-1137, fire 954-972), so the dead
+      // monster no longer blocks the clone a wire releases before the decisions.
+      applyDueHazardRemovals(this.ctx);
+      this.runBeforePassWirePhase();
+    }
     if (actorOrder) {
-      // CC2 engine: tic 0 has its own wire phase before the decisions (Lexy _advance_tic_lynx60, game.js:872-876, steam-strict
-      // emulate_60fps): the wires settle once as at a tick end and what rose fires at once, with the press frame forced to 0.
-      if (this.ticksElapsed === 1 && this.w.signals !== undefined) {
-        const loadEdges = settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK);
-        setPoweredCells(this.ctx);
-        setHoldDoors(this.ctx);
-        fireSignalSinks(this.ctx, loadEdges, SIGNAL_PHASE_TICK);
-        fireSinksBeforePass(this.ctx, CC2_LOAD_PRESS_FRAME);
-      } else {
-        // A press made at a step end fires its directly wired clone machines and launchers before the decisions of this pass.
-        fireSinksBeforePass(this.ctx);
-      }
       this.settleBeforeActorPass();
       this.releaseTrappedPlayer();
     }
@@ -1284,6 +1287,23 @@ export class GameEngine {
       return;
     }
     beginCc2MirrorTick(this.w, this.ticksElapsed === 1);
+  }
+
+  /**
+   * CC2 engine: the wire phase that precedes the decisions of a pass (game.js:869-888). At tic 0 the wires settle once as at a tick
+   * end and what rose fires at once with the press frame forced to 0 (game.js:872-876); at any later tic a press made at a step end
+   * fires its directly wired clone machines and launchers first.
+   */
+  private runBeforePassWirePhase(): void {
+    if (this.ticksElapsed === 1 && this.w.signals !== undefined) {
+      const loadEdges = settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK);
+      setPoweredCells(this.ctx);
+      setHoldDoors(this.ctx);
+      fireSignalSinks(this.ctx, loadEdges, SIGNAL_PHASE_TICK);
+      fireSinksBeforePass(this.ctx, CC2_LOAD_PRESS_FRAME);
+    } else {
+      fireSinksBeforePass(this.ctx);
+    }
   }
 
   /** CC2 engine: whether the player takes his turn at his place in the actor list on this level (see EpoxyWorld.cc2ActorOrder). */

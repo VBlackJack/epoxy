@@ -95,12 +95,13 @@ describe('CC2 rolling ball as an actor', () => {
     expect(engine.getShots() ?? []).toEqual([]);
   });
 
-  it('spends a whole step on the first cell after the drop, then crosses one cell per step', () => {
+  it('ends its first step one tick short of a full step after the drop, then crosses one cell per step', () => {
     const engine = bowler();
     expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
     const ballX = (): number => ballOf(engine)?.x as number;
     expect(ballX()).toBe(START_X + 1);
-    tick(engine, stepTicks());
+    // Lexy game.js:1594-1598, 2218-2242 (spare t2098 -> t2102): the ball ends its first step one tick sooner than a full step, as it is dropped inside the player's frame-2 action
+    tick(engine, stepTicks() - 1);
     expect(ballX()).toBe(START_X + 1);
     tick(engine, 1);
     expect(ballX()).toBe(START_X + 2);

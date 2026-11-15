@@ -427,6 +427,8 @@ export interface CcCadenceFields {
   ccCadence?: boolean;
   /** Follows the classic cadence on a level played by the CC2 engine only. */
   cc2Cadence?: boolean;
+  /** Ticks of the decision cycle on a CC2-engine level; set means the monster follows the teeth phase with this cycle. */
+  cc2DecisionCycleTicks?: number;
   /** Ticks of one classic step; absent means CC_MONSTER_STEP_TICKS. */
   ccStepTicks?: number;
 }
@@ -455,7 +457,12 @@ export function followsCcCadence(type: string, cc2Engine: boolean): boolean {
 
 /** True for monsters that decide only in the active half of the teeth cycle; the timid teeth do so on a CC2-engine level only. */
 export function followsTeethPhase(type: string, cc2Engine: boolean): boolean {
-  return type === CC_TEETH_TYPE || (cc2Engine && type === CC_TIMID_TEETH_TYPE);
+  return type === CC_TEETH_TYPE || (cc2Engine && (type === CC_TIMID_TEETH_TYPE || cadenceFieldsOf(type)?.cc2DecisionCycleTicks !== undefined));
+}
+
+/** The decision cycle of the monster type itself on a CC2-engine level (its own cc2DecisionCycleTicks, else the teeth cycle). */
+export function teethCycleOf(type: string, cc2Engine: boolean): number {
+  return (cc2Engine ? cadenceFieldsOf(type)?.cc2DecisionCycleTicks : undefined) ?? CC_TEETH_CYCLE_TICKS;
 }
 
 /** CC2-engine levels: a monster step onto ice or a force floor lasts this share of a step (the destination's speed factor). */
@@ -487,9 +494,12 @@ export const CC_TEETH_ACTIVE_TICKS = 4;
 /** CC2-engine levels: the teeth cycle is shifted by this many ticks (Lexy step_parity 5), so they decide when (tick + 5) mod 8 < 4. */
 export const CC2_TEETH_PHASE_OFFSET = 5;
 
-/** Whether teeth (and timid teeth) may decide at monster clock `clock`; a CC2-engine level shifts the cycle by CC2_TEETH_PHASE_OFFSET. */
-export function teethMayDecide(clock: number, cc2: boolean): boolean {
-  return (clock + (cc2 ? CC2_TEETH_PHASE_OFFSET : 0)) % CC_TEETH_CYCLE_TICKS < CC_TEETH_ACTIVE_TICKS;
+/**
+ * Whether teeth (and timid teeth) may decide at monster clock `clock`; a CC2-engine level shifts the cycle by
+ * CC2_TEETH_PHASE_OFFSET. `cycle` is the decision cycle of the monster's own type (the floor mimic has a longer one).
+ */
+export function teethMayDecide(clock: number, cc2: boolean, cycle: number = CC_TEETH_CYCLE_TICKS): boolean {
+  return (clock + (cc2 ? CC2_TEETH_PHASE_OFFSET : 0)) % cycle < CC_TEETH_ACTIVE_TICKS;
 }
 
 /**

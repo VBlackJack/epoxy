@@ -48,6 +48,7 @@ import {
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
   STONE_DEATH_REASON_KEY,
+  teethCycleOf,
   teethMayDecide,
   TURTLE_TILE_ID
 } from '../coreConstants';
@@ -120,6 +121,16 @@ export function updateEntities(ctx: EpoxyContext): void {
 }
 
 /**
+ * CC2 engine: applies the hazard removals that are due in the pass about to run (water, slime and fire killed a monster at the end of
+ * its step), ahead of the wire phase and the clone release of that pass, so a dead monster no longer blocks them.
+ */
+export function applyDueHazardRemovals(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  if (!w.ccRules || !usesCc2Engine(w.level) || w.cc3dPace) return;
+  applyQueuedArrivals(ctx, undefined, undefined, false, true);
+}
+
+/**
  * CC2 engine: the queued presses applied at the start of an entity pass close the previous tick, so a clone machine they
  * trigger counts the clone down one tick longer (w.cc2BeforePass). Other levels apply them as before.
  */
@@ -143,15 +154,34 @@ function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false): boolean {
+function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false, onlyRemovals = false): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
   // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster, the green
   // toggles after the pass (endOfPass).
   const cc2 = usesCc2Engine(w.level);
+  // CC2 engine: water, slime and fire tiles kill a monster when its step ends (Lexy on_arrive: fire 954-972, water 980-1010,
+  // slime 1123-1137), so the removal is due at the start of the pass after the one its step ended in (the pass the monster would
+  // decide in), whatever the step length (a clone's out-of-turn step included). A bomb and a lit flame jet (burnsOccupants, a ghost's
+  // burn) keep the old arithmetic. Undefined: this arrival is not a hazard removal of that kind.
+  const hazardStepEnded = (a: CcArrival): boolean | undefined => {
+    if (!cc2 || w.cc3dPace || a.removal === undefined || a.removal === 'bomb') return undefined;
+    if (a.removal === 'burn' && ConfigRegistry.getTile(w.terrain[a.y]?.[a.x]).burnsOccupants === true) return undefined;
+    const monster = w.entities.find((e) => e.uid === a.uid);
+    // A monster that is gone or has left the cell makes the arrival void: the old arithmetic drops it.
+    if (monster === undefined || monster.x !== a.x || monster.y !== a.y) return undefined;
+    // The fallback keeps a removal from outliving its step, whatever the cooldown does: a monster whose cooldown never counts down (a
+    // steered monster at rest, a stationary one) must not stay in the water for good once the old arithmetic passed by the margin.
+    if (a.due + HAZARD_REMOVAL_MARGIN_PASSES <= pass) return true;
+    if (monster.cooldownTicks !== 0) return false;
+    // A step end that was never recorded (an arrival at rest) is due at the old arithmetic: it cannot escape by deciding.
+    if (monster.stepEndedPass === undefined) return a.due <= pass;
+    return monster.stepEndedPass <= pass;
+  };
   const isDue = (a: CcArrival): boolean =>
-    a.due <= pass &&
+    (!onlyRemovals || a.removal !== undefined) &&
+    (hazardStepEnded(a) ?? a.due <= pass) &&
     (ownerUid === undefined || a.uid === ownerUid) &&
     (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
     (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
@@ -262,7 +292,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine) continue;
     // CC2 engine: a monster a teleporter put on its pad leaves by the forced exit as its next decision: no way is drawn for it.
     if (entity.teleportExit !== undefined && usesCc2Engine(w.level)) continue;
-    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level)) && !teethSlide(w, entity)) continue;
+    if (followsTeethPhase(entity.type, usesCc2Engine(w.level)) && !teethMayDecide(clock, usesCc2Engine(w.level), teethCycleOf(entity.type, usesCc2Engine(w.level))) && !teethSlide(w, entity)) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     // A phasing monster (a wisp) and a monster the floor does not affect (a ghost) are not held by a closed trap.
     const heldByFloor = def?.movementPattern !== PHASE_LINE_PATTERN && def?.ignoresFloorEffects !== true;
@@ -279,7 +309,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     const behaviour = sliding ? emulatedDef(entity, def) : advanceEmulation(entity, def);
     // A rover imitating teeth chases only in the teeth window and decides nothing otherwise: it waits and decides again next tick.
     const behaviourType = behaviour?.id ?? entity.type;
-    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2)) {
+    if (def?.emulates !== undefined && !sliding && followsTeethPhase(behaviourType, cc2) && !teethMayDecide(clock, cc2, teethCycleOf(entity.type, cc2))) {
       w.ccPlans.set(entity.uid, null);
       continue;
     }
@@ -334,6 +364,12 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
 
 /** Passes a monster's arrival on the yellow button reaches the yellow tanks sooner than the base count (CC2 engine, game.js tiletypes.js:2241-2250). */
 const YELLOW_BUTTON_EARLY_PASSES = 1;
+/**
+ * CC2 engine: the safety margin of a hazard removal, in passes counted from the old due arithmetic (CcArrival.due, not from the
+ * step end): once `due + margin` has passed the removal is applied whatever the monster's cooldown or step end record say, so a
+ * monster whose cooldown never counts down (steered, stationary) cannot stay in the water for good.
+ */
+const HAZARD_REMOVAL_MARGIN_PASSES = 2;
 
 /**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
@@ -491,7 +527,7 @@ function retryRefusedOnIce(ctx: EpoxyContext, entity: RuntimeEntity, clock: numb
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level)) && !teethSlide(ctx.world, entity)) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity)) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -593,6 +629,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   if (yellowTank) {
     if (entity.cooldownTicks > 0) {
       entity.cooldownTicks--;
+      // CC2 engine: a yellow tank's step end is recorded as any monster's, so a hazard removal and a button it stepped on find it.
+      if (entity.cooldownTicks === 0 && usesCc2Engine(w.level) && !w.cc3dPace) {
+        entity.stepEndedPass = currentEntityPass(w);
+        entity.stepEndedCell = entity.y * mapWidth(w) + entity.x;
+      }
       return true;
     }
     if (!w.ccPlans.has(entity.uid)) return true;
@@ -748,7 +789,8 @@ function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean
 /**
  * Applies the effects of the cell a monster has just entered (by a step, a
  * teleport or a clone spawn): the player under it dies, a flying shot kills it, a bomb or water or
- * fire removes it, a button is pressed and a teleporter jumps it on.
+ * fire removes it (on the CC2 engine when its step ends, queued as a CcArrival removal), a button is pressed and a teleporter
+ * jumps it on.
  * Returns false when the player was killed, so the caller stops processing.
  */
 export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean): boolean {
@@ -815,8 +857,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
     if (removal !== null) {
-      if (w.cc3dPace || (removal === 'bomb' && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
-        // CC3D, and a bomb on a CC2-engine level, keep the monster in the cell for the whole step and remove it, and the bomb, when the step ends.
+      if (w.cc3dPace || (usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
+        // CC3D, and a bomb, water, fire or slime on a CC2-engine level (Lexy on_arrive kills when the step ends), keep the monster
+        // in the cell for the whole step and remove it, and the bomb, when the step ends (see applyQueuedArrivals for the due time).
         w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
       } else {
         applyPendingRemoval(ctx, entity);
@@ -1177,8 +1220,12 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   }
 
   // A classic walker or blob on a level made for the classic game uses that game's own generators.
-  if (w.ccGenerators !== null && (monster.type === CC_WALKER_TYPE || monster.type === CC_BLOB_TYPE)) {
-    return chooseClassicRandomDirection(w, monster, w.ccGenerators);
+  // CC2 engine: a rover imitating the walker decides as Lexy's walker does (the rover decide_movement calls the emulatee's,
+  // tiletypes.js:2986-2995; the walker goes forward, else draws one quarter turn, tiletypes.js:2805-2822), so the classic
+  // generator branch is keyed on the imitated definition, not on monster.type.
+  const imitatesWalker = monster.type !== CC_WALKER_TYPE && def.id === CC_WALKER_TYPE && usesCc2Engine(w.level) && !w.cc3dPace;
+  if (w.ccGenerators !== null && (monster.type === CC_WALKER_TYPE || monster.type === CC_BLOB_TYPE || imitatesWalker)) {
+    return chooseClassicRandomDirection(w, monster, w.ccGenerators, imitatesWalker);
   }
 
   if (def.movementPattern === 'forward_else_random') {
@@ -1241,8 +1288,8 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
  * quarter-turn count from its own generator; the blob makes one draw from the main generator on every decision.
  * The monster faces the drawn way and, when that way is blocked, waits there.
  */
-function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators): Direction | null {
-  if (monster.type === CC_WALKER_TYPE) {
+function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators, asWalker = false): Direction | null {
+  if (monster.type === CC_WALKER_TYPE || asWalker) {
     if (canStep(w, monster, monster.dir)) return monster.dir;
     monster.dir = drawWalkerTurn(generators, monster.dir);
   } else if (usesCc2Engine(w.level)) {
@@ -1385,7 +1432,7 @@ export function canMonsterEnter(
   // A socket is passed only once no chip is missing (it is a wall until then, for the rover as for anyone).
   const passesTile =
     def?.passesTiles?.includes(destTileId) === true ||
-    (def?.entersBarredTiles?.includes(destTileId) === true && !(destTile.requiresAllChips === true && w.chipsRemaining > 0)) ||
+    entersBarredTile(w, def, destTileId) ||
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID) ||
     // A door whose key the monster holds lets it in (a rolling ball that took the key).
     holdsKeyOf(monster, destTile);
@@ -1441,12 +1488,28 @@ export function rollingBallPicksUp(itemId: string): boolean {
 }
 
 /**
+ * Whether a monster of this definition walks onto the barred tile `tileId`: the tiles its definition names, and on a level played by
+ * the CC2 engine (never the CC3D pace) the CC2 list too (the rover is outside Lexy's monster_typical collision set, defs.js:104-107,
+ * so CC2 dirt, the tool thief and the blue fake wall bar it only through blocks_collision: dirt tiletypes.js:822-849, thief_tools
+ * 1236-1250, fake_floor 542-560 (its on_bumped reveal), the rover's own collision mask 2972-2977). A socket is passed only once no chip is missing. One helper serves the entry test and the opening of the tile.
+ */
+function entersBarredTile(w: EpoxyWorld, def: EntityDefinition | undefined, tileId: string): boolean {
+  return listsBarredTile(w, def, tileId) && !(ConfigRegistry.getTile(tileId).requiresAllChips === true && w.chipsRemaining > 0);
+}
+
+/** Whether the definition names the barred tile for this level: entersBarredTiles, plus entersBarredTilesCc2 on the CC2 engine. */
+function listsBarredTile(w: EpoxyWorld, def: EntityDefinition | undefined, tileId: string): boolean {
+  return def?.entersBarredTiles?.includes(tileId) === true ||
+    (def?.entersBarredTilesCc2?.includes(tileId) === true && usesCc2Engine(w.level) && !w.cc3dPace);
+}
+
+/**
  * A monster that enters a tile that bars the others (the CC2 rover on dirt or a socket) opens it as it arrives: dirt is
  * packed down, a socket opens once no chip is missing. A tile no entersBarredTiles entry names is left alone.
  */
 function openPassedTile(w: EpoxyWorld, def: EntityDefinition | undefined, x: number, y: number): void {
   const tileId = w.terrain[y][x];
-  if (def?.entersBarredTiles?.includes(tileId) !== true) return;
+  if (!listsBarredTile(w, def, tileId)) return;
   const tile = ConfigRegistry.getTile(tileId);
   const opened = tile.transformsToOnStep ?? (tile.requiresAllChips === true && w.chipsRemaining <= 0 ? (tile.transformsToOnUnlock ?? FLOOR_TILE_ID) : undefined);
   if (opened === undefined) return;

@@ -200,7 +200,13 @@ function samplePulse(runtime: SignalRuntime, index: number, cell: number, prime:
 function chargedCellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
   const here = playerAtCell(w, x, y);
   if (here !== undefined && usesCc2Engine(w.level) && (here.moveCooldown !== 0 || phase === SIGNAL_PHASE_MOVE)) return false;
-  return here !== undefined && here.boots.has(LIGHTNING_BOLT_ITEM_ID);
+  if (here !== undefined && here.boots.has(LIGHTNING_BOLT_ITEM_ID)) return true;
+  // CC2 engine: any actor standing still and holding the lightning bolt powers the wire under it (Lexy do_wire_phase,
+  // game.js:2632-2643: every actor with movement_cooldown 0 and the charged trait from its toolbelt), a monster or a
+  // rolling ball that picked the bolt up included. The update runs at the end of the tic, so a step that ended in this very pass already
+  // counts as at rest (cooldown 0): unlike restsOnButton, whose press convention is read by the actors of the next pass.
+  return usesCc2Engine(w.level) && !w.cc3dPace &&
+    w.entities.some((e) => e.x === x && e.y === y && e.heldTools?.includes(LIGHTNING_BOLT_ITEM_ID) === true && actorAtRest(e));
 }
 
 /**

@@ -85,6 +85,16 @@ function doorOpenedByHeldKey(w: EpoxyWorld, exitTile: TileDefinition): TileDefin
   return ConfigRegistry.getTile(exitTile.transformsToOnUnlock || FLOOR_TILE_ID);
 }
 
+/**
+ * CC2 engine, a teleported player: the chip socket the exit cell holds, as the tile he finds once no chip is missing (Lexy
+ * game.js:2403-2434 tests the exit cell as the actor would enter it; tiletypes.js:3507-3513 socket.blocks is false at zero chips).
+ * Undefined for any other cell, and while a chip is missing. Mirrors doorOpenedByHeldKey.
+ */
+function socketOpenedByChips(w: EpoxyWorld, exitTile: TileDefinition): TileDefinition | undefined {
+  if (!usesCc2Engine(w.level) || exitTile.requiresAllChips !== true || w.chipsRemaining > 0) return undefined;
+  return ConfigRegistry.getTile(exitTile.transformsToOnUnlock ?? FLOOR_TILE_ID);
+}
+
 /** Quarter turns clockwise from the way a mover was facing, in the order each named exit order tries them. */
 const EXIT_TURNS: Readonly<Record<TeleportExitOrder, readonly number[]>> = {
   forward_only: [0],
@@ -284,7 +294,7 @@ export function teleportPlayer(
         // A door he holds the key of is open to him: the exit step after the landing spends the key.
         const openedDoor = landOnPad ? doorOpenedByHeldKey(w, exitTile) : undefined;
         if (
-          canPlayerEnter(w, openedDoor ?? exitTile, w.items[exitY][exitX]) &&
+          canPlayerEnter(w, openedDoor ?? socketOpenedByChips(w, exitTile) ?? exitTile, w.items[exitY][exitX]) &&
           (!getEntityAt(w, exitX, exitY) || exitHeldByPushableBlock(w, exitX, exitY, tryDir, landOnPad)) &&
           // Only another player bars the exit: the teleporting one stands on the source cell, which may be an exit cell too.
           [undefined, w.player].includes(playerAtCell(w, exitX, exitY)) &&

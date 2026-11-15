@@ -610,6 +610,8 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
+      "cc2Cadence": true,
+      "cc2DecisionCycleTicks": 16,
       "epoxyOnly": true
     },
     "timid_teeth": {
@@ -662,7 +664,7 @@
       "immuneToWater": false,
       "immuneToFire": false,
       "avoidsFire": false,
-      "entersBarredTiles": ["exit", "socket", "dirt", "dirt_cc2", "gravel", "thief", "thief_keys", "fire", "sand"],
+      "entersBarredTiles": ["exit", "socket", "dirt", "dirt_cc2", "gravel", "thief", "thief_keys", "fire", "sand", "blue_wall_fake"],
       "passesItems": true,
       "picksUpItems": true,
       "passesCc2Hints": true,
@@ -689,6 +691,7 @@
       "blockedByCanopy": true,
       "pushesBlocks": true,
       "entersBarredTiles": ["exit", "socket", "dirt", "gravel", "thief_keys"],
+      "entersBarredTilesCc2": ["dirt_cc2", "thief", "blue_wall_fake"],
       "passesItems": true,
       "picksUpItems": true,
       "cc2Cadence": true,
