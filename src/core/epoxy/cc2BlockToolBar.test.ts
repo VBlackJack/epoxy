@@ -53,6 +53,19 @@ const BARRING_TOOLS = [
 ];
 /** The two keys the dirt block may still enter (Lexy keys do not carry block_cc1). */
 const OPEN_KEYS = ['key_red', 'key_blue'];
+/** Item tiles that already carried the bar and are not tools: the other two keys, the chips and the score and time bonuses. */
+const BARRING_NON_TOOLS = [
+  'key_yellow',
+  'key_green',
+  'chip',
+  'green_chip',
+  'score_10',
+  'score_100',
+  'score_1000',
+  'score_2x',
+  'stopwatch_bonus',
+  'stopwatch_penalty'
+];
 
 function pushInto(mode: RoomMode, item: string, blockType: string): boolean {
   const engine = new GameEngine();
@@ -80,8 +93,14 @@ describe('CC2 tools bar the dirt block', () => {
     expect(pushInto('cc2', 'boots_fire', 'ice_block')).toBe(true);
   });
 
-  it('is data: exactly these tool tiles carry blocksDirtBlock, and the keys of the other two colours do not', () => {
+  it('is data: exactly these item tiles carry blocksDirtBlock, and the keys of the other two colours do not', () => {
     for (const tool of BARRING_TOOLS) expect(ConfigRegistry.getTile(tool).blocksDirtBlock, tool).toBe(true);
+    // Every item tile carrying the bar is either one of these tools or one that already carried it: no tool is barred by accident.
+    const carrying = Object.entries(ConfigRegistry.getTiles().tiles)
+      .filter(([, tile]) => tile.blocksDirtBlock === true)
+      .map(([id]) => id)
+      .sort();
+    expect(carrying).toEqual([...BARRING_TOOLS, ...BARRING_NON_TOOLS].sort());
     for (const key of OPEN_KEYS) expect(ConfigRegistry.getTile(key).blocksDirtBlock, key).toBeUndefined();
   });
 });

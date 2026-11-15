@@ -25,6 +25,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { playMove } from '../../test/cc2Play';
 import type { Direction } from '../types';
 import { GameEngine } from '../GameEngine';
 
@@ -70,6 +71,25 @@ describe('cc2PendingPush on a jammed block', () => {
     for (const mode of ['cc', 'native'] as const) {
       const block = jammed(mode, 'S').getEntities()[0];
       expect(block.y, mode).toBe(ROOM_ROW);
+    }
+  });
+
+  it('is spent by any move of the block, a push by the player included (Lexy attempt_step, game.js:2159)', () => {
+    const run = (mode: RoomMode): { x: number; pending: Direction | undefined } => {
+      const engine = new GameEngine();
+      engine.loadLevel(room({ mode, startX: START_X, entities: [{ type: 'dirt_block', x: START_X + 1, y: ROOM_ROW, dir: 'E' }] }));
+      engine.getEntities()[0].cc2PendingPush = 'S';
+      playMove(engine, 'E');
+      const block = engine.getEntities()[0];
+      return { x: block.x, pending: block.cc2PendingPush };
+    };
+    const cc2 = run('cc2');
+    expect(cc2.x).toBe(START_X + 2);
+    expect(cc2.pending).toBeUndefined();
+    for (const mode of ['cc', 'native'] as const) {
+      const other = run(mode);
+      expect(other.x, mode).toBe(START_X + 2);
+      expect(other.pending, mode).toBe('S');
     }
   });
 });

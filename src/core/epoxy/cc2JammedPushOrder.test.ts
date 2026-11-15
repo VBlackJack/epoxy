@@ -62,9 +62,17 @@ function setup(side: Direction): { engine: GameEngine; uid: number } {
 }
 
 describe('the pending push of a jammed block, through the pass', () => {
-  it.each<Direction>(['E', 'W'])('moves the block one cell the way he pushes, whichever side of it he stands on (%s)', (dir) => {
+  it.each<Direction>(['E', 'W'])('queues the push at his decision, then the block moves one cell the way he pushes, whichever side of it he stands on (%s)', (dir) => {
     const { engine, uid } = setup(dir);
+    const startX = engine.getPlayer().x;
     expect(playMove(engine, dir).accepted).toBe(true);
+    // At the decision tick the push is queued, not made: the block has not moved and the step did not push it. He stays on his side
+    // whether the block is listed after him (E: he decides before its move) or before him (W: its move of the tick is already past).
+    const queued = world(engine).entities.find((e) => e.uid === uid)!;
+    expect(queued.cc2PendingPush).toBe(dir);
+    expect(queued.x).toBe(BLOCK_X);
+    expect(queued.y).toBe(BLOCK_ROW);
+    expect(engine.getPlayer().x).toBe(startX);
     for (let t = 0; t < SETTLE_TICKS; t++) engine.tick();
     const block = world(engine).entities.find((e) => e.uid === uid)!;
     const step = dir === 'E' ? 1 : -1;

@@ -100,7 +100,7 @@ describe('a slide onto a teleporter pad', () => {
     expect(cooldown).toBeLessThanOrEqual(CC_TELEPORT_SLIDE_WAIT_TICKS);
   });
 
-  it('leaves the pad one walking step after the landing', () => {
+  it('takes the exit step one tick after the landing and keeps a walking wait less the tick the jump counted', () => {
     const engine = new GameEngine();
     engine.loadLevel(
       room({
@@ -111,19 +111,16 @@ describe('a slide onto a teleporter pad', () => {
     );
     const walk = playerWalkCooldown((engine as unknown as { w: EpoxyWorld }).w);
     engine.attemptPlayerMove('E');
-    let landed = -1;
-    for (let t = 1; t <= MAX_SLIDE_TICKS && landed < 0; t++) {
+    let landed = false;
+    for (let t = 1; t <= MAX_SLIDE_TICKS && !landed; t++) {
       engine.tick();
-      if (engine.getPlayer().x === FAR_PAD && engine.getPlayer().teleportExit !== undefined) landed = t;
+      landed = engine.getPlayer().x === FAR_PAD && engine.getPlayer().teleportExit !== undefined;
     }
-    expect(landed).toBeGreaterThan(0);
-    // The exit step comes at his next turn with a walking wait less the tick the jump counted: one walking step after the landing.
-    let waited = 0;
-    while ((engine.getPlayer().x === FAR_PAD || engine.getPlayer().moveCooldown > 0) && waited < MAX_SLIDE_TICKS) {
-      engine.tick();
-      waited++;
-    }
-    expect(waited).toBe(walk);
+    expect(landed).toBe(true);
+    // The exit step is decided at his next turn, the tick after the landing.
+    engine.tick();
     expect(engine.getPlayer().x).toBe(FAR_PAD + 1);
+    // Its wait is a walking step less the tick of the jump (CC2_TELEPORT_EXIT_COUNTED_TICKS).
+    expect(engine.getPlayer().moveCooldown).toBe(walk - 1);
   });
 });

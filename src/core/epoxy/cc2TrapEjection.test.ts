@@ -58,6 +58,20 @@ function stepOntoButton(engine: GameEngine): void {
   for (let guard = 0; engine.getPlayer().moveCooldown > 0 && guard < MAX_TICKS; guard++) engine.tick();
 }
 
+/** The extra cooldown tick the ejection keeps on top of the glider's normal step wait. */
+const TRAP_EJECT_EXTRA_TICKS = 1;
+
+/** The cooldown a glider keeps right after a step of its own turn, on a free floor. */
+function normalStepWait(): number {
+  const engine = new GameEngine();
+  engine.loadLevel(room({ mode: 'cc2', entities: [{ type: 'glider', x: TRAP_X, y: TRAP_Y, dir: 'W' }] }));
+  for (let guard = 0; guard < MAX_TICKS; guard++) {
+    engine.tick();
+    if (heldOf(engine).x !== TRAP_X) return heldOf(engine).cooldownTicks;
+  }
+  throw new Error('the glider never stepped');
+}
+
 const heldOf = (engine: GameEngine) => world(engine).entities[0];
 
 describe('a trap ejects what it holds when the player press ends his step', () => {
@@ -81,7 +95,7 @@ describe('a trap ejects what it holds when the player press ends his step', () =
     expect(monster.x).toBe(OUT_X);
     // The cooldown set by the out-of-turn step includes the tick the pass would count a second time.
     const stepWait = monster.cooldownTicks;
-    expect(stepWait).toBeGreaterThan(0);
+    expect(stepWait).toBe(normalStepWait() + TRAP_EJECT_EXTRA_TICKS);
     const arrivedAt = engine.getTick();
     engine.tick();
     expect(heldOf(engine).cooldownTicks).toBe(stepWait - 1);

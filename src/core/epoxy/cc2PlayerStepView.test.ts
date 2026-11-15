@@ -184,12 +184,16 @@ describe('CC2 engine: the apparent position across a teleport', () => {
   it('undo of the teleporting step puts the view back, with no marker', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
     engine.tick();
+    const before = viewOf(engine);
     engine.attemptPlayerMove('E');
     engine.tick();
     expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD });
     expect(engine.undo()).toBe(true);
     expect(viewOf(engine)).not.toHaveProperty('sourcePad');
     expect(engine.getPlayer().x).toBe(START_X);
+    // The view is the restored state's, not the one of the undone step.
+    expect(viewOf(engine)).toEqual(before);
+    expect(viewOf(engine)).toMatchObject({ x: START_X, y: ROOM_ROW });
   });
 });
 
