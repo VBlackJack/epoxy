@@ -2392,6 +2392,12 @@ export interface RuntimeEntity {
    * its own move of the tick (Lexy pending_push, game.js:1703-1710 and must_pending_push at 1980-1996). Deleted once used.
    */
   cc2PendingPush?: Direction;
+  /**
+   * CC2 engine, on a clone a wire released: the Lexy frame (within the 3-frame tic) at which this actor's current move ends
+   * when it is not 1 (game.js:2218-2242 and 872-888). Set only under the CC2 engine, never on cc3dPace, and deleted rather
+   * than set to 1; absent means frame 1. 0 is falsy: read it with `!== undefined`.
+   */
+  cc2Frame?: 0 | 2;
   /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set while it matters (the running pass and the one after it) and dropped by the next monster step once older; the search key holds its age, not the pass number. */
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */

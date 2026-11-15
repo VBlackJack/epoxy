@@ -427,7 +427,10 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
     const def = ConfigRegistry.getEntityDef(entity.type);
     if (entity.kind === 'block') {
       if (!def?.destroyedByFire) continue;
-      if (def.meltsInFireTo) {
+      // CC2 engine: a lit flame jet kills the block standing on it and leaves the floor as it is (Lexy flame_jet_on on_stand
+      // kill_actor, tiletypes.js:2163-2168); only real fire melts an ice block into water (tiletypes.js:941-969).
+      const litJetKills = usesCc2Engine(w.level) && !w.cc3dPace && tile.burnsOccupants === true;
+      if (def.meltsInFireTo && !litJetKills) {
         w.terrain[entity.y][entity.x] = def.meltsInFireTo;
       }
     } else if (def?.immuneToFire) {
@@ -479,6 +482,20 @@ export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean
 /** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
 const CC2_CLONE_BEFORE_PASS_TICKS = 1;
 
+/** CC2 engine: the press frame of a wire edge released at the end of the last tic (after its decisions); its clone ends a tick sooner. */
+const CC2_LATE_RELEASE_FRAME = 2;
+/** CC2 engine: the Lexy frame an actor ends its step at when it is the default one (no tag is kept for a clone at it). */
+export const CC2_DEFAULT_FRAME = 1;
+/** CC2 engine: frames per tic; an out-of-turn step spends one frame at once, so the clone ends at frame p - 1 (game.js:2218-2242). */
+const CC2_FRAMES_PER_TIC = 3;
+
+/** CC2 engine: gives a clone released at press frame p the frame (p + 2) mod 3 its step ends at, unless that is the default one. */
+function tagCloneFrame(clone: RuntimeEntity, releaseFrame: 0 | 1 | 2): void {
+  const frame = (releaseFrame + CC2_FRAMES_PER_TIC - 1) % CC2_FRAMES_PER_TIC;
+  if (frame === CC2_DEFAULT_FRAME) delete clone.cc2Frame;
+  else clone.cc2Frame = frame as 0 | 2;
+}
+
 /**
  * Spawns a copy of the template in front of the cloner, using the same
  * entry rules as a regular monster step or block push, so a clone never
@@ -493,6 +510,10 @@ export function spawnFromCloner(
   templateDir: Direction
 ): boolean {
   const w = ctx.world;
+  // The press frame of the wire edge that fired this clone is read once and dropped, so a clone made while this one arrives
+  // (a nested press) never inherits it.
+  const releaseFrame = w.cc2ReleaseFrame;
+  delete w.cc2ReleaseFrame;
   if (w.entities.length >= MAX_ACTIVE_ENTITIES) return true;
 
   const vec = DIRECTION_VECTORS[templateDir];
@@ -607,7 +628,21 @@ export function spawnFromCloner(
     moveBlockTo(ctx, spawned, spawnX, spawnY, templateDir, true, takesStep);
     // The same for a block: its first wait is counted down by the pass that follows.
     if (beforePass && w.entities.includes(spawned)) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
+    // The wire phase that released the clone is frame p of the tic; the out-of-turn step spends a frame at once, so a frame-2
+    // release ends a tick sooner and the clone carries frame p - 1 for its own press (Lexy game.js:2218-2242, 872-888).
+    if (cc2Clone && releaseFrame !== undefined && w.entities.includes(spawned)) {
+      if (releaseFrame === CC2_LATE_RELEASE_FRAME) {
+        if (spawned.arrivalTicks !== undefined && spawned.arrivalTicks > 1) spawned.arrivalTicks -= 1;
+        else if (spawned.cooldownTicks > 0) spawned.cooldownTicks -= 1;
+      }
+      tagCloneFrame(spawned, releaseFrame);
+    }
   } else {
+    // The same out-of-turn rule for a monster clone, before it resolves its arrival.
+    if (cc2Clone && releaseFrame !== undefined) {
+      if (releaseFrame === CC2_LATE_RELEASE_FRAME && spawned.cooldownTicks > 0) spawned.cooldownTicks -= 1;
+      tagCloneFrame(spawned, releaseFrame);
+    }
     return resolveMonsterArrival(ctx, spawned, true);
   }
   return true;

@@ -86,13 +86,22 @@ describe('toggleHeldButton: an orange button toggled with nothing on it', () => 
     expect(jet(engine)).toBe(JET_ON);
     expect(worldOf(engine).cc2ToggledButtonCells).toEqual([BUTTON.y * mapWidth(worldOf(engine)) + BUTTON.x]);
 
+    // The orange button reads an actor at rest (Lexy on_arrive at the end of the step, tiletypes.js:2332-2341): while the visitor is
+    // still mid-step on it, nothing is toggled.
     visitor.x = BUTTON.x;
     visitor.y = BUTTON.y;
     tick(engine, SETTLE_TICKS);
+    expect(jet(engine)).toBe(JET_ON);
+
+    // Its step ends on the next tick (cooldown 1 -> 0): the arrival toggles the button.
+    visitor.cooldownTicks = 1;
+    engine.tick();
+    expect(visitor.x).toBe(BUTTON.x);
     expect(jet(engine)).toBe(JET_OFF);
 
-    visitor.y = BUTTON.y + 1;
-    tick(engine, SETTLE_TICKS);
+    // It then starts its next step off the button (on_depart, game.js:2257-2273): toggled back.
+    engine.tick();
+    expect(visitor.x).toBe(BUTTON.x + 1);
     expect(jet(engine)).toBe(JET_ON);
   });
 

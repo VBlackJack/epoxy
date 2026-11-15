@@ -27,7 +27,7 @@ import {
   SIGNAL_PLATE_TILE_ID
 } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
-import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
+import { CC2_DEFAULT_FRAME, fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
@@ -125,17 +125,17 @@ export function isHeldSignalButton(tile: TileDefinition): boolean {
 }
 
 /**
- * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
- * cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
+ * Whether a non-player actor on a pink or orange button or under a rolling ball counts, CC2 engine: Lexy reads the actor on the
+ * cell only while its movement cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
  */
-function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
+export function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
   return e.arrivalTicks === undefined && !e.isSliding && (e.kind === 'block' || e.cooldownTicks === 0);
 }
 
 /**
  * Whether a held source's cell is occupied the way a pressure plate asks: the player standing there, or a
  * monster or block that is not sliding and presses plates. A coloured block counts, as on a plate of its colour.
- * On a CC2 level the pink button reads only an actor at rest: the player once he has settled (the settle right after his own
+ * On a CC2 level the pink and the orange button read only an actor at rest: the player once he has settled (the settle right after his own
  * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
@@ -146,12 +146,18 @@ function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): 
   return occupied !== w.cc2ToggledButtonCells.includes(y * mapWidth(w) + x);
 }
 
-/** What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). */
+/**
+ * What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). On a CC2 level (not
+ * cc3dPace) the pink and the orange button read an actor at rest only.
+ */
 function actorsOccupyCell(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
-  const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
+  // CC2 engine: the orange button works on arrival and departure (Lexy button_orange on_arrive / on_depart: toggled at the end of
+  // the arriving step, and at the start of the leaving one, tiletypes.js:2332-2341, game.js:2350-2357, 2257-2273), so it reads an
+  // actor at rest, as the pink button does.
+  const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
+  const atRestOnly = usesCc2Engine(w.level) && (w.terrain[y][x] === PINK_BUTTON_TILE_ID || (anyActor && !w.cc3dPace));
   const player = playerAtCell(w, x, y);
   if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
-  const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y) return false;
     // CC3D: a mob still taking its step presses nothing (Cc3dDevices isPressed asks for remaining 0).
@@ -369,15 +375,15 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
- * `cc2DeferredSinkEdges`: one from the move phase fires at the end of the same tick (the next tick phase), one from the tick
- * phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
+ * `cc2DeferredSinkEdges`. A sink wired directly to buttons fires before the next entity pass (fireSinksBeforePass); only the
+ * edges fed by a gate keep the old timing: one from the move phase fires at the end of the same tick (the next tick phase), one
+ * from the tick phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  * On an actor-order level the edges of the move phase come only from settleBeforeActorPass: the player's turn settles no wire with his move.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
-  const width = mapWidth(w);
   let edges = edgesNow;
   if (usesCc2Engine(w.level)) {
     const waiting = w.cc2DeferredSinkEdges;
@@ -396,6 +402,15 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
       edges = immediate;
     }
   }
+  fireEdges(ctx, edges);
+}
+
+/** Fires the sinks of `edges` in order, now (no deferral): the shared firing loop of fireSignalSinks and fireSinksBeforePass. */
+function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined) return;
+  const width = mapWidth(w);
   for (const edge of edges) {
     if (!w.player.alive || w.levelCompleted) return;
     const index = runtime.network.indexOfCell.get(edge.cell);
@@ -415,6 +430,98 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
     else if (fires === 'flip') flipCellAt(w, x, y);
     else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
   }
+}
+
+/**
+ * Rank of a press frame in time between two passes: frame 2 of the last tic first, then frames 0 and 1 (Lexy game.js:2218-2242).
+ * Lower is earlier.
+ */
+const PRESS_FRAME_RANK: readonly number[] = [1, 2, 0];
+
+/**
+ * Whether a sink is driven only by buttons through plain wire: every node behind it is a 'source' (no gate, latch, counter,
+ * 'or' or cycle on the way). Its edge comes from a press at a step end (Lexy frame 0 or 1), not from a clock of gates.
+ * Measured: accepting an 'or' node too changed nothing, so it is left out.
+ */
+function isDirectSink(runtime: SignalRuntime, cell: number): boolean {
+  const net = runtime.network;
+  const start = net.indexOfCell.get(cell);
+  if (start === undefined) return false;
+  const seen = new Set<number>();
+  const stack = [start];
+  while (stack.length > 0) {
+    const i = stack.pop() as number;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    const node = net.nodes[i];
+    if (node.cyclic) return false;
+    if (i !== start && node.kind !== 'source') return false;
+    for (const wire of node.wires) stack.push(wire.from);
+  }
+  return true;
+}
+
+/**
+ * The frame of the press that raised a directly wired sink: the earliest frame among the actors at rest on its sources (a clone
+ * carries the frame its out-of-turn step ends in, `cc2Frame`; any other actor ends its step in frame 1).
+ */
+function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
+  const net = runtime.network;
+  const width = mapWidth(w);
+  const start = net.indexOfCell.get(cell);
+  let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
+  const seen = new Set<number>();
+  const stack = start === undefined ? [] : [start];
+  while (stack.length > 0) {
+    const i = stack.pop() as number;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    const node = net.nodes[i];
+    if (node.kind === 'source') {
+      const x = node.cell % width;
+      const y = Math.floor(node.cell / width);
+      for (const e of w.entities) {
+        if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
+        const frame = e.cc2Frame !== undefined ? e.cc2Frame : CC2_DEFAULT_FRAME;
+        if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
+      }
+    }
+    for (const wire of node.wires) stack.push(wire.from);
+  }
+  return best;
+}
+
+/**
+ * CC2 engine: fires, before the entity pass, the deferred clone machine and launcher edges of the sinks wired directly to buttons
+ * (see isDirectSink). A press at a step end lands in frame 0 or 1 of Lexy, whose wire phase powers them before the decisions of the
+ * next pass (game.js:872-876). Each edge fires on its own with w.cc2ReleaseFrame = `forcedFrame` or the frame of its press
+ * (pressFrameOfSink), and with w.cc2BeforePass set so the pass counts a clone let out down at once; both are cleared in a
+ * finally. The edges of sinks fed by a gate keep waiting (put back in front of the edges deferred meanwhile) and fire at the end of
+ * the tick as before. `forcedFrame` is 0 at tic 0. Does nothing off the CC2 engine or under cc3dPace.
+ */
+export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2): void {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined || !usesCc2Engine(w.level) || w.cc3dPace) return;
+  const waiting = w.cc2DeferredSinkEdges;
+  if (waiting.length === 0) return;
+  w.cc2DeferredSinkEdges = [];
+  const direct = waiting.filter((edge) => isDirectSink(runtime, edge.cell));
+  w.cc2BeforePass = true;
+  try {
+    for (const edge of direct) {
+      w.cc2ReleaseFrame = forcedFrame ?? pressFrameOfSink(w, runtime, edge.cell);
+      try {
+        fireEdges(ctx, [edge]);
+      } finally {
+        delete w.cc2ReleaseFrame;
+      }
+    }
+  } finally {
+    w.cc2BeforePass = undefined;
+    delete w.cc2ReleaseFrame;
+  }
+  w.cc2DeferredSinkEdges = [...waiting.filter((edge) => !isDirectSink(runtime, edge.cell)), ...w.cc2DeferredSinkEdges];
 }
 
 /** A copy of the pulse memory of the world's network, for a snapshot or a hash; undefined when nothing is pending or carried. */

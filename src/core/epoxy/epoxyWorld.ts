@@ -227,6 +227,11 @@ export interface EpoxyWorld {
    */
   cc2BeforePass?: boolean;
   /**
+   * CC2 engine, wave 11: the press frame (0, 1 or 2) of the wire edge being fired before the pass. Transient: set and deleted
+   * inside one call by the signal code (like cc2BeforePass), consumed on read by spawnFromCloner; never saved in a snapshot.
+   */
+  cc2ReleaseFrame?: 0 | 1 | 2;
+  /**
    * CC2 engine, wave 9: true when the player takes his turn at his place in the actor list (CC2 engine, not cc3dPace, classic
    * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
    */
@@ -872,6 +877,9 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (slid.length > 0) parts.push(`a${slid.join(',')}`);
   const pushes = w.entities.filter((e) => e.cc2PendingPush !== undefined).map((e) => `${e.uid}${e.cc2PendingPush}`);
   if (pushes.length > 0) parts.push(`q${pushes.join(',')}`);
+  // The Lexy frame at which a clone released by a wire ends its move (0 and 2 only; frame 1 is the absent default).
+  const frames = w.entities.filter((e) => e.cc2Frame !== undefined).map((e) => `${e.uid}${e.cc2Frame}`);
+  if (frames.length > 0) parts.push(`F${frames.join(',')}`);
   // The tool belt (order matters) and the soft pad decision of each player.
   const belts = playersOf(w).map((p, index) => (p.belt !== undefined && p.belt.length > 0 ? `${index}:${p.belt.join('+')}` : '')).filter((part) => part !== '');
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);

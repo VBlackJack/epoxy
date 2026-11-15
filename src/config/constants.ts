@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 7;
+export const CC2_RULES_VERSION = 8;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -511,6 +511,8 @@ export const CC2_RULES_VERSION = 7;
 // template's place in the list). Every CC2-engine level also carries list ordinals from this version. Wave 8 is live as 5.
 // Version 7: the wave 10 rules (the push judgement of the player's decision, teleports at step end, trap ejection, the pending
 // push of a block jammed on a force floor). Wave 9 is live as 6.
+// Version 8: the wave 11 rules (the press frame tag of a clone a wire released, wire edges firing before the pass, orange
+// buttons at rest, a flame jet kills blocks, the held-tool slide immunity, teeth sliding out of phase). Wave 10 is live as 7.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

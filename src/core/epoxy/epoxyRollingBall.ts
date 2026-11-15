@@ -23,7 +23,7 @@ import { usesCc2Engine } from './ccRules';
 import { leaveBlockSplash } from './epoxyBlocks';
 import { canMonsterEnter, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import { railRedirect } from './epoxyRailsCc2';
-import { isHeldSignalButton, toggleHeldButton } from './epoxySignals';
+import { actorAtRest, isHeldSignalButton, toggleHeldButton } from './epoxySignals';
 import { type EpoxyContext, type EpoxyWorld, getEntityAt, killPlayerAt, playerAtCell, removeEntity } from './epoxyWorld';
 
 /** Ticks added to the countdown of a ball after its first step out of the player's cell: it spends a whole step there, counted from the drop. */
@@ -50,8 +50,11 @@ export function isRollingBall(entity: RuntimeEntity): boolean {
 }
 
 /** An actor removed in place from a button that an actor holds down leaves it held: no release runs (Lexy transmutes it, no on_depart). */
-function keepHeldButton(w: EpoxyWorld, x: number, y: number): void {
-  if (isHeldSignalButton(ConfigRegistry.getTile(w.terrain[y]?.[x]))) toggleHeldButton(w, x, y);
+function keepHeldButton(w: EpoxyWorld, x: number, y: number, gone: RuntimeEntity): void {
+  const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+  // CC2 engine: an orange button reads an actor at rest only, so one removed mid-step never triggered its on_arrive (nothing to keep).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && tile.pressedByAnyActor === true && !actorAtRest(gone)) return;
+  if (isHeldSignalButton(tile)) toggleHeldButton(w, x, y);
 }
 
 /** What the ball would run into trying to roll from its cell toward `dir`, or null when the way is free. */
@@ -80,7 +83,7 @@ export function explodeRollingBall(ctx: EpoxyContext, ball: RuntimeEntity, atLau
   ctx.emitVisual('explosion', ball.x, ball.y);
   if (!atLaunch) {
     leaveBlockSplash(w, ball.x, ball.y, true);
-    keepHeldButton(w, ball.x, ball.y);
+    keepHeldButton(w, ball.x, ball.y, ball);
   }
 }
 
@@ -96,7 +99,7 @@ function settleBlocked(ctx: EpoxyContext, ball: RuntimeEntity, blocker: BallBloc
       w.beamDirty = true;
       ctx.emitVisual('explosion', victim.x, victim.y);
       leaveBlockSplash(w, victim.x, victim.y, true);
-      keepHeldButton(w, victim.x, victim.y);
+      keepHeldButton(w, victim.x, victim.y, victim);
     }
   }
   explodeRollingBall(ctx, ball, atLaunch);
@@ -149,7 +152,7 @@ export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
   AudioManager.playSfx(BALL_BLAST_SFX);
   for (const spent of [monster, ball]) {
     leaveBlockSplash(w, spent.x, spent.y, true);
-    keepHeldButton(w, spent.x, spent.y);
+    keepHeldButton(w, spent.x, spent.y, spent);
   }
 }
 

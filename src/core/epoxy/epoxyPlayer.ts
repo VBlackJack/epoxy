@@ -311,6 +311,17 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   if (isEdgeBlocked(w, p.x, p.y, targetX, targetY, dir, false, rail)) return false;
   if (splashBarsPlayer(w, targetX, targetY)) return false;
   const bumped = bumpRevealedCell(w, targetX, targetY);
+  // CC2 engine: the decision probes every held key, and the probe bumps the cell: a plain wall under the steel foil turns to steel
+  // even when another held key is the one taken (Lexy make_player_decision try_direction -> can_actor_enter_cell on_bumped,
+  // game.js:1559-1561, 1643-1645, 1832-1833; wall.on_bumped with the foil, tiletypes.js:393-400).
+  if (
+    usesCc2Engine(w.level) &&
+    !w.cc3dPace &&
+    !canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), w.items[targetY][targetX]) &&
+    foilBumpedWall(w, targetX, targetY)
+  ) {
+    return true;
+  }
   const block = getEntityAt(w, targetX, targetY);
   if (block === undefined || block.kind !== 'block') return bumped;
   // CC2 engine: the block on a clone machine is its template, held by the machine: the slap does not move it (Lexy cloner.traps).

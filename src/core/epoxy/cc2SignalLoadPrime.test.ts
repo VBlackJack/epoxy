@@ -73,12 +73,13 @@ function load(level: CompiledLevel): GameEngine {
 const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
 
 describe('CC2 engine: a cloner wired to a source held at load', () => {
-  // The edge of tick 0 is a wire edge: the clone machine acts one tick later (see cc2SignalSinksWave3.test.ts).
-  it('clones from the edge of tick 0, one tick later', () => {
+  // Lexy runs the wire phase of tic 0 before its decisions (game.js:872-876, _advance_tic_lynx60, steam-strict emulate_60fps): the
+  // edge the load made fires before the pass of tick 0, so the clone is there when tick 0 ends.
+  it('clones from the edge of tick 0, before the pass of tick 0', () => {
     const engine = load(lane('cc2', true));
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
-    expect(clonesAt(engine)).toBe(0);
+    expect(clonesAt(engine)).toBe(1);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
   });

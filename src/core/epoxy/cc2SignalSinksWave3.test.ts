@@ -154,9 +154,15 @@ describe('the CC2 pink button reads only an actor at rest', () => {
     expect(jetAt(engine)).toBe(JET_ON);
   });
 
-  it('still reads the player on an orange button the moment he arrives', () => {
+  // Lexy button_orange toggles on_arrive at the end of the arriving step (tiletypes.js:2332-2341, game.js:2350-2357), so the jet
+  // is still off while the step runs.
+  it('reads the player on an orange button once his step has ended, not the moment he starts it', () => {
     const engine = load(lane('cc2', ORANGE, false));
     stepEast(engine);
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
+    expect(jetAt(engine)).toBe(JET_OFF);
+    run(engine, MAX_WAIT_TICKS);
+    expect(engine.getPlayer().moveCooldown).toBe(0);
     expect(jetAt(engine)).toBe(JET_ON);
   });
 });
@@ -178,31 +184,55 @@ function cloneLane(mode: Mode, source: string, held: boolean): CompiledLevel {
 
 const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
 const deferredCount = (engine: GameEngine): number => engine.getCc2WaveState()?.deferredSinkEdges?.length ?? 0;
+const cloneArrival = (engine: GameEngine): number | undefined => engine.getEntities().find((e) => e.x === CLONE_X && e.y === ROW)?.arrivalTicks;
+/** The arrival countdown a clone shows on the tick it appears when its machine fired before the pass (the pass counted it down once; a clone let out at the end of the tick shows one more). */
+const ARRIVAL_AFTER_PASS = 3;
 
-describe('CC2 engine: a wire-fired clone machine acts one wire phase later', () => {
-  it('fires an edge of the tick phase one tick later', () => {
+describe('CC2 engine: a wire-fired clone machine acts before the pass that follows its edge', () => {
+  // Lexy runs the wire phase of tic 0 before its decisions (game.js:872-876): the load edge fires before the pass of tick 0.
+  it('fires the edge of the load before the pass of tick 0', () => {
     const engine = load(cloneLane('cc2', PLATE, true));
-    engine.tick();
-    expect(clonesAt(engine)).toBe(0);
-    expect(deferredCount(engine)).toBe(1);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
     expect(deferredCount(engine)).toBe(0);
   });
 
-  // Lexy runs no wire phase between two actions (game.js:859-866): the edge the player's step makes at his turn is read by the wire
-  // phase that closes the tick, and the clone machine acts on it one wire phase later, as for an edge of the tick phase.
-  it("fires an edge made at the player's turn one tick later", () => {
-    const engine = load(cloneLane('cc2', ORANGE, false));
-    // The step is stored for the turn of the tick: nothing has happened yet.
+  // A press made in mid-level: the pink plate reads the player once his step has ended, the wire phase that follows raises the
+  // edge, and the clone machine acts before the decisions of the next pass (game.js:872-876, the wire phase before the decisions;
+  // the edge of a press is read at the end of the step, game.js:2350-2357).
+  it('fires an edge made in mid-level before the pass that follows it', () => {
+    const engine = load(cloneLane('cc2', PLATE, false));
+    run(engine, SETTLE_TICKS);
+    stepEast(engine);
+    for (let waited = 0; deferredCount(engine) === 0; waited++) {
+      expect(waited).toBeLessThan(MAX_WAIT_TICKS);
+      expect(clonesAt(engine)).toBe(0);
+      engine.tick();
+    }
+    expect(clonesAt(engine)).toBe(0);
+    engine.tick();
+    expect(clonesAt(engine)).toBe(1);
+    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
+    expect(deferredCount(engine)).toBe(0);
+  });
+
+  // The turn of the player is stored for the tick; the pink plate raises its edge at the end of the tick in which his step ends
+  // (it reads an actor at rest), and the clone machine acts before the pass of the next tick (game.js:872-876, 2350-2357).
+  it.each([PLATE, ORANGE])("fires an edge made at the player's turn, from %s, before the pass of the tick after his step ends", (source) => {
+    const engine = load(cloneLane('cc2', source, false));
     expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(clonesAt(engine)).toBe(0);
     expect(deferredCount(engine)).toBe(0);
-    engine.tick();
+    for (let waited = 0; deferredCount(engine) === 0; waited++) {
+      expect(waited).toBeLessThan(MAX_WAIT_TICKS);
+      expect(clonesAt(engine)).toBe(0);
+      engine.tick();
+    }
+    expect(engine.getPlayer().moveCooldown).toBe(0);
     expect(clonesAt(engine)).toBe(0);
-    expect(deferredCount(engine)).toBe(1);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
+    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
     expect(deferredCount(engine)).toBe(0);
   });
 
