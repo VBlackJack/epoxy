@@ -1894,12 +1894,16 @@ export function findMonsterBehaviourConfigErrors(
       if (!Array.isArray(entity.entersBarredTilesCc2)) {
         errors.push(`${id}.entersBarredTilesCc2: expected a list of tile ids`);
       } else {
+        const seenCc2Tiles = new Set<string>();
         for (const tileId of entity.entersBarredTilesCc2) {
           if (typeof tileId !== 'string' || tiles[tileId] === undefined) {
             errors.push(`${id}.entersBarredTilesCc2: "${String(tileId)}" is not the id of an existing tile`);
+          } else if (seenCc2Tiles.has(tileId)) {
+            errors.push(`${id}.entersBarredTilesCc2: "${tileId}" is listed twice`);
           } else if (Array.isArray(entity.entersBarredTiles) && entity.entersBarredTiles.includes(tileId)) {
             errors.push(`${id}.entersBarredTilesCc2: "${tileId}" is already in entersBarredTiles`);
           }
+          if (typeof tileId === 'string') seenCc2Tiles.add(tileId);
         }
       }
     }
