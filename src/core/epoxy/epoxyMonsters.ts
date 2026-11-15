@@ -1386,7 +1386,7 @@ export function canMonsterEnter(
   // A socket is passed only once no chip is missing (it is a wall until then, for the rover as for anyone).
   const passesTile =
     def?.passesTiles?.includes(destTileId) === true ||
-    (def?.entersBarredTiles?.includes(destTileId) === true && !(destTile.requiresAllChips === true && w.chipsRemaining > 0)) ||
+    entersBarredTile(w, def, destTileId) ||
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID) ||
     // A door whose key the monster holds lets it in (a rolling ball that took the key).
     holdsKeyOf(monster, destTile);
@@ -1442,12 +1442,28 @@ export function rollingBallPicksUp(itemId: string): boolean {
 }
 
 /**
+ * Whether a monster of this definition walks onto the barred tile `tileId`: the tiles its definition names, and on a level played by
+ * the CC2 engine (never the CC3D pace) the CC2 list too (the rover is outside Lexy's monster_typical collision set, defs.js:104-107,
+ * so CC2 dirt, the tool thief and the blue fake wall bar it only through blocks_collision: tiletypes.js:542-560, 822-849, 1236-1250,
+ * 2972-2977). A socket is passed only once no chip is missing. One helper serves the entry test and the opening of the tile.
+ */
+function entersBarredTile(w: EpoxyWorld, def: EntityDefinition | undefined, tileId: string): boolean {
+  return listsBarredTile(w, def, tileId) && !(ConfigRegistry.getTile(tileId).requiresAllChips === true && w.chipsRemaining > 0);
+}
+
+/** Whether the definition names the barred tile for this level: entersBarredTiles, plus entersBarredTilesCc2 on the CC2 engine. */
+function listsBarredTile(w: EpoxyWorld, def: EntityDefinition | undefined, tileId: string): boolean {
+  return def?.entersBarredTiles?.includes(tileId) === true ||
+    (def?.entersBarredTilesCc2?.includes(tileId) === true && usesCc2Engine(w.level) && !w.cc3dPace);
+}
+
+/**
  * A monster that enters a tile that bars the others (the CC2 rover on dirt or a socket) opens it as it arrives: dirt is
  * packed down, a socket opens once no chip is missing. A tile no entersBarredTiles entry names is left alone.
  */
 function openPassedTile(w: EpoxyWorld, def: EntityDefinition | undefined, x: number, y: number): void {
   const tileId = w.terrain[y][x];
-  if (def?.entersBarredTiles?.includes(tileId) !== true) return;
+  if (!listsBarredTile(w, def, tileId)) return;
   const tile = ConfigRegistry.getTile(tileId);
   const opened = tile.transformsToOnStep ?? (tile.requiresAllChips === true && w.chipsRemaining <= 0 ? (tile.transformsToOnUnlock ?? FLOOR_TILE_ID) : undefined);
   if (opened === undefined) return;
