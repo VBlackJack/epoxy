@@ -163,16 +163,24 @@ function planPushLine(
   allowChain: boolean,
   guardPlayerCell = false,
   refusal?: PushRefusal,
-  head: RuntimeEntity = block
+  head: RuntimeEntity = block,
+  dirsOut?: Direction[]
 ): RuntimeEntity[] | undefined {
-  const vec = DIRECTION_VECTORS[dir];
+  let vec = DIRECTION_VECTORS[dir];
   const line: RuntimeEntity[] = [block];
+  dirsOut?.push(dir);
   let current = block;
+  // CC2 engine: each block of a chain is pushed from its own cell, so a track under it turns its own step (Lexy attempt_step
+  // of the pushed block redirects by its cell, game.js:2153-2160 redirect_exit; the push recurses through can_actor_enter_cell,
+  // game.js:1801-1805).
+  const bends = usesCc2Engine(w.level) && !w.cc3dPace;
   for (;;) {
     const destX = current.x + vec.dx;
     const destY = current.y + vec.dy;
     const next = allowChain && isInBounds(w, destX, destY) ? getEntityAt(w, destX, destY) : undefined;
     if (next && next.kind === 'block' && chainsInto(current, next, head)) {
+      // A chain the tracks bend back onto itself is refused (Lexy _being_pushed, game.js:1941-1946).
+      if (bends && line.includes(next)) return undefined;
       // CC2: a block never pushes a sliding block, and a trapped or off-arrow block does not yield.
       if (next.isSliding || !canBeShoved(w, next, dir)) return undefined;
       // CC2: the pusher must be let into the cell's terrain before the block standing there is pushed (Lexy can_actor_enter_cell
@@ -180,6 +188,11 @@ function planPushLine(
       if (usesCc2Engine(w.level) && !w.cc3dPace && !terrainLetsBlockIn(w, current, destX, destY, dir)) return undefined;
       line.push(next);
       current = next;
+      if (bends) {
+        dir = railRedirect(w, next.x, next.y, dir, 'block');
+        vec = DIRECTION_VECTORS[dir];
+      }
+      dirsOut?.push(dir);
       continue;
     }
     if (!isCanBlockEnter(w, current, destX, destY, dir)) {
@@ -235,12 +248,13 @@ export function attemptPushBlock(
       ? turnFacingWithTrack(block.facing ?? block.dir, requestedDir, dir)
       : undefined;
   const refusal: PushRefusal = {};
-  const line = planPushLine(w, block, dir, allowChain, guardPlayerCell, refusal, slider ?? block);
+  const dirs: Direction[] = [];
+  const line = planPushLine(w, block, dir, allowChain, guardPlayerCell, refusal, slider ?? block, dirs);
   if (!line) {
     revealBump(w, refusal);
     return false;
   }
-  const vec = DIRECTION_VECTORS[dir];
+  const bent = usesCc2Engine(w.level) && !w.cc3dPace;
   // The blocks of a push by the player, or by a block sliding into them, take a pushed step of their own (CC3D).
   const pushedStep = byPlayer || slider !== undefined;
 
@@ -253,17 +267,25 @@ export function attemptPushBlock(
     if (!w.player.alive) break;
     // Still the same block at its cell and still allowed to yield. A sliding member refuses, but the directly
     // pushed block keeps the old rule (it may be pushed while it slides).
-    if (getEntityAt(w, member.x, member.y) !== member || !canBeShoved(w, member, i === 0 ? shoveJudgedDir(w, requestedDir, dir) : dir)) break;
+    const memberDir = dirs[i] ?? dir;
+    const vec = DIRECTION_VECTORS[memberDir];
+    // The arrows of a chained member are judged by the way its pusher goes (CC2 engine), not the way its own track gives.
+    const judged = i === 0 ? shoveJudgedDir(w, requestedDir, dir) : bent ? (dirs[i - 1] ?? dir) : dir;
+    if (getEntityAt(w, member.x, member.y) !== member || !canBeShoved(w, member, judged)) break;
     if (i > 0 && member.isSliding) break;
     const destX = member.x + vec.dx;
     const destY = member.y + vec.dy;
-    if (!isCanBlockEnter(w, member, destX, destY, dir)) break;
+    if (!isCanBlockEnter(w, member, destX, destY, memberDir)) break;
     if (i === 0) {
       // A push by the player, or by a steered puppet, turns the turret toward the push; the turret's own slide never turns it.
       const turret = getTurretDef(member.type);
       if (turret && turnsOnPush(turret)) member.facing = dir;
     }
-    moveBlockTo(ctx, member, destX, destY, dir, true, pushedStep && defersArrival(w, member, destX, destY));
+    // A frame block of the chain that its own track turns keeps its arrows turned with it (Lexy frame_block on_rotate).
+    if (bent && i > 0 && memberDir !== judged && ConfigRegistry.getEntityDef(member.type)?.pushArrows !== undefined) {
+      member.facing = turnFacingWithTrack(member.facing ?? member.dir, judged, memberDir);
+    }
+    moveBlockTo(ctx, member, destX, destY, memberDir, true, pushedStep && defersArrival(w, member, destX, destY));
     // A converted CC3D level: a block the player pushed onto ice or a force floor takes a pushed step (two ticks) before
     // its first slide step; the slide goes on at one tick per wait.
     if (w.cc3dPace && byPlayer && member.isSliding && member.arrivalTicks === undefined) {
