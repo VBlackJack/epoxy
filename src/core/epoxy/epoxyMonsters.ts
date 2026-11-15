@@ -332,6 +332,9 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
   return false;
 }
 
+/** Passes a monster's arrival on the yellow button reaches the yellow tanks sooner than the base count (CC2 engine, game.js tiletypes.js:2241-2250). */
+const YELLOW_BUTTON_EARLY_PASSES = 1;
+
 /**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
  * ended. The way is judged now, so a tank blocked then only turns (Lexy tank_yellow decides [way, null]).
@@ -859,7 +862,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // CC2 engine: a monster arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
   if (destTile.buttonAction === STEER_MONSTERS_ACTION && entity.kind === 'monster' && usesCc2Engine(w.level)) {
     const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
-    markYellowButtonArrival(w, entity.dir, passesCounted + entity.cooldownTicks + 1);
+    // Lexy button_yellow on_arrive sets the pending decision of the tanks at once (tiletypes.js:2241-2250): they decide one pass
+    // earlier than the base count, in the tick the step ends. CC3D pace keeps the base count.
+    markYellowButtonArrival(w, entity.dir, passesCounted + entity.cooldownTicks + 1 - (w.cc3dPace ? 0 : YELLOW_BUTTON_EARLY_PASSES));
   }
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
