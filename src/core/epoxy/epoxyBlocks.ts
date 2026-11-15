@@ -141,6 +141,8 @@ function revealBump(w: EpoxyWorld, refusal: PushRefusal): void {
 const CC3D_PUSH_STEP_TICKS = 4;
 /** Ticks a pushed block of the CC2 engine takes to finish its step (the same four as the CC3D push). */
 const CC2_PUSH_STEP_TICKS = 4;
+/** CC2 engine: passes sooner a block arrival on the yellow button is due than the block's step end (as for a monster). */
+const CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES = 1;
 
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
 function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
@@ -530,7 +532,8 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   // CC2 engine: a block arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
   if (tile.buttonAction === STEER_MONSTERS_ACTION && usesCc2Engine(w.level)) {
     const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
-    markYellowButtonArrival(w, dir, passesCounted + block.cooldownTicks + 1);
+    // The decision is due one pass earlier, as for a monster arrival (Lexy button_yellow on_arrive takes any actor, tiletypes.js:2241-2250).
+    markYellowButtonArrival(w, dir, passesCounted + block.cooldownTicks + 1 - CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES);
   }
 
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
