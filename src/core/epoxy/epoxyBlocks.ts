@@ -406,6 +406,8 @@ export function moveBlockTo(
   if (usesCc2Engine(w.level) && !w.cc3dPace) {
     if (ConfigRegistry.getTile(w.terrain[destY][destX]).slideType !== undefined) block.cc2SlideArrived = true;
     else delete block.cc2SlideArrived;
+    // Every step attempt spends the queued push (Lexy attempt_step clears pending_push, game.js:2159).
+    delete block.cc2PendingPush;
   }
   eraseSplash(w, destX, destY);
   enterSwivel(w, destX, destY, dir);

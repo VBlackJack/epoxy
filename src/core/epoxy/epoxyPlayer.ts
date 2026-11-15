@@ -68,19 +68,25 @@ import {
 /** Out-of-turn ejection from a trap: a block is pushed out its facing, chain allowed (Lexy attempt_step pushes of the ice block), not by the player. */
 const TRAP_EJECT_ALLOW_CHAIN = true;
 const TRAP_EJECT_BY_PLAYER = false;
+/** An ejected block is not pushed by a player, so no player cell is guarded (the fifth argument of attemptPushBlock). */
+const TRAP_EJECT_GUARD_PLAYER_CELL = false;
+/** Extra cooldown tick of a monster stepped out of a trap, as the rolling ball keeps LAUNCH_EXTRA_COOLDOWN_TICKS. */
+const TRAP_EJECT_EXTRA_COOLDOWN_TICKS = 1;
 
 /**
  * A trap that a press just opened ejects what it holds, out of turn (Lexy trap add_press -> attempt_out_of_turn_step,
  * tiletypes.js:1764-1779). A block is pushed out its facing; a monster steps once out of turn and carries one extra cooldown
  * tick, counted once per tic (Lexy do_extra_cooldown, game.js:2218-2242, last_extra_cooldown_tic) so the pass does not count
  * the tick of its step a second time. An entity that ignores floor effects (a ghost) is not held by a trap.
+ * Known gap: a parked player in the trap is not ejected, where Lexy ejects any actor (tiletypes.js:1771-1777); it concerns
+ * multi-player CC2 levels only.
  */
 function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
   const w = ctx.world;
   const e = getEntityAt(w, x, y);
   if (e === undefined || ConfigRegistry.getEntityDef(e.type)?.ignoresFloorEffects === true) return;
   if (e.kind === 'block') {
-    if (!e.isSliding && e.arrivalTicks === undefined) attemptPushBlock(ctx, e, e.dir, TRAP_EJECT_ALLOW_CHAIN, false, undefined, TRAP_EJECT_BY_PLAYER);
+    if (!e.isSliding && e.arrivalTicks === undefined) attemptPushBlock(ctx, e, e.dir, TRAP_EJECT_ALLOW_CHAIN, TRAP_EJECT_GUARD_PLAYER_CELL, undefined, TRAP_EJECT_BY_PLAYER);
     return;
   }
   if (e.kind !== 'monster' || e.cooldownTicks !== 0) return;
@@ -88,7 +94,8 @@ function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
   const fromX = e.x;
   const fromY = e.y;
   stepClassicMonsterOutOfTurn(ctx, e);
-  if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks++;
+  w.ccPlans.delete(e.uid);
+  if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks += TRAP_EJECT_EXTRA_COOLDOWN_TICKS;
 }
 
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
@@ -922,7 +929,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
 /**
  * Whether what a step of the player does on the cell it ends on waits for the end of the step (applyCc3dStepEnd): a
- * converted CC3D level and a CC2-engine level. Teleports stay with the step on a CC2-engine level.
+ * converted CC3D level and a CC2-engine level. A teleport on a CC2-engine level jumps at the step end too (jumpAtStepEnd), at the player's turn after the step.
  */
 export function defersStepEffects(w: EpoxyWorld): boolean {
   return w.cc3dPace || usesCc2Engine(w.level);
