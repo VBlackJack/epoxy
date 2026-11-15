@@ -487,6 +487,12 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
     removeEntity(w, block.uid);
     AudioManager.playSfx('bomb');
     ctx.emitVisual('explosion', destX, destY);
+    // CC2 engine, partial (buttons only; the yellow button, the light switch and pulse and the hold trap are not modelled): the arrival
+    // goes on down the layers after the bomb killed the block, so the button under it is still pressed (Lexy step_on_cell walks every
+    // layer, game.js:2316-2365; bomb.on_stand kills, the button's on_arrive still runs; tiletypes.js:1161-1180).
+    if (usesCc2Engine(w.level) && !w.cc3dPace && tile.buttonAction && tile.buttonWorkedBy !== 'player') {
+      ctx.triggerButton(destX, destY, tile.buttonAction);
+    }
     return;
   }
 
