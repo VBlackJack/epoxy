@@ -26,8 +26,6 @@ import { railRedirect } from './epoxyRailsCc2';
 import { actorAtRest, isHeldSignalButton, toggleHeldButton } from './epoxySignals';
 import { type EpoxyContext, type EpoxyWorld, getEntityAt, killPlayerAt, playerAtCell, removeEntity } from './epoxyWorld';
 
-/** Ticks added to the countdown of a ball after its first step out of the player's cell: it spends a whole step there, counted from the drop. */
-const LAUNCH_EXTRA_COOLDOWN_TICKS = 1;
 /** Sound of a ball blowing up, and of the actor it kills. */
 const BALL_BLAST_SFX = 'bomb';
 
@@ -186,6 +184,8 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   w.ccPlans.set(ball.uid, dir);
   stepClassicMonsterOutOfTurn(ctx, ball);
   w.ccPlans.delete(ball.uid);
-  if (w.entities.includes(ball) && ball.cooldownTicks > 0) ball.cooldownTicks += LAUNCH_EXTRA_COOLDOWN_TICKS;
+  // No extra cooldown tick, unlike a monster ejected from a trap (which keeps its +1): the ball is dropped inside the player's
+  // frame-2 action, after the pass that counts the actors already down, so it ends its first step 4 ticks after the drop, not 5
+  // (Lexy game.js:1594-1598 drop at the frame-2 decision, 2519-2580 the out-of-turn step, 2218-2242 the frame count).
   return true;
 }
