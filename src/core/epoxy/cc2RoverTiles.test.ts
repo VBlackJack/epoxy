@@ -16,8 +16,8 @@
 
 /**
  * Wave 12, ROV and DG: the CC2 rover is outside Lexy's monster_typical collision set (defs.js:104-107), so CC2 dirt, the tool thief
- * and the blue fake wall do not bar it (tiletypes.js:542-560, 822-849, 1236-1250, 2972-2977); a native or CC1 rover stays barred. The
- * rolling ball reveals the blue fake wall on arrival through the same opening step.
+ * and the blue fake wall do not bar it (dirt 822-849, fake_floor 542-560, thief_tools 1236-1250, rover 2972-2977); a native or CC1 rover
+ * stays barred. The rolling ball reveals the blue fake wall on arrival through the same opening step.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,13 +63,13 @@ function run(mode: RoomMode, type: string, aheadTile: string): Outcome {
 }
 
 describe('a rover on the CC2 engine crosses the tiles that do not bar it', () => {
-  it('packs CC2 dirt down as it steps on it (Lexy dirt blocks only player2: tiletypes.js:542-560)', () => {
+  it('packs CC2 dirt down as it steps on it (Lexy dirt blocks only player2: tiletypes.js:822-849)', () => {
     const out = run('cc2', 'rover', 'dirt_cc2');
     expect(out.reachedAhead).toBe(true);
     expect(out.terrainAhead).toBe('floor');
   });
 
-  it('reveals a blue fake wall as it steps on it (fake_floor is a bump reveal, rover can_reveal_walls: tiletypes.js:822-849)', () => {
+  it('reveals a blue fake wall as it steps on it (fake_floor is a bump reveal, rover can_reveal_walls: tiletypes.js:542-560 on_bumped)', () => {
     const out = run('cc2', 'rover', 'blue_wall_fake');
     expect(out.reachedAhead).toBe(true);
     expect(out.terrainAhead).toBe('floor');
@@ -104,9 +104,17 @@ describe('a rover on the CC2 engine crosses the tiles that do not bar it', () =>
 });
 
 describe('a rolling ball on the CC2 engine reveals the blue fake wall (DG)', () => {
-  it('steps onto it and leaves floor behind (the ball is COLLISION.bowling_ball, outside the fake wall bar: tiletypes.js:822-849)', () => {
+  it('steps onto it and leaves floor behind (the ball is COLLISION.bowling_ball, outside the fake wall bar: tiletypes.js:542-560)', () => {
     const out = run('cc2', 'rolling_ball', 'blue_wall_fake');
     expect(out.reachedAhead).toBe(true);
     expect(out.terrainAhead).toBe('floor');
+  });
+});
+
+describe('a rolling ball on the CC2 engine crosses a pop-up wall (DG)', () => {
+  it('walks in and the wall pops up behind it (the ball is admitted by popup_wall_cc2, the cell turns to wall once it has left)', () => {
+    const out = run('cc2', 'rolling_ball', 'popup_wall_cc2');
+    expect(out.reachedAhead).toBe(true);
+    expect(out.terrainAhead).toBe('wall');
   });
 });
