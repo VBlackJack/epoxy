@@ -128,7 +128,7 @@ export function isHeldSignalButton(tile: TileDefinition): boolean {
  * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
  * cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
  */
-function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
+export function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
   return e.arrivalTicks === undefined && !e.isSliding && (e.kind === 'block' || e.cooldownTicks === 0);
 }
 
@@ -146,12 +146,18 @@ function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): 
   return occupied !== w.cc2ToggledButtonCells.includes(y * mapWidth(w) + x);
 }
 
-/** What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). */
+/**
+ * What actually stands on the cell, before the toggled set of a CC2 level is applied (see cellOccupied). On a CC2 level (not
+ * cc3dPace) the pink and the orange button read an actor at rest only.
+ */
 function actorsOccupyCell(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
-  const atRestOnly = usesCc2Engine(w.level) && w.terrain[y][x] === PINK_BUTTON_TILE_ID;
+  // CC2 engine: the orange button works on arrival and departure (Lexy button_orange on_arrive / on_depart: toggled at the end of
+  // the arriving step, and at the start of the leaving one, tiletypes.js:2332-2341, game.js:2350-2357, 2257-2273), so it reads an
+  // actor at rest, as the pink button does.
+  const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
+  const atRestOnly = usesCc2Engine(w.level) && (w.terrain[y][x] === PINK_BUTTON_TILE_ID || (anyActor && !w.cc3dPace));
   const player = playerAtCell(w, x, y);
   if (player !== undefined && (!atRestOnly || (player.moveCooldown === 0 && phase !== SIGNAL_PHASE_MOVE))) return true;
-  const anyActor = ConfigRegistry.getTile(w.terrain[y][x]).pressedByAnyActor === true;
   return w.entities.some((e) => {
     if (e.x !== x || e.y !== y) return false;
     // CC3D: a mob still taking its step presses nothing (Cc3dDevices isPressed asks for remaining 0).

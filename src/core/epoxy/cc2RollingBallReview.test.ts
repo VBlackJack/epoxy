@@ -114,11 +114,34 @@ describe('a ball spent at launch and the button under the player', () => {
         terrain: { [`${FACED_X},${ROOM_ROW}`]: button },
         entities: [{ type: 'lurker_dormant', x: FACED_X, y: ROOM_ROW, dir: 'N' }]
       });
+      // An orange button reads an actor at rest (Lexy on_arrive, tiletypes.js:2332-2341): the victim is at rest.
+      engine.getEntities()[0].cooldownTicks = 0;
       expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
       expect(engine.getEntities()).toEqual([]);
       expect(engine.getCc2WaveState()?.toggledButtons).toEqual([ROOM_ROW * ROOM_SIZE + FACED_X]);
     });
   }
+
+  it('does not toggle the orange button of a victim killed mid-step: it never triggered on_arrive', () => {
+    const engine = bowler({
+      terrain: { [`${FACED_X},${ROOM_ROW}`]: ORANGE_BUTTON },
+      entities: [{ type: 'lurker_dormant', x: FACED_X, y: ROOM_ROW, dir: 'N' }]
+    });
+    engine.getEntities()[0].cooldownTicks = 1;
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
+    expect(engine.getEntities()).toEqual([]);
+    expect(engine.getCc2WaveState()?.toggledButtons).toBeUndefined();
+  });
+
+  it('toggles the brown button of a victim killed mid-step as before', () => {
+    const engine = bowler({
+      terrain: { [`${FACED_X},${ROOM_ROW}`]: BROWN_BUTTON },
+      entities: [{ type: 'lurker_dormant', x: FACED_X, y: ROOM_ROW, dir: 'N' }]
+    });
+    engine.getEntities()[0].cooldownTicks = 1;
+    expect(playDrop(engine, STONE_ITEM_ID)).toBe(true);
+    expect(engine.getCc2WaveState()?.toggledButtons).toEqual([ROOM_ROW * ROOM_SIZE + FACED_X]);
+  });
 });
 
 describe('config fields of the dropped actor and the step-start jump', () => {

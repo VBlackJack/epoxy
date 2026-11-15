@@ -154,9 +154,15 @@ describe('the CC2 pink button reads only an actor at rest', () => {
     expect(jetAt(engine)).toBe(JET_ON);
   });
 
-  it('still reads the player on an orange button the moment he arrives', () => {
+  // Lexy button_orange toggles on_arrive at the end of the arriving step (tiletypes.js:2332-2341, game.js:2350-2357), so the jet
+  // is still off while the step runs.
+  it('reads the player on an orange button once his step has ended, not the moment he starts it', () => {
     const engine = load(lane('cc2', ORANGE, false));
     stepEast(engine);
+    expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
+    expect(jetAt(engine)).toBe(JET_OFF);
+    run(engine, MAX_WAIT_TICKS);
+    expect(engine.getPlayer().moveCooldown).toBe(0);
     expect(jetAt(engine)).toBe(JET_ON);
   });
 });
