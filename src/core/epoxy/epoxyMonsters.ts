@@ -285,7 +285,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     }
     let plan = chooseMonsterDirection(w, entity, behaviour);
     // CC2 engine: a monster on ice plans the slide way without a collision check; a refused step bounces when it is tried.
-    if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true) {
+    if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true && !slideImmune(w, entity, ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]))) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
       // Lexy ice has no on_ready: a monster still on its load cell has no pending slide and decides normally.
       if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
@@ -320,6 +320,7 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
   const def = ConfigRegistry.getEntityDef(tank.type);
   if (def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true) return false;
   const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
+  if (slideImmune(w, tank, here)) return false;
   if (here.slideType === 'ice') {
     w.ccPlans.set(tank.uid, here.deflectionMap?.[tank.dir] || tank.dir);
     return true;
@@ -342,7 +343,7 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
   // machine, sits in a closed trap or slides: the steer waits for the first decision after that.
   const def = ConfigRegistry.getEntityDef(tank.type);
   const here = ConfigRegistry.getTile(w.terrain[tank.y]?.[tank.x]);
-  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(w, tank, here);
   if (here.isCloneMachine) return;
   if (def?.ignoresFloorEffects !== true && isCellClosedTrap(w, tank.x, tank.y)) return;
   if (!floorFree && here.slideType !== undefined && tank.atLoadCell !== true) return;
@@ -356,7 +357,7 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
 function iceBounceDirection(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined, plan: Direction): Direction | null {
   if (!usesCc2Engine(w.level) || def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true) return null;
   const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
-  if (here.slideType !== 'ice') return null;
+  if (here.slideType !== 'ice' || slideImmune(w, entity, here)) return null;
   return here.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan];
 }
 
@@ -364,6 +365,7 @@ function iceBounceDirection(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDef
 function blockedForcedPlan(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): Direction | null {
   if (def === undefined || def.movementPattern === PHASE_LINE_PATTERN || def.ignoresSlidingFloors === true || def.ignoresFloorEffects === true) return null;
   const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (slideImmune(w, entity, here)) return null;
   if (here.slideType !== 'force' || here.forceCycle === true || here.forceDirection === undefined || here.forceDirection === 'RANDOM') return null;
   return here.forceDirection;
 }
@@ -461,8 +463,10 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   else if (ready && alive && usesCc2Engine(ctx.world.level) && entity.cooldownTicks > 0 && !ctx.world.removedUids.has(entity.uid)) {
     // CC2 takes the step time from the destination: a step onto ice or a force floor lasts a share of the plain step.
     const def = ConfigRegistry.getEntityDef(entity.type);
-    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true;
-    const destSlide = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]).slideType;
+    const destTile = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]);
+    // A monster holding the tool of the destination floor is immune to it and keeps the full step time (game.js:2178-2186).
+    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(ctx.world, entity, destTile);
+    const destSlide = destTile.slideType;
     if (!floorFree && (destSlide === 'ice' || destSlide === 'force')) {
       entity.cooldownTicks = Math.floor(ccStepTicks(entity.type) / CC2_FLOOR_STEP_DIVISOR) * monsterSlowdown(ctx.world) - 1;
     }
@@ -813,7 +817,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   else notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
-  const cycleDir = floorFree || def?.ignoresSlidingFloors === true ? undefined : forceCycleArrival(w, destTile);
+  const cycleDir = floorFree || def?.ignoresSlidingFloors === true || slideImmune(w, entity, destTile) ? undefined : forceCycleArrival(w, destTile);
   if (cycleDir) entity.dir = cycleDir;
 
   // CC2 engine: a monster arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
@@ -902,6 +906,16 @@ function openDoorWithHeldKey(w: EpoxyWorld, entity: RuntimeEntity, x: number, y:
 /** Whether the tools an entity holds include the one that protects against the hazard of this tile (flippers on water, fire boots on fire). */
 function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean {
   return tile.protectedByItem !== undefined && entity.heldTools?.includes(tile.protectedByItem) === true;
+}
+
+/**
+ * CC2 engine (never CC3D pace): the tool a monster holds that protects against the slide of this tile (force boots on a force
+ * floor, cleats on ice) makes it immune to that slide: the floor does not carry it and its step keeps the full time (Lexy
+ * make_actor_decision never sets the pending slide for an immune actor, and attempt_step ignores the speed factor of a slide it
+ * is immune to, game.js:2178-2186).
+ */
+function slideImmune(w: EpoxyWorld, entity: RuntimeEntity, tile: TileDefinition): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && tile.slideType !== undefined && heldToolProtects(entity, tile);
 }
 
 /** Whether the entity holds the tool that protects against the hazard of the cell it stands in (CC2 engine only). */
@@ -1044,7 +1058,7 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   const ownDef = ConfigRegistry.getEntityDef(monster.type);
   const floorFree = ownDef?.ignoresFloorEffects === true;
   // A monster that ice and force floors do not carry (a blinky, a screamer) treats them as plain floor.
-  const slidesFree = ownDef?.ignoresSlidingFloors === true;
+  const slidesFree = ownDef?.ignoresSlidingFloors === true || slideImmune(w, monster, currentTile);
   if (floorFree) {
     if (currentTile.slideType === 'ice') {
       if (canStep(w, monster, monster.dir)) return monster.dir;
