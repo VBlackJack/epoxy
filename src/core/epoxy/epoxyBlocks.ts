@@ -533,7 +533,7 @@ function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direct
   if (tile.buttonAction === STEER_MONSTERS_ACTION && usesCc2Engine(w.level)) {
     const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
     // The decision is due one pass earlier, as for a monster arrival (Lexy button_yellow on_arrive takes any actor, tiletypes.js:2241-2250).
-    markYellowButtonArrival(w, dir, passesCounted + block.cooldownTicks + 1 - CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES);
+    markYellowButtonArrival(w, dir, passesCounted + block.cooldownTicks + 1 - (w.cc3dPace ? 0 : CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES));
   }
 
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.

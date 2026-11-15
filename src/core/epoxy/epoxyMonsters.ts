@@ -431,9 +431,6 @@ function runEntityPass(ctx: EpoxyContext): void {
     if (wasReady && classic && refusedOnIcePass(w, entity, fromX, fromY)) refusedOnIce.push(entity);
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
     if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
-    // CC2 engine: the frame tag a clone carries ends with its own step (Lexy takes the out-of-turn frame for the first move only,
-    // game.js:2218-2242).
-    if (entity.cc2Frame !== undefined && usesCc2Engine(w.level) && !w.cc3dPace && (entity.x !== fromX || entity.y !== fromY)) delete entity.cc2Frame;
   }
   if (w.cc2ActorOrder === true && !playerActed) {
     ctx.cc2PlayerActs?.();
@@ -459,6 +456,8 @@ function runEntityPass(ctx: EpoxyContext): void {
 
 /** CC2 engine (never CC3D pace): whether a monster that was ready to step is still on the ice cell it stood on, its step refused. */
 function refusedOnIcePass(w: EpoxyWorld, entity: RuntimeEntity, fromX: number, fromY: number): boolean {
+  // A monster still on its load cell is not on ice for the pass: Lexy's ice has no on_ready.
+  if (entity.atLoadCell === true) return false;
   if (!usesCc2Engine(w.level) || w.cc3dPace || entity.x !== fromX || entity.y !== fromY || entity.cooldownTicks !== 0) return false;
   if (!w.entities.includes(entity) || w.removedUids.has(entity.uid)) return false;
   return ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === 'ice';
@@ -499,6 +498,9 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   const alive = stepMonster(ctx, entity);
   // The first step away from the load cell forgets it: the ice there is an ordinary slide from now on.
   if (entity.atLoadCell === true && (entity.x !== x || entity.y !== y)) delete entity.atLoadCell;
+  // CC2 engine: the frame tag a clone carries ends with its own step (Lexy takes the out-of-turn frame for the first move only,
+  // game.js:2218-2242). It is dropped here so a step made in the ice retry loses it as well.
+  if (entity.cc2Frame !== undefined && usesCc2Engine(ctx.world.level) && !ctx.world.cc3dPace && (entity.x !== x || entity.y !== y)) delete entity.cc2Frame;
   // Like the original, a creature that could not move (a blocked decision, a held trap, a blocked forced move on a
   // slide tile) tries again on the next tick.
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;

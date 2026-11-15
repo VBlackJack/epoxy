@@ -484,15 +484,15 @@ const CC2_CLONE_BEFORE_PASS_TICKS = 1;
 
 /** CC2 engine: the press frame of a wire edge released at the end of the last tic (after its decisions); its clone ends a tick sooner. */
 const CC2_LATE_RELEASE_FRAME = 2;
-/** CC2 engine: the Lexy frame a clone ends its step at when it is the default one (no tag is kept for it). */
-const CC2_DEFAULT_CLONE_FRAME = 1;
+/** CC2 engine: the Lexy frame an actor ends its step at when it is the default one (no tag is kept for a clone at it). */
+export const CC2_DEFAULT_FRAME = 1;
 /** CC2 engine: frames per tic; an out-of-turn step spends one frame at once, so the clone ends at frame p - 1 (game.js:2218-2242). */
 const CC2_FRAMES_PER_TIC = 3;
 
 /** CC2 engine: gives a clone released at press frame p the frame (p + 2) mod 3 its step ends at, unless that is the default one. */
 function tagCloneFrame(clone: RuntimeEntity, releaseFrame: 0 | 1 | 2): void {
   const frame = (releaseFrame + CC2_FRAMES_PER_TIC - 1) % CC2_FRAMES_PER_TIC;
-  if (frame === CC2_DEFAULT_CLONE_FRAME) delete clone.cc2Frame;
+  if (frame === CC2_DEFAULT_FRAME) delete clone.cc2Frame;
   else clone.cc2Frame = frame as 0 | 2;
 }
 

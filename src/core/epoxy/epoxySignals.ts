@@ -27,7 +27,7 @@ import {
   SIGNAL_PLATE_TILE_ID
 } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
-import { fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
+import { CC2_DEFAULT_FRAME, fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
@@ -125,8 +125,8 @@ export function isHeldSignalButton(tile: TileDefinition): boolean {
 }
 
 /**
- * Whether a non-player actor on a pink button counts, CC2 engine: Lexy reads the actor on the cell only while its movement
- * cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
+ * Whether a non-player actor on a pink or orange button or under a rolling ball counts, CC2 engine: Lexy reads the actor on the
+ * cell only while its movement cooldown is 0. A block counts while it is not mid step, a monster or other mover while its cooldown is out.
  */
 export function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
   return e.arrivalTicks === undefined && !e.isSliding && (e.kind === 'block' || e.cooldownTicks === 0);
@@ -135,7 +135,7 @@ export function actorAtRest(e: EpoxyWorld['entities'][number]): boolean {
 /**
  * Whether a held source's cell is occupied the way a pressure plate asks: the player standing there, or a
  * monster or block that is not sliding and presses plates. A coloured block counts, as on a plate of its colour.
- * On a CC2 level the pink button reads only an actor at rest: the player once he has settled (the settle right after his own
+ * On a CC2 level the pink and the orange button read only an actor at rest: the player once he has settled (the settle right after his own
  * move, the move phase, finds his step only begun), a block or monster once its step is over.
  */
 function cellOccupied(w: EpoxyWorld, x: number, y: number, phase: SignalPhase): boolean {
@@ -375,8 +375,9 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
- * `cc2DeferredSinkEdges`: one from the move phase fires at the end of the same tick (the next tick phase), one from the tick
- * phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
+ * `cc2DeferredSinkEdges`. A sink wired directly to buttons fires before the next entity pass (fireSinksBeforePass); only the
+ * edges fed by a gate keep the old timing: one from the move phase fires at the end of the same tick (the next tick phase), one
+ * from the tick phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  * On an actor-order level the edges of the move phase come only from settleBeforeActorPass: the player's turn settles no wire with his move.
  */
 export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
@@ -437,9 +438,6 @@ function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
  */
 const PRESS_FRAME_RANK: readonly number[] = [1, 2, 0];
 
-/** The frame of a press that ends in a plain step: every actor but an out-of-turn clone ends its step in frame 1. */
-const DEFAULT_PRESS_FRAME = 1;
-
 /**
  * Whether a sink is driven only by buttons through plain wire: every node behind it is a 'source' (no gate, latch, counter,
  * 'or' or cycle on the way). Its edge comes from a press at a step end (Lexy frame 0 or 1), not from a clock of gates.
@@ -471,7 +469,7 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
   const net = runtime.network;
   const width = mapWidth(w);
   const start = net.indexOfCell.get(cell);
-  let best: 0 | 1 | 2 = DEFAULT_PRESS_FRAME;
+  let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
   const seen = new Set<number>();
   const stack = start === undefined ? [] : [start];
   while (stack.length > 0) {
@@ -483,8 +481,8 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
       const x = node.cell % width;
       const y = Math.floor(node.cell / width);
       for (const e of w.entities) {
-        if (e.x !== x || e.y !== y) continue;
-        const frame = e.cc2Frame !== undefined ? e.cc2Frame : DEFAULT_PRESS_FRAME;
+        if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
+        const frame = e.cc2Frame !== undefined ? e.cc2Frame : CC2_DEFAULT_FRAME;
         if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
       }
     }
@@ -516,12 +514,12 @@ export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2):
       try {
         fireEdges(ctx, [edge]);
       } finally {
-        w.cc2ReleaseFrame = undefined;
+        delete w.cc2ReleaseFrame;
       }
     }
   } finally {
     w.cc2BeforePass = undefined;
-    w.cc2ReleaseFrame = undefined;
+    delete w.cc2ReleaseFrame;
   }
   w.cc2DeferredSinkEdges = [...waiting.filter((edge) => !isDirectSink(runtime, edge.cell)), ...w.cc2DeferredSinkEdges];
 }
