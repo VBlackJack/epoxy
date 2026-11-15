@@ -380,6 +380,8 @@ function runEntityPass(ctx: EpoxyContext): void {
   if (w.ccRules) snapshotEntities.reverse();
   // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
   const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
+  // CC2 engine: the monsters whose step was refused on ice in this pass (see the retry after the loop).
+  const refusedOnIce: RuntimeEntity[] = [];
   // CC2 engine, actor order: the player acts at his place in the list, after every actor listed after him, once per pass.
   const playerOrdinal = w.cc2ActorOrder === true ? w.player.listOrdinal : undefined;
   let playerActed = false;
@@ -420,13 +422,20 @@ function runEntityPass(ctx: EpoxyContext): void {
 
     const fromX = entity.x;
     const fromY = entity.y;
-    if (!(w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level)) ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+    const wasReady = entity.cooldownTicks === 0;
+    const classic = w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level));
+    if (!(classic ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
+    if (wasReady && classic && refusedOnIcePass(w, entity, fromX, fromY)) refusedOnIce.push(entity);
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
     if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
   }
   if (w.cc2ActorOrder === true && !playerActed) {
     ctx.cc2PlayerActs?.();
     if (!w.player.alive || w.levelCompleted) return;
+  }
+  // CC2 engine: a monster refused on ice tries again once after the pass, when the one ahead of it has left (see retryRefusedOnIce).
+  for (const entity of refusedOnIce) {
+    if (!retryRefusedOnIce(ctx, entity, clock)) return;
   }
   // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
   // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
@@ -440,6 +449,33 @@ function runEntityPass(ctx: EpoxyContext): void {
       stepSlidingBlock(ctx, block);
     }
   }
+}
+
+/** CC2 engine (never CC3D pace): whether a monster that was ready to step is still on the ice cell it stood on, its step refused. */
+function refusedOnIcePass(w: EpoxyWorld, entity: RuntimeEntity, fromX: number, fromY: number): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || entity.x !== fromX || entity.y !== fromY || entity.cooldownTicks !== 0) return false;
+  if (!w.entities.includes(entity) || w.removedUids.has(entity.uid)) return false;
+  return ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === 'ice';
+}
+
+/**
+ * CC2 engine: a monster whose slide was refused on ice tries once more after the pass. Lexy decides the forced slide again in
+ * every frame of the tic (do_decision_phase(true) in frames 0 and 1, game.js:869-888) and re-bonks every frame
+ * (_possibly_bonk, game.js:1166-1200), so two balls jammed on ice follow one another in the same tic once the front one has left.
+ * This is a partial approximation: one retry after the pass, where Lexy tries in each frame. A monster the ice does not carry
+ * (slideImmune, a ghost, a blinky) is skipped; a monster that moved, died or was removed in the meantime is skipped as well.
+ * Returns false when the player was killed.
+ */
+function retryRefusedOnIce(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
+  const w = ctx.world;
+  if (w.removedUids.has(entity.uid) || !w.entities.includes(entity) || entity.cooldownTicks !== 0) return true;
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  if (def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true) return true;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  if (here.slideType !== 'ice' || slideImmune(w, entity, here)) return true;
+  // The way is the slide way already drawn: the bounce of the refused try has turned the monster round, so it keeps its facing.
+  w.ccPlans.set(entity.uid, entity.dir);
+  return stepClassicMonster(ctx, entity, clock);
 }
 
 /**
