@@ -1178,8 +1178,12 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   }
 
   // A classic walker or blob on a level made for the classic game uses that game's own generators.
-  if (w.ccGenerators !== null && (monster.type === CC_WALKER_TYPE || monster.type === CC_BLOB_TYPE)) {
-    return chooseClassicRandomDirection(w, monster, w.ccGenerators);
+  // CC2 engine: a rover imitating the walker decides as Lexy's walker does (the rover decide_movement calls the emulatee's,
+  // tiletypes.js:2986-2995; the walker goes forward, else draws one quarter turn, tiletypes.js:2805-2822), so the classic
+  // generator branch is keyed on the imitated definition, not on monster.type.
+  const imitatesWalker = monster.type !== CC_WALKER_TYPE && def.id === CC_WALKER_TYPE && usesCc2Engine(w.level) && !w.cc3dPace;
+  if (w.ccGenerators !== null && (monster.type === CC_WALKER_TYPE || monster.type === CC_BLOB_TYPE || imitatesWalker)) {
+    return chooseClassicRandomDirection(w, monster, w.ccGenerators, imitatesWalker);
   }
 
   if (def.movementPattern === 'forward_else_random') {
@@ -1242,8 +1246,8 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
  * quarter-turn count from its own generator; the blob makes one draw from the main generator on every decision.
  * The monster faces the drawn way and, when that way is blocked, waits there.
  */
-function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators): Direction | null {
-  if (monster.type === CC_WALKER_TYPE) {
+function chooseClassicRandomDirection(w: EpoxyWorld, monster: RuntimeEntity, generators: CcGenerators, asWalker = false): Direction | null {
+  if (monster.type === CC_WALKER_TYPE || asWalker) {
     if (canStep(w, monster, monster.dir)) return monster.dir;
     monster.dir = drawWalkerTurn(generators, monster.dir);
   } else if (usesCc2Engine(w.level)) {
