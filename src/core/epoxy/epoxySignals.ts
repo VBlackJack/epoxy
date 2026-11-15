@@ -383,7 +383,6 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
-  const width = mapWidth(w);
   let edges = edgesNow;
   if (usesCc2Engine(w.level)) {
     const waiting = w.cc2DeferredSinkEdges;
@@ -402,6 +401,15 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
       edges = immediate;
     }
   }
+  fireEdges(ctx, edges);
+}
+
+/** Fires the sinks of `edges` in order, now (no deferral): the shared firing loop of fireSignalSinks and fireSinksBeforePass. */
+function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined) return;
+  const width = mapWidth(w);
   for (const edge of edges) {
     if (!w.player.alive || w.levelCompleted) return;
     const index = runtime.network.indexOfCell.get(edge.cell);
@@ -421,6 +429,101 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
     else if (fires === 'flip') flipCellAt(w, x, y);
     else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y))) return;
   }
+}
+
+/**
+ * Rank of a press frame in time between two passes: frame 2 of the last tic first, then frames 0 and 1 (Lexy game.js:2218-2242).
+ * Lower is earlier.
+ */
+const PRESS_FRAME_RANK: readonly number[] = [1, 2, 0];
+
+/** The frame of a press that ends in a plain step: every actor but an out-of-turn clone ends its step in frame 1. */
+const DEFAULT_PRESS_FRAME = 1;
+
+/**
+ * Whether a sink is driven only by buttons through plain wire: every node behind it is a 'source' (no gate, latch, counter,
+ * 'or' or cycle on the way). Its edge comes from a press at a step end (Lexy frame 0 or 1), not from a clock of gates.
+ * Measured: accepting an 'or' node too changed nothing, so it is left out.
+ */
+function isDirectSink(runtime: SignalRuntime, cell: number): boolean {
+  const net = runtime.network;
+  const start = net.indexOfCell.get(cell);
+  if (start === undefined) return false;
+  const seen = new Set<number>();
+  const stack = [start];
+  while (stack.length > 0) {
+    const i = stack.pop() as number;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    const node = net.nodes[i];
+    if (node.cyclic) return false;
+    if (i !== start && node.kind !== 'source') return false;
+    for (const wire of node.wires) stack.push(wire.from);
+  }
+  return true;
+}
+
+/**
+ * The frame of the press that raised a directly wired sink: the earliest frame among the actors at rest on its sources (a clone
+ * carries the frame its out-of-turn step ends in, `cc2Frame`; any other actor ends its step in frame 1).
+ */
+function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
+  const net = runtime.network;
+  const width = mapWidth(w);
+  const start = net.indexOfCell.get(cell);
+  let best: 0 | 1 | 2 = DEFAULT_PRESS_FRAME;
+  const seen = new Set<number>();
+  const stack = start === undefined ? [] : [start];
+  while (stack.length > 0) {
+    const i = stack.pop() as number;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    const node = net.nodes[i];
+    if (node.kind === 'source') {
+      const x = node.cell % width;
+      const y = Math.floor(node.cell / width);
+      for (const e of w.entities) {
+        if (e.x !== x || e.y !== y) continue;
+        const frame = e.cc2Frame !== undefined ? e.cc2Frame : DEFAULT_PRESS_FRAME;
+        if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
+      }
+    }
+    for (const wire of node.wires) stack.push(wire.from);
+  }
+  return best;
+}
+
+/**
+ * CC2 engine: fires, before the entity pass, the deferred clone machine and launcher edges of the sinks wired directly to buttons
+ * (see isDirectSink). A press at a step end lands in frame 0 or 1 of Lexy, whose wire phase powers them before the decisions of the
+ * next pass (game.js:872-876). Each edge fires on its own with w.cc2ReleaseFrame = `forcedFrame` or the frame of its press
+ * (pressFrameOfSink), and with w.cc2BeforePass set so the pass counts a clone let out down at once; both are cleared in a
+ * finally. The edges of sinks fed by a gate keep waiting (put back in front of the edges deferred meanwhile) and fire at the end of
+ * the tick as before. `forcedFrame` is 0 at tic 0. Does nothing off the CC2 engine or under cc3dPace.
+ */
+export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2): void {
+  const w = ctx.world;
+  const runtime = w.signals;
+  if (runtime === undefined || !usesCc2Engine(w.level) || w.cc3dPace) return;
+  const waiting = w.cc2DeferredSinkEdges;
+  if (waiting.length === 0) return;
+  w.cc2DeferredSinkEdges = [];
+  const direct = waiting.filter((edge) => isDirectSink(runtime, edge.cell));
+  w.cc2BeforePass = true;
+  try {
+    for (const edge of direct) {
+      w.cc2ReleaseFrame = forcedFrame ?? pressFrameOfSink(w, runtime, edge.cell);
+      try {
+        fireEdges(ctx, [edge]);
+      } finally {
+        w.cc2ReleaseFrame = undefined;
+      }
+    }
+  } finally {
+    w.cc2BeforePass = undefined;
+    w.cc2ReleaseFrame = undefined;
+  }
+  w.cc2DeferredSinkEdges = [...waiting.filter((edge) => !isDirectSink(runtime, edge.cell)), ...w.cc2DeferredSinkEdges];
 }
 
 /** A copy of the pulse memory of the world's network, for a snapshot or a hash; undefined when nothing is pending or carried. */
