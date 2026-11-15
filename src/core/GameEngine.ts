@@ -50,6 +50,7 @@ import {
   copySignalPulses,
   copySignalState,
   fireSignalSinks,
+  fireSinksBeforePass,
   counterValuesOf,
   poweredSignalCellsOf,
   restoreSignalPulses,
@@ -152,6 +153,9 @@ const COUNTED_COLLECTIBLES: ReadonlySet<string> = new Set(['key', 'charge', 'gat
 
 /** Pairs of boots needed for the cycle key to change anything. */
 const MIN_BOOTS_TO_CYCLE = 2;
+
+/** CC2 engine: the frame of the wire phase of tic 0 (Lexy game.js:872-876): a clone let out then carries frame 0. */
+const CC2_LOAD_PRESS_FRAME = 0;
 /** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
 const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
@@ -1218,6 +1222,18 @@ export class GameEngine {
       return;
     }
     if (actorOrder) {
+      // CC2 engine: tic 0 has its own wire phase before the decisions (Lexy _advance_tic_lynx60, game.js:872-876, steam-strict
+      // emulate_60fps): the wires settle once as at a tick end and what rose fires at once, with the press frame forced to 0.
+      if (this.ticksElapsed === 1 && this.w.signals !== undefined) {
+        const loadEdges = settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK);
+        setPoweredCells(this.ctx);
+        setHoldDoors(this.ctx);
+        fireSignalSinks(this.ctx, loadEdges, SIGNAL_PHASE_TICK);
+        fireSinksBeforePass(this.ctx, CC2_LOAD_PRESS_FRAME);
+      } else {
+        // A press made at a step end fires its directly wired clone machines and launchers before the decisions of this pass.
+        fireSinksBeforePass(this.ctx);
+      }
       this.settleBeforeActorPass();
       this.releaseTrappedPlayer();
     }
