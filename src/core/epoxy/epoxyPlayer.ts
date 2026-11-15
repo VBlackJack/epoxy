@@ -70,7 +70,7 @@ const TRAP_EJECT_ALLOW_CHAIN = true;
 const TRAP_EJECT_BY_PLAYER = false;
 /** An ejected block is not pushed by a player, so no player cell is guarded (the fifth argument of attemptPushBlock). */
 const TRAP_EJECT_GUARD_PLAYER_CELL = false;
-/** Extra cooldown tick of a monster stepped out of a trap: the press is counted by the pass before the ejection, unlike the bowling ball dropped inside the player's frame-2 action, which takes none. */
+/** Extra cooldown tick of a monster stepped out of a trap: the press is counted by the pass before the ejection, unlike the bowling ball set down inside the player's own turn (the drop key, or the oldest tool pushed off a full belt by a pickup: Lexy attempt_take places it with _place_dropped_item, game.js:3221-3280), which takes none. */
 const TRAP_EJECT_EXTRA_COOLDOWN_TICKS = 1;
 
 /**

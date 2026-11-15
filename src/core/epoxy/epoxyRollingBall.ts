@@ -186,6 +186,8 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   w.ccPlans.delete(ball.uid);
   // No extra cooldown tick, unlike a monster ejected from a trap (which keeps its +1): the ball is dropped inside the player's
   // frame-2 action, after the pass that counts the actors already down, so it ends its first step 4 ticks after the drop, not 5
-  // (Lexy game.js:1594-1598 drop at the frame-2 decision, 2519-2580 the out-of-turn step, 2218-2242 the frame count).
+  // (Lexy game.js:1594-1598 drop at the frame-2 decision, 2519-2580 the out-of-turn step, 2218-2242 the frame count). The oldest tool
+  // pushed off a full belt by a pickup lands here too (setDownPushedOutTool): attempt_take places it in the player's own turn through the
+  // same _place_dropped_item (game.js:3221-3280), so it keeps no +1 either.
   return true;
 }
