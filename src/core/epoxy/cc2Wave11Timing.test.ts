@@ -47,7 +47,7 @@ const STAGE_WIDTH = 2;
 const FIRST_PLATE_X = 2;
 const CHAIN_WIDTH = FIRST_PLATE_X + STAGE_WIDTH * CHAIN_LENGTH + 3;
 const CHAIN_TICKS = 40;
-/** The ticks between the arrivals of the clones of an avalnch-shaped chain (Lexy 4, 4, 3 per three clones, from tic 0). */
+/** The ticks between the arrivals of the clones of an avalanche-shaped chain: a rotation of Lexy's 4, 4, 3 intervals counted from tic 0. */
 const CHAIN_INTERVALS: readonly number[] = [4, 3, 4, 4, 3];
 const LANE_TICKS = 12;
 

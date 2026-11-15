@@ -42,12 +42,14 @@ const REAR_X = 5;
 const FIRST_ICE_X = 5;
 const WALL = 'wall';
 const LAST_ICE_X = 9;
+const TAG_FRAME = 0;
+const FACING = 'E';
 
 /**
  * Two balls facing east on an ice row with a wall behind the rear one: the front one is listed first, so the rear one acts first in
  * the pass and is refused with no way to bounce back.
  */
-function jam(mode: RoomMode, rearTool?: string): { front: () => RuntimeEntity; rear: () => RuntimeEntity; engine: GameEngine } {
+function jam(mode: RoomMode, rearTool?: string, keepLoadCell = false): { front: () => RuntimeEntity; rear: () => RuntimeEntity; engine: GameEngine } {
   const terrain: Record<string, string> = {};
   for (let x = FIRST_ICE_X; x <= LAST_ICE_X; x++) terrain[`${x},${ROOM_ROW}`] = ICE;
   terrain[`${FIRST_ICE_X - 1},${ROOM_ROW}`] = WALL;
@@ -63,7 +65,7 @@ function jam(mode: RoomMode, rearTool?: string): { front: () => RuntimeEntity; r
       ]
     })
   );
-  for (const loaded of engine.getEntities()) delete loaded.atLoadCell;
+  if (!keepLoadCell) for (const loaded of engine.getEntities()) delete loaded.atLoadCell;
   const balls = engine.getEntities().filter((e) => e.type === BALL);
   if (rearTool !== undefined) balls[1].heldTools = [rearTool];
   return { engine, front: () => balls[0], rear: () => balls[1] };
@@ -94,5 +96,25 @@ describe('two balls jammed on ice', () => {
     const { engine, rear } = jam('cc2', CLEATS);
     engine.tick();
     expect(rear().x).toBe(REAR_X);
+  });
+
+  // Lexy's ice has no on_ready, so a ball still on its load cell is not on the ice for the pass: no retry (game.js:869-888).
+  it('does not retry for a ball still on its load cell, and keeps its facing', () => {
+    const { engine, rear } = jam('cc2', undefined, true);
+    rear().atLoadCell = true;
+    engine.tick();
+    expect(rear().x).toBe(REAR_X);
+    expect(rear().atLoadCell).toBe(true);
+    // A retry would have decided and bounced the ball again.
+    expect(rear().dir).toBe(FACING);
+  });
+
+  // The frame tag a clone carries ends with its own step, also when that step is made in the retry (game.js:2218-2242).
+  it('drops the frame tag of a ball whose step is made in the retry', () => {
+    const { engine, rear } = jam('cc2');
+    rear().cc2Frame = TAG_FRAME;
+    engine.tick();
+    expect(rear().x).toBe(REAR_X + 1);
+    expect(rear().cc2Frame).toBeUndefined();
   });
 });

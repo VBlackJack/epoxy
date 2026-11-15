@@ -184,6 +184,9 @@ function cloneLane(mode: Mode, source: string, held: boolean): CompiledLevel {
 
 const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
 const deferredCount = (engine: GameEngine): number => engine.getCc2WaveState()?.deferredSinkEdges?.length ?? 0;
+const cloneArrival = (engine: GameEngine): number | undefined => engine.getEntities().find((e) => e.x === CLONE_X && e.y === ROW)?.arrivalTicks;
+/** The arrival countdown a clone shows on the tick it appears when its machine fired before the pass (the pass counted it down once; a clone let out at the end of the tick shows one more). */
+const ARRIVAL_AFTER_PASS = 3;
 
 describe('CC2 engine: a wire-fired clone machine acts before the pass that follows its edge', () => {
   // Lexy runs the wire phase of tic 0 before its decisions (game.js:872-876): the load edge fires before the pass of tick 0.
@@ -209,6 +212,7 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
+    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
     expect(deferredCount(engine)).toBe(0);
   });
 
@@ -228,6 +232,7 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
+    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
     expect(deferredCount(engine)).toBe(0);
   });
 
