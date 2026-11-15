@@ -151,8 +151,23 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
   // CC2 engine: the presses are applied at the start of the pass, the teleports in the own turn of their monster, the green
   // toggles after the pass (endOfPass).
   const cc2 = usesCc2Engine(w.level);
+  // CC2 engine: water, slime and fire tiles kill a monster when its step ends (Lexy on_arrive: fire 954-972, water 980-1010,
+  // slime 1123-1137), so the removal is due at the start of the pass after the one its step ended in (the pass the monster would
+  // decide in), whatever the step length (a clone's out-of-turn step included). A bomb and a lit flame jet (burnsOccupants, a ghost's
+  // burn) keep the old arithmetic. Undefined: this arrival is not a hazard removal of that kind.
+  const hazardStepEnded = (a: CcArrival): boolean | undefined => {
+    if (!cc2 || w.cc3dPace || a.removal === undefined || a.removal === 'bomb') return undefined;
+    if (a.removal === 'burn' && ConfigRegistry.getTile(w.terrain[a.y]?.[a.x]).burnsOccupants === true) return undefined;
+    const monster = w.entities.find((e) => e.uid === a.uid);
+    // A monster that is gone or has left the cell makes the arrival void: the old arithmetic drops it.
+    if (monster === undefined || monster.x !== a.x || monster.y !== a.y) return undefined;
+    if (monster.cooldownTicks !== 0) return false;
+    // The fallback keeps a removal from outliving its step: the old due arithmetic passed by the margin also makes it due.
+    if (a.due + HAZARD_REMOVAL_MARGIN_PASSES <= pass) return true;
+    return monster.stepEndedPass !== undefined && monster.stepEndedPass <= pass;
+  };
   const isDue = (a: CcArrival): boolean =>
-    a.due <= pass &&
+    (hazardStepEnded(a) ?? a.due <= pass) &&
     (ownerUid === undefined || a.uid === ownerUid) &&
     (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
     (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
@@ -335,6 +350,11 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
 
 /** Passes a monster's arrival on the yellow button reaches the yellow tanks sooner than the base count (CC2 engine, game.js tiletypes.js:2241-2250). */
 const YELLOW_BUTTON_EARLY_PASSES = 1;
+/**
+ * CC2 engine: how many passes after the old due arithmetic a hazard removal is still due once the monster's step has ended
+ * without the step end being recorded (a safety net: a removal never outlives cooldownTicks === 0 by more than this margin).
+ */
+const HAZARD_REMOVAL_MARGIN_PASSES = 2;
 
 /**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
@@ -594,6 +614,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   if (yellowTank) {
     if (entity.cooldownTicks > 0) {
       entity.cooldownTicks--;
+      // CC2 engine: a yellow tank's step end is recorded as any monster's, so a hazard removal and a button it stepped on find it.
+      if (entity.cooldownTicks === 0 && usesCc2Engine(w.level) && !w.cc3dPace) {
+        entity.stepEndedPass = currentEntityPass(w);
+        entity.stepEndedCell = entity.y * mapWidth(w) + entity.x;
+      }
       return true;
     }
     if (!w.ccPlans.has(entity.uid)) return true;
@@ -749,7 +774,8 @@ function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean
 /**
  * Applies the effects of the cell a monster has just entered (by a step, a
  * teleport or a clone spawn): the player under it dies, a flying shot kills it, a bomb or water or
- * fire removes it, a button is pressed and a teleporter jumps it on.
+ * fire removes it (on the CC2 engine when its step ends, queued as a CcArrival removal), a button is pressed and a teleporter
+ * jumps it on.
  * Returns false when the player was killed, so the caller stops processing.
  */
 export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean): boolean {
@@ -816,8 +842,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   if (!floorFree) {
     const removal = hazardRemoval(w, entity, def);
     if (removal !== null) {
-      if (w.cc3dPace || (removal === 'bomb' && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
-        // CC3D, and a bomb on a CC2-engine level, keep the monster in the cell for the whole step and remove it, and the bomb, when the step ends.
+      if (w.cc3dPace || (usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
+        // CC3D, and a bomb, water, fire or slime on a CC2-engine level (Lexy on_arrive kills when the step ends), keep the monster
+        // in the cell for the whole step and remove it, and the bomb, when the step ends (see applyQueuedArrivals for the due time).
         w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
       } else {
         applyPendingRemoval(ctx, entity);
