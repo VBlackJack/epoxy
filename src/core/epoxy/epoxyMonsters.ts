@@ -121,6 +121,16 @@ export function updateEntities(ctx: EpoxyContext): void {
 }
 
 /**
+ * CC2 engine: applies the hazard removals that are due in the pass about to run (water, slime and fire killed a monster at the end of
+ * its step), ahead of the wire phase and the clone release of that pass, so a dead monster no longer blocks them.
+ */
+export function applyDueHazardRemovals(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  if (!w.ccRules || !usesCc2Engine(w.level) || w.cc3dPace) return;
+  applyQueuedArrivals(ctx, undefined, undefined, false, true);
+}
+
+/**
  * CC2 engine: the queued presses applied at the start of an entity pass close the previous tick, so a clone machine they
  * trigger counts the clone down one tick longer (w.cc2BeforePass). Other levels apply them as before.
  */
@@ -144,7 +154,7 @@ function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false): boolean {
+function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false, onlyRemovals = false): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
@@ -161,12 +171,16 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     const monster = w.entities.find((e) => e.uid === a.uid);
     // A monster that is gone or has left the cell makes the arrival void: the old arithmetic drops it.
     if (monster === undefined || monster.x !== a.x || monster.y !== a.y) return undefined;
-    if (monster.cooldownTicks !== 0) return false;
-    // The fallback keeps a removal from outliving its step: the old due arithmetic passed by the margin also makes it due.
+    // The fallback keeps a removal from outliving its step, whatever the cooldown does: a monster whose cooldown never counts down (a
+    // steered monster at rest, a stationary one) must not stay in the water for good once the old arithmetic passed by the margin.
     if (a.due + HAZARD_REMOVAL_MARGIN_PASSES <= pass) return true;
-    return monster.stepEndedPass !== undefined && monster.stepEndedPass <= pass;
+    if (monster.cooldownTicks !== 0) return false;
+    // A step end that was never recorded (an arrival at rest) is due at the old arithmetic: it cannot escape by deciding.
+    if (monster.stepEndedPass === undefined) return a.due <= pass;
+    return monster.stepEndedPass <= pass;
   };
   const isDue = (a: CcArrival): boolean =>
+    (!onlyRemovals || a.removal !== undefined) &&
     (hazardStepEnded(a) ?? a.due <= pass) &&
     (ownerUid === undefined || a.uid === ownerUid) &&
     (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
@@ -351,8 +365,9 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
 /** Passes a monster's arrival on the yellow button reaches the yellow tanks sooner than the base count (CC2 engine, game.js tiletypes.js:2241-2250). */
 const YELLOW_BUTTON_EARLY_PASSES = 1;
 /**
- * CC2 engine: how many passes after the old due arithmetic a hazard removal is still due once the monster's step has ended
- * without the step end being recorded (a safety net: a removal never outlives cooldownTicks === 0 by more than this margin).
+ * CC2 engine: the safety margin of a hazard removal, in passes counted from the old due arithmetic (CcArrival.due, not from the
+ * step end): once `due + margin` has passed the removal is applied whatever the monster's cooldown or step end record say, so a
+ * monster whose cooldown never counts down (steered, stationary) cannot stay in the water for good.
  */
 const HAZARD_REMOVAL_MARGIN_PASSES = 2;
 
@@ -1475,8 +1490,8 @@ export function rollingBallPicksUp(itemId: string): boolean {
 /**
  * Whether a monster of this definition walks onto the barred tile `tileId`: the tiles its definition names, and on a level played by
  * the CC2 engine (never the CC3D pace) the CC2 list too (the rover is outside Lexy's monster_typical collision set, defs.js:104-107,
- * so CC2 dirt, the tool thief and the blue fake wall bar it only through blocks_collision: tiletypes.js:542-560, 822-849, 1236-1250,
- * 2972-2977). A socket is passed only once no chip is missing. One helper serves the entry test and the opening of the tile.
+ * so CC2 dirt, the tool thief and the blue fake wall bar it only through blocks_collision: dirt tiletypes.js:822-849, thief_tools
+ * 1236-1250, fake_floor 542-560 (its on_bumped reveal), the rover's own collision mask 2972-2977). A socket is passed only once no chip is missing. One helper serves the entry test and the opening of the tile.
  */
 function entersBarredTile(w: EpoxyWorld, def: EntityDefinition | undefined, tileId: string): boolean {
   return listsBarredTile(w, def, tileId) && !(ConfigRegistry.getTile(tileId).requiresAllChips === true && w.chipsRemaining > 0);

@@ -30,7 +30,7 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import type { EntityPlacement, RuntimeEntity, TrapLink } from '../types';
-import { mapWidth, type EpoxyWorld } from './epoxyWorld';
+import { isButtonPressed, mapWidth, type EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -45,6 +45,10 @@ const RUN_TICKS = 40;
 const LONGER_STEP_TICKS = 2;
 /** The most passes a removal may stay due after its step ended (the safety margin of the rule). */
 const MARGIN_PASSES = 2;
+/** Passes ahead the old arithmetic of a hand-queued removal is set. */
+const FALLBACK_DUE_PASSES = 3;
+/** A cooldown that is refilled every tick, as a monster whose countdown never runs (a steered monster at rest) would hold. */
+const NEVER_COUNTING_COOLDOWN = 5;
 const TANK = 'golem_yellow';
 const YELLOW_BUTTON = 'puppet_control';
 const TANK_START = { x: 6, y: 2 };
@@ -153,9 +157,10 @@ describe('water, slime and fire kill a monster when its step ends (CC2 engine)',
     expect(life.gone).toBe((life.stepEnded as number) + 1);
   });
 
-  it('removes a clone let out onto water when its step ends, not when the queued arithmetic says', () => {
-    // The queued due time counts the wait the clone had on arrival. A step that lasts longer than counted (here two ticks more, as a
-    // slowed or retried step does) must hold the removal: Lexy kills on arrival once the step has ended, whatever its length.
+  it('removes a clone let out onto water when its step ends, whatever the queued arithmetic counted (forced invariant)', () => {
+    // A forced invariant, not a natural case: a clone released by a queued press, by the button of a player or by a wire always has
+    // the arithmetic and stepEndedPass agree (measured on every release path of the room). The step is lengthened by hand, as a
+    // slowed or retried step would be, so the two disagree: Lexy kills on arrival once the step has ended, whatever its length.
     const engine = cloneOnto('fireball', 'water');
     const frames = trace(engine, 'fireball', CLONER_CELL, (tick) => {
       const clone = engine.getEntities().find((e) => e.type === 'fireball' && e.x === HAZARD_CELL.x && e.y === HAZARD_CELL.y);
@@ -209,7 +214,160 @@ describe('a yellow tank records its step end (HZE3)', () => {
   });
 });
 
+describe('a due hazard removal is applied before the wire phase of its pass', () => {
+  it('lets the clone machine fire onto the cell the dead monster stood on, in the same pass', () => {
+    const plate = { x: 3, y: ROOM_ROW };
+    const level = room({
+      mode: 'cc2',
+      startX: 1,
+      terrain: { [`${plate.x},${plate.y}`]: 'signal_plate', [`${CLONER_CELL.x},${CLONER_CELL.y}`]: 'clone_machine',
+        [`${HAZARD_CELL.x + 1},${HAZARD_CELL.y}`]: 'wall',
+        [`${HAZARD_CELL.x},${HAZARD_CELL.y - 1}`]: 'wall',
+        [`${HAZARD_CELL.x},${HAZARD_CELL.y + 1}`]: 'wall'
+      },
+      entities: [
+        { type: 'fireball', x: CLONER_CELL.x, y: CLONER_CELL.y, dir: 'E' },
+        { type: 'fireball', x: HAZARD_CELL.x, y: HAZARD_CELL.y, dir: 'E' }
+      ]
+    });
+    level.signalLinks = [{ fromX: plate.x, fromY: plate.y, toX: CLONER_CELL.x, toY: CLONER_CELL.y }];
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    engine.tick();
+    const w = world(engine);
+    w.terrain[HAZARD_CELL.y][HAZARD_CELL.x] = 'water';
+    // The victim's step has just ended on the water: its removal is due in the pass about to run (Lexy water on_arrive 980-1010).
+    const victim = w.entities.find((e) => e.x === HAZARD_CELL.x && e.y === HAZARD_CELL.y) as RuntimeEntity;
+    victim.cooldownTicks = 0;
+    victim.stepEndedPass = w.ccMonsterClock;
+    victim.stepEndedCell = HAZARD_CELL.y * mapWidth(w) + HAZARD_CELL.x;
+    w.ccArrivals.push({ uid: victim.uid, x: HAZARD_CELL.x, y: HAZARD_CELL.y, removal: 'splash', due: w.ccMonsterClock });
+    // The plate's press fires the machine before the decisions of the next pass (game.js:869-888).
+    w.cc2DeferredSinkEdges = [{ cell: CLONER_CELL.y * mapWidth(w) + CLONER_CELL.x, rising: true }];
+    const uidsBefore = new Set(w.entities.map((e) => e.uid));
+    engine.tick();
+    expect(w.entities.some((e) => e.uid === victim.uid)).toBe(false);
+    const clone = w.entities.find((e) => !uidsBefore.has(e.uid) && e.type === 'fireball');
+    // The dead monster no longer blocks the release: the clone stands where it stood, in the pass the victim died in.
+    expect(clone).toBeDefined();
+  });
+});
+
+describe('a due hazard removal is applied at the input of a level without actor order', () => {
+  /** A fireball boxed in on the water east of the player, its removal due in the pass about to run; a second player parked far away (no actor order). */
+  function waterNextToPlayer(): { engine: GameEngine; victim: RuntimeEntity } {
+    const next = { x: 2, y: ROOM_ROW };
+    const level = room({ mode: 'cc2', startX: 1, terrain: { [`${next.x},${next.y}`]: 'water' }, entities: [{ type: 'fireball', x: next.x, y: next.y, dir: 'E' }] });
+    level.extraPlayers = [{ x: 11, y: 11, dir: 'W', character: 'chip' }];
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const w = world(engine);
+    const victim = w.entities.find((e) => e.type === 'fireball') as RuntimeEntity;
+    victim.cooldownTicks = 0;
+    victim.stepEndedPass = w.ccMonsterClock;
+    victim.stepEndedCell = next.y * mapWidth(w) + next.x;
+    w.ccArrivals.push({ uid: victim.uid, x: next.x, y: next.y, removal: 'splash', due: w.ccMonsterClock });
+    engine.getPlayer().boots.add('boots_water');
+    return { engine, victim };
+  }
+
+  it('has no actor order, so the player steps at the input', () => {
+    expect(waterNextToPlayer().engine.playsInActorOrder()).toBe(false);
+  });
+
+  it('lets the player step onto the cell of a monster the water kills in the pass about to run', () => {
+    const { engine, victim } = waterNextToPlayer();
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.getPlayer().x).toBe(2);
+    expect(world(engine).entities.some((e) => e.uid === victim.uid)).toBe(false);
+  });
+});
+
+describe('a yellow tank holds a brown button from the pass after its step ended (HZE3 probe)', () => {
+  it('isButtonPressed is false right after the tank turn that ends its step, true one pass later', () => {
+    const engine = steeredTank('button_brown');
+    const w = world(engine);
+    const pressed: boolean[] = [];
+    const resting: boolean[] = [];
+    for (let tick = 1; tick <= RUN_TICKS; tick++) {
+      engine.tick();
+      const tank = engine.getEntities().find((e) => e.type === TANK);
+      resting.push(tank?.x === TANK_TARGET.x && tank.y === TANK_TARGET.y && tank.cooldownTicks === 0);
+      // Read as an actor of the pass just played would read it: with the pass open, the clock being that pass.
+      w.ccPassOpen = true;
+      try {
+        pressed.push(isButtonPressed(w, TANK_TARGET.x, TANK_TARGET.y));
+      } finally {
+        w.ccPassOpen = false;
+      }
+    }
+    const stepEnded = resting.indexOf(true);
+    expect(stepEnded).toBeGreaterThan(0);
+    // Lexy tiletypes.js:1764-1779: the press is added when the step ends, seen by the actors of the next pass. Without the line that
+    // records the yellow tank's step end it reads true here, in the very pass the step ended in.
+    expect(pressed[stepEnded]).toBe(false);
+    expect(pressed[stepEnded + 1]).toBe(true);
+  });
+});
+
 describe('a removal never outlives the end of its step (HZG)', () => {
+  /** A fireball boxed in on a water cell, its hazard removal queued at `due`, the step end record erased: only the margin can remove it. */
+  function boxedInWater(cooldownTicks: number): { engine: GameEngine; due: number } {
+    const walls: Record<string, string> = {
+      [`${HAZARD_CELL.x},${HAZARD_CELL.y}`]: 'water',
+      [`${HAZARD_CELL.x - 1},${HAZARD_CELL.y}`]: 'wall',
+      [`${HAZARD_CELL.x + 1},${HAZARD_CELL.y}`]: 'wall',
+      [`${HAZARD_CELL.x},${HAZARD_CELL.y - 1}`]: 'wall',
+      [`${HAZARD_CELL.x},${HAZARD_CELL.y + 1}`]: 'wall'
+    };
+    const engine = new GameEngine();
+    engine.loadLevel(room({ mode: 'cc2', startX: 1, terrain: walls, entities: [{ type: 'fireball', x: HAZARD_CELL.x, y: HAZARD_CELL.y, dir: 'E' }] }));
+    const w = world(engine);
+    const monster = w.entities.find((e) => e.type === 'fireball') as RuntimeEntity;
+    delete monster.atLoadCell;
+    monster.cooldownTicks = cooldownTicks;
+    const due = w.ccMonsterClock + FALLBACK_DUE_PASSES;
+    w.ccArrivals.push({ uid: monster.uid, x: HAZARD_CELL.x, y: HAZARD_CELL.y, removal: 'splash', due });
+    return { engine, due };
+  }
+
+  /** The pass clock after the tick in which the monster was found gone, and the clock after the tick before it. */
+  function goneAtClock(engine: GameEngine): { before: number; after: number } {
+    const w = world(engine);
+    for (let tick = 1; tick <= RUN_TICKS; tick++) {
+      const before = w.ccMonsterClock;
+      const monster = w.entities.find((e) => e.type === 'fireball');
+      if (monster !== undefined) delete monster.stepEndedPass;
+      engine.tick();
+      if (!w.entities.some((e) => e.type === 'fireball')) return { before, after: w.ccMonsterClock };
+    }
+    throw new Error('the monster was never removed');
+  }
+
+  it('removes a boxed-in monster that arrived at rest, with no step end record, at the old due pass', () => {
+    const { engine, due } = boxedInWater(0);
+    const clocks = goneAtClock(engine);
+    // An arrival at rest cannot escape by deciding: with no recorded step end the old arithmetic applies, so it is removed at the start
+    // of the pass whose clock is `due` and still stands in the pass before.
+    expect(clocks.before).toBe(due);
+    expect(clocks.after).toBe(due + 1);
+  });
+
+  it('removes a monster whose cooldown never counts down exactly the margin after the old due pass, not before (immortality)', () => {
+    const { engine, due } = boxedInWater(NEVER_COUNTING_COOLDOWN);
+    const w = world(engine);
+    const monster = w.entities.find((e) => e.type === 'fireball') as RuntimeEntity;
+    let goneAfter: number | undefined;
+    for (let tick = 1; tick <= RUN_TICKS && goneAfter === undefined; tick++) {
+      monster.cooldownTicks = NEVER_COUNTING_COOLDOWN;
+      engine.tick();
+      if (!w.entities.includes(monster)) goneAfter = w.ccMonsterClock;
+    }
+    // Removed at the start of the pass whose clock is due + margin (gone once that pass ran), and still standing in every pass before.
+    expect(goneAfter).toBe(due + MARGIN_PASSES + 1);
+  });
+
   it('leaves no hazard removal queued more than the margin after the monster stopped', () => {
     const scenes: Array<[GameEngine, string]> = [
       [walkInto('cc2', 'fireball', 'water'), 'fireball'],
