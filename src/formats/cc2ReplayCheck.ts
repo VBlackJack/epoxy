@@ -330,12 +330,33 @@ const ACTION_KEY_MASK =
   CC2_REPLAY_ACTION_BITS.drop | CC2_REPLAY_ACTION_BITS.switchPlayer | CC2_REPLAY_ACTION_BITS.cycleInventory;
 
 /**
+ * A player carried by a force floor who may override it (forcePermission) may drop: Lexy's make_player_decision keeps
+ * may_move for him (game.js:1576-1597). Read through the public terrain and player of the engine.
+ */
+function mayOverrideForce(engine: PlayEngine): boolean {
+  if (!(engine instanceof GameEngine)) return false;
+  const player = engine.getPlayer();
+  return ConfigRegistry.getTile(engine.getTerrain()[player.y][player.x]).slideType === 'force' && player.forcePermission === true;
+}
+
+/**
+ * A forced exit from a hard pad is pending (teleportExit set on a pad that is not teleportSoftCc2): Lexy's teleport-hard
+ * slide leaves no may_move, so a drop is refused (tiletypes.js:1879, 2022).
+ */
+function hardPadExitPending(engine: PlayEngine): boolean {
+  if (!(engine instanceof GameEngine)) return false;
+  const player = engine.getPlayer();
+  if (player.teleportExit === undefined) return false;
+  return ConfigRegistry.getTile(engine.getTerrain()[player.y][player.x]).teleportSoftCc2 !== true;
+}
+
+/**
  * Plays the action keys freshly pressed this tick, at the player's decision only (move cooldown 0), as the reference
  * player does: cycle inventory, drop (not while sliding) and switch player. A key that acts is reported through
  * `consume` so that it does not act again until it is released; a key pressed while the player is not deciding keeps
  * waiting. Returns whether the player was switched, in which case the swap eats the input of the tick.
  */
-function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void, belt: ToolBelt | null): boolean {
+function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void, belt: ToolBelt | null, cc2Engine: boolean): boolean {
   const player = engine.getPlayer();
   if (fresh === 0 || player.moveCooldown !== 0) return false;
   if (fresh & CC2_REPLAY_ACTION_BITS.cycleInventory) {
@@ -343,7 +364,10 @@ function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: numbe
     if (belt) belt.cycle(engine);
     else engine.cycleInventory?.();
   }
-  if (fresh & CC2_REPLAY_ACTION_BITS.drop && !player.isSliding) {
+  // CC2 engine: a drop is also allowed while a force floor carries a player who may override it and refused while a hard pad exit is
+  // pending; the key is not consumed while barred (Lexy re-arm, game.js:1590-1594).
+  const dropAllowed = cc2Engine ? (!player.isSliding || mayOverrideForce(engine)) && !hardPadExitPending(engine) : !player.isSliding;
+  if (fresh & CC2_REPLAY_ACTION_BITS.drop && dropAllowed) {
     consume(CC2_REPLAY_ACTION_BITS.drop);
     if (belt) belt.drop(engine);
     else dropOldestBoots(engine);
@@ -383,7 +407,7 @@ function playHeld(engine: PlayEngine, replay: Cc2Replay, engineKind: Cc2ReplayEn
       released |= ~tickKeys & ACTION_KEY_MASK;
       swappedNow = playActionKeys(engine, tickKeys & released, (consumed) => {
         released &= ~consumed;
-      }, belt);
+      }, belt, cc2Engine);
     }
     for (const dir of DIRECTIONS) if (!held.includes(dir)) down.delete(dir);
     for (const dir of held) if (!down.has(dir)) down.set(dir, tick);

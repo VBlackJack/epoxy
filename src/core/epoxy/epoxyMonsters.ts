@@ -911,13 +911,15 @@ function holdsProtection(w: EpoxyWorld, entity: RuntimeEntity): boolean {
 
 /**
  * CC2: an entity that picks things up (a ghost, a rover) keeps the tools it takes, up to CC2_ENTITY_TOOL_CAPACITY; taking
- * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). Keys are taken but never held.
+ * one more drops the oldest on the cell it just emptied (Lexy game.js:3245-3256). On the CC2 engine any actor keeps the keys
+ * it takes on its keyring and opens doors with them; elsewhere only a rolling ball keeps keys.
  */
 function holdTool(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number, itemId: string): void {
   const collectible = ConfigRegistry.getTile(itemId).collectible;
   if (collectible === TOOL_EXCLUDED_COLLECTIBLE) {
-    // A rolling ball keeps the keys it takes: they open the doors it rolls into.
-    if (isRollingBallDef(ConfigRegistry.getEntityDef(entity.type))) (entity.heldKeys ??= []).push(itemId);
+    // A rolling ball keeps the keys it takes: they open the doors it rolls into. On the CC2 engine any actor does (Lexy attempt_take
+    // game.js:3221-3275, door on_arrive take_key_from_actor tiletypes.js:38-56); the CC3D pace keeps its own rule.
+    if (isRollingBallDef(ConfigRegistry.getEntityDef(entity.type)) || (usesCc2Engine(w.level) && !w.cc3dPace)) (entity.heldKeys ??= []).push(itemId);
     return;
   }
   // A score bonus is taken and gone: it is no tool.
@@ -1015,16 +1017,15 @@ function isPlayerOpening(w: EpoxyWorld, x: number, y: number): boolean {
 
 /**
  * The point teeth aim at. On a CC2-engine level, once a tick has recorded the player's view, it is his apparent position
- * (the cell he is stepping out of, or the source pad of a teleport, plus the share of the step still to run), not his cell
+ * (the cell he is stepping out of, plus the share of the step still to run), not his cell
  * (Lexy pursue_player, visual_position); otherwise the player's cell.
  */
 function chaseTarget(w: EpoxyWorld): { x: number; y: number } {
   const view = w.cc2PlayerView;
   if (view === undefined || !usesCc2Engine(w.level)) return { x: w.player.x, y: w.player.y };
-  const base = view.sourcePad ?? view;
   const left = view.stepLength > 0 ? Math.min(1, Math.max(0, view.cooldown / view.stepLength)) : 0;
   const vec = DIRECTION_VECTORS[view.dir];
-  return { x: base.x - vec.dx * left, y: base.y - vec.dy * left };
+  return { x: view.x - vec.dx * left, y: view.y - vec.dy * left };
 }
 
 /**

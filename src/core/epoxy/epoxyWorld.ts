@@ -826,7 +826,7 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
 
 /** A copy of the apparent player position of a CC2-engine level. */
 export function copyCc2PlayerView(v: Cc2PlayerView): Cc2PlayerView {
-  return { ...v, ...(v.sourcePad !== undefined ? { sourcePad: { ...v.sourcePad } } : {}) };
+  return { ...v };
 }
 
 /** A copy of the input stored for the player's turn on a CC2-engine level. */
@@ -838,7 +838,7 @@ export function copyPendingDecision(d: Cc2PendingDecision): Cc2PendingDecision {
 export function cc2PlayerViewKey(w: EpoxyWorld): string {
   const v = w.cc2PlayerView;
   if (v === undefined) return '';
-  return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}${v.sourcePad === undefined ? '' : `p${v.sourcePad.x}.${v.sourcePad.y}`}`;
+  return `${v.x}.${v.y}${v.dir}${v.cooldown}/${v.cooldown === 0 ? 1 : v.stepLength}`;
 }
 
 /**
@@ -867,6 +867,11 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // An entity that has not left its load cell decides differently from one that has.
   const atLoad = w.entities.filter((e) => e.atLoadCell === true).map((e) => e.uid);
   if (atLoad.length > 0) parts.push(`l${atLoad.join(',')}`);
+  // A block that landed on a slide cell by its last move, and the push a jammed block waits to take at its own move.
+  const slid = w.entities.filter((e) => e.cc2SlideArrived === true).map((e) => e.uid);
+  if (slid.length > 0) parts.push(`a${slid.join(',')}`);
+  const pushes = w.entities.filter((e) => e.cc2PendingPush !== undefined).map((e) => `${e.uid}${e.cc2PendingPush}`);
+  if (pushes.length > 0) parts.push(`q${pushes.join(',')}`);
   // The tool belt (order matters) and the soft pad decision of each player.
   const belts = playersOf(w).map((p, index) => (p.belt !== undefined && p.belt.length > 0 ? `${index}:${p.belt.join('+')}` : '')).filter((part) => part !== '');
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);
@@ -985,9 +990,25 @@ export function leaveThroughExit(w: EpoxyWorld): boolean {
   return false;
 }
 
+/**
+ * CC2 engine: the next player to control is the one before the current one in the actor list, wrapping to the last (Lexy
+ * swap_players walks the list backwards, game.js:1377-1415). Moves it to the head of the parked queue. This applies on levels
+ * without the actor order too; it is a no-op without list ordinals (no CC2 engine), under the CC3D pace, or with a single player parked.
+ */
+function pickPreviousPlayer(w: EpoxyWorld): void {
+  const own = w.player.listOrdinal;
+  if (!usesCc2Engine(w.level) || w.cc3dPace || own === undefined || w.parked.length < 2 || w.parked.some((p) => p.listOrdinal === undefined)) return;
+  const before = w.parked.filter((p) => (p.listOrdinal as number) < own);
+  const pool = before.length > 0 ? before : w.parked;
+  const pick = pool.reduce((a, b) => ((b.listOrdinal as number) > (a.listOrdinal as number) ? b : a));
+  w.parked.splice(w.parked.indexOf(pick), 1);
+  w.parked.unshift(pick);
+}
+
 /** Drops the controlled player once it has left through an exit and hands control to the next one; true when it did. */
 export function dropExitedController(w: EpoxyWorld): boolean {
   if (w.player.exited !== true || w.swappedIn !== null) return false;
+  pickPreviousPlayer(w);
   const next = w.parked.shift();
   if (next !== undefined) w.player = next;
   return true;
@@ -999,6 +1020,7 @@ export function dropExitedController(w: EpoxyWorld): boolean {
  * receives control mid-slide keeps sliding and its move cooldown has kept running down while it was parked.
  */
 export function rotatePlayers(w: EpoxyWorld): boolean {
+  pickPreviousPlayer(w);
   const next = w.parked.shift();
   if (next === undefined) return false;
   w.parked.push(w.player);

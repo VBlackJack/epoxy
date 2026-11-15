@@ -37,6 +37,7 @@ import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } 
 import { setDownDynamite } from './epoxyDynamite';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { teleportPlayer } from './epoxyTeleports';
+import { stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -44,6 +45,7 @@ import {
   entityPressesPlate,
   getEntityAt,
   holdsItem,
+  isButtonPressed,
   isCellClosedTrap,
   isCovered,
   isEdgeBlocked,
@@ -63,6 +65,39 @@ import {
   withPlayer
 } from './epoxyWorld';
 
+/** Out-of-turn ejection from a trap: a block is pushed out its facing, chain allowed (Lexy attempt_step pushes of the ice block), not by the player. */
+const TRAP_EJECT_ALLOW_CHAIN = true;
+const TRAP_EJECT_BY_PLAYER = false;
+/** An ejected block is not pushed by a player, so no player cell is guarded (the fifth argument of attemptPushBlock). */
+const TRAP_EJECT_GUARD_PLAYER_CELL = false;
+/** Extra cooldown tick of a monster stepped out of a trap, as the rolling ball keeps LAUNCH_EXTRA_COOLDOWN_TICKS. */
+const TRAP_EJECT_EXTRA_COOLDOWN_TICKS = 1;
+
+/**
+ * A trap that a press just opened ejects what it holds, out of turn (Lexy trap add_press -> attempt_out_of_turn_step,
+ * tiletypes.js:1764-1779). A block is pushed out its facing; a monster steps once out of turn and carries one extra cooldown
+ * tick, counted once per tic (Lexy do_extra_cooldown, game.js:2218-2242, last_extra_cooldown_tic) so the pass does not count
+ * the tick of its step a second time. An entity that ignores floor effects (a ghost) is not held by a trap.
+ * Known gap: a parked player in the trap is not ejected, where Lexy ejects any actor (tiletypes.js:1771-1777); it concerns
+ * multi-player CC2 levels only.
+ */
+function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
+  const w = ctx.world;
+  const e = getEntityAt(w, x, y);
+  if (e === undefined || ConfigRegistry.getEntityDef(e.type)?.ignoresFloorEffects === true) return;
+  if (e.kind === 'block') {
+    if (!e.isSliding && e.arrivalTicks === undefined) attemptPushBlock(ctx, e, e.dir, TRAP_EJECT_ALLOW_CHAIN, TRAP_EJECT_GUARD_PLAYER_CELL, undefined, TRAP_EJECT_BY_PLAYER);
+    return;
+  }
+  if (e.kind !== 'monster' || e.cooldownTicks !== 0) return;
+  w.ccPlans.set(e.uid, e.dir);
+  const fromX = e.x;
+  const fromY = e.y;
+  stepClassicMonsterOutOfTurn(ctx, e);
+  w.ccPlans.delete(e.uid);
+  if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks += TRAP_EJECT_EXTRA_COOLDOWN_TICKS;
+}
+
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
 export const FORCE_FLOOR_MOVE_COOLDOWN_TICKS = 1;
 /** Extra slide delay on force floors, on top of timing.slideCooldownTicks. */
@@ -77,8 +112,8 @@ export const CC2_SLIDING_STEP_MOVE_COOLDOWN_TICKS = 1;
 /** CC2 engine: ticks a slide that ends on plain floor waits less than a walking step (the last slide step is an in-tick move). */
 export const CC2_SLIDE_END_WAIT_REDUCTION_TICKS = 1;
 
-/** CC2 engine: ticks the step that leaves a soft pad lasts less, since the forced exit is taken a tick after the wait. */
-const CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS = 1;
+/** CC2 engine: ticks of the exit step's wait already counted when it is taken, at the turn after the jump. */
+const CC2_TELEPORT_EXIT_COUNTED_TICKS = 1;
 
 /** Shortest wait between two voluntary moves, whatever the haste. */
 const MIN_WALK_COOLDOWN_TICKS = 1;
@@ -200,9 +235,14 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
  * - a block whose terrain bars the player is not pushed (Lexy can_actor_enter_cell judges the cell's tiles before pushables,
  *   game.js:1813-1935).
  *
- * Known gap, pinned by a test: Lexy does not drop the push of a sliding block, it writes a pending push that turns the
- * block's next slide that way. Porting it (the AODP prototype flag) lost chaoslnd and map116 and broke memories (a block
- * pushed N on ice at t139 kills the player where the solution lives), so the push is skipped and the gap is kept.
+ * Pending push (wave 10): Lexy does not drop the push of a block that cannot be pushed directly, it writes a pending push that
+ * turns the block's next move that way (must_pending_push, game.js:1980-1996; taken at 1703-1710). Only the jammed case is
+ * ported: a block at rest on a force floor whose last move landed it on a slide cell (cc2SlideArrived) takes cc2PendingPush, is
+ * listed as moving at the decision so the step does not push it, and the player walks in when the block already left. Known gaps,
+ * pinned by tests: the push of a block that slides or arrives (ice or force) is still skipped, not queued (the full pending push,
+ * the AODP prototype flag, lost chaoslnd and map116 and broke memories, a block pushed N on ice at t139 kills the player where the
+ * solution lives); and the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either.
+ * A player carried by a force floor who may override it decides too (Lexy may_move, game.js:1576-1579).
  *
  * The slaps are timed as the input was (pass closed, outside a tick), as the clock adapter of the turn expects.
  */
@@ -210,7 +250,9 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
   const w = ctx.world;
   const p = w.player;
   if (!usesCc2Engine(w.level) || w.cc3dPace) return;
-  if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || p.isSliding || isCellClosedTrap(w, p.x, p.y)) return;
+  // A player carried by a force floor who may override it decides (and pushes) too (Lexy may_move, game.js:1576-1579).
+  const overridesForce = p.isSliding && p.forcePermission === true && ConfigRegistry.getTile(w.terrain[p.y][p.x]).slideType === 'force';
+  if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || (p.isSliding && !overridesForce) || isCellClosedTrap(w, p.x, p.y)) return;
   for (const entity of w.entities) {
     if (entity.kind === 'block' && (entity.arrivalTicks !== undefined || (entity.isSliding && entity.cooldownTicks > 0))) {
       movingAtDecision.add(entity.uid);
@@ -226,8 +268,18 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
       const ahead = getEntityAt(w, p.x + vec.dx, p.y + vec.dy);
       if (ahead !== undefined && ahead.kind === 'block') {
         const aheadTile = ConfigRegistry.getTile(w.terrain[ahead.y][ahead.x]);
-        // Lexy no_directly_pushing_sliding_blocks: skipped here (the pending push it writes instead is not ported, see above).
-        if (aheadTile.slideType !== undefined && (ahead.isSliding || ahead.arrivalTicks !== undefined)) continue;
+        const moving = aheadTile.slideType !== undefined && (ahead.isSliding || ahead.arrivalTicks !== undefined);
+        // Lexy must_pending_push (game.js:1980-1996): the push of a block jammed on a force floor (at rest, its last move landed it
+        // on a slide cell) becomes a pending push. The block goes that way at its own move of the tick; the step does not push it
+        // (it is listed as moving at the decision), and he walks in when the block, listed before him, already left.
+        const jammed = aheadTile.slideType === 'force' && !ahead.isSliding && ahead.arrivalTicks === undefined && ahead.cc2SlideArrived === true;
+        if (jammed) {
+          ahead.cc2PendingPush = dir;
+          movingAtDecision.add(ahead.uid);
+          continue;
+        }
+        // Lexy no_directly_pushing_sliding_blocks: the push of a block that slides or arrives is skipped.
+        if (moving) continue;
         if (!canPlayerEnter(w, aheadTile, w.items[ahead.y][ahead.x])) continue;
       }
       slapBlockAhead(ctx, dir);
@@ -263,6 +315,9 @@ export function slapBlockAhead(ctx: EpoxyContext, requestedDir: Direction): bool
   if (block === undefined || block.kind !== 'block') return bumped;
   // CC2 engine: the block on a clone machine is its template, held by the machine: the slap does not move it (Lexy cloner.traps).
   if (usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[targetY][targetX]).isCloneMachine) return bumped;
+  // CC2 engine: a block whose terrain bars the player is not slapped, the item on its cell is not read (Lexy can_actor_enter_cell
+  // judges the tiles before the pushables, game.js:1813-1935, and mines items for the player).
+  if (usesCc2Engine(w.level) && !w.cc3dPace && !canPlayerEnter(w, ConfigRegistry.getTile(w.terrain[targetY][targetX]), null)) return bumped;
   const pushed = attemptPushBlock(ctx, block, dir, true, false, undefined, true);
   p.dir = facing;
   return pushed || bumped;
@@ -445,7 +500,12 @@ function attemptPlayerStep(ctx: EpoxyContext, requestedDir: Direction, fromSlide
       // on its own as the step goes on (Cc3dSimulation.tryStep), so he is judged on the cell as it stood when the step
       // began (the character signs, boots and no-signs that bar him still do) and enters whatever it has become.
       const cc3dStep = isCc3dPush(entityAtTarget);
+      // CC2 engine: the cell he steps into was judged once, before the push, and is entered whatever the push made of it: a popwall
+      // the block left is a wall by now and he still walks in (Lexy attempt_step: check_movement, then move_to, game.js:2020-2036;
+      // steam-strict emulate_spring_mining, defs.js:294-297). Blocks in a push chain keep their re-check (epoxyBlocks planPushLine).
+      const judgedBefore = usesCc2Engine(w.level) && !w.cc3dPace;
       if (
+        !judgedBefore &&
         !canPlayerEnter(
           w,
           cc3dStep ? updatedTargetTile : ConfigRegistry.getTile(w.terrain[targetY][targetX]),
@@ -715,13 +775,15 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
   // The item of the cell he arrived on, read before a pad is taken: the tool it pushes off the belt lands here and is not picked up again.
   const arrivalItem = w.items[y][x];
-  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && w.cc3dPace) {
-    // CC3D: the jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
+  // CC2 engine: the jump too happens when the step onto the pad ends, at the player's turn (Lexy step_on_cell marks the pad,
+  // game.js:2316-2327, and attempt_teleport runs from do_actor_idle, game.js:1371-1372).
+  const jumpsAtStepEnd = usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd;
+  if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport && (w.cc3dPace || jumpsAtStepEnd)) {
+    // The jump happens when the step that ended on the pad ends (see applyCc3dStepEnd); the pad's own item is still his.
     cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
   } else if ((tile.isTeleporter || tile.teleportsToSelf) && allowTeleport) {
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, entryDir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) {
-      markCc2Teleport(w, x, y);
       ctx.emitVisual('teleport', w.player.x, w.player.y);
       resolvePlayerArrival(ctx, w.player.dir, false);
       return;
@@ -867,7 +929,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
 
 /**
  * Whether what a step of the player does on the cell it ends on waits for the end of the step (applyCc3dStepEnd): a
- * converted CC3D level and a CC2-engine level. Teleports stay with the step on a CC2-engine level.
+ * converted CC3D level and a CC2-engine level. A teleport on a CC2-engine level jumps at the step end too (jumpAtStepEnd), at the player's turn after the step.
  */
 export function defersStepEffects(w: EpoxyWorld): boolean {
   return w.cc3dPace || usesCc2Engine(w.level);
@@ -920,6 +982,15 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     const cell = p.y * mapWidth(w) + p.x;
     const held = w.cc2BrownHeld ?? [];
     if (!held.includes(cell)) w.cc2BrownHeld = [...held, cell].sort((a, b) => a - b);
+    // CC2 engine: the traps this press opens eject what they hold. He has stood on the button since his step began (Epoxy presses by
+    // occupancy), so the trap reads open already: the press is the opening one when no other button linked to the trap is held.
+    if (usesCc2Engine(w.level) && !w.cc3dPace) {
+      for (const l of w.trapLinks) {
+        if (l.buttonX !== p.x || l.buttonY !== p.y) continue;
+        if (w.trapLinks.some((o) => o.trapX === l.trapX && o.trapY === l.trapY && (o.buttonX !== p.x || o.buttonY !== p.y) && isButtonPressed(w, o.buttonX, o.buttonY))) continue;
+        if (!isCellClosedTrap(w, l.trapX, l.trapY)) ejectFromTrap(ctx, l.trapX, l.trapY);
+      }
+    }
   }
   if (pending.pulse !== undefined && p.x === pending.pulse.x && p.y === pending.pulse.y) notePulseArrival(w, pending.pulse.x, pending.pulse.y, null);
   if (pending.press !== undefined) {
@@ -951,7 +1022,9 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
       }
     }
   }
-  if (pending.teleport !== undefined) {
+  if (pending.teleport !== undefined && !w.cc3dPace) {
+    jumpAtStepEnd(ctx, pending.teleport);
+  } else if (pending.teleport !== undefined) {
     const { x, y, dir } = pending.teleport;
     ctx.emitVisual('teleport', x, y);
     if (teleportPlayer(w, x, y, dir, true)) {
@@ -963,6 +1036,23 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     }
   }
   return true;
+}
+
+/**
+ * CC2 engine: the jump of the step that ended on a pad. He lands on the destination pad and the forced exit is taken at his next
+ * turn (Lexy teleport-hard slide, game.js:2324-2373); a soft pad (red, yellow) opens his exit decision in the tick of the jump
+ * (Lexy teleport-soft, tiletypes.js teleport_red and teleport_yellow, game.js:1600-1620).
+ */
+function jumpAtStepEnd(ctx: EpoxyContext, at: { x: number; y: number; dir: Direction }): void {
+  const w = ctx.world;
+  const p = w.player;
+  const { x, y, dir } = at;
+  if (p.x !== x || p.y !== y || !p.alive) return;
+  ctx.emitVisual('teleport', x, y);
+  if (!teleportPlayer(w, x, y, dir, w.ccRules, (px, py, item) => takeYellowPadOntoBelt(ctx, px, py, item))) return;
+  ctx.emitVisual('teleport', w.player.x, w.player.y);
+  resolvePlayerArrival(ctx, w.player.dir, false, true);
+  if (onSoftPad(w)) w.player.softPadDue = true;
 }
 
 /**
@@ -1077,13 +1167,6 @@ export function processTeleportExit(ctx: EpoxyContext): void {
   const w = ctx.world;
   const dir = w.player.teleportExit;
   if (dir === undefined || w.player.moveCooldown > 0 || !w.player.alive || w.levelCompleted) return;
-  // CC2 engine, red and yellow pads: the exit is the player's own decision at his next decision (see softPadOverrideDue). The
-  // first tick after the wait only opens that decision; the forced exit is taken on the following tick when he held nothing.
-  const soft = onSoftPad(w);
-  if (soft && w.player.softPadDue !== true) {
-    w.player.softPadDue = true;
-    return;
-  }
   delete w.player.softPadDue;
   delete w.player.teleportExit;
   const mover = w.player;
@@ -1095,8 +1178,8 @@ export function processTeleportExit(ctx: EpoxyContext): void {
     if (w.player.isSliding) w.player.slideCooldown = Math.min(w.player.slideCooldown, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS - 1);
     else w.player.moveCooldown = Math.max(w.player.moveCooldown, STEP_TICKS.fast - CC3D_TELEPORT_LANDING_WAIT_TICKS);
   } else if (moved && mover === w.player && w.player.alive && w.player.exited !== true && !w.player.isSliding) {
-    // The exit of a soft pad was taken a tick later, so its step is one tick shorter.
-    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (soft ? CC2_SOFT_PAD_EXIT_WAIT_REDUCTION_TICKS : 0));
+    // CC2 engine: the exit is taken at his turn after the jump, which counted a tick of its wait already: a walking wait less one.
+    w.player.moveCooldown = Math.max(w.player.moveCooldown, playerWalkCooldown(w) - (usesCc2Engine(w.level) ? CC2_TELEPORT_EXIT_COUNTED_TICKS : 0));
   }
   ctx.checkTargetsWin();
 }
@@ -1225,23 +1308,10 @@ export function cc2PlayerViewOf(w: EpoxyWorld): Cc2PlayerView {
 }
 
 /**
- * CC2 engine: the explicit teleport marker. The jump to the destination pad happens when the step onto the source pad
- * (x, y) starts here, but the teeth see the player move onto the source pad and only then jump. The marker rides on
- * the view (`sourcePad`), which is left as it stood (the teeth of the tick under way read it); the next
- * recordCc2PlayerView moves it onto the pad.
- */
-function markCc2Teleport(w: EpoxyWorld, x: number, y: number): void {
-  if (!tracksCc2PlayerView(w) || w.cc3dPace) return;
-  const view = w.cc2PlayerView;
-  w.cc2PlayerView = view === undefined ? { x, y, dir: w.player.dir, cooldown: 0, stepLength: 1, sourcePad: { x, y } } : { ...view, sourcePad: { x, y } };
-}
-
-/**
  * CC2 engine: records where the controlled player appears to be, at the end of a tick, so the teeth of the next tick
  * (which run after this tick's input moved him, but aim where he stood before it) read his position at the start of it.
  * A step in progress puts him `cooldown / stepLength` of a cell behind his cell; the step length is the real one (ice,
- * force floors, speed boots), read from the cooldown the step was given. A teleport keeps the apparent position on the
- * source pad until the exit step (resetCc2PlayerView in processTeleportExit moves it onto the destination pad).
+ * force floors, speed boots), read from the cooldown the step was given.
  */
 export function recordCc2PlayerView(w: EpoxyWorld): void {
   if (!tracksCc2PlayerView(w)) return;
@@ -1250,19 +1320,6 @@ export function recordCc2PlayerView(w: EpoxyWorld): void {
   const prev = w.cc2PlayerView;
   if (prev === undefined) {
     w.cc2PlayerView = { x: p.x, y: p.y, dir: p.dir, cooldown, stepLength: Math.max(1, cooldown) };
-    return;
-  }
-  const pad = prev.sourcePad;
-  if (pad !== undefined) {
-    if (prev.x !== pad.x || prev.y !== pad.y) {
-      // The teleport was marked after this view was taken: from now the apparent position is the pad he stepped onto.
-      const dx = Math.sign(pad.x - prev.x);
-      const dy = Math.sign(pad.y - prev.y);
-      const dir = dx === 0 && dy < 0 ? 'N' : dx === 0 && dy > 0 ? 'S' : dy === 0 && dx > 0 ? 'E' : dy === 0 && dx < 0 ? 'W' : prev.dir;
-      w.cc2PlayerView = { x: pad.x, y: pad.y, dir, cooldown, stepLength: Math.max(1, cooldown + 1), sourcePad: { ...pad } };
-    } else {
-      w.cc2PlayerView = { ...prev, cooldown, stepLength: cooldown === 0 ? 1 : prev.stepLength, sourcePad: { ...pad } };
-    }
     return;
   }
   const moved = prev.x !== p.x || prev.y !== p.y;

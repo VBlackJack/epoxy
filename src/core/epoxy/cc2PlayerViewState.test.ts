@@ -43,11 +43,11 @@ describe('CC2 player view and step-end opening state', () => {
     expect(copy.opening).not.toBe(arrival.opening);
   });
 
-  it('copies the player view with its source pad without sharing it', () => {
-    const view: Cc2PlayerView = { x: 1, y: 2, dir: 'E', cooldown: 2, stepLength: 4, sourcePad: { x: 5, y: 6 } };
+  it('copies the player view without sharing it', () => {
+    const view: Cc2PlayerView = { x: 1, y: 2, dir: 'E', cooldown: 2, stepLength: 4 };
     const copy = copyCc2PlayerView(view);
     expect(copy).toEqual(view);
-    expect(copy.sourcePad).not.toBe(view.sourcePad);
+    expect(copy).not.toBe(view);
   });
 
   it('keeps the wait the player has left when control passes to him mid-step', () => {

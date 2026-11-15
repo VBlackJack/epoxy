@@ -173,6 +173,9 @@ function planPushLine(
     if (next && next.kind === 'block' && chainsInto(current, next, head)) {
       // CC2: a block never pushes a sliding block, and a trapped or off-arrow block does not yield.
       if (next.isSliding || !canBeShoved(w, next, dir)) return undefined;
+      // CC2: the pusher must be let into the cell's terrain before the block standing there is pushed (Lexy can_actor_enter_cell
+      // checks the cell's tiles before its pushables, game.js:1813-1935). The item layer is not read: Lexy mines items (game.js:1895-1905).
+      if (usesCc2Engine(w.level) && !w.cc3dPace && !terrainLetsBlockIn(w, current, destX, destY, dir)) return undefined;
       line.push(next);
       current = next;
       continue;
@@ -310,6 +313,17 @@ export function isCc3dPush(block: RuntimeEntity): boolean {
   return ConfigRegistry.getEntityDef(block.type)?.stopsAtWall === true;
 }
 
+/** Whether the terrain of a cell (tile, thin walls, swivel edges) lets a block in, with its items and occupants left aside. */
+function terrainLetsBlockIn(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number, dir: Direction): boolean {
+  if (!isInBounds(w, destX, destY)) return false;
+  if (isEdgeBlocked(w, block.x, block.y, destX, destY, dir, false, 'block')) return false;
+  const destTile = ConfigRegistry.getTile(w.terrain[destY][destX]);
+  const slidesOver = ConfigRegistry.getEntityDef(block.type)?.slidesOverTiles?.includes(destTile.id) === true;
+  if (!destTile.passableByBlock && !isOpenFishGate(w, destTile) && !slidesOver) return false;
+  if (destTile.barsBlocks?.includes(block.type) === true) return false;
+  return destTile.blocksBlocks !== true;
+}
+
 export function isCanBlockEnter(
   w: EpoxyWorld,
   block: RuntimeEntity,
@@ -387,6 +401,14 @@ export function moveBlockTo(
   block.x = destX;
   block.y = destY;
   block.dir = dir;
+  // CC2 engine: a block that lands on a slide cell has a slide mode there (Lexy current_slide_mode, game.js:187); one that lands
+  // elsewhere has none. The push judgement of a jammed block reads the marker, set sparsely (true or absent).
+  if (usesCc2Engine(w.level) && !w.cc3dPace) {
+    if (ConfigRegistry.getTile(w.terrain[destY][destX]).slideType !== undefined) block.cc2SlideArrived = true;
+    else delete block.cc2SlideArrived;
+    // Every step attempt spends the queued push (Lexy attempt_step clears pending_push, game.js:2159).
+    delete block.cc2PendingPush;
+  }
   eraseSplash(w, destX, destY);
   enterSwivel(w, destX, destY, dir);
 
@@ -618,7 +640,14 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
     }
     return BLOCK_STEP_DONE;
   }
-  if (!entity.isSliding && usesCc2Engine(w.level)) takeForceFloorDrift(w, entity);
+  // CC2 engine: a push the player's decision left on a jammed block turns the block's own move of the tick, then is spent
+  // (Lexy pending_push, game.js:1703-1710).
+  const pending = usesCc2Engine(w.level) && !w.cc3dPace && entity.cooldownTicks <= 0 ? entity.cc2PendingPush : undefined;
+  if (pending !== undefined) {
+    delete entity.cc2PendingPush;
+    entity.dir = pending;
+    entity.isSliding = true;
+  } else if (!entity.isSliding && usesCc2Engine(w.level)) takeForceFloorDrift(w, entity);
   if (!entity.isSliding) return BLOCK_STEP_DONE;
   if (entity.cooldownTicks > 0) {
     entity.cooldownTicks--;

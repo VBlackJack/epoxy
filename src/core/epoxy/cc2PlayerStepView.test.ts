@@ -130,33 +130,37 @@ describe('CC2 engine: the apparent player position', () => {
 });
 
 describe('CC2 engine: the apparent position across a teleport', () => {
-  it('stays on the source pad for the pad step, then is the destination pad on the first exit tick', () => {
+  it('stays on the source pad for the pad step, follows the jump at its end, then is the destination pad on the exit tick', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
     engine.tick();
-    // The tick that plays the move puts the player on the destination pad; the view the teeth of that tick read was recorded before it.
+    // The step onto the pad is under way: the jump is made at his turn when it ends (Lexy step_on_cell, game.js:2316-2327; attempt_teleport
+    // from do_actor_idle, game.js:1371-1372), so until then he stands, and appears, on the source pad.
     expect(playMove(engine, 'E').accepted).toBe(true);
-    expect(engine.getPlayer().x).toBe(FAR_PAD);
-    expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD, y: ROOM_ROW, dir: 'E', sourcePad: { x: NEAR_PAD, y: ROOM_ROW } });
+    expect(engine.getPlayer().x).toBe(NEAR_PAD);
+    expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD, y: ROOM_ROW, dir: 'E' });
     const walk = playerWalkCooldown(world(engine));
     expect(viewOf(engine)?.stepLength).toBe(walk);
-    // Still on the pad until the exit step runs.
     let guard = 0;
-    while (engine.getPlayer().teleportExit !== undefined && guard++ < MAX_TICKS) {
-      expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD, sourcePad: { x: NEAR_PAD, y: ROOM_ROW } });
+    while (engine.getPlayer().x === NEAR_PAD && guard++ < MAX_TICKS) {
+      expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD });
       engine.tick();
-      if (engine.getPlayer().teleportExit === undefined) break;
     }
-    // The tick that ran the exit step: the teeth aimed at the destination pad, at rest.
+    // The tick of the jump: he lands on the destination pad and the apparent position follows, at rest; the exit is still to come.
+    expect(engine.getPlayer().x).toBe(FAR_PAD);
+    expect(engine.getPlayer().teleportExit).toBe('E');
+    expect(viewOf(engine)).toMatchObject({ x: FAR_PAD, y: ROOM_ROW, cooldown: 0 });
+    // The exit step, at his next turn: the teeth aimed at the destination pad, at rest.
+    engine.tick();
     expect(engine.getPlayer().x).toBe(FAR_PAD + 1);
     expect(viewOf(engine)).toMatchObject({ x: FAR_PAD + 1, y: ROOM_ROW });
-    expect(viewOf(engine)?.sourcePad).toBeUndefined();
+    expect(viewOf(engine)).not.toHaveProperty('sourcePad');
   });
 
   it('is the destination pad (at rest) while the exit tick runs the teeth', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
     playMove(engine, 'E');
     let sawDestination = false;
-    for (let i = 0; i < MAX_TICKS && engine.getPlayer().x === FAR_PAD; i++) {
+    for (let i = 0; i < MAX_TICKS && engine.getPlayer().x !== FAR_PAD + 1; i++) {
       engine.tick();
       const view = viewOf(engine);
       if (engine.getPlayer().x === FAR_PAD + 1) sawDestination = view?.x === FAR_PAD + 1 || view?.x === FAR_PAD;
@@ -164,28 +168,32 @@ describe('CC2 engine: the apparent position across a teleport', () => {
     expect(sawDestination).toBe(true);
   });
 
-  it('restarting after a teleport mid-step starts with no view and no marker', () => {
+  it('restarting after a teleporting step began starts with no view and no marker', () => {
     const level = room({ mode: 'cc2', terrain: PADS });
     const engine = load(level);
     engine.attemptPlayerMove('E');
     engine.tick();
-    expect(viewOf(engine)?.sourcePad).toBeDefined();
+    expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD });
     engine.loadLevel(level);
     expect(viewOf(engine)).toBeUndefined();
     engine.tick();
-    expect(viewOf(engine)?.sourcePad).toBeUndefined();
+    expect(viewOf(engine)).not.toHaveProperty('sourcePad');
     expect(viewOf(engine)).toMatchObject({ x: START_X, y: ROOM_ROW });
   });
 
-  it('undo of the teleporting step drops the marker', () => {
+  it('undo of the teleporting step puts the view back, with no marker', () => {
     const engine = load(room({ mode: 'cc2', terrain: PADS }));
     engine.tick();
+    const before = viewOf(engine);
     engine.attemptPlayerMove('E');
     engine.tick();
-    expect(viewOf(engine)?.sourcePad).toBeDefined();
+    expect(viewOf(engine)).toMatchObject({ x: NEAR_PAD });
     expect(engine.undo()).toBe(true);
-    expect(viewOf(engine)?.sourcePad).toBeUndefined();
+    expect(viewOf(engine)).not.toHaveProperty('sourcePad');
     expect(engine.getPlayer().x).toBe(START_X);
+    // The view is the restored state's, not the one of the undone step.
+    expect(viewOf(engine)).toEqual(before);
+    expect(viewOf(engine)).toMatchObject({ x: START_X, y: ROOM_ROW });
   });
 });
 

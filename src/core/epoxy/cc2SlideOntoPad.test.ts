@@ -61,10 +61,37 @@ function cooldownOnLanding(mode: RoomMode): { cooldown: number; walk: number } {
   throw new Error('the player never landed on the far pad');
 }
 
+/**
+ * On a CC2-engine level the jump is made at his turn when the step onto the pad ends (Lexy step_on_cell, game.js:2316-2327;
+ * attempt_teleport from do_actor_idle, game.js:1371-1372): the ticks from the one that put him on the near pad, counted, to the jump.
+ */
+function ticksOnNearPad(): { ticks: number; walk: number } {
+  const engine = new GameEngine();
+  engine.loadLevel(
+    room({
+      mode: 'cc2',
+      startX: START_X,
+      terrain: { [`4,${ROOM_ROW}`]: 'ice', [`5,${ROOM_ROW}`]: 'ice', [`${NEAR_PAD},${ROOM_ROW}`]: 'teleport', [`${FAR_PAD},${ROOM_ROW}`]: 'teleport' }
+    })
+  );
+  const walk = playerWalkCooldown((engine as unknown as { w: EpoxyWorld }).w);
+  engine.attemptPlayerMove('E');
+  let ticks = 0;
+  let onPad = false;
+  for (let t = 0; t < MAX_SLIDE_TICKS; t++) {
+    engine.tick();
+    const p = engine.getPlayer();
+    if (p.x === NEAR_PAD) onPad = true;
+    if (onPad) ticks++;
+    if (p.x === FAR_PAD && p.teleportExit !== undefined) return { ticks, walk };
+  }
+  throw new Error('the player never landed on the far pad');
+}
+
 describe('a slide onto a teleporter pad', () => {
   it('lasts a walking step on a CC2-engine level', () => {
-    const { cooldown, walk } = cooldownOnLanding('cc2');
-    expect(cooldown).toBe(walk);
+    const { ticks, walk } = ticksOnNearPad();
+    expect(ticks).toBe(walk);
   });
 
   it('keeps the shorter slide wait on a classic-rules level', () => {
@@ -73,7 +100,7 @@ describe('a slide onto a teleporter pad', () => {
     expect(cooldown).toBeLessThanOrEqual(CC_TELEPORT_SLIDE_WAIT_TICKS);
   });
 
-  it('leaves the pad one walking step after the landing', () => {
+  it('takes the exit step one tick after the landing and keeps a walking wait less the tick the jump counted', () => {
     const engine = new GameEngine();
     engine.loadLevel(
       room({
@@ -84,18 +111,16 @@ describe('a slide onto a teleporter pad', () => {
     );
     const walk = playerWalkCooldown((engine as unknown as { w: EpoxyWorld }).w);
     engine.attemptPlayerMove('E');
-    let landed = -1;
-    for (let t = 1; t <= MAX_SLIDE_TICKS && landed < 0; t++) {
+    let landed = false;
+    for (let t = 1; t <= MAX_SLIDE_TICKS && !landed; t++) {
       engine.tick();
-      if (engine.getPlayer().x === FAR_PAD && engine.getPlayer().teleportExit !== undefined) landed = t;
+      landed = engine.getPlayer().x === FAR_PAD && engine.getPlayer().teleportExit !== undefined;
     }
-    expect(landed).toBeGreaterThan(0);
-    let waited = 0;
-    while (engine.getPlayer().x === FAR_PAD && waited < MAX_SLIDE_TICKS) {
-      engine.tick();
-      waited++;
-    }
-    expect(waited).toBe(walk);
+    expect(landed).toBe(true);
+    // The exit step is decided at his next turn, the tick after the landing.
+    engine.tick();
     expect(engine.getPlayer().x).toBe(FAR_PAD + 1);
+    // Its wait is a walking step less the tick of the jump (CC2_TELEPORT_EXIT_COUNTED_TICKS).
+    expect(engine.getPlayer().moveCooldown).toBe(walk - 1);
   });
 });

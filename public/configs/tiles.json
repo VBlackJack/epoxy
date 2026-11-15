@@ -1064,7 +1064,8 @@
       "layer": "item",
       "i18nKey": "tiles.boots_water.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "boots_fire": {
       "id": "boots_fire",
@@ -1072,7 +1073,8 @@
       "layer": "item",
       "i18nKey": "tiles.boots_fire.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "boots_ice": {
       "id": "boots_ice",
@@ -1080,7 +1082,8 @@
       "layer": "item",
       "i18nKey": "tiles.boots_ice.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "boots_force": {
       "id": "boots_force",
@@ -1088,7 +1091,8 @@
       "layer": "item",
       "i18nKey": "tiles.boots_force.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "slow_time": {
       "id": "slow_time",
@@ -1106,7 +1110,8 @@
       "i18nKey": "tiles.boots_speed.name",
       "laserTransparent": true,
       "collectible": "boot",
-      "hastesPlayer": 2
+      "hastesPlayer": 2,
+      "blocksDirtBlock": true
     },
     "boots_eye": {
       "id": "boots_eye",
@@ -1115,7 +1120,8 @@
       "i18nKey": "tiles.boots_eye.name",
       "laserTransparent": true,
       "collectible": "boot",
-      "revealsHiddenWalls": true
+      "revealsHiddenWalls": true,
+      "blocksDirtBlock": true
     },
     "boots_pull": {
       "id": "boots_pull",
@@ -1124,7 +1130,8 @@
       "i18nKey": "tiles.boots_pull.name",
       "laserTransparent": true,
       "collectible": "boot",
-      "pullsBlocks": true
+      "pullsBlocks": true,
+      "blocksDirtBlock": true
     },
     "ward": {
       "id": "ward",
@@ -1179,7 +1186,8 @@
       "i18nKey": "tiles.hurl_stone.name",
       "laserTransparent": true,
       "collectible": "stone",
-      "dropsAsActorCc2": "rolling_ball"
+      "dropsAsActorCc2": "rolling_ball",
+      "blocksDirtBlock": true
     },
     "toll_token": {
       "id": "toll_token",
@@ -1223,7 +1231,8 @@
       "layer": "item",
       "i18nKey": "tiles.hiking_boots.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "lightning_bolt": {
       "id": "lightning_bolt",
@@ -1231,7 +1240,8 @@
       "layer": "item",
       "i18nKey": "tiles.lightning_bolt.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "steel_foil": {
       "id": "steel_foil",
@@ -1240,7 +1250,8 @@
       "i18nKey": "tiles.steel_foil.name",
       "laserTransparent": true,
       "collectible": "boot",
-      "turnsWallsTo": { "wall": "steel_wall" }
+      "turnsWallsTo": { "wall": "steel_wall" },
+      "blocksDirtBlock": true
     },
     "toggle_clock": {
       "id": "toggle_clock",
@@ -1257,7 +1268,8 @@
       "layer": "item",
       "i18nKey": "tiles.bribe.name",
       "laserTransparent": true,
-      "collectible": "token"
+      "collectible": "token",
+      "blocksDirtBlock": true
     },
     "score_10": {
       "id": "score_10",
@@ -2691,7 +2703,8 @@
       "layer": "item",
       "i18nKey": "tiles.railroad_sign.name",
       "laserTransparent": true,
-      "collectible": "boot"
+      "collectible": "boot",
+      "blocksDirtBlock": true
     },
     "no_sign_key_red": {
       "id": "no_sign_key_red",
@@ -2869,7 +2882,8 @@
       "laserTransparent": true,
       "collectible": "charge",
       "dropsAs": "dynamite_lit",
-      "cc2Dynamite": true
+      "cc2Dynamite": true,
+      "blocksDirtBlock": true
     },
     "dynamite_lit": {
       "id": "dynamite_lit",
@@ -3060,7 +3074,8 @@
       "i18nKey": "tiles.helmet.name",
       "laserTransparent": true,
       "collectible": "boot",
-      "shieldsFromContact": true
+      "shieldsFromContact": true,
+      "blocksDirtBlock": true
     },
     "dirt_3d": {
       "id": "dirt_3d",

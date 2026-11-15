@@ -1441,6 +1441,12 @@ export class GameEngine {
       else processPlayerSlideStep(this.ctx);
     }
     processTeleportExit(this.ctx);
+    // His step onto a pad ended in this turn: its whole step end runs here, at his place in the order, the jump included (Lexy
+    // step_on_cell, game.js:2310-2335: the items before the terrain). Whatever else is pending waits for the next flush as before.
+    if (w.player.cc3dArrival?.teleport !== undefined && (w.player.isSliding ? w.player.slideCooldown : w.player.moveCooldown) <= 0) {
+      applyCc3dStepEnd(this.ctx);
+      if (w.player.cc3dArrival !== undefined && Object.keys(w.player.cc3dArrival).length === 0) delete w.player.cc3dArrival;
+    }
     const late: number[] = [];
     for (const e of w.entities) {
       const was = before.get(e.uid);

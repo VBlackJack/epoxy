@@ -87,10 +87,10 @@ describe('CC2 teeth aim at the apparent position of the player', () => {
     expect(choose(f)).toBe('S');
   });
 
-  it('stays on the source pad of a teleport under way', () => {
+  it('aims at the apparent position, not at his cell, while a teleporting step is under way', () => {
     const f = fixture(OPEN_ROOM, 'cc2', { x: 7, y: 3 });
-    // Without the pad the destination (7,3) would pull the teeth east; the apparent position is still on the pad (3,6).
-    f.w.cc2PlayerView = { x: 7, y: 3, dir: 'E', cooldown: 0, stepLength: 4, sourcePad: { x: 3, y: 6 } };
+    // Without the view the cell (7,3) would pull the teeth east; the apparent position is still on the pad (3,6).
+    f.w.cc2PlayerView = { x: 3, y: 6, dir: 'E', cooldown: 0, stepLength: 4 };
     expect(choose(f)).toBe('S');
   });
 
