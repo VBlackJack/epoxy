@@ -1456,6 +1456,10 @@ export function canMonsterEnter(
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID) ||
     // A door whose key the monster holds lets it in (a rolling ball that took the key).
     holdsKeyOf(monster, destTile);
+  // CC2 engine: an empty clone machine bars only the real player, the dirt block and the typical monsters (Lexy cloner blocks_collision,
+  // tiletypes.js:1693; monster_typical, defs.js:104-107): a rolling ball or a rover is outside that set, enters it and becomes its template.
+  const clonerOpen =
+    destTile.isCloneMachine === true && usesCc2Engine(w.level) && !w.cc3dPace && (isRollingBallDef(def) || def?.movementPattern === EMULATE_CYCLE_PATTERN);
   // A tile that bars some monsters (the CC2 turtle bars fireballs) refuses the ones it lists, and a ghost its own list.
   if (destTile.barsMonsters?.includes(monster.type) === true) return false;
   // A tile that admits only some monsters (the CC2 pop-up wall) refuses the others, whatever else lets them in.
@@ -1467,6 +1471,7 @@ export function canMonsterEnter(
     !destTile.passableByMonster &&
     !passesTile &&
     !passesSolid &&
+    !clonerOpen &&
     !(destTile.hazard === 'fire' && def?.immuneToFire) &&
     !isOpenFishGate(w, destTile)
   ) {
