@@ -196,7 +196,7 @@ describe('a death in the arrivals due at the pass start still closes the frame p
     const w = (engine as unknown as { w: EpoxyWorld }).w;
     const ctx = (engine as unknown as { ctx: EpoxyContext }).ctx;
     const ball = find(w, 'fireball');
-    const action = ConfigRegistry.getTile('button_red').buttonAction as string;
+    const action = ConfigRegistry.getTile('button_red').buttonAction;
     w.ccArrivals.push({ uid: ball.uid, x: BUTTON_X, y: BUTTON_Y, due: w.ccMonsterClock, action });
     w.cc2PrePassDone = true;
     ball.cc2PrePassMoved = true;
