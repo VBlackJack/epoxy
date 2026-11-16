@@ -229,7 +229,7 @@ const APPROX_ENTRIES: Readonly<Record<string, string>> = {
   // Epoxy: teleport_forward (exit forward only, the pad is never its own destination).
   teleport_yellow: YELLOW_TELEPORT_REASON,
   // Epoxy: teleport_blue, a wired pad restricted to its wire network (Cc2LevelData.teleportNets).
-  teleport_blue_wired: `${TELEPORT_REASON} A wired blue pad jumps only within its wire network, as in CC2 (logic gates on the network are not walked); the exit order stays approximate.`,
+  teleport_blue_wired: `${TELEPORT_REASON} A wired blue pad jumps only within its wire network, as in CC2 (logic gates on the network are not walked); the exit order stays approximate. Known difference: the level validator, the pathfinder reachability and the guard check still read one level-wide blue group, a small over-approximation.`,
   // Epoxy: slime.
   slime:
     'Epoxy plays CC2 slime as slime_cc2: it kills every monster but the ghost and the blob, a dirt or ice block pushed onto it clears it and survives, as in the Lexy Labyrinth engine. The Epoxy blob is not hurt by it and, once it has stood on slime, turns each plain, itemless floor cell it leaves into slime. Known differences: CC2 slimes the floor a blob steps onto only while the cell it came from is slime, so the chain stops as soon as the blob steps on anything else, where the Epoxy blob keeps spreading; the boulder (which also spreads slime in CC2) is not modelled.',
