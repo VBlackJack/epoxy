@@ -20,7 +20,7 @@ vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
 
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { LevelValidator } from './LevelValidator';
-import type { CompiledLevel, SignalLink, ValidationIssue } from './types';
+import type { Cc2LevelData, CompiledLevel, SignalLink, ValidationIssue } from './types';
 
 const SIZE = 11;
 const KEY_PREFIX = 'validator.issues.';
@@ -397,5 +397,54 @@ describe('reach walk with signal-driven clone machines and shot launchers', () =
     expect(unreachableKeys(level)).toEqual([]);
     level.solution = 'EEEEE';
     expect(unreachableKeys(level)).toEqual([]);
+  });
+});
+
+describe('gates wired to their own input on a CC2 level (wave 17)', () => {
+  const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, gridHash: 'x' } as Cc2LevelData;
+  const cellIndex = (cell: Cell): number => cell.y * SIZE + cell.x;
+  /** The level as a CC2 import: the cc2 record, with the self links of the listed gate cells. */
+  const cc2 = (level: CompiledLevel, selfLinks?: Cell[]): CompiledLevel => ({
+    ...level,
+    cc2: { ...CC2_RECORD, ...(selfLinks === undefined ? {} : { selfLinks: selfLinks.map(cellIndex) }) }
+  });
+
+  it('reports no cycle for an OR gate that reads its own output (a latch)', () => {
+    const level = room([[P1, PLATE], [GATE, OR], [DOOR_CELL, DOOR]], [link(P1, GATE), link(GATE, DOOR_CELL)]);
+    expect(find(cc2(level, [GATE]), 'signal_cycle')).toBeUndefined();
+    expect(signalIssues(cc2(level, [GATE]))).toEqual([]);
+  });
+
+  it('still reports the cycle of two gates, on a CC2 level and a native one', () => {
+    const loop = room(
+      [[P1, PLATE], [GATE, OR], [GATE_B, OR], [DOOR_CELL, DOOR]],
+      [link(P1, GATE), link(GATE, GATE_B), link(GATE_B, GATE), link(GATE_B, DOOR_CELL)]
+    );
+    expect(find(loop, 'signal_cycle')?.severity).toBe('error');
+    expect(find(cc2(loop, [GATE]), 'signal_cycle')?.severity).toBe('error');
+  });
+
+  // Lexy plays a NOT wired to its own output as a clock: its only input is that wire (crazy1d shape).
+  it('counts the self link of a CC2 NOT as its one input when it has no other', () => {
+    const level = room([[GATE, NOT], [DOOR_CELL, DOOR]], [link(GATE, DOOR_CELL)]);
+    expect(find(level, 'signal_not_inputs')?.severity).toBe('error');
+    expect(find(cc2(level), 'signal_not_inputs')?.severity).toBe('error');
+    expect(find(cc2(level, [GATE]), 'signal_not_inputs')).toBeUndefined();
+    expect(find(cc2(level, [GATE]), 'signal_cycle')).toBeUndefined();
+  });
+
+  it('skips the self link when the CC2 NOT has another input, and still refuses two', () => {
+    const one = room([[P1, PLATE], [GATE, NOT], [DOOR_CELL, DOOR]], [link(P1, GATE), link(GATE, DOOR_CELL)]);
+    expect(find(cc2(one, [GATE]), 'signal_not_inputs')).toBeUndefined();
+    const two = room(
+      [[P1, PLATE], [P2, PLATE], [GATE, NOT], [DOOR_CELL, DOOR]],
+      [link(P1, GATE), link(P2, GATE), link(GATE, DOOR_CELL)]
+    );
+    expect(find(cc2(two, [GATE]), 'signal_not_inputs')?.severity).toBe('error');
+  });
+
+  it('leaves a native NOT with no input an error, whatever a stray cc2-less field says', () => {
+    const level = room([[GATE, NOT], [DOOR_CELL, DOOR]], [link(GATE, DOOR_CELL)]);
+    expect(find(level, 'signal_not_inputs')?.severity).toBe('error');
   });
 });
