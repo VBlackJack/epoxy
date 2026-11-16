@@ -1521,6 +1521,8 @@ export function canMonsterEnter(
   const keyPasses = itemId !== null && CC2_MONSTER_PASSABLE_KEYS.includes(itemId) && usesCc2Engine(w.level);
   // CC2 engine: an item under an item modifier (a no-sign, forbiddenItem) does not bar collision (Lexy game.js:69-71); the no-sign bars only
   // an actor that holds the forbidden item, a key or a held tool (tiletypes.js:1283-1290; defs.js:118-125). gift_bow (item_modifier pickup) is not modelled.
+  // Gaps: the keys a typical monster picked up are not recorded here (Lexy tiletypes.js:3018-3025), so such a monster is never barred by a
+  // key no-sign; and a mirror player ignores no-signs.
   const forbidden = itemId !== null ? ConfigRegistry.getTile(itemId).forbiddenItem : undefined;
   if (forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace) {
     if (monster.heldKeys?.includes(forbidden) === true || monster.heldTools?.includes(forbidden) === true) return false;
