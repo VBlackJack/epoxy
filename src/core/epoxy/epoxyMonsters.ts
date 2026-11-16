@@ -120,6 +120,9 @@ export function updateEntities(ctx: EpoxyContext): void {
   }
 }
 
+/** The uids whose bomb removal was applied and whose queued button press (afterRemoval) has not run yet, per world (never serialized). */
+const bombRemovalsApplied = new WeakMap<EpoxyWorld, Set<number>>();
+
 /**
  * CC2 engine: applies the hazard removals that are due in the pass about to run (water, slime and fire killed a monster at the end of
  * its step), ahead of the wire phase and the clone release of that pass, so a dead monster no longer blocks them.
@@ -193,6 +196,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     for (const arrival of due) {
       // The press queued behind a bomb removal: its monster is gone by now, so the presence check is skipped. The button fires what it is now.
       if (arrival.afterRemoval === true) {
+        // The press goes only with a bomb removal that was applied: a monster that still stands (its removal is void, or it left the
+        // cell) pressed nothing here (Lexy on_stand kills first, then the button under the dead actor is stepped on).
+        const applied = bombRemovalsApplied.get(w);
+        if (applied?.delete(arrival.uid) !== true) continue;
         const under = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
         if (arrival.action !== undefined && under.buttonAction !== undefined && under.buttonWorkedBy !== 'player' && !ctx.triggerButton(arrival.x, arrival.y, under.buttonAction)) return false;
         continue;
@@ -1153,7 +1160,12 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
   // CC2 engine: the ghost on a jet still lit when its step ends burns (queued by resolveMonsterArrival).
   if (removal === null && usesCc2Engine(w.level) && def?.ignoresFloorEffects === true && ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).burnsOccupants === true && !holdsProtection(w, entity)) removal = 'burn';
   if (removal === null) return;
-  if (removal === 'bomb') w.items[entity.y][entity.x] = null;
+  if (removal === 'bomb') {
+    w.items[entity.y][entity.x] = null;
+    const applied = bombRemovalsApplied.get(w) ?? new Set<number>();
+    applied.add(entity.uid);
+    bombRemovalsApplied.set(w, applied);
+  }
   removeEntity(w, entity.uid);
   w.beamDirty = true;
   AudioManager.playSfx(removal === 'bomb' ? 'bomb' : removal);
