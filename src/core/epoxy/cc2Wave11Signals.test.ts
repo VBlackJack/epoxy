@@ -30,9 +30,9 @@ vi.mock('./epoxyDevices', async (importOriginal) => {
   const original = await importOriginal<typeof import('./epoxyDevices')>();
   return {
     ...original,
-    fireClonerAt: (ctx: import('./epoxyWorld').EpoxyContext, x: number, y: number): boolean => {
+    fireClonerAt: (ctx: import('./epoxyWorld').EpoxyContext, x: number, y: number, ...rest: [boolean?]): boolean => {
       fired.calls.push({ x, y, frame: ctx.world.cc2ReleaseFrame, beforePass: ctx.world.cc2BeforePass });
-      return original.fireClonerAt(ctx, x, y);
+      return original.fireClonerAt(ctx, x, y, ...rest);
     }
   };
 });
@@ -105,6 +105,16 @@ describe('fireSinksBeforePass', () => {
     expect(worldOf(engine).cc2DeferredSinkEdges).toEqual([]);
     expect(worldOf(engine).cc2ReleaseFrame).toBeUndefined();
     expect(worldOf(engine).cc2BeforePass).toBeUndefined();
+  });
+
+  // Fails without the byWire argument of epoxySignals (fireClonerAt(ctx, x, y, true)): the release then tries the template way only, east, walled.
+  it('a wire edge on a cloner whose template way is walled releases clockwise (tiletypes.js:1716-1742)', () => {
+    const engine = withDeferredEdge(false);
+    const w = worldOf(engine);
+    w.terrain[ROW][CLONER_X + 1] = 'wall';
+    fireSinksBeforePass(ctxOf(engine));
+    expect(w.entities.some((e) => e.type === BLOCK && e.x === CLONER_X - 1 && e.y === ROW)).toBe(true);
+    expect(w.entities.some((e) => e.type === BLOCK && e.x === CLONER_X && e.y === ROW)).toBe(true);
   });
 
   it('takes the frame of the clone that holds the button down', () => {

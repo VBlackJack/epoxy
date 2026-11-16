@@ -2248,6 +2248,8 @@ export interface CcArrival {
    * onto a bomb, water, fire or slime and removes it when the step ends: the hazard that will remove it then.
    */
   removal?: 'bomb' | 'splash' | 'burn';
+  /** CC2 engine: the press of the button under a monster a bomb removes at the same due; its monster is gone, so the presence check is skipped. Set only when true. */
+  afterRemoval?: true;
   /** A converted CC3D level: the monster's step ended on a teleporter; when the step ends it lands on the destination pad and leaves by a forced fast step one tick later. */
   teleport?: boolean;
   /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */

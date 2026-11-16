@@ -16,6 +16,7 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS } from '../../config/constants';
+import { turnClockwise } from '../lynx/directions';
 import { AudioManager } from '../../audio/AudioManager';
 import {
   BOMB_ITEM_ID,
@@ -33,6 +34,7 @@ import {
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
   PULSE_WIRED_ACTION,
+  ROLLING_BALL_PATTERN,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
 } from '../coreConstants';
@@ -40,7 +42,7 @@ import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
-import { isCanBlockEnter, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
+import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
@@ -112,6 +114,15 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
     const links = w.cloneLinks.filter((l) => l.buttonX === bx && l.buttonY === by);
     if (links.length > 0) {
       for (const link of links) {
+        // CC2 engine: a linked cloner fires from what stands on it now, and spawns nothing when it is empty (Lexy cloner.activate,
+        // tiletypes.js:1704-1706). A press is never a wire edge, so it tries one way only.
+        if (usesCc2Engine(w.level) && !w.cc3dPace) {
+          // A link whose cell is no longer a clone machine (a toggled or replaced tile) fires nothing.
+          if (!ConfigRegistry.getTile(w.terrain[link.clonerY]?.[link.clonerX]).isCloneMachine) continue;
+          const occupant = w.entities.find((e) => e.x === link.clonerX && e.y === link.clonerY && !isPhasingEntityType(e.type));
+          if (occupant !== undefined && !spawnFromCloner(ctx, link.clonerX, link.clonerY, occupant.type, occupant.dir)) return false;
+          continue;
+        }
         if (!spawnFromCloner(ctx, link.clonerX, link.clonerY, link.templateType, link.templateDir)) {
           return false;
         }
@@ -468,15 +479,18 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
 /**
  * Triggers the clone machine at (cx, cy) once, as a trigger button would: the template of the first clone link
  * that names this machine, else the entity sitting on the machine. Does nothing when the cell holds no clone
- * machine now. Used by a signal sink. Returns false when the clone's arrival killed the player.
+ * machine now. Used by a signal sink. `byWire` marks a wire edge, which searches clockwise for a free way on the CC2 engine
+ * (see spawnFromCloner). Returns false when the clone's arrival killed the player.
  */
-export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number): boolean {
+export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire = false): boolean {
   const w = ctx.world;
   if (!ConfigRegistry.getTile(w.terrain[cy]?.[cx]).isCloneMachine) return true;
   const link = w.cloneLinks.find((l) => l.clonerX === cx && l.clonerY === cy);
-  if (link !== undefined) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir);
+  // CC2 engine: a linked cloner clones its actual occupant, nothing when empty (Lexy tiletypes.js:1704-1706).
+  const fromOccupant = usesCc2Engine(w.level) && !w.cc3dPace;
+  if (link !== undefined && !fromOccupant) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir, byWire);
   const template = w.entities.find((e) => e.x === cx && e.y === cy && !isPhasingEntityType(e.type));
-  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir);
+  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir, byWire);
 }
 
 /** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
@@ -507,7 +521,8 @@ export function spawnFromCloner(
   clonerX: number,
   clonerY: number,
   templateType: string,
-  templateDir: Direction
+  templateDir: Direction,
+  byWire = false
 ): boolean {
   const w = ctx.world;
   // The press frame of the wire edge that fired this clone is read once and dropped, so a clone made while this one arrives
@@ -515,16 +530,95 @@ export function spawnFromCloner(
   const releaseFrame = w.cc2ReleaseFrame;
   delete w.cc2ReleaseFrame;
   if (w.entities.length >= MAX_ACTIVE_ENTITIES) return true;
+  // CC2 engine: a clone machine a wire powers tries the template's way, then each next way clockwise (Lexy cloner.activate with
+  // aggressive, tiletypes.js:1716-1742); the first way the release takes is the way of the clone and of the new template. A red or
+  // gray button tries one way only (tiletypes.js:1745-1748).
+  if (byWire && usesCc2Engine(w.level) && !w.cc3dPace) {
+    for (let turn = 0; turn < CLONER_WAY_COUNT; turn++) {
+      const tryDir = turnClockwise(templateDir, turn);
+      if (spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, tryDir, releaseFrame, true)) return w.player.alive;
+      if (!w.player.alive) return false;
+    }
+    return true;
+  }
+  return spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, templateDir, releaseFrame, false);
+}
 
+/** CC2 engine: the ways a wire-powered clone machine tries, clockwise from the template's own. */
+const CLONER_WAY_COUNT = 4;
+
+/**
+ * CC2 engine: a rolling ball template whose release is blocked by an actor, not by terrain, kills that actor and explodes (Lexy
+ * rolling_ball.on_blocked, tiletypes.js:3240-3252); the exploded template counts as released (tiletypes.js:1716-1731, "bowling balls that
+ * immediately destroy something are also considered to have successfully exited"): a fresh template takes its place on the machine and
+ * the release reports success. Blocked by terrain it only stops (a ball being released is spared). Returns whether it did.
+ */
+function releaseBlownUp(
+  ctx: EpoxyContext,
+  clonerX: number,
+  clonerY: number,
+  spawnX: number,
+  spawnY: number,
+  templateType: string,
+  templateDir: Direction,
+  probe: RuntimeEntity
+): boolean {
+  const w = ctx.world;
+  const victim = getEntityAt(w, spawnX, spawnY);
+  if (victim === undefined || !canMonsterEnter(w, probe, templateDir, true, false, true)) return false;
+  const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  if (template === undefined) return false;
+  removeEntity(w, victim.uid);
+  ctx.emitVisual('explosion', victim.x, victim.y);
+  leaveBlockSplash(w, victim.x, victim.y, true);
+  removeEntity(w, template.uid);
+  ctx.emitVisual('explosion', clonerX, clonerY);
+  AudioManager.playSfx(BALL_BLAST_SFX);
+  const fresh: RuntimeEntity = { uid: w.nextEntityUid++, type: templateType, kind: template.kind, x: clonerX, y: clonerY, dir: templateDir, cooldownTicks: 0, isSliding: false, ...initialEmulationState(ConfigRegistry.getEntityDef(templateType)) };
+  w.entities.push(fresh);
+  w.beamDirty = true;
+  return true;
+}
+
+/** Sound of a ball blowing up. */
+const BALL_BLAST_SFX = 'bomb';
+
+/** CC2 engine: whether the template of a clone machine is still inside a step (a block waits only while it slides or arrives; a monster, once it has moved). */
+function templateIsStepping(template: RuntimeEntity): boolean {
+  if (template.arrivalTicks !== undefined) return true;
+  if (template.kind === 'monster') {
+    // A monster that does not follow the classic cadence starts the level with a wait of one interval (see epoxyLevelStart), which cannot be told
+    // from a step run out here: such a template is never refused (gap: Lexy refuses it while its step runs, game.js:2153-2156).
+    const def = ConfigRegistry.getEntityDef(template.type);
+    const startsReady = def?.movementPattern === ROLLING_BALL_PATTERN || followsCcCadence(template.type, true);
+    return startsReady && template.cooldownTicks > 0;
+  }
+  return template.cooldownTicks > 0 && template.isSliding;
+}
+
+/**
+ * One release attempt of spawnFromCloner. With `report`, returns whether a clone went out (true) or nothing did (false), so the
+ * caller can try the next way; else true unless the player died.
+ */
+function spawnFromClonerOneWay(
+  ctx: EpoxyContext,
+  clonerX: number,
+  clonerY: number,
+  templateType: string,
+  templateDir: Direction,
+  releaseFrame: 0 | 1 | 2 | undefined,
+  report: boolean
+): boolean {
+  const w = ctx.world;
   const vec = DIRECTION_VECTORS[templateDir];
   const spawnX = clonerX + vec.dx;
   const spawnY = clonerY + vec.dy;
-  if (!isInBounds(w, spawnX, spawnY)) return true;
-  if (playersOf(w).some((p) => p.x === spawnX && p.y === spawnY)) return true;
+  if (!isInBounds(w, spawnX, spawnY)) return !report;
+  if (playersOf(w).some((p) => p.x === spawnX && p.y === spawnY)) return !report;
 
   const def = ConfigRegistry.getEntityDef(templateType);
   // A phasing monster is never a clone template (the validator refuses it); a stray link spawns nothing.
-  if (def?.movementPattern === PHASE_LINE_PATTERN) return true;
+  if (def?.movementPattern === PHASE_LINE_PATTERN) return !report;
   const kind = def?.kind || 'block';
   const probe: RuntimeEntity = {
     uid: 0,
@@ -546,10 +640,14 @@ export function spawnFromCloner(
     kind === 'block'
       ? isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)
       : canMonsterEnter(w, probe, templateDir);
-  if (!canEnter) return true;
+  if (!canEnter && cc2Clone && def?.movementPattern === ROLLING_BALL_PATTERN && releaseBlownUp(ctx, clonerX, clonerY, spawnX, spawnY, templateType, templateDir, probe)) return w.player.alive;
+  if (!canEnter) return !report;
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  // CC2 engine: a template still inside the step that brought it in cannot step out (Lexy attempt_step returns false while
+  // movement_cooldown > 0, game.js:2153-2156): nothing is cloned.
+  if (cc2Clone && template !== undefined && templateIsStepping(template)) return !report;
   // CC3D lets the template itself out (a pushed step at the normal pace, keeping its place in the list) and puts a new
   // template on the machine, at the end of the list, which does not act in this tick.
   if (w.cc3dPace && kind === 'monster' && template !== undefined) {
@@ -593,7 +691,8 @@ export function spawnFromCloner(
       kind,
       x: clonerX,
       y: clonerY,
-      dir: template.dir,
+      // A wire search leaves the new template facing the way taken (Lexy make_actor(type, direction), tiletypes.js:1731-1733).
+      dir: report ? templateDir : template.dir,
       cooldownTicks: 0,
       isSliding: false,
       ...(template.facing !== undefined ? { facing: template.facing } : {}),

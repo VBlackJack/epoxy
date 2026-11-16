@@ -120,6 +120,9 @@ export function updateEntities(ctx: EpoxyContext): void {
   }
 }
 
+/** The uids whose bomb removal was applied and whose queued button press (afterRemoval) has not run yet, per world (never serialized). */
+const bombRemovalsApplied = new WeakMap<EpoxyWorld, Set<number>>();
+
 /**
  * CC2 engine: applies the hazard removals that are due in the pass about to run (water, slime and fire killed a monster at the end of
  * its step), ahead of the wire phase and the clone release of that pass, so a dead monster no longer blocks them.
@@ -191,6 +194,16 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
   w.ccArrivalsRunning = true;
   try {
     for (const arrival of due) {
+      // The press queued behind a bomb removal: its monster is gone by now, so the presence check is skipped. The button fires what it is now.
+      if (arrival.afterRemoval === true) {
+        // The press goes only with a bomb removal that was applied: a monster that still stands (its removal is void, or it left the
+        // cell) pressed nothing here (Lexy on_stand kills first, then the button under the dead actor is stepped on).
+        const applied = bombRemovalsApplied.get(w);
+        if (applied?.delete(arrival.uid) !== true) continue;
+        const under = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
+        if (arrival.action !== undefined && under.buttonAction !== undefined && under.buttonWorkedBy !== 'player' && !ctx.triggerButton(arrival.x, arrival.y, under.buttonAction)) return false;
+        continue;
+      }
       const monster = w.entities.find((e) => e.uid === arrival.uid);
       if (monster === undefined || monster.x !== arrival.x || monster.y !== arrival.y) continue;
       if (arrival.removal !== undefined) {
@@ -318,7 +331,24 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     if (usesCc2Engine(w.level) && def?.ignoresFloorEffects !== true && def?.ignoresSlidingFloors !== true && !slideImmune(w, entity, ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]))) {
       const iceHere = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
       // Lexy ice has no on_ready: a monster still on its load cell has no pending slide and decides normally.
-      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+      if (iceHere.slideType === 'ice' && entity.atLoadCell !== true) {
+        plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
+        // A fireball whose forced slide bumps an ice block melts it (Lexy ice_block.on_after_bumped, tiletypes.js:1386-1395); the step
+        // itself stays blocked and bounces (game.js:1166-1200). Not modelled: the double bonk, where a bounce also blocked by an ice
+        // block melts the second block too (game.js:1197-1200). The melt happens here, at the decision, where Lexy melts it at the move
+        // (the same model as the free-decision melt of chooseMonsterDirection).
+        if (def?.meltsIceOnBumpCc2 === true && !w.cc3dPace && meltIceBlockAhead(w, entity, plan, true)) {
+          // The bounce is tried at once (game.js:1192-1207): when its way is open the step goes that way, else the monster only turns
+          // round and takes no second bounce at the move, which would walk it into the cell just melted.
+          const bounce = iceBounceDirection(w, entity, def, plan);
+          if (bounce !== null && canStep(w, entity, bounce)) {
+            plan = bounce;
+          } else {
+            if (bounce !== null) entity.dir = bounce;
+            plan = null;
+          }
+        }
+      }
     }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
       plan = entity.dir;
@@ -450,6 +480,9 @@ function runEntityPass(ctx: EpoxyContext): void {
     // Entities sitting directly on a clone machine act as templates and do not move on their own
     // (a wisp is never a template: it drifts over a machine like over any other tile)
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine && !isPhasingEntityType(entity.type)) {
+      // CC2 engine: the step that brought the occupant in still runs out without a move (Lexy attempt_step keeps refusing while
+      // movement_cooldown > 0, game.js:2153-2156), so a later release finds it at rest and the cloner can fire.
+      if (usesCc2Engine(w.level) && !w.cc3dPace) finishClonerOccupantStep(entity);
       continue;
     }
 
@@ -487,6 +520,16 @@ function runEntityPass(ctx: EpoxyContext): void {
       block.cooldownTicks = 0;
       stepSlidingBlock(ctx, block);
     }
+  }
+}
+
+/** CC2 engine: counts down the arrival or the wait of an entity that sits on a clone machine, which never moves on its own. */
+function finishClonerOccupantStep(entity: RuntimeEntity): void {
+  if (entity.arrivalTicks !== undefined) {
+    entity.arrivalTicks--;
+    if (entity.arrivalTicks <= 0) delete entity.arrivalTicks;
+  } else if (entity.cooldownTicks > 0) {
+    entity.cooldownTicks--;
   }
 }
 
@@ -860,7 +903,15 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
       if (w.cc3dPace || (usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster')) {
         // CC3D, and a bomb, water, fire or slime on a CC2-engine level (Lexy on_arrive kills when the step ends), keep the monster
         // in the cell for the whole step and remove it, and the bomb, when the step ends (see applyQueuedArrivals for the due time).
-        w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
+        const removalDue = (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1;
+        w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, removal, due: removalDue });
+        // Lexy step_on_cell walks every layer (game.js:2316-2365): the bomb kills in on_stand and the button under it is still pressed.
+        // Partial: buttons only (the yellow button, a light switch or pulse source and a hold trap are not modelled). The press is a
+        // queued action arrival at the same due, flagged afterRemoval, so it takes the normal action path (pass start with
+        // cc2BeforePass, the green toggle after the pass) and is never pressed inside the removal branch or at input time.
+        if (removal === 'bomb' && usesCc2Engine(w.level) && !w.cc3dPace && destTile.buttonAction !== undefined && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
+          w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: removalDue, afterRemoval: true });
+        }
       } else {
         applyPendingRemoval(ctx, entity);
       }
@@ -1109,7 +1160,12 @@ function applyPendingRemoval(ctx: EpoxyContext, entity: RuntimeEntity): void {
   // CC2 engine: the ghost on a jet still lit when its step ends burns (queued by resolveMonsterArrival).
   if (removal === null && usesCc2Engine(w.level) && def?.ignoresFloorEffects === true && ConfigRegistry.getTile(w.terrain[entity.y][entity.x]).burnsOccupants === true && !holdsProtection(w, entity)) removal = 'burn';
   if (removal === null) return;
-  if (removal === 'bomb') w.items[entity.y][entity.x] = null;
+  if (removal === 'bomb') {
+    w.items[entity.y][entity.x] = null;
+    const applied = bombRemovalsApplied.get(w) ?? new Set<number>();
+    applied.add(entity.uid);
+    bombRemovalsApplied.set(w, applied);
+  }
   removeEntity(w, entity.uid);
   w.beamDirty = true;
   AudioManager.playSfx(removal === 'bomb' ? 'bomb' : removal);
@@ -1436,6 +1492,10 @@ export function canMonsterEnter(
     (def?.entersTurtles === true && destTileId === TURTLE_TILE_ID) ||
     // A door whose key the monster holds lets it in (a rolling ball that took the key).
     holdsKeyOf(monster, destTile);
+  // CC2 engine: an empty clone machine bars only the real player, the dirt block and the typical monsters (Lexy cloner blocks_collision,
+  // tiletypes.js:1693; monster_typical, defs.js:104-107): a rolling ball or a rover is outside that set, enters it and becomes its template.
+  const clonerOpen =
+    destTile.isCloneMachine === true && usesCc2Engine(w.level) && !w.cc3dPace && (isRollingBallDef(def) || def?.movementPattern === EMULATE_CYCLE_PATTERN);
   // A tile that bars some monsters (the CC2 turtle bars fireballs) refuses the ones it lists, and a ghost its own list.
   if (destTile.barsMonsters?.includes(monster.type) === true) return false;
   // A tile that admits only some monsters (the CC2 pop-up wall) refuses the others, whatever else lets them in.
@@ -1447,6 +1507,7 @@ export function canMonsterEnter(
     !destTile.passableByMonster &&
     !passesTile &&
     !passesSolid &&
+    !clonerOpen &&
     !(destTile.hazard === 'fire' && def?.immuneToFire) &&
     !isOpenFishGate(w, destTile)
   ) {
@@ -1458,7 +1519,16 @@ export function canMonsterEnter(
 
   const itemId = w.items[ny][nx];
   const keyPasses = itemId !== null && CC2_MONSTER_PASSABLE_KEYS.includes(itemId) && usesCc2Engine(w.level);
-  if (!keyPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
+  // CC2 engine: an item under an item modifier (a no-sign, forbiddenItem) does not bar collision (Lexy game.js:69-71); the no-sign bars only
+  // an actor that holds the forbidden item, a key or a held tool (tiletypes.js:1283-1290; defs.js:118-125). gift_bow (item_modifier pickup) is not modelled.
+  // Gaps: the keys a typical monster picked up are not recorded here (Lexy tiletypes.js:3018-3025), so such a monster is never barred by a
+  // key no-sign; and a mirror player ignores no-signs.
+  const forbidden = itemId !== null ? ConfigRegistry.getTile(itemId).forbiddenItem : undefined;
+  if (forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace) {
+    if (monster.heldKeys?.includes(forbidden) === true || monster.heldTools?.includes(forbidden) === true) return false;
+  }
+  const signPasses = forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace;
+  if (!keyPasses && !signPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {
     return false;
   }
 
