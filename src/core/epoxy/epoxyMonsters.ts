@@ -92,7 +92,7 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
-import { closeFramePass, runFramePrePass } from './epoxyFrames';
+import { closeFramePass, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -494,7 +494,13 @@ function runEntityPass(ctx: EpoxyContext): void {
     }
 
     if (entity.kind === 'block') {
+      // CC2 engine: a slide step of the main pass (frame 2) off the slide onto a plain cell is a 12-frame step that ends at frame 1 of
+      // the fourth tick after: its arrival waits for that pre-pass, before the decisions (Lexy game.js:2218-2242).
+      const slidFrom = entity.isSliding && entity.arrivalTicks === undefined && entity.cc2ArrivalWait === undefined ? { x: entity.x, y: entity.y } : undefined;
       const refusal = stepSlidingBlock(ctx, entity);
+      if (slidFrom !== undefined && w.entities.includes(entity) && entity.arrivalTicks !== undefined && (entity.x !== slidFrom.x || entity.y !== slidFrom.y)) {
+        holdMainPassArrival(w, entity);
+      }
       if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) refusedOnForce.push({ block: entity, dir: refusal.retryDir });
       continue;
     }

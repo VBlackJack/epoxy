@@ -102,6 +102,14 @@ export function holdFrameArrival(w: EpoxyWorld, block: RuntimeEntity, total: num
 }
 
 /**
+ * Holds the plain-step arrival of a block whose step started in the main pass (frame 2): a 12-frame step from the decision frame
+ * ends 11 frames later, in frame 1 of the fourth tick after, before that tick's decisions (game.js:2218-2242, 869-888).
+ */
+export function holdMainPassArrival(w: EpoxyWorld, block: RuntimeEntity): void {
+  holdFrameArrival(w, block, DECISION_FRAME + PLAIN_STEP_FRAMES - 1);
+}
+
+/**
  * A block the player pushed (or a slider pushed) has just moved: its frame. `byPlayer`: the player's decision (frame 2) or, when
  * he slides, his forced move of the action phase. `sliderFrame`: the frame of the sliding block that pushed it (else undefined).
  * `later`: the block comes later than its pusher in the reverse list loop (its own cooldown runs in the same frame).
