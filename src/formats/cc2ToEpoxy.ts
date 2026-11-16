@@ -783,7 +783,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {}),
     ...(options.useCc1Boots !== undefined ? { useCc1Boots: options.useCc1Boots } : {}),
     ...(ghostBarCells.length > 0 ? { ghostBarCells } : {}),
-    ...(wires.teleportNets !== undefined ? { teleportNets: wires.teleportNets } : {})
+    ...(wires.teleportNets !== undefined ? { teleportNets: wires.teleportNets } : {}),
+    ...(wires.selfLinks !== undefined ? { selfLinks: wires.selfLinks } : {})
   };
 
   return {

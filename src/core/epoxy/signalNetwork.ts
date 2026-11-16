@@ -114,7 +114,21 @@ export interface SignalNetwork {
   sinkIndexes: number[];
   /** The cycles: node indexes of each strongly connected component that loops, in evaluation order. */
   cycles: number[][];
+  /**
+   * CC2 engine: a logic gate (and, or, not, xor, nand) reads its wires as the last settle left them, one wire phase per gate. Absent
+   * on a native or .DAT network, which settles a gate in the same phase as its inputs.
+   */
+  gateDelay?: boolean;
 }
+
+/** Options of buildSignalNetwork. */
+export interface SignalNetworkOptions {
+  /** CC2 engine: gates are delayed one wire phase, so an OR or NOT gate wired to its own input is a latch or a clock, not a cycle. */
+  gateDelay?: boolean;
+}
+
+/** The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). */
+const SELF_LOOP_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['or', 'not']);
 
 export interface SignalSinkOutput {
   cell: number;
@@ -194,7 +208,12 @@ function stronglyConnected(count: number, successors: readonly (readonly number[
  * Builds a network: validates the nodes and links, finds the cycles and fixes the evaluation order, a
  * topological order of the components with ties broken by the smallest cell index.
  */
-export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpecs: readonly SignalLinkSpec[]): SignalNetwork {
+export function buildSignalNetwork(
+  nodeSpecs: readonly SignalNodeSpec[],
+  linkSpecs: readonly SignalLinkSpec[],
+  options: SignalNetworkOptions = {}
+): SignalNetwork {
+  const gateDelay = options.gateDelay === true;
   const seen = new Set<number>();
   for (const spec of nodeSpecs) {
     if (!SIGNAL_NODE_KINDS.includes(spec.kind)) throw new SignalBuildError('unknown_kind', spec.cell);
@@ -222,7 +241,10 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
 
   const { comp, size } = stronglyConnected(count, successors);
   const looping = size.map(() => false);
-  for (let i = 0; i < count; i++) if (size[comp[i]] > 1 || selfLoop[i]) looping[comp[i]] = true;
+  // A gate-delay network reads a gate's own wire from the last settle, so an OR or a NOT linked only to itself is no cycle.
+  for (let i = 0; i < count; i++) {
+    if (size[comp[i]] > 1 || (selfLoop[i] && !(gateDelay && SELF_LOOP_KINDS.has(sorted[i].kind)))) looping[comp[i]] = true;
+  }
 
   // Kahn over the components. A component ranks by its smallest cell; the ready component of least rank goes first.
   const members: number[][] = size.map(() => []);
@@ -275,7 +297,8 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
     indexOfCell: new Map<number, number>(nodes.map((node, i) => [node.cell, i])),
     sourceIndexes: nodes.flatMap((node, i) => (node.kind === 'source' ? [i] : [])),
     sinkIndexes: nodes.flatMap((node, i) => (node.kind === 'sink' ? [i] : [])),
-    cycles
+    cycles,
+    ...(gateDelay ? { gateDelay: true } : {})
   };
 }
 

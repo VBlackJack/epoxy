@@ -2213,6 +2213,13 @@ export interface Cc2LevelData {
    * teleporter (see buildCc2PadNets).
    */
   teleportNets?: number[][];
+  /**
+   * Cell indices (y * width + x, ascending) of the OR and NOT gates wired to their own input. They are not in signalLinks (the
+   * grid hash and an older Epoxy never see them); compileSignalSpec adds each as a link from the gate to itself on the CC2 engine
+   * only. Absent when there is none; a level imported before this field existed gets it only after a re-import. Ignored at load
+   * unless the cell is in the grid, listed once and holds an OR or a NOT gate of the network.
+   */
+  selfLinks?: number[];
 }
 
 /**

@@ -39,6 +39,7 @@ import {
   SIGNAL_PORT_MIN_LENGTH
 } from './coreConstants';
 import { canonicalSignalPort, isSignalPort } from './signalPorts';
+import { usesCc2Engine } from './epoxy/ccRules';
 import type { CellUnderlay, CompiledLevel, SignalLink, SignalNodeDef, SignalSpec, TileDefinition } from './types';
 
 /** What a tile is to a signal network. */
@@ -191,6 +192,9 @@ export function normalizeSignalLinks(
   );
 }
 
+/** The node kinds a stored CC2 self link may name: the OR and NOT gates a CC2 level wires to their own output. */
+const SELF_LINK_NODE_KINDS: ReadonlySet<string> = new Set(['or', 'not']);
+
 /**
  * The signal network of a level, or undefined when it has no signal link left after normalizing. The
  * nodes are the cells the links touch, their kinds read from the tiles through `lookup`.
@@ -213,11 +217,24 @@ export function compileSignalSpec(
     }
     return cell;
   };
-  const specLinks = links.map((l) => ({
+  const specLinks: SignalSpec['links'] = links.map((l) => ({
     from: touch(l.fromX, l.fromY),
     to: touch(l.toX, l.toY),
     ...(l.port === undefined ? {} : { port: l.port })
   }));
+  // The OR and NOT self links of the cc2 record, CC2 engine only: each cell in the grid, listed once (ascending) and an OR or a NOT
+  // node already on the network; anything else is skipped alone.
+  const self: unknown = level.cc2?.selfLinks;
+  if (usesCc2Engine(level) && Array.isArray(self)) {
+    const cellCount = width * level.terrain.length;
+    for (let i = 0; i < self.length; i++) {
+      const cell: unknown = self[i];
+      if (!Number.isInteger(cell) || (cell as number) < 0 || (cell as number) >= cellCount || (i > 0 && (cell as number) <= (self[i - 1] as number))) continue;
+      const def = nodes.get(cell as number);
+      if (def === undefined || !SELF_LINK_NODE_KINDS.has(def.kind)) continue;
+      specLinks.push({ from: cell as number, to: cell as number });
+    }
+  }
   return { nodes: [...nodes.values()].sort((a, b) => a.cell - b.cell), links: specLinks };
 }
 
