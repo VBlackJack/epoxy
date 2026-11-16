@@ -184,9 +184,25 @@ function cloneLane(mode: Mode, source: string, held: boolean): CompiledLevel {
 
 const clonesAt = (engine: GameEngine): number => engine.getEntities().filter((e) => e.x === CLONE_X && e.y === ROW).length;
 const deferredCount = (engine: GameEngine): number => engine.getCc2WaveState()?.deferredSinkEdges?.length ?? 0;
-const cloneArrival = (engine: GameEngine): number | undefined => engine.getEntities().find((e) => e.x === CLONE_X && e.y === ROW)?.arrivalTicks;
-/** The arrival countdown a clone shows on the tick it appears when its machine fired before the pass (the pass counted it down once; a clone let out at the end of the tick shows one more). */
-const ARRIVAL_AFTER_PASS = 3;
+const cloneOf = (engine: GameEngine) => engine.getEntities().find((e) => e.x === CLONE_X && e.y === ROW);
+/** Ticks the clone gets, once it appears, to finish its step. */
+const LANDING_TICKS = 20;
+/**
+ * The tick (engine tick count after it ran) in which the clone lands: the one where its arrival countdown and its held-arrival
+ * fields are both gone. A clone let out by a press of frame 0 or 1 ends its 12-frame out-of-turn step at p + 11, a tick later than
+ * the countdown alone says (game.js:2218-2242; MAP123 t24-t26, map045 t1541).
+ */
+function landingTick(engine: GameEngine): number {
+  for (let waited = 0; waited < LANDING_TICKS; waited++) {
+    const clone = cloneOf(engine);
+    if (clone !== undefined && clone.arrivalTicks === undefined && clone.cc2ArrivalWait === undefined && clone.cc2ArrivalFrame === undefined) return engine.getTick();
+    engine.tick();
+  }
+  throw new Error(`the clone never landed ${JSON.stringify(cloneOf(engine))}`);
+}
+/** The landing tick of a clone released by a press in mid-level (the test below), and of the two clones released at the player's turn. */
+const LANDING_TICK_MID_LEVEL = 12;
+const LANDING_TICK_AT_TURN = 9;
 
 describe('CC2 engine: a wire-fired clone machine acts before the pass that follows its edge', () => {
   // Lexy runs the wire phase of tic 0 before its decisions (game.js:872-876): the load edge fires before the pass of tick 0.
@@ -212,8 +228,8 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
-    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
     expect(deferredCount(engine)).toBe(0);
+    expect(landingTick(engine)).toBe(LANDING_TICK_MID_LEVEL);
   });
 
   // The turn of the player is stored for the tick; the pink plate raises its edge at the end of the tick in which his step ends
@@ -232,8 +248,8 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(clonesAt(engine)).toBe(0);
     engine.tick();
     expect(clonesAt(engine)).toBe(1);
-    expect(cloneArrival(engine)).toBe(ARRIVAL_AFTER_PASS);
     expect(deferredCount(engine)).toBe(0);
+    expect(landingTick(engine)).toBe(LANDING_TICK_AT_TURN);
   });
 
   it('fires at once, in the phase of the edge, on a level that is not CC2', () => {
