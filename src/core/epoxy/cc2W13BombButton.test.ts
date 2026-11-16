@@ -49,21 +49,27 @@ const CHANNEL_WALL_OPEN = 'toggle_wall_red_open';
 const GREEN_BUTTON = 'button_green';
 const GREEN_WALL = 'toggle_wall_closed';
 const GREEN_WALL_OPEN = 'toggle_wall_open';
+/** A red button (it fires the clone machine that holds a template) and the machine, with the cell its clone comes out in. */
+const RED_BUTTON = 'button_red';
+const CLONER = 'clone_machine';
+const CLONER_CELL = { x: 7, y: 9 };
+const CLONE_CELL = { x: 8, y: 9 };
+const TEMPLATE = 'dirt_block';
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const wallState = (engine: GameEngine): string => world(engine).terrain[WALL_Y][WALL_X];
 const gliderGone = (engine: GameEngine): boolean => !world(engine).entities.some((e) => e.type === GLIDER);
 
 /** A glider facing east, a bomb on the button in the next cell and a wall the button toggles. */
-function load(mode: RoomMode, button: string, wall: string): GameEngine {
+function load(mode: RoomMode, button: string, wall: string, withCloner = false): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(
     room({
       mode,
       startX: 1,
-      terrain: { [`${BUTTON_X},${ROOM_ROW}`]: button, [`${WALL_X},${WALL_Y}`]: wall },
+      terrain: { [`${BUTTON_X},${ROOM_ROW}`]: button, [`${WALL_X},${WALL_Y}`]: wall, ...(withCloner ? { [`${CLONER_CELL.x},${CLONER_CELL.y}`]: CLONER } : {}) },
       items: { [`${BUTTON_X},${ROOM_ROW}`]: BOMB },
-      entities: [{ type: GLIDER, x: GLIDER_X, y: ROOM_ROW, dir: 'E' }]
+      entities: [{ type: GLIDER, x: GLIDER_X, y: ROOM_ROW, dir: 'E' }, ...(withCloner ? [{ type: TEMPLATE, x: CLONER_CELL.x, y: CLONER_CELL.y, dir: 'E' as const }] : [])]
     })
   );
   return engine;
@@ -99,6 +105,50 @@ describe('a monster killed by a bomb on a button', () => {
     expect(ticks).toBeLessThan(SETTLE_TICKS);
     // The toggle belongs to the same pass as the removal (the green toggle is applied after it), never earlier.
     expect(wallState(engine)).toBe(GREEN_WALL_OPEN);
+  });
+
+  // The red button works the clone machine: the template is cloned out once the removal is applied and the press has run.
+  it('presses a red button, which clones the template of a machine (Lexy game.js:2316-2365)', () => {
+    const engine = load('cc2', RED_BUTTON, CHANNEL_WALL, true);
+    const cloned = (): boolean => world(engine).entities.some((e) => e.type === TEMPLATE && e.x === CLONE_CELL.x && e.y === CLONE_CELL.y);
+    expect(cloned()).toBe(false);
+    expect(untilGone(engine)).toBeLessThan(SETTLE_TICKS);
+    engine.tick();
+    expect(cloned()).toBe(true);
+  });
+
+  // The green button toggles after the pass: with the removal applied at the start of the pass, the wall is still closed, and it opens
+  // only when the pass has run (game.js:2316-2365, the green toggle is applied after the pass).
+  it('toggles a green button only after the pass that applied the removal', () => {
+    const engine = load('cc2', GREEN_BUTTON, GREEN_WALL);
+    const w = world(engine);
+    let ticks = 0;
+    while (!w.ccArrivals.some((a) => a.afterRemoval === true) && ticks < SETTLE_TICKS) {
+      engine.tick();
+      ticks++;
+    }
+    for (const arrival of w.ccArrivals) arrival.due = w.ccMonsterClock;
+    applyDueHazardRemovals((engine as unknown as { ctx: EpoxyContext }).ctx);
+    expect(gliderGone(engine)).toBe(true);
+    expect(wallState(engine)).toBe(GREEN_WALL);
+    engine.tick();
+    expect(wallState(engine)).toBe(GREEN_WALL_OPEN);
+  });
+
+  // Fails without the applied-removal record: a monster that still stands (its removal void) must not press the button under it.
+  it('presses nothing when the monster still stands after the removal came due', () => {
+    const engine = load('cc2', CHANNEL_BUTTON, CHANNEL_WALL);
+    const w = world(engine);
+    let ticks = 0;
+    while (!w.ccArrivals.some((a) => a.afterRemoval === true) && ticks < SETTLE_TICKS) {
+      engine.tick();
+      ticks++;
+    }
+    // The removal is lost (the monster left the cell it was due in): only the queued press remains.
+    w.ccArrivals = w.ccArrivals.filter((a) => a.removal === undefined);
+    for (const arrival of w.ccArrivals) arrival.due = w.ccMonsterClock;
+    engine.tick();
+    expect(wallState(engine)).toBe(CHANNEL_WALL);
   });
 
   it('is not pressed at input time, when only the due removals are applied', () => {
