@@ -612,16 +612,30 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
   else if (ready && alive && usesCc2Engine(ctx.world.level) && entity.cooldownTicks > 0 && !ctx.world.removedUids.has(entity.uid)) {
     // CC2 takes the step time from the destination: a step onto ice or a force floor lasts a share of the plain step.
-    const def = ConfigRegistry.getEntityDef(entity.type);
-    const destTile = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]);
-    // A monster holding the tool of the destination floor is immune to it and keeps the full step time (game.js:2178-2186).
-    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(ctx.world, entity, destTile);
-    const destSlide = destTile.slideType;
-    if (!floorFree && (destSlide === 'ice' || destSlide === 'force')) {
-      entity.cooldownTicks = Math.floor(ccStepTicks(entity.type) / CC2_FLOOR_STEP_DIVISOR) * monsterSlowdown(ctx.world) - 1;
-    }
+    if (entersSlide(ctx.world, entity, entity.x, entity.y)) entity.cooldownTicks = cc2EntryStepTicks(ctx.world, entity, entity.x, entity.y) - 1;
   }
   return alive;
+}
+
+/**
+ * CC2 engine: whether a step of `entity` onto (x, y) is a slide step: the cell is ice or a force floor and the monster is not free of
+ * it. A monster holding the tool of the destination floor is immune to it and keeps the full step time (Lexy game.js:2178-2186).
+ */
+function entersSlide(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number): boolean {
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const destTile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(w, entity, destTile);
+  return !floorFree && (destTile.slideType === 'ice' || destTile.slideType === 'force');
+}
+
+/**
+ * CC2 engine: the ticks of a classic step of `entity` onto (x, y): a share of the plain step (CC2_FLOOR_STEP_DIVISOR) onto ice or a
+ * force floor the monster is not free of (Lexy takes the speed from the destination, game.js:2177-2194), else the plain step;
+ * slow-time included. A clone machine's release uses it too, since the clone's first step is out of turn (tiletypes.js:1703-1731).
+ */
+export function cc2EntryStepTicks(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number): number {
+  const plain = ccStepTicks(entity.type);
+  return (entersSlide(w, entity, x, y) ? Math.floor(plain / CC2_FLOOR_STEP_DIVISOR) : plain) * monsterSlowdown(w);
 }
 
 /**
