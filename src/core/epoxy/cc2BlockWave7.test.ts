@@ -49,6 +49,13 @@ const FORCE_CYCLE = 'force_cycle';
 const FORCE_START_X = 5;
 const WATCH_TICKS = 6;
 const SPLASH_PASSES = 5;
+/**
+ * The ice block's step onto the fire ends in frame 0 of the tic four after the push, one tick later than the main pass it ended in
+ * before (Lexy game.js:2218-2242; map033 t12-t16, defs.js:199-202 allow_double_cooldowns): the splash keeps its absolute end tick.
+ */
+const MELT_LANDING_TICK = 5;
+/** Passes the splash still bars the player once the water is made. */
+const BARRED_PASSES_AFTER_MELT = SPLASH_PASSES - 1;
 const MELT_WAIT_PASSES = 8;
 const FIRE_X = 4;
 const ICE_X = 6;
@@ -212,8 +219,9 @@ describe('melted ice block splash (MS)', () => {
 
   it('leaves a splash on the new water that bars the player for a few passes', () => {
     const engine = melt('cc2');
+    expect(engine.getTick()).toBe(MELT_LANDING_TICK);
     expect(worldOf(engine).blockSplashes.size).toBe(1);
-    for (let pass = 0; pass < SPLASH_PASSES; pass++) {
+    for (let pass = 0; pass < BARRED_PASSES_AFTER_MELT; pass++) {
       expect(canStepEast(engine), `pass ${pass}`).toBe(false);
     }
     expect(worldOf(engine).blockSplashes.size).toBe(0);

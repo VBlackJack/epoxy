@@ -28,6 +28,7 @@ import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import { shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
+import { frameModelOn, steppingFrame, tagPushedBlock } from './epoxyFrames';
 import {
   EpoxyContext,
   EpoxyWorld,
@@ -292,6 +293,13 @@ export function attemptPushBlock(
     // its first slide step; the slide goes on at one tick per wait.
     if (w.cc3dPace && byPlayer && member.isSliding && member.arrivalTicks === undefined) {
       member.cooldownTicks = Math.max(member.cooldownTicks, CC3D_PUSHED_BLOCK_ENTRY_COOLDOWN_TICKS);
+    }
+    // The frame of a block the player or a sliding block pushed (Lexy out-of-turn step, game.js:2218-2242).
+    if (frameModelOn(w) && (byPlayer || (slider !== undefined && slider !== member))) {
+      const later = byPlayer
+        ? (member.listOrdinal ?? Number.MAX_SAFE_INTEGER) < (w.player.listOrdinal ?? -1)
+        : w.entities.indexOf(member) < w.entities.indexOf(slider as RuntimeEntity);
+      tagPushedBlock(w, member, byPlayer, w.player.isSliding, later, byPlayer ? undefined : steppingFrame(w, slider));
     }
     movedCount++;
     if (i === 0) directMoved = true;
@@ -630,6 +638,8 @@ function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
   const ahead = getEntityAt(w, x, y);
   if (ahead === undefined || ahead.kind !== 'block' || ahead.arrivalTicks === undefined || ahead.arrivalTicks > 1) return;
   if (w.turnSpent.get(ahead.uid) === w.ccMonsterClock) return;
+  // A block whose arrival the frame pre-pass holds ends it there; one the pre-pass moved has had its turn.
+  if (ahead.cc2ArrivalWait !== undefined || ahead.cc2PrePassMoved === true) return;
   delete ahead.arrivalTicks;
   w.turnSpent.set(ahead.uid, w.ccMonsterClock);
   settleBlockArrival(ctx, ahead, ahead.dir, true);
@@ -673,6 +683,14 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
   const w = ctx.world;
   // A block whose step already ended this pass (see settleAheadEarly) has had its turn.
   if (usesCc2Engine(w.level) && w.turnSpent.get(entity.uid) === w.ccMonsterClock) return BLOCK_STEP_DONE;
+  // A block whose plain step ends in a later pre-pass waits for it; a block tagged with a slide frame 0 or 1 moves in the pre-pass only.
+  if (entity.cc2ArrivalWait !== undefined) return BLOCK_STEP_DONE;
+  if (entity.cc2PrePassMoved === true && w.cc2PrePassStepping !== true) return BLOCK_STEP_DONE;
+  if (entity.cc2SlideFrame !== undefined && w.cc2PrePassStepping !== true && entity.arrivalTicks === undefined) {
+    if (entity.isSliding) return BLOCK_STEP_DONE;
+    delete entity.cc2SlideFrame;
+    delete entity.cc2SlideDue;
+  }
   // A pushed CC3D block finishing its step: the cell acts on it when the step ends.
   if (entity.arrivalTicks !== undefined) {
     entity.arrivalTicks--;
