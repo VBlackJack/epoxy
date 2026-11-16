@@ -89,6 +89,7 @@ import {
   findPilotConfigErrors,
   findCc2Errors,
   isCc2LevelData,
+  withValidTeleportNets,
   findCc3dTileErrors,
   findDatFormatErrors,
   findGameTunableErrors,
@@ -1568,7 +1569,7 @@ class ConfigRegistryService {
       ...(typeof bp.theme === 'string' ? { theme: bp.theme } : {}),
       ...(typeof bp.solution === 'string' ? { solution: bp.solution } : {}),
       ...(isBlockBudget(bp.blockBudget) ? { blockBudget: { waters: bp.blockBudget.waters, targets: bp.blockBudget.targets } } : {}),
-      ...(isCc2LevelData(bp.cc2) ? { cc2: bp.cc2 } : {}),
+      ...(isCc2LevelData(bp.cc2) ? { cc2: withValidTeleportNets(bp.cc2) } : {}),
       ...(bp.rulesFlavor === 'cc' ? { rulesFlavor: bp.rulesFlavor } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
       // Chip is the default character and stays unwritten, so a level played by Chip is the same record as before.
