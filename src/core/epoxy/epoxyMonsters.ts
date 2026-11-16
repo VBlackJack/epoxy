@@ -777,6 +777,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     } else if (plan !== null && usesCc2Engine(w.level) && !w.cc3dPace && turnsBlockedOnForce(w, entity, def)) {
       // Refused on a turning force floor at the move: the monster steps on the cell again, which turns the floor, and tries the new
       // way at once (Lexy _possibly_bonk in the action phase, after the earlier actors of the frame moved, game.js:1050-1063 and 1127-1162).
+      // A rolling ball first runs its on_blocked, as at its decision (Lexy game.js:1789-1790, 2107-2108, before the bonk of 1103-1106).
+      if (isRollingBallDef(def)) {
+        if (!checkBallWay(ctx, entity, plan)) return false;
+        if (!w.entities.includes(entity)) return true;
+      }
       const redraw = forceCycleArrival(w, ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]));
       if (redraw !== null) entity.dir = redraw;
       chosenDir = redraw !== null && canStep(w, entity, redraw) ? redraw : null;
