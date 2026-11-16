@@ -733,7 +733,7 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     // A wired blue pad is played within its wire network; only the logic gates on the network stay unwalked.
     warnings.push(
       node.kind === 'teleport' && netPadCells.has(node.y * width + node.x)
-        ? `sink teleport at ${node.x},${node.y} is played as a wired blue network: logic gates on the network are not walked`
+        ? `${node.end === 'source' ? 'source' : 'sink'} teleport at ${node.x},${node.y} is played as a wired blue network: logic gates on the network are not walked`
         : `${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`
     );
   }
