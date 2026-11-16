@@ -87,6 +87,16 @@ describe('CC2 linked clone machine fires from its occupant (Lexy tiletypes.js:17
     expect(at(engine, EAST_X)?.type).toBe(OTHER_TEMPLATE_TYPE);
   });
 
+  // Fails without the clone machine check of triggerButton: the block standing on the plain floor would be cloned out of it.
+  it('a link whose cell is no longer a clone machine fires nothing', () => {
+    const engine = machine('cc2', false, true);
+    world(engine).terrain[ROOM_ROW][CLONER_X] = 'floor';
+    const count = world(engine).entities.length;
+    press(engine);
+    expect(world(engine).entities.length).toBe(count);
+    expect(at(engine, EAST_X)).toBeUndefined();
+  });
+
   it('on a classic-rules level the link still names the template of an emptied cloner', () => {
     const engine = machine('cc', false, true);
     empty(engine);

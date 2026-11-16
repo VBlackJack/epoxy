@@ -117,6 +117,8 @@ export function triggerButton(ctx: EpoxyContext, bx: number, by: number, action:
         // CC2 engine: a linked cloner fires from what stands on it now, and spawns nothing when it is empty (Lexy cloner.activate,
         // tiletypes.js:1704-1706). A press is never a wire edge, so it tries one way only.
         if (usesCc2Engine(w.level) && !w.cc3dPace) {
+          // A link whose cell is no longer a clone machine (a toggled or replaced tile) fires nothing.
+          if (!ConfigRegistry.getTile(w.terrain[link.clonerY]?.[link.clonerX]).isCloneMachine) continue;
           const occupant = w.entities.find((e) => e.x === link.clonerX && e.y === link.clonerY && !isPhasingEntityType(e.type));
           if (occupant !== undefined && !spawnFromCloner(ctx, link.clonerX, link.clonerY, occupant.type, occupant.dir)) return false;
           continue;
