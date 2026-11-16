@@ -2662,6 +2662,12 @@ export interface UndoSnapshot {
   cc2BrownHeld?: number[];
   /** The ascending cell indices of the buttons a rolling ball toggled (a button held by an actor that was removed); written only while one is toggled, absent otherwise. */
   cc2ToggledButtonCells?: number[];
+  /**
+   * The form of each light switch as the last tick ended, [cell index, terrain id] in cell order (CC2 actor order): written only on a
+   * level with light switches, absent otherwise. A step end flushed by an input may flip a switch after the tick, so the form at
+   * capture time is not this one.
+   */
+  lightSwitchBase?: [number, string][];
   /** The decisions the mirror players copy (CC2 engine): written only once one was recorded, absent otherwise. */
   mirrorMove?: Cc2MirrorMove;
   /** The input stored for the player's turn (CC2 actor order): written only while one is stored, absent otherwise. */

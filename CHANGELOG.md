@@ -17,6 +17,10 @@ versions follow Semantic Versioning.
 - CC2 imports keep CC2's timing within a tick for blocks: CC2 splits each tick into three frames, and a block pushed or cloned out of turn, or sliding on ice or a force floor, now moves and lands in its own frame, so a block whose step ends early in the tick is in place before the moves of that tick, and the wires it presses react at once; a monster that a force floor cannot carry forward retries as soon as the way is free. Undo, restart and the puzzle solvers keep this state exactly. CC1 .DAT imports, native levels and CC3D levels are unchanged; CC1 Steam .c2m levels follow the same CC2 rules. Official CC2 replays won on Epoxy go from 193 to 195 of 200, and CC1 Steam .c2m from 143 to 144 of 149, with no level lost. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
 - Pack format 19: a pack with a CC2 level whose wires reach a force floor, a green toggle or a swivel door is written in format 19, which older builds refuse instead of dropping those wires.
 
+### Fixed
+
+- CC2 imports: undoing a key press given while the player stood on a light switch he had just flipped no longer changes what follows. The undo forgot that the wires still read the switch as it was at the end of the last tick, so a wired purple wall could open a tick early (on Onion and roverrom, the official solutions no longer won after an undo).
+
 ## [2.34.0] - 2026-11-13
 
 ### Changed
