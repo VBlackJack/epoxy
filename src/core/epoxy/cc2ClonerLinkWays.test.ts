@@ -108,12 +108,24 @@ describe('CC2 wire-powered clone machine searches clockwise (Lexy tiletypes.js:1
     expect(fresh?.dir).toBe('S');
   });
 
+  // Fails without the fromOccupant line: the link template way (east, walled) would be tried first and the clone would go south.
   it('starts from the occupant way of a linked cloner, not the link template way', () => {
     const engine = machine('cc2', true, true);
-    at(engine, CLONER_X)!.dir = 'S';
+    at(engine, CLONER_X)!.dir = 'W';
     expect(fireClonerAt(ctxOf(engine), CLONER_X, ROOM_ROW, true)).toBe(true);
-    expect(at(engine, CLONER_X, ROOM_ROW + 1)?.type).toBe(TEMPLATE_TYPE);
-    expect(at(engine, CLONER_X)?.dir).toBe('S');
+    expect(at(engine, CLONER_X - 1)?.type).toBe(TEMPLATE_TYPE);
+    expect(at(engine, CLONER_X, ROOM_ROW + 1)).toBeUndefined();
+    expect(at(engine, CLONER_X)?.dir).toBe('W');
+  });
+
+  // Fails without the fromOccupant line: the link template would be cloned out of the empty machine.
+  it('a wire edge on an empty linked cloner spawns nothing', () => {
+    const engine = machine('cc2', false, true);
+    empty(engine);
+    const count = world(engine).entities.length;
+    expect(fireClonerAt(ctxOf(engine), CLONER_X, ROOM_ROW, true)).toBe(true);
+    expect(world(engine).entities.length).toBe(count);
+    expect(at(engine, EAST_X)).toBeUndefined();
   });
 
   it('a red or gray button tries one way only: blocked east, nothing comes out', () => {
