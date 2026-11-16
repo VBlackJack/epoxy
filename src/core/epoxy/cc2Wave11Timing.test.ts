@@ -49,7 +49,8 @@ const CHAIN_WIDTH = FIRST_PLATE_X + STAGE_WIDTH * CHAIN_LENGTH + 3;
 const CHAIN_TICKS = 40;
 /** The ticks between the arrivals of the clones of an avalanche-shaped chain: a rotation of Lexy's 4, 4, 3 intervals counted from tic 0. */
 const CHAIN_INTERVALS: readonly number[] = [4, 3, 4, 4, 3];
-const LANE_TICKS = 12;
+/** Long enough for the gate-fed second clone, which lands in tick 14 (the direct one lands in tick 12). */
+const LANE_TICKS = 16;
 
 const wall = (width: number): string => '#'.repeat(width);
 
