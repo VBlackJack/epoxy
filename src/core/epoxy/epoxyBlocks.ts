@@ -476,7 +476,7 @@ function blockSlideCooldown(w: EpoxyWorld, def: ReturnType<typeof ConfigRegistry
  * The cell a block has just reached acts on it: dirt, water, slime, fire, a bomb, a button, a teleporter, ice. Runs at
  * once for most blocks and, for a CC3D block the player pushed, when its step ends (Cc3dSimulation.onArrival).
  */
-function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction, allowTeleport: boolean): void {
+export function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir: Direction, allowTeleport: boolean): void {
   const w = ctx.world;
   const destX = block.x;
   const destY = block.y;
