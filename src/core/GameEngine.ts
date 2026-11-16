@@ -1313,7 +1313,12 @@ export class GameEngine {
     countPausedTick(w);
   }
 
-  /** Whether the next tick ends the level on time before anything moves (see tick). */
+  /**
+   * Whether the next tick ends the level on time before anything moves (see tick).
+   * Known limitation: it runs before the next tick's step-end flush, so a time item or a toggle clock taken at a step end that the
+   * flush would still apply is not counted here; the verdict can differ from the tick's own when such a pickup lands exactly on the
+   * last second.
+   */
   private comingTickTimesOut(): boolean {
     if (this.w.level.timeLimitSeconds <= 0) return false;
     const ticks = this.ticksElapsed;
