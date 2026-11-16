@@ -571,7 +571,9 @@ export class GameEngine {
           .join('+'),
         [...p.boots].sort().join('+'),
         p.belt !== undefined && p.belt.length > 0 ? p.belt.join('+') : '',
-        p.softPadDue === true ? 'f' : ''
+        p.softPadDue === true ? 'f' : '',
+        // CC2 engine: the frame marks of a parked player (cc2SlideFrame, cc2FrameRetry, cc2PrePassMoved).
+        `${p.cc2SlideFrame ?? ''}${p.cc2FrameRetry === true ? 'r' : ''}${p.cc2PrePassMoved === true ? 'm' : ''}`
       ].join(',');
     return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
@@ -998,6 +1000,9 @@ export class GameEngine {
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
       ...(p.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(p.cc2SlideFrame !== undefined ? { cc2SlideFrame: p.cc2SlideFrame } : {}),
+      ...(p.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
+      ...(p.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -1024,6 +1029,9 @@ export class GameEngine {
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
       ...(snap.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(snap.cc2SlideFrame !== undefined ? { cc2SlideFrame: snap.cc2SlideFrame } : {}),
+      ...(snap.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
+      ...(snap.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
