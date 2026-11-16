@@ -1883,6 +1883,9 @@ export class GameEngine {
         if (usesCc2Engine(this.w.level) && this.w.ccRules && this.w.player.isSliding && this.w.player.alive) {
           this.w.player.slideCooldown += CC2_SLIDE_ENTRY_EXTRA_TICKS;
           if (isCarriedByForceFloor(this.w, destTile)) this.w.player.moveCooldown = CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS;
+          // The same for ice: the step lasts the time of the ice (Lexy speed_factor 0.5, game.js:2177-2194), so the walk wait ends with the
+          // slide wait and the teeth of the tick he arrives read his cell.
+          else if (destTile.slideType === 'ice') this.w.player.moveCooldown = this.w.player.slideCooldown;
         }
       }
       resolveLasers(this.ctx);
