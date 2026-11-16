@@ -1237,6 +1237,11 @@ function slideOntoPadWalks(w: EpoxyWorld): boolean {
   return usesCc2Engine(w.level);
 }
 
+/** CC2 engine: whether a refused forced step is on a turning force floor that carries the controlled player (the bonk turns the floor). */
+function refusedOnTurningForceFloor(w: EpoxyWorld, tile: TileDefinition, mover: PlayerState): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && tile.forceCycle === true && isCarriedByForceFloor(w, tile) && mover === w.player && w.player.alive;
+}
+
 export function processPlayerSlideStep(ctx: EpoxyContext): void {
   const w = ctx.world;
   const dir = w.player.slideDir || w.player.dir;
@@ -1261,6 +1266,21 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
         w.player.isSliding = false;
         w.player.slideDir = null;
       }
+    } else if (refusedOnTurningForceFloor(w, currentTile, mover)) {
+      // CC2 engine: a refused forced step on a turning (random) force floor steps on the cell again, which turns the floor, and
+      // tries the new way at once (Lexy _possibly_bonk, game.js:1127-1162). One floor turn per try.
+      const redraw = forceCycleArrival(w, currentTile);
+      if (redraw !== null && redraw !== dir) {
+        w.player.slideDir = redraw;
+        w.player.dir = redraw;
+        steppedOff = executePlayerMove(ctx, redraw, true);
+      }
+      if (!steppedOff && w.player === mover) {
+        // The floor has turned already: the next try goes the way he now faces, without a second turn.
+        w.player.isSliding = true;
+        w.player.slideDir = w.player.dir;
+        w.player.slideCooldown = 0;
+      }
     } else if (w.cc3dPace && isCarriedByForceFloor(w, currentTile)) {
       // Cc3dSimulation.forceStep: a refused forced step on a force floor keeps the drift (the drawn direction of a
       // random or cycling floor). The player stays on the cell with it, and his input along its axis is refused (see
@@ -1270,6 +1290,12 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
       w.player.isSliding = false;
       w.player.slideDir = null;
     }
+  }
+  // CC2 engine: a slide step of the main turn is a frame-2 step (it ends the slide frame); a forced step on a force floor that stayed
+  // refused retries in frames 0 and 1 of the next tick (pre-pass). Only the controlled player in his own slot carries the marks.
+  if (w.cc2PrePassPlayer !== true && usesCc2Engine(w.level) && !w.cc3dPace && w.swappedIn === null && mover === w.player) {
+    delete mover.cc2SlideFrame;
+    if (!steppedOff && currentTile.slideType === 'force') mover.cc2FrameRetry = true;
   }
   // A converted CC3D level: a slide goes on at the fast pace once its first step is made, and the step that ends it
   // leaves the player busy one more tick.

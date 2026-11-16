@@ -728,8 +728,14 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
 
   // Wires.
   warnings.push(...wires.warnings);
+  const netPadCells = new Set((wires.teleportNets ?? []).flat());
   for (const node of wires.unsupported) {
-    warnings.push(`${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`);
+    // A wired blue pad is played within its wire network; only the logic gates on the network stay unwalked.
+    warnings.push(
+      node.kind === 'teleport' && netPadCells.has(node.y * width + node.x)
+        ? `${node.end === 'source' ? 'source' : 'sink'} teleport at ${node.x},${node.y} is played as a wired blue network: logic gates on the network are not walked`
+        : `${node.end === 'source' ? 'source' : 'sink'} ${node.kind} at ${node.x},${node.y} is not played by Epoxy`
+    );
   }
   if (wires.hasWires || wiredDevices) keys.add(KEY_WIRE);
   if (wires.hasTunnels) keys.add(KEY_WIRE_TUNNEL);
@@ -776,7 +782,8 @@ export function convertCc2Map(map: Cc2Map, options: Cc2ConvertOptions): Cc2Conve
     coverage,
     ...(options.blobBehavior !== undefined ? { blobBehavior: options.blobBehavior } : {}),
     ...(options.useCc1Boots !== undefined ? { useCc1Boots: options.useCc1Boots } : {}),
-    ...(ghostBarCells.length > 0 ? { ghostBarCells } : {})
+    ...(ghostBarCells.length > 0 ? { ghostBarCells } : {}),
+    ...(wires.teleportNets !== undefined ? { teleportNets: wires.teleportNets } : {})
   };
 
   return {

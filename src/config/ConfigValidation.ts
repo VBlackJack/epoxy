@@ -598,6 +598,24 @@ function isAscendingCellList(list: unknown): boolean {
   return list.every((cell, index) => Number.isInteger(cell) && (cell as number) >= 0 && (index === 0 || (cell as number) > (list[index - 1] as number)));
 }
 
+/** True for a list of non-empty lists of non-negative integers (the wired blue teleport networks of a CC2 record). */
+export function isTeleportNetList(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every((net) => Array.isArray(net) && net.length > 0 && net.every((cell) => Number.isInteger(cell) && (cell as number) >= 0))
+  );
+}
+
+/**
+ * Returns the CC2 record without its wired blue teleport networks when they are malformed: only that field is dropped, never
+ * the record, so a level keeps its other CC2 data. The record is returned as is when the field is absent or well formed.
+ */
+export function withValidTeleportNets(cc2: Cc2LevelData): Cc2LevelData {
+  if (cc2.teleportNets === undefined || isTeleportNetList(cc2.teleportNets)) return cc2;
+  const { teleportNets: _dropped, ...rest } = cc2;
+  return rest;
+}
+
 /** True for a CC2 source record: version 1, text fields, a positive order and a coverage with a known verdict. */
 export function isCc2LevelData(value: unknown): value is Cc2LevelData {
   if (!isRecord(value) || value.v !== 1) return false;
@@ -915,6 +933,8 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   if ('character' in record && !isPlayerCharacter(record.character)) bad.push('character');
   if ('blockBudget' in record && !isBlockBudget(record.blockBudget)) bad.push('blockBudget');
   if ('cc2' in record && !isCc2LevelData(record.cc2)) bad.push('cc2');
+  const cc2Nets = 'cc2' in record && isCc2LevelData(record.cc2) ? withValidTeleportNets(record.cc2) : undefined;
+  const badNets = cc2Nets !== undefined && cc2Nets !== record.cc2;
   if ('rulesFlavor' in record && record.rulesFlavor !== 'cc') bad.push('rulesFlavor');
   const badPassword = typeof record.password !== 'string';
   let edges: CellEdge[] | null = null;
@@ -964,9 +984,10 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
     );
     if (wires === null || JSON.stringify(wires) !== JSON.stringify(record.signalLinks)) bad.push('signalLinks');
   }
-  if (bad.length === 0 && !badPassword) return level;
+  if (bad.length === 0 && !badPassword && !badNets) return level;
   const copy: Record<string, unknown> = { ...record };
   for (const key of bad) delete copy[key];
+  if (badNets) copy.cc2 = cc2Nets;
   if (edges !== null && bad.includes('cellEdges')) copy.cellEdges = edges;
   if (others !== null && bad.includes('extraPlayers')) copy.extraPlayers = others;
   if (hints !== null && bad.includes('cellHints')) copy.cellHints = hints;

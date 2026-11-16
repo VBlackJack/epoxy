@@ -64,6 +64,7 @@ const CODE_TOGGLE_SWITCH_ON = 0x89;
 const CODE_LOGIC_GATE = 0x5c;
 const CODE_TELEPORT_FIRST = 0x10;
 const CODE_TELEPORT_RED = 0x10;
+const CODE_TELEPORT_BLUE = 0x11;
 const CODE_TELEPORT_LAST = 0x13;
 const CODE_TRANSMOGRIFIER = 0x4e;
 /** The railroad tile; its modifier holds the track bits, and the switch flag marks a switch a wire can advance. */
@@ -195,6 +196,11 @@ export interface Cc2WireResult {
   unsupported: Cc2UnsupportedNode[];
   /** Human-readable notes (tunnel without a partner, gate of unknown kind). */
   warnings: string[];
+  /**
+   * The wired blue teleports grouped by wire network: cell indices, ascending inside a list, lists ordered by their first
+   * cell. Absent when the map holds no blue pad with a wire nibble.
+   */
+  teleportNets?: number[][];
 }
 
 function terrainTile(cell: { tiles: { code: number; mod?: number }[] }): { code: number; mod?: number } | undefined {
@@ -553,6 +559,50 @@ export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2Wir
     .filter((index) => (cells[index] as CellInfo).role === 'sink')
     .sort((a, b) => a - b)
     .map((index) => ({ x: index % width, y: Math.floor(index / width) }));
+
+  // A wired blue pad conducts: pads that share a net, directly or through another pad, are one network
+  // [Lexy's Labyrinth tiletypes.js teleport_blue teleport_dest_order]. A pad whose wire meets nothing is a network of its own.
+  const padCells: number[] = [];
+  for (let index = 0; index < total; index++) {
+    const tile = terrainTile(map.cells[index]);
+    if (tile !== undefined && tile.code === CODE_TELEPORT_BLUE && cc2WireMask(tile.mod) !== 0) padCells.push(index);
+  }
+  if (padCells.length > 0) {
+    const padSlot = new Map<number, number>(padCells.map((cell, slot) => [cell, slot]));
+    const padGroups = new DisjointSet(padCells.length);
+    const firstPadOfRoot = new Map<number, number>();
+    for (const [root, list] of readers) {
+      for (const attached of list) {
+        const slot = padSlot.get(attached.node);
+        if (slot === undefined) continue;
+        const first = firstPadOfRoot.get(root);
+        if (first === undefined) firstPadOfRoot.set(root, slot);
+        else padGroups.union(first, slot);
+      }
+    }
+    // Two pads side by side whose wire sides face each other conduct into one another.
+    padCells.forEach((cell, slot) => {
+      const mask = cc2WireMask(terrainTile(map.cells[cell])?.mod);
+      for (let side = 0; side < SIDE_COUNT; side++) {
+        if ((mask & (1 << side)) === 0) continue;
+        const nx = (cell % width) + SIDE_OFFSETS_X[side];
+        const ny = Math.floor(cell / width) + SIDE_OFFSETS_Y[side];
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const neighbour = padSlot.get(ny * width + nx);
+        if (neighbour === undefined) continue;
+        const back = (side + OPPOSITE_STEP) % SIDE_COUNT;
+        if ((cc2WireMask(terrainTile(map.cells[padCells[neighbour]])?.mod) & (1 << back)) !== 0) padGroups.union(slot, neighbour);
+      }
+    });
+    const byGroup = new Map<number, number[]>();
+    padCells.forEach((cell, slot) => {
+      const group = padGroups.find(slot);
+      const list = byGroup.get(group);
+      if (list === undefined) byGroup.set(group, [cell]);
+      else list.push(cell);
+    });
+    result.teleportNets = [...byGroup.values()].sort((a, b) => a[0] - b[0]);
+  }
 
   links.sort((a, b) => a.fromY - b.fromY || a.fromX - b.fromX || a.toY - b.toY || a.toX - b.toX);
   unsupported.sort((a, b) => a.y - b.y || a.x - b.x || a.end.localeCompare(b.end));

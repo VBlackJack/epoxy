@@ -270,3 +270,54 @@ describe('devices Epoxy does not play', () => {
     expect(result).toEqual({ links: [], hasWires: false, hasTunnels: false, wiredSinks: [], unsupported: [], warnings: [] });
   });
 });
+
+describe('wired blue pad networks', () => {
+  const BLUE = 0x11;
+  const RED = 0x10;
+  const pad = (x: number, y: number, mod: number) => put(x, y, modTile(BLUE, mod));
+  const NS = N | S;
+  const EW = E | W;
+
+  it('keeps two crossing networks apart (Lexy teleport_blue teleport_dest_order, the lesson 6 shape)', () => {
+    // A horizontal wire y=2 and a vertical wire x=2 cross at (2,2): each carries two pads and the networks stay apart.
+    const map = makeMap(5, 5, [
+      pad(0, 2, E),
+      wire(1, 2, EW),
+      wire(2, 2, ALL_SIDES),
+      wire(3, 2, EW),
+      pad(4, 2, W),
+      pad(2, 0, S),
+      wire(2, 1, NS),
+      wire(2, 3, NS),
+      pad(2, 4, N)
+    ]);
+    expect(buildCc2Wires(map).teleportNets).toEqual([
+      [2, 22],
+      [10, 14]
+    ]);
+  });
+
+  it('gives a pad whose wire meets nothing a network of its own', () => {
+    const map = makeMap(4, 1, [pad(0, 0, E), pad(3, 0, W), wire(1, 0, EW)]);
+    // The wire at (1,0) reaches the pad at (0,0) only: the pad at (3,0) has a wire nibble with no wire to meet.
+    expect(buildCc2Wires(map).teleportNets).toEqual([[0], [3]]);
+  });
+
+  it('joins two networks that meet at one pad, which conducts', () => {
+    const map = makeMap(5, 1, [pad(0, 0, E), wire(1, 0, EW), pad(2, 0, EW), wire(3, 0, EW), pad(4, 0, W)]);
+    expect(buildCc2Wires(map).teleportNets).toEqual([[0, 2, 4]]);
+  });
+
+  it('joins two touching pads whose wire sides face each other, and only then', () => {
+    expect(buildCc2Wires(makeMap(2, 1, [pad(0, 0, E), pad(1, 0, W)])).teleportNets).toEqual([[0, 1]]);
+    expect(buildCc2Wires(makeMap(2, 1, [pad(0, 0, E), pad(1, 0, N)])).teleportNets).toEqual([[0], [1]]);
+    expect(buildCc2Wires(makeMap(2, 1, [pad(0, 0, N), pad(1, 0, W)])).teleportNets).toEqual([[0], [1]]);
+    expect(buildCc2Wires(makeMap(1, 2, [pad(0, 0, S), pad(0, 1, N)])).teleportNets).toEqual([[0, 1]]);
+  });
+
+  it('carries no field without a wired blue pad', () => {
+    expect(buildCc2Wires(makeMap(3, 1, [put(0, 0, { code: BLUE }), put(2, 0, { code: BLUE })])).teleportNets).toBeUndefined();
+    expect(buildCc2Wires(makeMap(3, 1, [put(0, 0, modTile(RED, E)), wire(1, 0, EW)])).teleportNets).toBeUndefined();
+    expect(buildCc2Wires(makeMap(3, 1, [button(0, 0, E), wire(1, 0, EW), cloner(2, 0)])).teleportNets).toBeUndefined();
+  });
+});

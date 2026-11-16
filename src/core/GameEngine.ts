@@ -555,8 +555,9 @@ export class GameEngine {
 
   /** Search state of the other players: the exit count, then each parked player's cell, facing, motion, inventory and character. */
   private playersStateKey(): string {
-    const one = (p: PlayerState): string =>
-      [
+    const one = (p: PlayerState): string => {
+      const marks = `${p.cc2SlideFrame ?? ''}${p.cc2FrameRetry === true ? 'r' : ''}${p.cc2PrePassMoved === true ? 'm' : ''}`;
+      return [
         p.x,
         p.y,
         p.dir,
@@ -571,8 +572,11 @@ export class GameEngine {
           .join('+'),
         [...p.boots].sort().join('+'),
         p.belt !== undefined && p.belt.length > 0 ? p.belt.join('+') : '',
-        p.softPadDue === true ? 'f' : ''
+        p.softPadDue === true ? 'f' : '',
+        // CC2 engine: the frame marks of a parked player (cc2SlideFrame, cc2FrameRetry, cc2PrePassMoved); absent elsewhere.
+        ...(marks === '' ? [] : [marks])
       ].join(',');
+    };
     return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
 
@@ -998,6 +1002,9 @@ export class GameEngine {
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
       ...(p.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(p.cc2SlideFrame !== undefined ? { cc2SlideFrame: p.cc2SlideFrame } : {}),
+      ...(p.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
+      ...(p.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -1024,6 +1031,9 @@ export class GameEngine {
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
       ...(snap.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(snap.cc2SlideFrame !== undefined ? { cc2SlideFrame: snap.cc2SlideFrame } : {}),
+      ...(snap.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
+      ...(snap.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -1199,7 +1209,10 @@ export class GameEngine {
     if (actorOrder) {
       this.openActorTick();
     } else {
-      if (this.w.player.moveCooldown > 0) {
+      // CC2 engine: a forced step the pre-pass already made in this tick is the step of the tick (frames 0 and 1 come before the input):
+      // the wait and the slide do not run again, or the input of the next tick would be let through.
+      const prePassMoved = this.w.player.cc2PrePassMoved === true;
+      if (this.w.player.moveCooldown > 0 && !prePassMoved) {
         this.w.player.moveCooldown--;
       }
       // A converted CC3D level: what the player's step onto a cell does acts when that step ends.
@@ -1210,8 +1223,8 @@ export class GameEngine {
 
       // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
       // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
-      if (this.w.ccRules || this.w.cc3dPace) resumeForceCarry(this.w);
-      if (this.w.player.isSliding) {
+      if ((this.w.ccRules || this.w.cc3dPace) && !prePassMoved) resumeForceCarry(this.w);
+      if (this.w.player.isSliding && !prePassMoved) {
         if (this.w.player.slideCooldown > 0) {
           this.w.player.slideCooldown--;
           if (this.w.cc3dPace && this.w.player.slideCooldown === 0 && !applyCc3dStepEnd(this.ctx)) {
@@ -1529,9 +1542,11 @@ export class GameEngine {
     w.cc2PendingDecision = undefined;
     if (stored !== undefined) this.playStoredInput(stored, tick);
     if (!w.player.alive || w.levelCompleted) return [];
-    if (w.player.moveCooldown > 0) w.player.moveCooldown--;
-    resumeForceCarry(w);
-    if (w.player.isSliding) {
+    // A forced step the pre-pass already made in this tick (frame 0 or 1, before the input) is the step of the turn.
+    const prePassMoved = w.player.cc2PrePassMoved === true;
+    if (w.player.moveCooldown > 0 && !prePassMoved) w.player.moveCooldown--;
+    if (!prePassMoved) resumeForceCarry(w);
+    if (w.player.isSliding && !prePassMoved) {
       if (w.player.slideCooldown > 0) w.player.slideCooldown--;
       else processPlayerSlideStep(this.ctx);
     }
@@ -1870,6 +1885,9 @@ export class GameEngine {
         if (usesCc2Engine(this.w.level) && this.w.ccRules && this.w.player.isSliding && this.w.player.alive) {
           this.w.player.slideCooldown += CC2_SLIDE_ENTRY_EXTRA_TICKS;
           if (isCarriedByForceFloor(this.w, destTile)) this.w.player.moveCooldown = CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS;
+          // The same for ice: the step lasts the time of the ice (Lexy speed_factor 0.5, game.js:2177-2194), so the walk wait ends with the
+          // slide wait and the teeth of the tick he arrives read his cell.
+          else if (destTile.slideType === 'ice') this.w.player.moveCooldown = this.w.player.slideCooldown;
         }
       }
       resolveLasers(this.ctx);

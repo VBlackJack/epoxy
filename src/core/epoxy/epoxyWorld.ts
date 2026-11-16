@@ -106,6 +106,8 @@ export interface EpoxyWorld {
    * Cc2LevelData.ghostBarCells), bounds-checked at load. A blast that turns such a cell to floor removes it. Absent on every other level.
    */
   ghostBar?: Set<number>;
+  /** CC2 engine: cell index -> wired blue teleport network, built at load from Cc2LevelData.teleportNets; absent unless the record is valid for this grid. */
+  cc2PadNets?: Map<number, number>;
   /** CC2 engine: the size of `ghostBar` as built at load (the listed cells that lie inside the map); the bar counts as edited once it differs. */
   ghostBarLoadSize?: number;
   /**
@@ -247,6 +249,8 @@ export interface EpoxyWorld {
    * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
    */
   cc2ActorOrder?: true;
+  /** CC2 engine: the pre-pass is stepping the player (set around his step, never saved). Absent otherwise. */
+  cc2PrePassPlayer?: true;
   /** CC2 engine: true when the level has a mirror player (or a mirror clone template), so the mirrors copy the player's decisions. Decided once at load; absent otherwise. */
   cc2MirrorCadence?: true;
   /**
@@ -459,6 +463,31 @@ export function buildGhostBar(level: CompiledLevel, width: number, height: numbe
   return cells.size > 0 ? cells : undefined;
 }
 
+/** The id of the CC2 blue pad, the only pad that follows wire networks. */
+export const CC2_WIRED_PAD_ID = 'teleport_blue';
+
+/**
+ * CC2 engine: the wired blue pad networks of the import, as cell -> network index. Undefined (the whole list ignored) when the list is
+ * malformed, or when a listed cell is out of the grid, listed twice or no longer holds a blue pad (an edited or resized level): a
+ * stale list must not split the pads.
+ */
+export function buildCc2PadNets(level: CompiledLevel, terrain: string[][]): Map<number, number> | undefined {
+  const nets: unknown = level.cc2?.teleportNets;
+  if (!Array.isArray(nets)) return undefined;
+  const width = terrain[0]?.length ?? 0;
+  const map = new Map<number, number>();
+  for (let n = 0; n < nets.length; n++) {
+    const net: unknown = nets[n];
+    if (!Array.isArray(net) || net.length === 0) return undefined;
+    for (const cell of net) {
+      if (!Number.isInteger(cell) || cell < 0 || cell >= width * terrain.length || map.has(cell)) return undefined;
+      if (terrain[Math.floor(cell / width)][cell % width] !== CC2_WIRED_PAD_ID) return undefined;
+      map.set(cell, n);
+    }
+  }
+  return map.size > 0 ? map : undefined;
+}
+
 /**
  * CC2 engine: numbers every actor (entities and players) in the reading order of the load grid, which is the order the
  * source lists them in. Entities spawned later keep no ordinal and count as after every other. Any other level is left
@@ -487,6 +516,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.blastedEdgeMask = undefined;
   w.mirrorMove = undefined;
   w.ghostBar = buildGhostBar(w.level, w.terrain[0]?.length ?? 0, w.terrain.length);
+  w.cc2PadNets = buildCc2PadNets(w.level, w.terrain);
   w.ghostBarLoadSize = w.ghostBar?.size;
   assignListOrdinals(w);
   w.hasTurrets = levelHasTurrets(w);
@@ -896,6 +926,12 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
     .filter((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined)
     .map((e) => `${e.uid}:${e.cc2SlideFrame ?? ''}/${e.cc2SlideDue ?? ''}/${e.cc2ArrivalWait ?? ''}.${e.cc2ArrivalFrame ?? ''}`);
   if (slideFrames.length > 0) parts.push(`R${slideFrames.join(',')}`);
+  const playerMark = (pl: PlayerState): string =>
+    pl.cc2SlideFrame !== undefined || pl.cc2FrameRetry === true || pl.cc2PrePassMoved === true
+      ? `${pl.cc2SlideFrame ?? ''}${pl.cc2FrameRetry === true ? 'r' : ''}${pl.cc2PrePassMoved === true ? 'm' : ''}`
+      : '';
+  const playerMarks = [w.player, ...w.parked].map(playerMark);
+  if (playerMarks.some((m) => m !== '')) parts.push(`P${playerMarks.join(',')}`);
   if (w.cc2PrePassDone === true) parts.push('Q');
   const preMoved = w.entities.filter((e) => e.cc2PrePassMoved === true).map((e) => e.uid);
   if (preMoved.length > 0) parts.push(`O${preMoved.join(',')}`);
@@ -1052,6 +1088,12 @@ export function rotatePlayers(w: EpoxyWorld): boolean {
   if (next === undefined) return false;
   w.parked.push(w.player);
   w.player = next;
+  // A swap ends the frame marks of every player (the marks belong to the controlled player in his own slot).
+  for (const pl of [w.player, ...w.parked]) {
+    delete pl.cc2SlideFrame;
+    delete pl.cc2FrameRetry;
+    delete pl.cc2PrePassMoved;
+  }
   return true;
 }
 

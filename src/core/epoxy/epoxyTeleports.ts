@@ -33,7 +33,8 @@ import {
   getEntityAt,
   isEdgeBlocked,
   isInBounds,
-  playerAtCell
+  playerAtCell,
+  CC2_WIRED_PAD_ID
 } from './epoxyWorld';
 
 /**
@@ -216,6 +217,19 @@ function nativePadPlan(
   return plan;
 }
 
+/**
+ * CC2 engine, blue pads: a wired pad jumps only within its wire network and an unwired pad only to unwired pads
+ * [Lexy's Labyrinth tiletypes.js teleport_blue teleport_dest_order]. Every other level and pad keeps the level-wide group.
+ */
+function cc2PadNetwork(w: EpoxyWorld, origin: TileDefinition, x: number, y: number, linked: GridPoint[]): GridPoint[] {
+  const nets = w.cc2PadNets;
+  if (nets === undefined || origin.id !== CC2_WIRED_PAD_ID || !usesCc2Engine(w.level)) return linked;
+  const width = w.terrain[0].length;
+  const own = nets.get(y * width + x);
+  if (own !== undefined) return linked.filter((cell) => nets.get(cell.y * width + cell.x) === own);
+  return linked.filter((cell) => !nets.has(cell.y * width + cell.x));
+}
+
 /** Teleporters that a jump from the teleporter at (x, y) may land on, itself included. */
 function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   const origin = ConfigRegistry.getTile(w.terrain[y][x]);
@@ -226,7 +240,7 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
   if (origin.relayPad !== undefined) return livePadsOf(w, group, (tile) => tile.relayPad !== undefined);
   // A powered pad may come alive after the load (its input rises), so the live pads are read from the terrain.
   if (origin.poweredTwin !== undefined) return livePadsOf(w, group, () => true);
-  const linked = w.teleportersByGroup.get(group) ?? [];
+  const linked = cc2PadNetwork(w, origin, x, y, w.teleportersByGroup.get(group) ?? []);
   // A teleporter hidden under a removable top is listed too; it takes part once the top is gone.
   return w.underlays === null
     ? linked

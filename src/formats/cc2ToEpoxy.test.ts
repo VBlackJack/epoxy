@@ -934,7 +934,38 @@ describe('wires', () => {
       put(2, 0, modTile(0x11, W))
     ]);
     const { report } = convertCc2Map(map, OPTIONS);
+    // Wave 15: the pad is played within its wire network, so the warning says what stays unwalked (the logic gates).
+    expect(report.warnings.some((w) => w.includes('teleport') && w.includes('wired blue network') && w.includes('logic gates'))).toBe(true);
+    expect(report.warnings.some((w) => w.includes('teleport') && w.includes('not played'))).toBe(false);
+  });
+
+  it('keeps the not played warning for a wired yellow pad', () => {
+    const map = makeMap(4, 1, [
+      player(3, 0),
+      put(0, 0, modTile(PINK, E)),
+      put(1, 0, modTile(FLOOR_CODE, E | W)),
+      put(2, 0, modTile(0x12, W))
+    ]);
+    const { report } = convertCc2Map(map, OPTIONS);
     expect(report.warnings.some((w) => w.includes('teleport') && w.includes('not played'))).toBe(true);
+  });
+
+  it('records the wired blue networks on the cc2 record, and no field without a wired pad', () => {
+    const facing = convert([put(1, 0, modTile(0x11, E)), put(2, 0, modTile(0x11, W))], 6, 4);
+    expect(facing.level.cc2?.teleportNets).toEqual([[1, 2]]);
+    const apart = convert([put(1, 0, modTile(0x11, E)), put(3, 0, modTile(0x11, W))], 6, 4);
+    expect(apart.level.cc2?.teleportNets).toEqual([[1], [3]]);
+    const plain = convert([put(1, 0, { code: 0x11 }), put(2, 0, { code: 0x11 })]);
+    expect(plain.level.cc2 !== undefined && 'teleportNets' in plain.level.cc2).toBe(false);
+    expect(plain.level.cc2?.coverage.approx ?? []).not.toContain('teleport_blue_wired');
+  });
+
+  it('keeps the approx verdict for a wired blue pad and says it jumps within its network', () => {
+    const { coverage } = convert([put(1, 0, modTile(0x11, E)), put(2, 0, { code: 0x11 })]);
+    expect(coverage.verdict).toBe('approx');
+    expect(CC2_COVERAGE.teleport_blue_wired.reason).toContain('within its wire network');
+    expect(CC2_COVERAGE.wired_teleport.reason).toContain('wire network');
+    expect(CC2_COVERAGE.wired_teleport.reason).not.toContain('keeps one level-wide group');
   });
 
   it('counts a wired teleport as the wired blue teleport', () => {
