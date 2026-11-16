@@ -28,6 +28,7 @@ vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { CC2_TOOL_BELT_CAPACITY, STONE_ITEM_ID } from '../coreConstants';
 import { playCycle, playDrop, playMove } from '../../test/cc2Play';
+import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CC2_TEST_RECORD, room, ROOM_ROW, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -42,6 +43,8 @@ const FIRST_X = 3;
 const BOOTS = ['boots_water', 'boots_fire', 'boots_ice', 'boots_force'];
 const FIFTH = 'boots_speed';
 const DYNAMITE = 'dynamite';
+const FIRE = 'boots_fire';
+const THIEF = 'thief';
 const YELLOW_PAD_ITEM = 'teleport_yellow_item';
 const MAX_WAIT_TICKS = 40;
 const SETTLE_TICKS = 60;
@@ -192,6 +195,111 @@ describe('the four-tool belt of a CC2-engine level', () => {
     expect(engine.undo()).toBe(true);
     expect(engine.getPlayer().belt).toEqual(BOOTS);
     expect(engine.getPlayer().boots.has(BOOTS[0])).toBe(true);
+  });
+});
+
+/**
+ * A second pair of boots already worn is a tool of its own on the CC2 belt (Lexy attempt_take pushes the name without a duplicate
+ * check, game.js:3288-3330; only use_cc1_boots ignores duplicates). The worn pair stays in boots; each extra copy is counted in
+ * keys under the boot id, and the belt lists both.
+ */
+describe('duplicate boots on the four-tool belt', () => {
+  /** Every boot id he holds keeps the invariant: an extra copy count is positive, and an extra copy implies the worn pair. */
+  function expectBootsConsistent(engine: GameEngine): void {
+    const p = engine.getPlayer();
+    for (const [id, count] of Object.entries(p.keys)) {
+      if (ConfigRegistry.getTile(id).collectible !== 'boot') continue;
+      expect(count, `extra copies of ${id}`).toBeGreaterThan(0);
+      expect(p.boots.has(id), `${id} worn while a copy is held`).toBe(true);
+    }
+    expect(engine.getToolBelt()?.length ?? 0).toBeLessThanOrEqual(CC2_TOOL_BELT_CAPACITY);
+  }
+
+  it('takes a second fire boots: the belt shows both, one pair is worn and one counted', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(corridor('cc2', [FIRE, FIRE]));
+    walkEast(engine, 2);
+    const p = engine.getPlayer();
+    expect(p.belt).toEqual([FIRE, FIRE]);
+    expect(p.boots.has(FIRE)).toBe(true);
+    expect(p.keys[FIRE]).toBe(1);
+    expect(world(engine).items[ROOM_ROW][FIRST_X + 1]).toBeNull();
+    expectBootsConsistent(engine);
+  });
+
+  it('one drop leaves one worn pair', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(corridor('cc2', [FIRE, FIRE]));
+    walkEast(engine, 2);
+    expect(playDrop(engine, FIRE)).toBe(true);
+    const p = engine.getPlayer();
+    expect(p.keys[FIRE]).toBeUndefined();
+    expect(p.boots.has(FIRE)).toBe(true);
+    expect(p.belt).toEqual([FIRE]);
+    expect(world(engine).items[ROOM_ROW][p.x]).toBe(FIRE);
+    expectBootsConsistent(engine);
+  });
+
+  it('pushes a duplicate out first when it is the oldest: the worn pair stays', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(corridor('cc2', [FIRE, BOOTS[0], FIRE, BOOTS[2], FIFTH]));
+    walkEast(engine, 5);
+    const p = engine.getPlayer();
+    expect(p.belt).toEqual([BOOTS[0], FIRE, BOOTS[2], FIFTH]);
+    expect(p.boots.has(FIRE)).toBe(true);
+    expect(p.keys[FIRE]).toBeUndefined();
+    expect(world(engine).items[ROOM_ROW][p.x]).toBe(FIRE);
+    expectBootsConsistent(engine);
+  });
+
+  it('is taken by the thief together with the worn pair', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(corridor('cc2', [FIRE, FIRE, BOOTS[0]], { terrain: { [`${FIRST_X + 3},${ROOM_ROW}`]: THIEF } }));
+    walkEast(engine, 4);
+    const p = engine.getPlayer();
+    expect(p.boots.size).toBe(0);
+    expect(p.keys[FIRE]).toBeUndefined();
+    expect(engine.getToolBelt()).toEqual([]);
+  });
+
+  it('holds the invariant over every removal path with a duplicate held', () => {
+    // Drop: one copy goes at a time, down to the worn pair.
+    const dropped = new GameEngine();
+    dropped.loadLevel(corridor('cc2', [FIRE, FIRE, FIRE]));
+    walkEast(dropped, 3);
+    expect(dropped.getPlayer().keys[FIRE]).toBe(2);
+    expect(playDrop(dropped, FIRE)).toBe(true);
+    expect(dropped.getPlayer().keys[FIRE]).toBe(1);
+    expectBootsConsistent(dropped);
+    // Push-out: the oldest copy goes out while a duplicate stays held.
+    const pushed = new GameEngine();
+    pushed.loadLevel(corridor('cc2', [FIRE, FIRE, FIRE, BOOTS[0], FIFTH]));
+    walkEast(pushed, 5);
+    expect(pushed.getPlayer().keys[FIRE]).toBe(1);
+    expect(pushed.getPlayer().belt).toEqual([FIRE, FIRE, BOOTS[0], FIFTH]);
+    expectBootsConsistent(pushed);
+    // Thief: nothing of the boots is left.
+    const robbed = new GameEngine();
+    robbed.loadLevel(corridor('cc2', [FIRE, FIRE, FIRE], { terrain: { [`${FIRST_X + 3},${ROOM_ROW}`]: THIEF } }));
+    walkEast(robbed, 4);
+    expect(robbed.getPlayer().boots.size).toBe(0);
+    expect(Object.keys(robbed.getPlayer().keys)).toEqual([]);
+    expectBootsConsistent(robbed);
+  });
+
+  it('is refused on a native level and on a level asking for the CC1 boot rules', () => {
+    const native = new GameEngine();
+    native.loadLevel(corridor('native', [FIRE, FIRE]));
+    walkEast(native, 2);
+    expect(native.getPlayer().keys[FIRE]).toBeUndefined();
+    expect(native.getPlayer().belt).toBeUndefined();
+    expect(world(native).items[ROOM_ROW][FIRST_X + 1]).toBeNull();
+    const cc1 = new GameEngine();
+    cc1.loadLevel(corridor('cc2', [FIRE, FIRE], { cc1Boots: true }));
+    walkEast(cc1, 2);
+    expect(cc1.getPlayer().keys[FIRE]).toBeUndefined();
+    expect(cc1.getPlayer().belt).toBeUndefined();
+    expect([...cc1.getPlayer().boots]).toEqual([FIRE]);
   });
 });
 

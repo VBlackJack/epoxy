@@ -83,6 +83,7 @@ import {
   softPadOverrideDue,
   takeSoftPadOverride,
   syncToolBelt,
+  takeExtraBootCopy,
   toolBeltOf,
   usesToolBelt,
   resumeForceCarry,
@@ -723,7 +724,8 @@ export class GameEngine {
       } else {
         delete this.w.player.keys[itemId];
       }
-    } else {
+    } else if (!(usesToolBelt(this.w) && takeExtraBootCopy(this.w.player, itemId))) {
+      // On a belt level an extra pair of the boots goes down first, the worn pair stays.
       this.w.player.boots.delete(itemId);
     }
     if (def.collectible === 'charge' && def.cc2Dynamite === true) {

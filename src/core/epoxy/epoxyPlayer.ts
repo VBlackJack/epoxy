@@ -635,6 +635,9 @@ export function isBeltTool(def: TileDefinition): boolean {
  */
 function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinition): boolean {
   if (def.collectible !== 'boot') return false;
+  // CC2 belt: a second pair of the same boots is a tool of its own (Lexy attempt_take never refuses a tool for being held already,
+  // game.js:3237-3275; only use_cc1_boots ignores duplicates, game.js:3288-3330); the extra pairs are counted in keys under the boot id.
+  if (usesToolBelt(w) && def.absorbsMonsterContact !== true) return false;
   return w.player.boots.has(itemId) || (def.absorbsMonsterContact === true && wardBootsHeld(w.player.boots) !== undefined);
 }
 
@@ -667,10 +670,20 @@ export function toolBeltOf(p: PlayerState): string[] {
   return belt;
 }
 
+/** Takes one extra copy of the boots `itemId` out of keys (the pair in boots stays); false when he holds no extra copy. */
+export function takeExtraBootCopy(p: PlayerState, itemId: string): boolean {
+  const extra = p.keys[itemId] ?? 0;
+  if (extra <= 0) return false;
+  if (extra === 1) delete p.keys[itemId];
+  else p.keys[itemId] = extra - 1;
+  return true;
+}
+
 /** Takes one `itemId` out of what the player holds (boots or a counted tool). */
 function removeHeldTool(p: PlayerState, itemId: string, def: TileDefinition): void {
   if (def.collectible === 'boot') {
-    p.boots.delete(itemId);
+    // An extra pair goes first, the worn one last.
+    if (!takeExtraBootCopy(p, itemId)) p.boots.delete(itemId);
     return;
   }
   const left = (p.keys[itemId] ?? 0) - 1;
@@ -703,7 +716,7 @@ function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string,
   } else {
     w.items[y][x] = null;
   }
-  if (def.collectible === 'boot') p.boots.add(itemId);
+  if (def.collectible === 'boot' && !p.boots.has(itemId)) p.boots.add(itemId);
   else p.keys[itemId] = (p.keys[itemId] || 0) + 1;
   belt.push(itemId);
   p.belt = belt;
@@ -890,6 +903,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   } else {
     if (takesBoots) {
       w.player.boots.clear();
+      // The extra pairs of boots go with the worn ones (Lexy take_all_tools_from_actor takes every tool).
+      w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => ConfigRegistry.getTile(id).collectible !== 'boot'));
       if (takesCountedTools) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isCountedTool(id)));
       w.statusBannerKey = 'hud.messages.thief_stole';
       AudioManager.playSfx('thief');
