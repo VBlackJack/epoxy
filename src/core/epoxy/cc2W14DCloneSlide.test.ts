@@ -43,6 +43,8 @@ const FRAMES_PER_TICK = 3;
 const PLAIN_CLONE_STEP_END_FRAMES = 11;
 /** Ticks before the first slide step of a block cloned onto a slide. */
 const CLONE_SLIDE_TICKS = 2;
+/** The pre-pass of the coming tick, still to run when the clone is made outside it, counts in the wait. */
+const PENDING_PRE_PASS = 1;
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const ctxOf = (engine: GameEngine): EpoxyContext => (engine as unknown as { ctx: EpoxyContext }).ctx;
@@ -51,11 +53,13 @@ beforeEach(() => {
   loadTestConfigs();
 });
 
-function cloneBlock(mode: RoomMode, onIce: boolean, frame: 0 | 1 | 2) {
+function cloneBlock(mode: RoomMode, onIce: boolean, frame: 0 | 1 | 2, prePassDone = false) {
   const terrain: Record<string, string> = { [`${CLONER_X},${ROOM_ROW}`]: 'clone_machine' };
   if (onIce) terrain[`${SPAWN_X},${ROOM_ROW}`] = ICE;
   const engine = new GameEngine();
   engine.loadLevel(room({ mode, terrain, entities: [{ type: BLOCK, x: CLONER_X, y: ROOM_ROW, dir: 'E' }] }));
+  // The coming pre-pass still to run counts in the wait; once it has run, it does not.
+  if (prePassDone) worldOf(engine).cc2PrePassDone = true;
   worldOf(engine).cc2ReleaseFrame = frame;
   spawnFromCloner(ctxOf(engine), CLONER_X, ROOM_ROW, BLOCK, 'E');
   return engine.getEntities().find((e) => e.type === BLOCK && e.x === SPAWN_X && e.y === ROOM_ROW);
@@ -67,8 +71,14 @@ describe('CC2 engine: a block cloned onto ice slides in the frame of its press',
     const block = cloneBlock('cc2', true, frame);
     expect(block?.isSliding).toBe(true);
     expect(block?.cc2SlideFrame).toBe(frame);
-    expect(block?.cc2SlideDue).toBeGreaterThanOrEqual(CLONE_SLIDE_TICKS);
+    expect(block?.cc2SlideDue).toBe(CLONE_SLIDE_TICKS + PENDING_PRE_PASS);
     expect(block?.cc2ArrivalWait).toBeUndefined();
+  });
+
+  it.each([FRAME_0, FRAME_1] as const)('counts no pre-pass to come once this tick\'s has run (frame %i)', (frame) => {
+    const block = cloneBlock('cc2', true, frame, true);
+    expect(block?.cc2SlideFrame).toBe(frame);
+    expect(block?.cc2SlideDue).toBe(CLONE_SLIDE_TICKS);
   });
 
   it('keeps the base timing for a press of frame 2', () => {
@@ -91,7 +101,14 @@ describe('CC2 engine: a block cloned onto a plain cell holds its arrival to the 
     const total = frame + PLAIN_CLONE_STEP_END_FRAMES;
     expect(block?.arrivalTicks).toBeDefined();
     expect(block?.cc2ArrivalFrame).toBe(total % FRAMES_PER_TICK);
-    expect(block?.cc2ArrivalWait).toBeGreaterThanOrEqual(Math.floor(total / FRAMES_PER_TICK));
+    expect(block?.cc2ArrivalWait).toBe(Math.floor(total / FRAMES_PER_TICK) + PENDING_PRE_PASS);
+  });
+
+  it.each([FRAME_0, FRAME_1] as const)('counts no pre-pass to come once this tick\'s has run (frame %i)', (frame) => {
+    const block = cloneBlock('cc2', false, frame, true);
+    const total = frame + PLAIN_CLONE_STEP_END_FRAMES;
+    expect(block?.cc2ArrivalFrame).toBe(total % FRAMES_PER_TICK);
+    expect(block?.cc2ArrivalWait).toBe(Math.floor(total / FRAMES_PER_TICK));
   });
 
   it('keeps the base timing for a press of frame 2', () => {
