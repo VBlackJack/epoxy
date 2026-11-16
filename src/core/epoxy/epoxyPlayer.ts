@@ -631,10 +631,14 @@ export function isBeltTool(def: TileDefinition): boolean {
 
 /**
  * Boots the player cannot hold twice (the boots are a set) or a second ward: the pickup is the plain one and never pushes
- * a tool off the belt.
+ * a tool off the belt. Exception, CC2 belt: a second pair of the same boots is a tool of its own, so it is never redundant there
+ * (the ward that absorbs monster contact still is).
  */
 function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinition): boolean {
   if (def.collectible !== 'boot') return false;
+  // CC2 belt: a second pair of the same boots is a tool of its own (Lexy attempt_take never refuses a tool for being held already,
+  // game.js:3237-3275; only use_cc1_boots ignores duplicates, game.js:3288-3330); the extra pairs are counted in keys under the boot id.
+  if (usesToolBelt(w) && def.absorbsMonsterContact !== true) return false;
   return w.player.boots.has(itemId) || (def.absorbsMonsterContact === true && wardBootsHeld(w.player.boots) !== undefined);
 }
 
@@ -667,10 +671,20 @@ export function toolBeltOf(p: PlayerState): string[] {
   return belt;
 }
 
+/** Takes one extra copy of the boots `itemId` out of keys (the pair in boots stays); false when he holds no extra copy. */
+export function takeExtraBootCopy(p: PlayerState, itemId: string): boolean {
+  const extra = p.keys[itemId] ?? 0;
+  if (extra <= 0) return false;
+  if (extra === 1) delete p.keys[itemId];
+  else p.keys[itemId] = extra - 1;
+  return true;
+}
+
 /** Takes one `itemId` out of what the player holds (boots or a counted tool). */
 function removeHeldTool(p: PlayerState, itemId: string, def: TileDefinition): void {
   if (def.collectible === 'boot') {
-    p.boots.delete(itemId);
+    // An extra pair goes first, the worn one last.
+    if (!takeExtraBootCopy(p, itemId)) p.boots.delete(itemId);
     return;
   }
   const left = (p.keys[itemId] ?? 0) - 1;
@@ -703,7 +717,7 @@ function pickUpBeltTool(ctx: EpoxyContext, x: number, y: number, itemId: string,
   } else {
     w.items[y][x] = null;
   }
-  if (def.collectible === 'boot') p.boots.add(itemId);
+  if (def.collectible === 'boot' && !p.boots.has(itemId)) p.boots.add(itemId);
   else p.keys[itemId] = (p.keys[itemId] || 0) + 1;
   belt.push(itemId);
   p.belt = belt;
@@ -841,6 +855,14 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     } else if (usesToolBelt(w) && isBeltTool(itemDef) && !isRedundantBootPickup(w, itemId, itemDef)) {
       // CC2 engine: the belt holds four tools; a fifth pushes the oldest out onto the cell.
       pickUpBeltTool(ctx, x, y, itemId, itemDef);
+      // CC2 engine: a yellow pad pushed off the belt onto the cell he arrives on is a teleporter under him. Lexy step_on_cell reads
+      // the layers top down, the item first (attempt_take sets the pad down), then the terrain, now the pad (game.js:2310-2333), so he
+      // jumps at the step end. A cell that was already a teleporter jumped above; a key pickup sets nothing down. Not modelled: a
+      // monster or block never pushes a pad out (they hold no belt).
+      if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && allowTeleport && !(tile.isTeleporter || tile.teleportsToSelf)) {
+        const now = ConfigRegistry.getTile(w.terrain[y][x]);
+        if (now.isTeleporter || now.teleportsToSelf) cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
+      }
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
@@ -882,6 +904,8 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   } else {
     if (takesBoots) {
       w.player.boots.clear();
+      // The extra pairs of boots go with the worn ones (Lexy take_all_tools_from_actor takes every tool).
+      if (usesToolBelt(w)) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => ConfigRegistry.getTile(id).collectible !== 'boot'));
       if (takesCountedTools) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isCountedTool(id)));
       w.statusBannerKey = 'hud.messages.thief_stole';
       AudioManager.playSfx('thief');

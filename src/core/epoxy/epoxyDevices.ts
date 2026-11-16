@@ -46,7 +46,7 @@ import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { holdFrameArrival, tagSlideFrame } from './epoxyFrames';
 import { usesCc2Engine } from './ccRules';
-import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
+import { canMonsterEnter, cc2EntryStepTicks, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
 import { steerMonsters } from './epoxySteering';
 import {
@@ -671,6 +671,11 @@ function spawnFromClonerOneWay(
     if (alive && !seen && w.entities.includes(template) && template.cooldownTicks > 0) template.cooldownTicks += 1;
     return alive;
   }
+  // CC2 engine: a classic monster let out takes its step time from the cell it enters (the out-of-turn step reads the destination, Lexy
+  // game.js:2177-2194): a slide step is a share of the plain one. The adjustments below stack on it.
+  const classicClone = w.ccRules && followsCcCadence(templateType, usesCc2Engine(w.level));
+  const plainStepTicks = ccStepTicks(templateType) * monsterSlowdown(w);
+  const entryStepTicks = classicClone && cc2Clone && kind === 'monster' ? cc2EntryStepTicks(w, probe, spawnX, spawnY) : plainStepTicks;
   let spawned: RuntimeEntity = {
     uid: w.nextEntityUid++,
     type: templateType,
@@ -680,7 +685,7 @@ function spawnFromClonerOneWay(
     dir: templateDir,
     // In the original the creature let out of a clone machine takes its step out at once, so a classic-rules monster
     // decides again when that step ends; any other entity waits out its interval.
-    cooldownTicks: w.ccRules && followsCcCadence(templateType, usesCc2Engine(w.level)) ? ccStepTicks(templateType) * monsterSlowdown(w) - 1 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
+    cooldownTicks: classicClone ? entryStepTicks - 1 : def?.moveIntervalTicks || DEFAULT_MONSTER_MOVE_INTERVAL_TICKS,
     isSliding: kind === 'block',
     ...(hasEntityFacing(def) ? { facing: template?.facing ?? templateDir } : {}),
     // A cloned rover starts afresh on the first behaviour of its list, whatever the template has reached.
@@ -725,7 +730,10 @@ function spawnFromClonerOneWay(
   // down by that pass at once. The original runs that creature's step out of turn, ahead of the others, which shortens its
   // step relative to the timing Epoxy gives a clone made during the pass; one tick more makes up for it.
   const beforePass = usesCc2Engine(w.level) && w.cc2BeforePass === true;
-  if (beforePass && spawned.kind === 'monster' && spawned.cooldownTicks > 0) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
+  // A clone whose step is the slide step is not stretched: 6 frames from press frame p end in frame 0 two tics later, before that tic's
+  // decisions, so the tick the 12-frame clone needs does not apply (Lexy game.js:2218-2242; MAP099 ftrace t65f1-t67f2).
+  const slideStepClone = entryStepTicks < plainStepTicks;
+  if (beforePass && spawned.kind === 'monster' && spawned.cooldownTicks > 0 && !slideStepClone) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
   if (spawned.kind === 'block') {
     // CC2 engine: a cloned block takes a real step out of the cloner, unless it comes out onto a sliding tile.
     const takesStep = usesCc2Engine(w.level) && ConfigRegistry.getTile(w.terrain[spawnY][spawnX]).slideType === undefined;

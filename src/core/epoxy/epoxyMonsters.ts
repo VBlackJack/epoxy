@@ -92,7 +92,7 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
-import { closeFramePass, runFramePrePass } from './epoxyFrames';
+import { closeFramePass, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -442,8 +442,17 @@ function blockedForcedPlan(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefi
   if (def === undefined || def.movementPattern === PHASE_LINE_PATTERN || def.ignoresSlidingFloors === true || def.ignoresFloorEffects === true) return null;
   const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
   if (slideImmune(w, entity, here)) return null;
+  // A turning floor plans the way it gave on arrival even when that way is held: the bonk is tried at the move (turnsBlockedOnForce).
+  if (!w.cc3dPace && here.slideType === 'force' && here.forceCycle === true) return entity.dir;
   if (here.slideType !== 'force' || here.forceCycle === true || here.forceDirection === undefined || here.forceDirection === 'RANDOM') return null;
   return here.forceDirection;
+}
+
+/** CC2 engine: whether a turning force floor carries this monster (the floor turns it when its forced step is refused). */
+function turnsBlockedOnForce(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined): boolean {
+  if (def === undefined || def.movementPattern === PHASE_LINE_PATTERN || def.ignoresSlidingFloors === true || def.ignoresFloorEffects === true) return false;
+  const here = ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]);
+  return here.slideType === 'force' && here.forceCycle === true && !slideImmune(w, entity, here);
 }
 
 function runEntityPass(ctx: EpoxyContext): void {
@@ -494,7 +503,13 @@ function runEntityPass(ctx: EpoxyContext): void {
     }
 
     if (entity.kind === 'block') {
+      // CC2 engine: a slide step of the main pass (frame 2) off the slide onto a plain cell is a 12-frame step that ends at frame 1 of
+      // the fourth tick after: its arrival waits for that pre-pass, before the decisions (Lexy game.js:2218-2242).
+      const slidFrom = entity.isSliding && entity.arrivalTicks === undefined && entity.cc2ArrivalWait === undefined ? { x: entity.x, y: entity.y } : undefined;
       const refusal = stepSlidingBlock(ctx, entity);
+      if (slidFrom !== undefined && w.entities.includes(entity) && entity.arrivalTicks !== undefined && (entity.x !== slidFrom.x || entity.y !== slidFrom.y)) {
+        holdMainPassArrival(w, entity);
+      }
       if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) refusedOnForce.push({ block: entity, dir: refusal.retryDir });
       continue;
     }
@@ -507,6 +522,8 @@ function runEntityPass(ctx: EpoxyContext): void {
     const classic = w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level));
     if (!(classic ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
     if (wasReady && classic && refusedOnIcePass(w, entity, fromX, fromY)) refusedOnIce.push(entity);
+    // CC2 engine: a move of the main pass ends the frame a monster's slide kept in the pre-pass.
+    if (entity.cc2SlideFrame !== undefined && (entity.x !== fromX || entity.y !== fromY)) delete entity.cc2SlideFrame;
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
     if (entity.atLoadCell === true && (entity.x !== fromX || entity.y !== fromY)) delete entity.atLoadCell;
   }
@@ -595,16 +612,30 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   if (ready && entity.x === x && entity.y === y && entity.cooldownTicks > 0) entity.cooldownTicks = 0;
   else if (ready && alive && usesCc2Engine(ctx.world.level) && entity.cooldownTicks > 0 && !ctx.world.removedUids.has(entity.uid)) {
     // CC2 takes the step time from the destination: a step onto ice or a force floor lasts a share of the plain step.
-    const def = ConfigRegistry.getEntityDef(entity.type);
-    const destTile = ConfigRegistry.getTile(ctx.world.terrain[entity.y]?.[entity.x]);
-    // A monster holding the tool of the destination floor is immune to it and keeps the full step time (game.js:2178-2186).
-    const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(ctx.world, entity, destTile);
-    const destSlide = destTile.slideType;
-    if (!floorFree && (destSlide === 'ice' || destSlide === 'force')) {
-      entity.cooldownTicks = Math.floor(ccStepTicks(entity.type) / CC2_FLOOR_STEP_DIVISOR) * monsterSlowdown(ctx.world) - 1;
-    }
+    if (entersSlide(ctx.world, entity, entity.x, entity.y)) entity.cooldownTicks = cc2EntryStepTicks(ctx.world, entity, entity.x, entity.y) - 1;
   }
   return alive;
+}
+
+/**
+ * CC2 engine: whether a step of `entity` onto (x, y) is a slide step: the cell is ice or a force floor and the monster is not free of
+ * it. A monster holding the tool of the destination floor is immune to it and keeps the full step time (Lexy game.js:2178-2186).
+ */
+function entersSlide(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number): boolean {
+  const def = ConfigRegistry.getEntityDef(entity.type);
+  const destTile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
+  const floorFree = def?.ignoresSlidingFloors === true || def?.ignoresFloorEffects === true || slideImmune(w, entity, destTile);
+  return !floorFree && (destTile.slideType === 'ice' || destTile.slideType === 'force');
+}
+
+/**
+ * CC2 engine: the ticks of a classic step of `entity` onto (x, y): a share of the plain step (CC2_FLOOR_STEP_DIVISOR) onto ice or a
+ * force floor the monster is not free of (Lexy takes the speed from the destination, game.js:2177-2194), else the plain step;
+ * slow-time included. A clone machine's release uses it too, since the clone's first step is out of turn (tiletypes.js:1703-1731).
+ */
+export function cc2EntryStepTicks(w: EpoxyWorld, entity: RuntimeEntity, x: number, y: number): number {
+  const plain = ccStepTicks(entity.type);
+  return (entersSlide(w, entity, x, y) ? Math.floor(plain / CC2_FLOOR_STEP_DIVISOR) : plain) * monsterSlowdown(w);
 }
 
 /**
@@ -743,6 +774,17 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     } else if (bounce !== null && canStep(w, entity, bounce)) {
       // Lexy game.js:1164-1214: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
       chosenDir = bounce;
+    } else if (plan !== null && usesCc2Engine(w.level) && !w.cc3dPace && turnsBlockedOnForce(w, entity, def)) {
+      // Refused on a turning force floor at the move: the monster steps on the cell again, which turns the floor, and tries the new
+      // way at once (Lexy _possibly_bonk in the action phase, after the earlier actors of the frame moved, game.js:1050-1063 and 1127-1162).
+      // A rolling ball first runs its on_blocked, as at its decision (Lexy game.js:1789-1790, 2107-2108, before the bonk of 1103-1106).
+      if (isRollingBallDef(def)) {
+        if (!checkBallWay(ctx, entity, plan)) return false;
+        if (!w.entities.includes(entity)) return true;
+      }
+      const redraw = forceCycleArrival(w, ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]));
+      if (redraw !== null) entity.dir = redraw;
+      chosenDir = redraw !== null && canStep(w, entity, redraw) ? redraw : null;
     } else {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
@@ -1064,7 +1106,7 @@ function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean 
  * make_actor_decision never sets the pending slide for an immune actor, and attempt_step ignores the speed factor of a slide it
  * is immune to, game.js:2178-2186).
  */
-function slideImmune(w: EpoxyWorld, entity: RuntimeEntity, tile: TileDefinition): boolean {
+export function slideImmune(w: EpoxyWorld, entity: RuntimeEntity, tile: TileDefinition): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace && tile.slideType !== undefined && heldToolProtects(entity, tile);
 }
 
