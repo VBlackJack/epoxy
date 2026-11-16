@@ -61,6 +61,7 @@ import {
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
 import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
+import { resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
 import { usesCc2Engine } from './epoxy/ccRules';
 import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
@@ -957,6 +958,8 @@ export class GameEngine {
       ...(ghostBarEdited(this.w) ? { ghostBar: [...(this.w.ghostBar as Set<number>)] } : {}),
       // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
       ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
+      // Only a CC2-engine level whose coming tick's frame pre-pass already ran has it to put back.
+      ...(this.w.cc2PrePassDone === true ? { cc2PrePassDone: true as const } : {}),
       // The CC2 engine keeps its creatures in the list itself (a clone takes the template's place), so it has no slots to put back.
       ...(this.w.ccRules && !usesCc2Engine(this.w.level) ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
@@ -1070,6 +1073,9 @@ export class GameEngine {
     this.w.timerPaused = snap.timerPaused ?? false;
     this.w.pausedTicks = snap.pausedTicks ?? 0;
     this.w.ccMonsterClock = snap.ccMonsterClock ?? 0;
+    // The pre-pass transients never cross a snapshot; only the done mark does.
+    resetFrameWorld(this.w);
+    if (snap.cc2PrePassDone === true) this.w.cc2PrePassDone = true;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
     this.w.blockExplosions = new Set(snap.blockExplosions ?? []);
     this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
@@ -1184,6 +1190,12 @@ export class GameEngine {
     this.beginMirrorTick();
     // CC2 engine, actor order: the player's turn (his stored input, then the start-of-tick block below) is played by the entity pass at his place in the list.
     const actorOrder = this.w.cc2ActorOrder === true;
+    // No actor order: the frame-0 and frame-1 block moves of the tick come before the player's own moves (a no-op when the end of the
+    // previous tick already ran them; actor-order levels run them at the start of the entity pass).
+    if (!actorOrder && this.w.ccRules && !runFramePrePass(this.ctx)) {
+      this.w.inTick = false;
+      return;
+    }
     if (actorOrder) {
       this.openActorTick();
     } else {
@@ -1266,10 +1278,57 @@ export class GameEngine {
     this.w.cc2BrownHeld = undefined;
     // CC2 engine: the belt follows what the tick took from the player (a thief, a spent bribe); getToolBelt is a pure read.
     if (usesToolBelt(this.w)) syncToolBelt(this.w.player);
+    // CC2 engine, no actor order: the next tick's frames 0 and 1 run first, so the view, the mirror tick end and the light switches
+    // below see what they moved.
+    this.runEndOfTickPrePass();
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
     this.endMirrorTick();
     this.rebaseLightSwitches();
+  }
+
+  /**
+   * CC2 engine, levels without actor order (parked players): the coming tick's frame-0 and frame-1 moves run now, before the next
+   * input (Lexy runs them right after the cleanup of tic t-1, game.js:872-889). A death in them is counted in the coming tick
+   * (game.js:1507). Not when that tick times out: it ends before any frame (game.js:1507-1510).
+   */
+  private runEndOfTickPrePass(): void {
+    const w = this.w;
+    if (w.cc2ActorOrder === true || !w.ccRules || !w.player.alive || w.levelCompleted) return;
+    if (this.comingTickTimesOut()) return;
+    // What the pre-pass moves changes the beams drawn between ticks.
+    w.beamDirty = true;
+    // The pre-pass reads the clock of the pass it belongs to, like the one at a pass start (open pass view): a clone it makes counts
+    // its wait from that pass and its template is kept out of that pass's turn (cc2SkipTurn).
+    const passOpen = w.ccPassOpen;
+    w.ccPassOpen = true;
+    let alive: boolean;
+    try {
+      alive = runFramePrePass(this.ctx, true);
+    } finally {
+      w.ccPassOpen = passOpen;
+    }
+    if (alive || w.player.alive) return;
+    this.ticksElapsed++;
+    countPausedTick(w);
+  }
+
+  /**
+   * Whether the next tick ends the level on time before anything moves (see tick).
+   * Known limitation: it runs before the next tick's step-end flush, so a time item or a toggle clock taken at a step end that the
+   * flush would still apply is not counted here; the verdict can differ from the tick's own when such a pickup lands exactly on the
+   * last second.
+   */
+  private comingTickTimesOut(): boolean {
+    if (this.w.level.timeLimitSeconds <= 0) return false;
+    const ticks = this.ticksElapsed;
+    const paused = this.w.pausedTicks;
+    this.ticksElapsed++;
+    countPausedTick(this.w);
+    const out = this.getTimeRemainingSeconds() <= 0;
+    this.ticksElapsed = ticks;
+    this.w.pausedTicks = paused;
+    return out;
   }
 
   /**

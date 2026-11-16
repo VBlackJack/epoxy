@@ -31,6 +31,14 @@ beforeEach(() => {
 const CC2_RECORD = { v: 1, sha256: 'ab'.repeat(32), file: 'one.c2m', order: 1, gridHash: 'x' } as Cc2LevelData;
 /** Passes a splash bars the real player (Lexy: 16 frames at three frames a pass, gone on the fifth). */
 const SPLASH_PASSES = 5;
+/**
+ * The block's step ends in frame 0 of the tic four after the push, one tick later than the main pass it ended in before: a decision
+ * push onto a plain cell is a 12-frame out-of-turn step that ends 10 frames after frame 2 (Lexy game.js:2218-2242; map033 t12-t16,
+ * defs.js:199-202 allow_double_cooldowns). The splash keeps its absolute end tick, so one pass less of it is left to see after the landing.
+ */
+const LANDING_TICK = 5;
+/** Passes the splash still bars the player once the block has landed. */
+const BARRED_PASSES_AFTER_LANDING = SPLASH_PASSES - 1;
 /** Most passes the block's step takes to end. */
 const SINK_WAIT_PASSES = 8;
 const BLOCK_X = 2;
@@ -81,8 +89,9 @@ describe('CC2 block splash', () => {
   it('bars the real player for five passes, then lets him in', () => {
     const engine = load(room('cc2'));
     sinkBlock(engine);
+    expect(engine.getTick()).toBe(LANDING_TICK);
     expect(worldOf(engine).blockSplashes.size).toBe(1);
-    for (let pass = 0; pass < SPLASH_PASSES; pass++) {
+    for (let pass = 0; pass < BARRED_PASSES_AFTER_LANDING; pass++) {
       expect(canStepEast(engine), `pass ${pass}`).toBe(false);
     }
     expect(canStepEast(engine)).toBe(true);

@@ -37,9 +37,11 @@ const WAIT_TICKS = 20;
 /**
  * Passes between the block's landing and the first pass at which the tank may take the decision: the block's cooldown and one
  * pass for its step end, one less than the other actors' arrival rule gave before (button_yellow on_arrive, tiletypes.js:2241-2250).
- * Measured on this room: the base rule gave 6.
+ * Measured on this room: the base rule gave 6. The block now lands in frame 0 of the tic four after the push (a 12-frame out-of-turn
+ * step, Lexy game.js:2218-2242; map033 t12-t16, defs.js:199-202 allow_double_cooldowns), before the decisions of that tick: the
+ * press reaches the tank one pass earlier, so the margin is 4, not 5.
  */
-const DUE_MARGIN_PASSES = 5;
+const DUE_MARGIN_PASSES = 4;
 
 /** The ticks (counted from the push) at which the block has landed and the tank holds its pending decision. */
 function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: number | undefined; dueMargin: number | undefined } {

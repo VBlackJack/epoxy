@@ -232,6 +232,17 @@ export interface EpoxyWorld {
    */
   cc2ReleaseFrame?: 0 | 1 | 2;
   /**
+   * CC2 engine, frame pre-pass: true once the frames 0 and 1 of the coming tick have run (Lexy runs them right after the cleanup
+   * of the tic before, game.js:872-889), deleted at the end of the tick's entity pass. Saved in an undo snapshot while set.
+   */
+  cc2PrePassDone?: true;
+  /** CC2 engine, frame pre-pass: an arrival of frame 0 or 1 happened, so the wires settle before the decisions. Transient, deleted in a finally. */
+  cc2PrePassArrived?: true;
+  /** CC2 engine, frame pre-pass: true while a block takes its slide step inside the pre-pass. Transient. */
+  cc2PrePassStepping?: true;
+  /** CC2 engine, frame pre-pass: the frame (0 or 1) of the slide step taken now. Transient, set with `cc2PrePassStepping`. */
+  cc2PrePassFrame?: 0 | 1;
+  /**
    * CC2 engine, wave 9: true when the player takes his turn at his place in the actor list (CC2 engine, not cc3dPace, classic
    * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
    */
@@ -880,6 +891,14 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // The Lexy frame at which a clone released by a wire ends its move (0 and 2 only; frame 1 is the absent default).
   const frames = w.entities.filter((e) => e.cc2Frame !== undefined).map((e) => `${e.uid}${e.cc2Frame}`);
   if (frames.length > 0) parts.push(`F${frames.join(',')}`);
+  // The frame of a block's slide steps and the frame its held plain step ends in (frame pre-pass).
+  const slideFrames = w.entities
+    .filter((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined)
+    .map((e) => `${e.uid}:${e.cc2SlideFrame ?? ''}/${e.cc2SlideDue ?? ''}/${e.cc2ArrivalWait ?? ''}.${e.cc2ArrivalFrame ?? ''}`);
+  if (slideFrames.length > 0) parts.push(`R${slideFrames.join(',')}`);
+  if (w.cc2PrePassDone === true) parts.push('Q');
+  const preMoved = w.entities.filter((e) => e.cc2PrePassMoved === true).map((e) => e.uid);
+  if (preMoved.length > 0) parts.push(`O${preMoved.join(',')}`);
   // The tool belt (order matters) and the soft pad decision of each player.
   const belts = playersOf(w).map((p, index) => (p.belt !== undefined && p.belt.length > 0 ? `${index}:${p.belt.join('+')}` : '')).filter((part) => part !== '');
   if (belts.length > 0) parts.push(`B${belts.join(',')}`);

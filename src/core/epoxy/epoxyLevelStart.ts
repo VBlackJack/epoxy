@@ -26,6 +26,7 @@ import { CC2_BLOB_BEHAVIOR_DEFAULT, initialBlobModifier, newCcGenerators } from 
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
+import { resetFrameWorld } from './epoxyFrames';
 import { createSignalRuntime, registryTileLookup, settleWorldSignals } from './epoxySignals';
 import {
   BASE_LEVEL_SCORE_MULTIPLIER,
@@ -76,6 +77,8 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   w.cloneLinks = level.cloneLinks.map((l) => ({ ...l }));
   w.nextEntityUid = 1;
   w.ccMonsterClock = 0;
+  // No frame pre-pass is running or done at the start of a level.
+  resetFrameWorld(w);
   // The world object is reused across levels: the apparent player position of the last level must not leak into this one.
   w.cc2PlayerView = undefined;
   w.ccArrivals = [];

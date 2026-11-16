@@ -49,7 +49,8 @@ const CHAIN_WIDTH = FIRST_PLATE_X + STAGE_WIDTH * CHAIN_LENGTH + 3;
 const CHAIN_TICKS = 40;
 /** The ticks between the arrivals of the clones of an avalanche-shaped chain: a rotation of Lexy's 4, 4, 3 intervals counted from tic 0. */
 const CHAIN_INTERVALS: readonly number[] = [4, 3, 4, 4, 3];
-const LANE_TICKS = 12;
+/** Long enough for the gate-fed second clone, which lands in tick 14 (the direct one lands in tick 12). */
+const LANE_TICKS = 16;
 
 const wall = (width: number): string => '#'.repeat(width);
 
@@ -98,46 +99,58 @@ describe('CC2 engine: a pink button and clone machine chain', () => {
 
 const CLONER_X = 5;
 const CLONE_X = CLONER_X + 1;
+const SECOND_CLONER_X = CLONE_X + 1;
+const SECOND_CLONE_X = SECOND_CLONER_X + 1;
 const SOURCE_X = 2;
 const GATE_X = 3;
-const EMPTY_ROWS = ['#########', '#@......#', '#########'];
+const LANE_ROWS = ['###########', '#@........#', '###########'];
 
-/** A pink plate wired to a clone machine, directly or through a gate; the player starts one step west of the plate. */
+/**
+ * A pink plate wired to a clone machine, directly or through a gate; the player starts one step west of the plate. The cell the
+ * first clone lands on is a second pink plate wired to a second clone machine: whether the first clone lands before the decisions of
+ * its tick or in the pass shows in when the second clone lands.
+ */
 function pressLane(gated: boolean): CompiledLevel {
   const template = { type: BLOCK, x: CLONER_X, y: ROW, dir: 'E' as Direction };
-  const built = buildTestLevel(EMPTY_ROWS, { entities: [template] });
+  const secondTemplate = { type: BLOCK, x: SECOND_CLONER_X, y: ROW, dir: 'E' as Direction };
+  const built = buildTestLevel(LANE_ROWS, { entities: [template, secondTemplate] });
   built.terrain[ROW][SOURCE_X] = PLATE;
   built.terrain[ROW][CLONER_X] = CLONE_MACHINE;
+  built.terrain[ROW][CLONE_X] = PLATE;
+  built.terrain[ROW][SECOND_CLONER_X] = CLONE_MACHINE;
   const links: SignalLink[] = gated
     ? [
         { fromX: SOURCE_X, fromY: ROW, toX: GATE_X, toY: ROW, port: 'in0' },
         { fromX: GATE_X, fromY: ROW, toX: CLONER_X, toY: ROW }
       ]
     : [{ fromX: SOURCE_X, fromY: ROW, toX: CLONER_X, toY: ROW }];
+  links.push({ fromX: CLONE_X, fromY: ROW, toX: SECOND_CLONER_X, toY: ROW });
   if (gated) built.terrain[ROW][GATE_X] = GATE;
   return { ...built, signalLinks: links, cc2: CC2_RECORD };
 }
 
-/** The arrival countdown of the clone on the tick it first appears: the earlier it is let out, the lower it is. */
-function arrivalWhenCloned(gated: boolean): number {
+/** The tick (engine tick count after it ran) in which the block at `x` has landed: arrival countdown and held-arrival fields all gone. */
+function landingTickAt(gated: boolean, x: number): number {
   const engine = load(pressLane(gated));
   expect(engine.attemptPlayerMove('E')).toBe(true);
   for (let tick = 0; tick < LANE_TICKS; tick++) {
     engine.tick();
-    const clone = engine.getEntities().find((e) => e.x === CLONE_X && e.y === ROW);
-    if (clone !== undefined) return clone.arrivalTicks ?? 0;
+    const block = engine.getEntities().find((e) => e.kind === 'block' && e.x === x && e.y === ROW);
+    if (block !== undefined && block.arrivalTicks === undefined && block.cc2ArrivalWait === undefined && block.cc2ArrivalFrame === undefined) return engine.getTick();
   }
-  throw new Error('the clone machine never fired');
+  throw new Error('the clone never landed');
 }
 
 describe('CC2 engine: where a wired press lands in the tick', () => {
-  // A press at a step end fires its button-fed clone machine before the pass that follows (game.js:872-876), so that pass counts
-  // the clone down at once; a clone machine fed through a gate (the Haunted shape) keeps the deferral to the end of the tick, as
-  // before wave 11, and its clone waits one tick more.
+  // A press at a step end fires its button-fed clone machine before the pass that follows (game.js:872-876); a clone released by a
+  // press of frame 1 ends its 12-frame out-of-turn step in frame 0 of tick 9, before the decisions (game.js:2218-2242, 869-888). A
+  // clone machine fed through a gate (the Haunted shape) keeps the deferral to the end of the tick, so its clone lands in the pass
+  // of the same tick 9, one phase later. Both land in tick 9; what separates them is what the landing reaches: the first clone sits
+  // on a plate that fires the second clone machine, in the wire phase before the decisions (direct) or after the pass (gated).
   it('clones a pink button pressed at a step end before the pass, and keeps a gate-fed edge for the end of the tick', () => {
-    const direct = arrivalWhenCloned(false);
-    const gated = arrivalWhenCloned(true);
-    expect(direct).toBeGreaterThan(0);
-    expect(gated).toBe(direct + 1);
+    const LANDING_TICK = 9;
+    expect(landingTickAt(false, CLONE_X)).toBe(LANDING_TICK);
+    expect(landingTickAt(true, CLONE_X)).toBe(LANDING_TICK);
+    expect(landingTickAt(true, SECOND_CLONE_X)).toBeGreaterThan(landingTickAt(false, SECOND_CLONE_X));
   });
 });

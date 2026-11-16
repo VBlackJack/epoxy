@@ -92,17 +92,23 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
+import { closeFramePass, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
-  if (w.ccRules) {
-    if (!applyQueuedPassStartArrivals(ctx)) return;
-  } else if (w.cc3dPace) {
-    dropOrphanArrivals(w);
-  }
-  w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
+    // A death in the arrivals that fall due at the pass start still closes the pass (closeFramePass in the finally).
+    if (w.ccRules) {
+      if (!applyQueuedPassStartArrivals(ctx)) return;
+    } else if (w.cc3dPace) {
+      dropOrphanArrivals(w);
+    }
+    w.ccPassOpen = w.ccRules || w.cc3dPace;
+    // CC2 engine: the moves of frames 0 and 1 come before the decisions. They run inside the open pass: a monster clone made by a block
+    // that lands in frame 0 then reads the clock of this pass (map045: a fireball released t1541f0 steps at t1545; with the pass
+    // closed its first wait is one pass short).
+    if (w.ccRules && !runFramePrePass(ctx)) return;
     if (w.ccRules && !planClassicDecisions(ctx)) return;
     const passClock = w.ccMonsterClock;
     runEntityPass(ctx);
@@ -110,6 +116,7 @@ export function updateEntities(ctx: EpoxyContext): void {
     if (w.ccRules && usesCc2Engine(w.level) && w.player.alive && !applyQueuedArrivals(ctx, undefined, passClock, true)) return;
   } finally {
     w.ccPassOpen = false;
+    closeFramePass(w);
     // CC2 engine, actor order: the per-pass sets live for one pass only.
     w.cc2TurnSeen = undefined;
     w.cc2SkipTurn = undefined;
@@ -492,6 +499,8 @@ function runEntityPass(ctx: EpoxyContext): void {
       continue;
     }
 
+    // CC2 engine: a monster that took its forced step in the frame pre-pass has had its turn of this pass.
+    if (entity.cc2PrePassMoved === true) continue;
     const fromX = entity.x;
     const fromY = entity.y;
     const wasReady = entity.cooldownTicks === 0;
@@ -525,6 +534,7 @@ function runEntityPass(ctx: EpoxyContext): void {
 
 /** CC2 engine: counts down the arrival or the wait of an entity that sits on a clone machine, which never moves on its own. */
 function finishClonerOccupantStep(entity: RuntimeEntity): void {
+  if (entity.cc2ArrivalWait !== undefined) return;
   if (entity.arrivalTicks !== undefined) {
     entity.arrivalTicks--;
     if (entity.arrivalTicks <= 0) delete entity.arrivalTicks;

@@ -62,8 +62,15 @@ describe('CC2 dirt block item bar', () => {
 
 /** Passes a block's push step takes to end, at most. */
 const PUSH_WAIT_PASSES = 8;
-/** Passes the explosion bars the real player (the same life as the splash in water). */
+/** Passes the explosion lives (the same life as the splash in water). */
 const EXPLOSION_PASSES = 5;
+/**
+ * The block's step ends in frame 0 of the tic four after the push, one tick later than the main pass it ended in before (Lexy
+ * game.js:2218-2242; map033 t12-t16, defs.js:199-202 allow_double_cooldowns): the explosion keeps its absolute end tick.
+ */
+const LANDING_TICK = 5;
+/** Passes the explosion still bars the player once the block has landed. */
+const BARRED_PASSES_AFTER_LANDING = EXPLOSION_PASSES - 1;
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
@@ -81,8 +88,9 @@ function blowUp(mode: RoomMode, blockType: string): GameEngine {
 describe('CC2 dirt block blown up on a bomb', () => {
   it('leaves an explosion that bars the real player for the splash life, then lets him in', () => {
     const engine = blowUp('cc2', 'dirt_block');
+    expect(engine.getTick()).toBe(LANDING_TICK);
     expect(worldOf(engine).blockSplashes.size).toBe(1);
-    for (let pass = 0; pass < EXPLOSION_PASSES; pass++) {
+    for (let pass = 0; pass < BARRED_PASSES_AFTER_LANDING; pass++) {
       engine.getPlayer().moveCooldown = 0;
       expect(playMove(engine, 'E').moved, `pass ${pass}`).toBe(false);
     }

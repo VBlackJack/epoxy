@@ -2410,6 +2410,25 @@ export interface RuntimeEntity {
    * than set to 1; absent means frame 1. 0 is falsy: read it with `!== undefined`.
    */
   cc2Frame?: 0 | 2;
+  /**
+   * CC2 engine, on a sliding block whose slide steps fall in Lexy frame 0 or 1 of the tic (game.js:869-888): that frame. The
+   * frame pre-pass moves it; the main pass skips it. Set only under the CC2 engine, never on cc3dPace; deleted with
+   * `cc2SlideDue` once the slide ends or its frame is 2. 0 is falsy: read it with `!== undefined`.
+   */
+  cc2SlideFrame?: 0 | 1;
+  /** CC2 engine: the frame pre-passes still to run before the next slide step of a block carrying `cc2SlideFrame` (1 = the next one). */
+  cc2SlideDue?: number;
+  /**
+   * CC2 engine, on a block in a plain step (arrivalTicks set) that ends in a Lexy frame the main pass does not reach as a whole
+   * tick (game.js:2218-2242, a 12-frame out-of-turn step): the frame pre-passes still to run (0 = the next one). While set, the
+   * main pass does not count arrivalTicks down; the pre-pass settles the arrival. A scalar on purpose, so an entity copy never
+   * shares it. Set only under the CC2 engine, never on cc3dPace.
+   */
+  cc2ArrivalWait?: number;
+  /** CC2 engine: the frame (0, 1 or 2) the held plain step of `cc2ArrivalWait` ends in (game.js:869-888). Set and deleted with it. */
+  cc2ArrivalFrame?: 0 | 1 | 2;
+  /** CC2 engine: the frame pre-pass moved (or settled) this actor for the coming tick, so that tick's main pass skips its turn. Deleted at the end of that pass. */
+  cc2PrePassMoved?: true;
   /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set while it matters (the running pass and the one after it) and dropped by the next monster step once older; the search key holds its age, not the pass number. */
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */
@@ -2579,6 +2598,8 @@ export interface PlayerSnapshot {
 }
 
 export interface UndoSnapshot {
+  /** CC2 engine: the coming tick's frame pre-pass already ran (game.js:872-889). Absent otherwise. */
+  cc2PrePassDone?: true;
   terrain: string[][];
   items: (string | null)[][];
   entities: RuntimeEntity[];
