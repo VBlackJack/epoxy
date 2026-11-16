@@ -462,6 +462,9 @@ function runEntityPass(ctx: EpoxyContext): void {
     // Entities sitting directly on a clone machine act as templates and do not move on their own
     // (a wisp is never a template: it drifts over a machine like over any other tile)
     if (ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).isCloneMachine && !isPhasingEntityType(entity.type)) {
+      // CC2 engine: the step that brought the occupant in still runs out without a move (Lexy attempt_step keeps refusing while
+      // movement_cooldown > 0, game.js:2153-2156), so a later release finds it at rest and the cloner can fire.
+      if (usesCc2Engine(w.level) && !w.cc3dPace) finishClonerOccupantStep(entity);
       continue;
     }
 
@@ -499,6 +502,16 @@ function runEntityPass(ctx: EpoxyContext): void {
       block.cooldownTicks = 0;
       stepSlidingBlock(ctx, block);
     }
+  }
+}
+
+/** CC2 engine: counts down the arrival or the wait of an entity that sits on a clone machine, which never moves on its own. */
+function finishClonerOccupantStep(entity: RuntimeEntity): void {
+  if (entity.arrivalTicks !== undefined) {
+    entity.arrivalTicks--;
+    if (entity.arrivalTicks <= 0) delete entity.arrivalTicks;
+  } else if (entity.cooldownTicks > 0) {
+    entity.cooldownTicks--;
   }
 }
 

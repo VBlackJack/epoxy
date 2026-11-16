@@ -592,6 +592,9 @@ function spawnFromClonerOneWay(
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
   const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  // CC2 engine: a template still inside the step that brought it in cannot step out (Lexy attempt_step returns false while
+  // movement_cooldown > 0, game.js:2153-2156): nothing is cloned.
+  if (cc2Clone && template !== undefined && (template.arrivalTicks !== undefined || template.cooldownTicks > 0)) return !report;
   // CC3D lets the template itself out (a pushed step at the normal pace, keeping its place in the list) and puts a new
   // template on the machine, at the end of the list, which does not act in this tick.
   if (w.cc3dPace && kind === 'monster' && template !== undefined) {

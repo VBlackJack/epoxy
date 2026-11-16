@@ -82,6 +82,8 @@ describe('an empty clone machine', () => {
     for (let i = 0; i < ROLL_TICKS && onCloner(engine).length === 0; i++) engine.tick();
     const template = onCloner(engine)[0];
     expect(template?.type).toBe(BALL);
+    // The step that brought the ball in runs out first: a press in the middle of it clones nothing (Lexy attempt_step, game.js:2153-2156).
+    for (let i = 0; i < ROLL_TICKS && onCloner(engine).some((e) => e.cooldownTicks > 0); i++) engine.tick();
     (engine as unknown as { ctx: EpoxyContext }).ctx.triggerButton(BUTTON_X, BUTTON_Y, 'trigger_cloner');
     expect(world(engine).entities.some((e) => e.type === BALL && e.x === SPAWN_X)).toBe(true);
     expect(onCloner(engine).some((e) => e.type === BALL)).toBe(true);
