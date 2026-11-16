@@ -841,6 +841,14 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     } else if (usesToolBelt(w) && isBeltTool(itemDef) && !isRedundantBootPickup(w, itemId, itemDef)) {
       // CC2 engine: the belt holds four tools; a fifth pushes the oldest out onto the cell.
       pickUpBeltTool(ctx, x, y, itemId, itemDef);
+      // CC2 engine: a yellow pad pushed off the belt onto the cell he arrives on is a teleporter under him. Lexy step_on_cell reads
+      // the layers top down, the item first (attempt_take sets the pad down), then the terrain, now the pad (game.js:2310-2333), so he
+      // jumps at the step end. A cell that was already a teleporter jumped above; a key pickup sets nothing down. Not modelled: a
+      // monster or block never pushes a pad out (they hold no belt).
+      if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && allowTeleport && !(tile.isTeleporter || tile.teleportsToSelf)) {
+        const now = ConfigRegistry.getTile(w.terrain[y][x]);
+        if (now.isTeleporter || now.teleportsToSelf) cc3dArrivalOf(w.player).teleport = { x, y, dir: entryDir };
+      }
     } else if (itemDef.collectible === 'key' || itemDef.collectible === 'charge' || itemDef.collectible === 'gate' || itemDef.collectible === 'stone' || itemDef.collectible === 'token') {
       w.items[y][x] = null;
       w.player.keys[itemId] = (w.player.keys[itemId] || 0) + 1;
