@@ -29,7 +29,9 @@ import { buildTestLevel } from '../../test/buildTestLevel';
 import { room, type RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import type { Cc2LevelData, CompiledLevel, Direction, RuntimeEntity } from '../types';
-import type { EpoxyWorld } from './epoxyWorld';
+import { ConfigRegistry } from '../../config/ConfigRegistry';
+import { updateEntities } from './epoxyMonsters';
+import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -178,5 +180,29 @@ describe('the end-of-tick frame pre-pass shares the open pass view (two player c
     expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN);
     engine.tick();
     expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN - 1);
+  });
+});
+
+describe('a death in the arrivals due at the pass start still closes the frame pass', () => {
+  it('clears the done mark and the moved marks when a queued press kills the player', () => {
+    const level = room({
+      mode: 'cc2',
+      startX: PLAYER_START_X,
+      terrain: { [`${BUTTON_X},${BUTTON_Y}`]: 'button_red' },
+      entities: [{ type: 'fireball', x: BUTTON_X, y: BUTTON_Y, dir: 'E' }]
+    });
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    const w = (engine as unknown as { w: EpoxyWorld }).w;
+    const ctx = (engine as unknown as { ctx: EpoxyContext }).ctx;
+    const ball = find(w, 'fireball');
+    const action = ConfigRegistry.getTile('button_red').buttonAction as string;
+    w.ccArrivals.push({ uid: ball.uid, x: BUTTON_X, y: BUTTON_Y, due: w.ccMonsterClock, action });
+    w.cc2PrePassDone = true;
+    ball.cc2PrePassMoved = true;
+    vi.spyOn(ctx, 'triggerButton').mockReturnValue(false);
+    updateEntities(ctx);
+    expect(w.cc2PrePassDone).toBeUndefined();
+    expect(ball.cc2PrePassMoved).toBeUndefined();
   });
 });

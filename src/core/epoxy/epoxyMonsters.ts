@@ -97,13 +97,14 @@ import { closeFramePass, runFramePrePass } from './epoxyFrames';
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (w.ccRules) turnMarkedTanks(w);
-  if (w.ccRules) {
-    if (!applyQueuedPassStartArrivals(ctx)) return;
-  } else if (w.cc3dPace) {
-    dropOrphanArrivals(w);
-  }
-  w.ccPassOpen = w.ccRules || w.cc3dPace;
   try {
+    // A death in the arrivals that fall due at the pass start still closes the pass (closeFramePass in the finally).
+    if (w.ccRules) {
+      if (!applyQueuedPassStartArrivals(ctx)) return;
+    } else if (w.cc3dPace) {
+      dropOrphanArrivals(w);
+    }
+    w.ccPassOpen = w.ccRules || w.cc3dPace;
     // CC2 engine: the moves of frames 0 and 1 come before the decisions. They run inside the open pass: a monster clone made by a block
     // that lands in frame 0 then reads the clock of this pass (map045: a fireball released t1541f0 steps at t1545; with the pass
     // closed its first wait is one pass short).
