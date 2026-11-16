@@ -178,7 +178,7 @@ export function startLevelWorld(ctx: EpoxyContext, level: CompiledLevel, seed?: 
   const signalSpec = compileSignalSpec(level, registryTileLookup);
   // A level with a gray area button needs a runtime even with no wire, to hold the devices the button reaches on.
   const needsRuntime = signalSpec === undefined && level.terrain.some((row) => row.some((id) => ConfigRegistry.getTile(id).buttonAction === PULSE_WIRED_ACTION));
-  w.signals = signalSpec !== undefined ? createSignalRuntime(signalSpec) : needsRuntime ? createSignalRuntime({ nodes: [], links: [] }) : undefined;
+  w.signals = signalSpec !== undefined ? createSignalRuntime(signalSpec, usesCc2Engine(level)) : needsRuntime ? createSignalRuntime({ nodes: [], links: [] }) : undefined;
   // The signals settle first, from a fresh beam trace, so a door never starts in a form its signals would undo.
   w.beamDirty = true;
   settleWorldSignals(w, true);

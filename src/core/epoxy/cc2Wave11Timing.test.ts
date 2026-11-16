@@ -39,6 +39,7 @@ const ROW = 1;
 const PLATE = 'signal_plate';
 const CLONE_MACHINE = 'clone_machine';
 const GATE = 'signal_gate_and_cc2';
+const GATE_OR = 'signal_gate_or_cc2';
 const BLOCK = 'dirt_block';
 
 const CHAIN_LENGTH = 6;
@@ -110,7 +111,7 @@ const LANE_ROWS = ['###########', '#@........#', '###########'];
  * first clone lands on is a second pink plate wired to a second clone machine: whether the first clone lands before the decisions of
  * its tick or in the pass shows in when the second clone lands.
  */
-function pressLane(gated: boolean): CompiledLevel {
+function pressLane(gated: boolean, gateTile: string = GATE): CompiledLevel {
   const template = { type: BLOCK, x: CLONER_X, y: ROW, dir: 'E' as Direction };
   const secondTemplate = { type: BLOCK, x: SECOND_CLONER_X, y: ROW, dir: 'E' as Direction };
   const built = buildTestLevel(LANE_ROWS, { entities: [template, secondTemplate] });
@@ -125,13 +126,13 @@ function pressLane(gated: boolean): CompiledLevel {
       ]
     : [{ fromX: SOURCE_X, fromY: ROW, toX: CLONER_X, toY: ROW }];
   links.push({ fromX: CLONE_X, fromY: ROW, toX: SECOND_CLONER_X, toY: ROW });
-  if (gated) built.terrain[ROW][GATE_X] = GATE;
+  if (gated) built.terrain[ROW][GATE_X] = gateTile;
   return { ...built, signalLinks: links, cc2: CC2_RECORD };
 }
 
 /** The tick (engine tick count after it ran) in which the block at `x` has landed: arrival countdown and held-arrival fields all gone. */
-function landingTickAt(gated: boolean, x: number): number {
-  const engine = load(pressLane(gated));
+function landingTickAt(gated: boolean, x: number, gateTile: string = GATE): number {
+  const engine = load(pressLane(gated, gateTile));
   expect(engine.attemptPlayerMove('E')).toBe(true);
   for (let tick = 0; tick < LANE_TICKS; tick++) {
     engine.tick();
@@ -144,7 +145,7 @@ function landingTickAt(gated: boolean, x: number): number {
 describe('CC2 engine: where a wired press lands in the tick', () => {
   // A press at a step end fires its button-fed clone machine before the pass that follows (game.js:872-876); a clone released by a
   // press of frame 1 ends its 12-frame out-of-turn step in frame 0 of tick 9, before the decisions (game.js:2218-2242, 869-888). A
-  // clone machine fed through a gate (the Haunted shape) keeps the deferral to the end of the tick, so its clone lands in the pass
+  // clone machine fed through a gate (the AND-fed shape) keeps the deferral to the end of the tick, so its clone lands in the pass
   // of the same tick 9, one phase later. Both land in tick 9; what separates them is what the landing reaches: the first clone sits
   // on a plate that fires the second clone machine, in the wire phase before the decisions (direct) or after the pass (gated).
   it('clones a pink button pressed at a step end before the pass, and keeps a gate-fed edge for the end of the tick', () => {
@@ -152,5 +153,18 @@ describe('CC2 engine: where a wired press lands in the tick', () => {
     expect(landingTickAt(false, CLONE_X)).toBe(LANDING_TICK);
     expect(landingTickAt(true, CLONE_X)).toBe(LANDING_TICK);
     expect(landingTickAt(true, SECOND_CLONE_X)).toBeGreaterThan(landingTickAt(false, SECOND_CLONE_X));
+  });
+});
+
+describe('CC2 engine: an OR-fed clone machine against Lexy (wave 17)', () => {
+  // Lexy lane (an OR between the plate and the clone machine, one east step at tic 0; dump.mjs on a .c2m of the lane): the gated first
+  // clone lands in the same tic as the direct one (tic 8, frame 0 against frame 1: the gate adds one wire phase, after the frame-2
+  // decisions) and the second stage after it lands later (tic 12 against 11). Epoxy keeps the first landing in tick 9 and the
+  // gated second stage after the direct one. The absolute second-stage tick is not pinned: Epoxy lands it one tick late in
+  // every variant (the gated clone's landing press), a known gap.
+  it('lands the gated first clone in the tick of the direct one, and the second stage later', () => {
+    const direct = landingTickAt(false, CLONE_X);
+    expect(landingTickAt(true, CLONE_X, GATE_OR)).toBe(direct);
+    expect(landingTickAt(true, SECOND_CLONE_X, GATE_OR)).toBeGreaterThan(landingTickAt(false, SECOND_CLONE_X));
   });
 });

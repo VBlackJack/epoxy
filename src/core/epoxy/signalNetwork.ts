@@ -127,6 +127,9 @@ export interface SignalNetworkOptions {
   gateDelay?: boolean;
 }
 
+/** The combinational gate kinds a gate-delay network delays by one wire phase (latches, data latches and counters are not delayed). */
+export const DELAYED_GATE_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['and', 'or', 'not', 'xor', 'nand']);
+
 /** The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). */
 const SELF_LOOP_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['or', 'not']);
 
@@ -396,12 +399,16 @@ function settleCounter(
  * Settles the network: takes the sampled source levels (by cell index, missing means off), evaluates every
  * node in order and returns the new state, the sink levels and the edges. The given state is not changed.
  * With `prime` (the settle at level load) the levels and outputs are recorded but no latch flips and no edge is reported.
+ * On a gate-delay network a combinational gate (DELAYED_GATE_KINDS) reads every wire as the last settle left it, its own wire
+ * included (Lexy: a gate emits from the powered edges of the last wire phase, game.js do_wire_phase); with `holdGates` it keeps its
+ * output instead (a settle that stands for no Lexy wire phase). Latches, data latches, counters, sources and sinks are unchanged.
  */
 export function settleSignals(
   network: SignalNetwork,
   state: SignalState,
   sourceLevels: ReadonlyMap<number, boolean>,
-  prime: boolean = false
+  prime: boolean = false,
+  holdGates: boolean = false
 ): SettleResult {
   const next = cloneSignalState(state);
   const outputs: boolean[] = network.nodes.map(() => false);
@@ -410,7 +417,12 @@ export function settleSignals(
     // A node of a cycle outputs off, and a latch in one holds its bit.
     if (node.cyclic) continue;
     // Each wire carries the output it leaves by: a counter has two (see wireLevel).
-    const inputs = node.wires.map((wire) => wireLevel(wire, outputs, next.counterUnderflow));
+    const delayed = network.gateDelay === true && DELAYED_GATE_KINDS.has(node.kind);
+    if (delayed && holdGates) {
+      outputs[i] = state.lastOutputs[i] === true;
+      continue;
+    }
+    const inputs = node.wires.map((wire) => wireLevel(wire, delayed ? state.lastOutputs : outputs, delayed ? state.counterUnderflow : next.counterUnderflow));
     switch (node.kind) {
       case 'source':
         outputs[i] = sourceLevels.get(node.cell) === true;
