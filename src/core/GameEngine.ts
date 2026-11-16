@@ -555,8 +555,9 @@ export class GameEngine {
 
   /** Search state of the other players: the exit count, then each parked player's cell, facing, motion, inventory and character. */
   private playersStateKey(): string {
-    const one = (p: PlayerState): string =>
-      [
+    const one = (p: PlayerState): string => {
+      const marks = `${p.cc2SlideFrame ?? ''}${p.cc2FrameRetry === true ? 'r' : ''}${p.cc2PrePassMoved === true ? 'm' : ''}`;
+      return [
         p.x,
         p.y,
         p.dir,
@@ -572,9 +573,10 @@ export class GameEngine {
         [...p.boots].sort().join('+'),
         p.belt !== undefined && p.belt.length > 0 ? p.belt.join('+') : '',
         p.softPadDue === true ? 'f' : '',
-        // CC2 engine: the frame marks of a parked player (cc2SlideFrame, cc2FrameRetry, cc2PrePassMoved).
-        `${p.cc2SlideFrame ?? ''}${p.cc2FrameRetry === true ? 'r' : ''}${p.cc2PrePassMoved === true ? 'm' : ''}`
+        // CC2 engine: the frame marks of a parked player (cc2SlideFrame, cc2FrameRetry, cc2PrePassMoved); absent elsewhere.
+        ...(marks === '' ? [] : [marks])
       ].join(',');
+    };
     return `${this.w.exitedPlayers}:${this.w.parked.map(one).join(';')}`;
   }
 

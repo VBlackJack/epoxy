@@ -51,6 +51,9 @@ function twoPlayers(): GameEngine {
   return engine;
 }
 
+/** The parts of a parked player key before the CC2 marks: x, y, dir, slide, two cooldowns, character, keys, boots, belt, soft pad. */
+const BASE_PARKED_KEY_PARTS = 11;
+
 describe('player frame marks: undo snapshot', () => {
   it('a capture and restore round trip keeps the marks of both players', () => {
     const engine = twoPlayers();
@@ -97,6 +100,17 @@ describe('player frame marks: undo snapshot', () => {
     w.parked[0].cc2PrePassMoved = true;
     const moved = key();
     expect(new Set([bare, slide, retry, moved]).size).toBe(4);
+  });
+
+  it('an unmarked parked player adds no part to the search key', () => {
+    const engine = twoPlayers();
+    const key = (): string => (engine as unknown as { playersStateKey: () => string }).playersStateKey();
+    const w = worldOf(engine);
+    const bare = key();
+    const parts = bare.split(':')[1].split(';')[0].split(',');
+    expect(parts).toHaveLength(BASE_PARKED_KEY_PARTS);
+    w.parked[0].cc2SlideFrame = 1;
+    expect(key().split(':')[1].split(';')[0].split(',')).toEqual([...parts, '1']);
   });
 
   it('a restart clears the marks and the pre-pass player transient', () => {
