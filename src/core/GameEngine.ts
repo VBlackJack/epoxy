@@ -1298,7 +1298,17 @@ export class GameEngine {
     if (this.comingTickTimesOut()) return;
     // What the pre-pass moves changes the beams drawn between ticks.
     w.beamDirty = true;
-    if (runFramePrePass(this.ctx, true) || w.player.alive) return;
+    // The pre-pass reads the clock of the pass it belongs to, like the one at a pass start (open pass view): a clone it makes counts
+    // its wait from that pass and its template is kept out of that pass's turn (cc2SkipTurn).
+    const passOpen = w.ccPassOpen;
+    w.ccPassOpen = true;
+    let alive: boolean;
+    try {
+      alive = runFramePrePass(this.ctx, true);
+    } finally {
+      w.ccPassOpen = passOpen;
+    }
+    if (alive || w.player.alive) return;
     this.ticksElapsed++;
     countPausedTick(w);
   }

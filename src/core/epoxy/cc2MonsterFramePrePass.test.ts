@@ -41,6 +41,8 @@ const FORCED_X = 2;
 const FORCED_Y = 1;
 const BELOW_Y = 2;
 const NEIGHBOUR_X = 1;
+/** The cooldown a paramecium's step leaves when the main pass has not touched it (a step of the pre-pass, not counted down). */
+const PRE_PASS_STEP_COOLDOWN = 3;
 
 type Mode = 'cc2' | 'native';
 
@@ -89,6 +91,8 @@ describe('CC2 monster retry on a force floor in the frame pre-pass', () => {
     engine.tick();
     expect(find(w, 'paramecium').cc2PrePassMoved).toBeUndefined();
     expect(find(w, 'paramecium').y).toBe(BELOW_Y);
+    // The main pass neither counts the step down nor takes another: the cooldown is what the out-of-turn step set.
+    expect(find(w, 'paramecium').cooldownTicks).toBe(PRE_PASS_STEP_COOLDOWN);
   });
 
   it('a monster that just arrived on a force floor does not retry early', () => {
@@ -138,5 +142,41 @@ describe('the frame pre-pass runs inside the open entity pass (map045 shape)', (
     const engine = loadButtonBlock('cc2');
     engine.tick();
     expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN);
+  });
+});
+
+const PARKED_PLAYER_X = 11;
+
+describe('the end-of-tick frame pre-pass shares the open pass view (two player copy of the map045 shape)', () => {
+  // A level with a parked second player has no actor order: the pre-pass runs at the end of the previous tick, outside any pass.
+  // It reads the clock of the pass it belongs to, as the pass-start one does, so the clone gets the same wait (game.js:872-889).
+  it('a fireball cloned by a block that lands in frame 0 gets the same wait as on the single player lane', () => {
+    const level = room({
+      mode: 'cc2',
+      startX: PLAYER_START_X,
+      terrain: { [`${BUTTON_X},${BUTTON_Y}`]: 'button_red', [`${CLONER_X},${CLONER_Y}`]: 'clone_machine' },
+      entities: [
+        { type: 'fireball', x: CLONER_X, y: CLONER_Y, dir: 'E' },
+        { type: 'dirt_block', x: BUTTON_X, y: BUTTON_Y, dir: 'E' }
+      ]
+    });
+    level.cloneLinks = [{ buttonX: BUTTON_X, buttonY: BUTTON_Y, clonerX: CLONER_X, clonerY: CLONER_Y, templateType: 'fireball', templateDir: 'E' }];
+    level.extraPlayers = [{ x: PARKED_PLAYER_X, y: BUTTON_Y, dir: 'E', character: 'chip' }];
+    const engine = new GameEngine();
+    engine.loadLevel(level);
+    expect(engine.playsInActorOrder()).toBe(false);
+    const block = engine.getEntities().find((e) => e.type === 'dirt_block') as RuntimeEntity;
+    block.arrivalTicks = 1;
+    // The tick's own pre-pass takes one off, the end-of-tick one lands the block in frame 0.
+    block.cc2ArrivalWait = 2;
+    block.cc2ArrivalFrame = 0;
+    engine.tick();
+    expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN);
+    // The pass that follows is the one the clone was made for: it does not count the clone down (a pass closed at the end of the
+    // tick left the clone to be counted by it).
+    engine.tick();
+    expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN);
+    engine.tick();
+    expect(cloneOf(engine)?.cooldownTicks).toBe(OPEN_PASS_COOLDOWN - 1);
   });
 });
