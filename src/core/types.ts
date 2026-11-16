@@ -2206,6 +2206,13 @@ export interface Cc2LevelData {
    * field existed gets it only after a re-import.
    */
   ghostBarCells?: number[];
+  /**
+   * Wired blue teleport networks of the source: each list holds the cell indices (y * width + x, ascending) of the blue pads that
+   * jump to one another, the pads whose wire meets the same net. Absent without wired blue pads; a level imported before this
+   * field existed gets it only after a re-import. Ignored at load unless every cell is in the grid, listed once and holds a blue
+   * teleporter (see buildCc2PadNets).
+   */
+  teleportNets?: number[][];
 }
 
 /**
@@ -2524,6 +2531,12 @@ export interface PlayerState {
   listOrdinal?: number;
   /** CC2-engine level, actor order: the player's trap was shut at his last turn; when it is open at the start of a pass he steps out of it. Set only while true. */
   trapShutAtTurn?: true;
+  /** CC2 engine: the frame (0 or 1) a forced step of the controlled player is due in, after a slide step of the last tick (Lexy game.js:869-888). Scalar, deleted when unused. */
+  cc2SlideFrame?: 0 | 1;
+  /** CC2 engine: a forced step on a force floor stayed refused, so it retries in frames 0 and 1 of the next tick (Lexy game.js:1127-1162). Set only while true. */
+  cc2FrameRetry?: true;
+  /** CC2 engine: the pre-pass of this tick already moved the player, so the main turn skips his slide step and cooldown decrement (Lexy game.js:872-889). Set only while true. */
+  cc2PrePassMoved?: true;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2595,6 +2608,12 @@ export interface PlayerSnapshot {
   listOrdinal?: number;
   /** The player's trapShutAtTurn; written only while true. */
   trapShutAtTurn?: true;
+  /** The player's cc2SlideFrame; written only when set. */
+  cc2SlideFrame?: 0 | 1;
+  /** The player's cc2FrameRetry; written only while true. */
+  cc2FrameRetry?: true;
+  /** The player's cc2PrePassMoved; written only while true. */
+  cc2PrePassMoved?: true;
 }
 
 export interface UndoSnapshot {
