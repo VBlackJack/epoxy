@@ -41,7 +41,6 @@ const BEYOND_X = 5;
 /** The slide leaves the four ice cells at BEYOND_X..BEYOND_X+3 and stops on the floor after them. */
 const ICE_END_X = BEYOND_X + 4;
 const ICE_BLOCK = 'ice_block';
-const DIRT_BLOCK = 'dirt_block';
 const CLONER = 'clone_machine';
 const ICE = 'ice';
 const RED_BUTTON = 'button_red';
@@ -115,7 +114,8 @@ describe('CC2 engine: the step of a block that entered a clone machine runs out'
 });
 
 describe('CC2 engine: a block that slides into an occupied clone machine', () => {
-  // Lexy: the machine holds its template against the block (tiletypes.js:1700-1702); fire_ice shape, the slide path.
+  // Lexy: the machine holds its template against the block (tiletypes.js:1700-1702); fire_ice shape (an ice template), the slide path
+  // (slidePushesAhead). Fails without the clone machine line of canBeShoved: the slide would shove the template out onto the cell beyond.
   it('is refused, and the template stays', () => {
     const terrain = { [`${CLONER_X},${ROOM_ROW}`]: CLONER, [`${BLOCK_X},${ROOM_ROW}`]: ICE };
     const engine = new GameEngine();
@@ -125,16 +125,19 @@ describe('CC2 engine: a block that slides into an occupied clone machine', () =>
         startX: 1,
         terrain,
         entities: [
-          { type: DIRT_BLOCK, x: CLONER_X, y: ROOM_ROW, dir: 'E' },
+          { type: ICE_BLOCK, x: CLONER_X, y: ROOM_ROW, dir: 'E' },
           { type: ICE_BLOCK, x: BLOCK_X, y: ROOM_ROW, dir: 'E' }
         ]
       })
     );
-    const slider = engine.getEntities().find((e) => e.type === ICE_BLOCK)!;
+    const templateUid = blocksAt(engine, CLONER_X)[0].uid;
+    const slider = blocksAt(engine, BLOCK_X)[0];
     slider.isSliding = true;
     slider.dir = 'E';
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
-    expect(blocksAt(engine, CLONER_X).map((e) => e.type)).toEqual([DIRT_BLOCK]);
+    expect(blocksAt(engine, CLONER_X)).toHaveLength(1);
+    expect(blocksAt(engine, CLONER_X)[0].uid).toBe(templateUid);
+    expect(engine.getEntities().filter((e) => e.kind === 'block')).toHaveLength(2);
     expect(blocksAt(engine, BEYOND_X)).toHaveLength(0);
   });
 });
