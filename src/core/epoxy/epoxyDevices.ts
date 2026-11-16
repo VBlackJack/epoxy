@@ -583,10 +583,17 @@ function releaseBlownUp(
 /** Sound of a ball blowing up. */
 const BALL_BLAST_SFX = 'bomb';
 
-/** CC2 engine: whether the template of a clone machine is still inside a step (a block waits only while it slides or arrives). */
+/** CC2 engine: whether the template of a clone machine is still inside a step (a block waits only while it slides or arrives; a monster, once it has moved). */
 function templateIsStepping(template: RuntimeEntity): boolean {
   if (template.arrivalTicks !== undefined) return true;
-  return template.cooldownTicks > 0 && (template.kind !== 'block' || template.isSliding);
+  if (template.kind === 'monster') {
+    // A monster that does not follow the classic cadence starts the level with a wait of one interval (see epoxyLevelStart), which cannot be told
+    // from a step run out here: such a template is never refused (gap: Lexy refuses it while its step runs, game.js:2153-2156).
+    const def = ConfigRegistry.getEntityDef(template.type);
+    const startsReady = def?.movementPattern === ROLLING_BALL_PATTERN || followsCcCadence(template.type, true);
+    return startsReady && template.cooldownTicks > 0;
+  }
+  return template.cooldownTicks > 0 && template.isSliding;
 }
 
 /**
