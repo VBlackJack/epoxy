@@ -93,6 +93,9 @@ export function tagSlideFrame(w: EpoxyWorld, block: RuntimeEntity, frame: 0 | 1 
  */
 export function holdFrameArrival(w: EpoxyWorld, block: RuntimeEntity, total: number, counted = true): void {
   if (!frameModelOn(w) || block.arrivalTicks === undefined) return;
+  // A block on a clone machine never settles: its arrival only counts down (finishClonerOccupantStep), in every frame. Holding it
+  // here would settle it in frames 0 and 1 and leave it counting down in frame 2.
+  if (ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).isCloneMachine === true) return;
   block.cc2ArrivalWait = Math.floor(total / FRAMES_PER_TICK) + (counted ? pendingPrePass(w) : 0);
   block.cc2ArrivalFrame = (total % FRAMES_PER_TICK) as 0 | 1 | 2;
 }

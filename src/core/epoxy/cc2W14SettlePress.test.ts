@@ -29,6 +29,8 @@ import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
 import type { RuntimeEntity, SignalLink } from '../types';
+import { holdFrameArrival } from './epoxyFrames';
+import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -94,5 +96,52 @@ describe('a block that settles in the frame pre-pass presses in the frame it arr
     const engine = loadPlateLane('native', 0);
     engine.tick();
     expect(cloneOf(engine)?.cc2ArrivalWait).toBeUndefined();
+  });
+});
+
+const MACHINE_X = 4;
+const PUSHER_X = 2;
+const FRAMES_PER_TICK = 3;
+/** Totals of frames that end a held step in frame 0, 1 and 2 of a later tic. */
+const HELD_TOTALS = [12, 13, 14] as const;
+
+function loadMachineRow(onMachine: boolean): { engine: GameEngine; block: RuntimeEntity } {
+  const level = room({
+    mode: 'cc2',
+    startX: PUSHER_X,
+    terrain: onMachine ? { [`${MACHINE_X},${ROOM_ROW}`]: CLONE_MACHINE } : {},
+    entities: [{ type: 'ice_block', x: MACHINE_X - 1, y: ROOM_ROW, dir: 'E' }]
+  });
+  const engine = new GameEngine();
+  engine.loadLevel(level);
+  const block = engine.getEntities().find((e) => e.type === 'ice_block') as RuntimeEntity;
+  return { engine, block };
+}
+
+describe('a block that arrives on an empty clone machine is never held for a frame', () => {
+  // Lexy: a block on a clone machine does not step on its own, so its arrival only counts down whatever the frame it ends in.
+  it.each(HELD_TOTALS)('holds nothing for a step that ends %i frames on, and still does on a plain cell', (total) => {
+    const onMachine = loadMachineRow(true);
+    onMachine.block.x = MACHINE_X;
+    onMachine.block.arrivalTicks = 1;
+    holdFrameArrival((onMachine.engine as unknown as { w: EpoxyWorld }).w, onMachine.block, total);
+    expect(onMachine.block.cc2ArrivalWait).toBeUndefined();
+    expect(onMachine.block.cc2ArrivalFrame).toBeUndefined();
+
+    const onFloor = loadMachineRow(false);
+    onFloor.block.arrivalTicks = 1;
+    holdFrameArrival((onFloor.engine as unknown as { w: EpoxyWorld }).w, onFloor.block, total);
+    expect(onFloor.block.cc2ArrivalWait).toBeGreaterThanOrEqual(Math.floor(total / FRAMES_PER_TICK));
+    expect(onFloor.block.cc2ArrivalFrame).toBe(total % FRAMES_PER_TICK);
+  });
+
+  it('a block the player pushes onto the machine counts its arrival down at the pass and is not held', () => {
+    const { engine, block } = loadMachineRow(true);
+    engine.attemptPlayerMove('E');
+    engine.tick();
+    expect(block.x).toBe(MACHINE_X);
+    expect(block.cc2ArrivalWait).toBeUndefined();
+    for (let i = 0; i < 40 && block.arrivalTicks !== undefined; i++) engine.tick();
+    expect(block.arrivalTicks).toBeUndefined();
   });
 });
