@@ -4322,9 +4322,12 @@ class EpoxyApplication {
       // A blast charge is a counted item that shares the grid with the boots.
       const count = this.isCountedItem(bId) ? player.keys[bId] || 0 : 0;
       const owned = this.isCountedItem(bId) ? count > 0 : player.boots.has(bId);
+      // Tool-belt level: the extra pairs of a boot are counted in keys under its id, so the badge shows the pair worn plus them.
+      const extraPairs = !this.isCountedItem(bId) && owned && engineToolBelt(this.engine) !== undefined ? player.keys[bId] || 0 : 0;
+      const badgeCount = extraPairs > 0 ? extraPairs + 1 : count;
       this.bootSlots[i]?.update({
         owned,
-        badge: count > 0 ? t('hud.inventory.count.label', { count }) : '',
+        badge: badgeCount > 0 ? t('hud.inventory.count.label', { count: badgeCount }) : '',
         label: this.slotLabel(bId, owned),
         iconUrl: this.bootIconCache[bId],
         selected: selected === bId,
