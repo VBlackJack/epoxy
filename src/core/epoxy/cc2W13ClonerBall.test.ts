@@ -105,3 +105,49 @@ describe('an occupied clone machine', () => {
     expect(onCloner(engine)).toHaveLength(0);
   });
 });
+
+describe('a rolling ball template whose release is blocked', () => {
+  /** A ball template on the machine, a bug in the exit cell (or `wall` there), the red button wired by the fallback of triggerButton. */
+  function release(mode: RoomMode, exit: 'bug' | 'wall'): GameEngine {
+    const engine = new GameEngine();
+    engine.loadLevel(
+      room({
+        mode,
+        startX: 1,
+        terrain: { [`${CLONER_X},${ROOM_ROW}`]: 'clone_machine', [`${BUTTON_X},${BUTTON_Y}`]: 'button_red', ...(exit === 'wall' ? { [`${SPAWN_X},${ROOM_ROW}`]: 'wall' } : {}) },
+        entities: [{ type: BALL, x: CLONER_X, y: ROOM_ROW, dir: 'E' }, ...(exit === 'bug' ? [{ type: 'bug', x: SPAWN_X, y: ROOM_ROW, dir: 'N' as const }] : [])]
+      })
+    );
+    return engine;
+  }
+  const press = (engine: GameEngine): void => {
+    (engine as unknown as { ctx: EpoxyContext }).ctx.triggerButton(BUTTON_X, BUTTON_Y, 'trigger_cloner');
+  };
+
+  // Fails without releaseBlownUp: the release is refused and the bug lives (Lexy rolling_ball.on_blocked, tiletypes.js:3240-3252;
+  // cloner activate success, tiletypes.js:1716-1731).
+  it('kills the actor in the exit, explodes, and leaves a fresh template on the machine', () => {
+    const engine = release('cc2', 'bug');
+    const before = onCloner(engine)[0];
+    press(engine);
+    expect(world(engine).entities.some((e) => e.type === 'bug')).toBe(false);
+    expect(world(engine).entities.some((e) => e.type === BALL && e.x === SPAWN_X)).toBe(false);
+    const after = onCloner(engine);
+    expect(after.map((e) => e.type)).toEqual([BALL]);
+    expect(after[0].uid).not.toBe(before.uid);
+  });
+
+  it('is only refused by terrain: a wall in the exit clones nothing and the template stays', () => {
+    const engine = release('cc2', 'wall');
+    const before = onCloner(engine)[0];
+    press(engine);
+    expect(onCloner(engine)[0]).toBe(before);
+    expect(world(engine).entities).toHaveLength(1);
+  });
+
+  it('a classic-rules level keeps the actor in the exit', () => {
+    const engine = release('cc', 'bug');
+    press(engine);
+    expect(world(engine).entities.some((e) => e.type === 'bug')).toBe(true);
+  });
+});

@@ -34,6 +34,7 @@ import {
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
   PULSE_WIRED_ACTION,
+  ROLLING_BALL_PATTERN,
   STEER_MONSTERS_ACTION,
   channelOfButtonAction
 } from '../coreConstants';
@@ -41,7 +42,7 @@ import { isPhasingEntityType } from '../RulesetFeatures';
 import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
-import { isCanBlockEnter, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
+import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
@@ -544,6 +545,42 @@ export function spawnFromCloner(
 /** CC2 engine: the ways a wire-powered clone machine tries, clockwise from the template's own. */
 const CLONER_WAY_COUNT = 4;
 
+/**
+ * CC2 engine: a rolling ball template whose release is blocked by an actor, not by terrain, kills that actor and explodes (Lexy
+ * rolling_ball.on_blocked, tiletypes.js:3240-3252); the exploded template counts as released (tiletypes.js:1716-1731, "bowling balls that
+ * immediately destroy something are also considered to have successfully exited"): a fresh template takes its place on the machine and
+ * the release reports success. Blocked by terrain it only stops (a ball being released is spared). Returns whether it did.
+ */
+function releaseBlownUp(
+  ctx: EpoxyContext,
+  clonerX: number,
+  clonerY: number,
+  spawnX: number,
+  spawnY: number,
+  templateType: string,
+  templateDir: Direction,
+  probe: RuntimeEntity
+): boolean {
+  const w = ctx.world;
+  const victim = getEntityAt(w, spawnX, spawnY);
+  if (victim === undefined || !canMonsterEnter(w, probe, templateDir, true, false, true)) return false;
+  const template = w.entities.find((e) => e.x === clonerX && e.y === clonerY && e.type === templateType);
+  if (template === undefined) return false;
+  removeEntity(w, victim.uid);
+  ctx.emitVisual('explosion', victim.x, victim.y);
+  leaveBlockSplash(w, victim.x, victim.y, true);
+  removeEntity(w, template.uid);
+  ctx.emitVisual('explosion', clonerX, clonerY);
+  AudioManager.playSfx(BALL_BLAST_SFX);
+  const fresh: RuntimeEntity = { uid: w.nextEntityUid++, type: templateType, kind: template.kind, x: clonerX, y: clonerY, dir: templateDir, cooldownTicks: 0, isSliding: false, ...initialEmulationState(ConfigRegistry.getEntityDef(templateType)) };
+  w.entities.push(fresh);
+  w.beamDirty = true;
+  return true;
+}
+
+/** Sound of a ball blowing up. */
+const BALL_BLAST_SFX = 'bomb';
+
 /** CC2 engine: whether the template of a clone machine is still inside a step (a block waits only while it slides or arrives). */
 function templateIsStepping(template: RuntimeEntity): boolean {
   if (template.arrivalTicks !== undefined) return true;
@@ -594,6 +631,7 @@ function spawnFromClonerOneWay(
     kind === 'block'
       ? isCanBlockEnter(w, probe, spawnX, spawnY, templateDir)
       : canMonsterEnter(w, probe, templateDir);
+  if (!canEnter && cc2Clone && def?.movementPattern === ROLLING_BALL_PATTERN && releaseBlownUp(ctx, clonerX, clonerY, spawnX, spawnY, templateType, templateDir, probe)) return w.player.alive;
   if (!canEnter) return !report;
 
   // A turret or arrow block clone keeps the facing its template has now (turrets turn), else the way it is spawned.
