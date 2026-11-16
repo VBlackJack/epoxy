@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- CC2 imports play closer to CC2 again: blue teleporters joined by wires form their own networks, so a wired pad sends the player only to the pads of its network and a pad alone on its wire keeps him there, while an unwired pad skips the networked ones; a player stopped on a random force floor turns it and tries the new way in the same step, and a forced step that is refused is tried again early in the next tick, before his key press; a step from the floor onto ice lasts the time of an ice step, so monsters chasing him see him where CC2 does. CC1 .DAT imports, native levels and CC3D levels are unchanged; CC1 Steam .c2m levels follow the same CC2 rules. Official CC2 replays won on Epoxy go from 195 to 196 of 200, and CC1 Steam .c2m from 144 to 146 of 149, with no level lost. Levels imported before this version keep the level-wide blue teleporters until they are imported again. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
+
 ## [2.35.0] - 2026-11-16
 
 ### Changed
