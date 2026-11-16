@@ -15,6 +15,9 @@
  */
 
 /**
+ * The no-jump, key, direct-pad and classic tests below are pins of what stays unchanged (the direct-pad one counts the jump visuals,
+ * so a double jump fails it); the Venice shape, which fails without the rule, carries it.
+ *
  * A yellow pad pushed off a full tool belt onto the cell the player arrives on is a teleporter under him (Lexy's Labyrinth
  * game.js:2310-2333 step_on_cell: the item is taken first, the pad is set down by attempt_take, then the terrain is read and
  * marks the actor as just stepped on a teleporter; game.js:1371-1372 attempt_teleport at idle): he jumps when the step ends.
@@ -38,6 +41,8 @@ const NEW_BOOTS = 'boots_force';
 const KEY = 'key_red';
 const FLOOR = 'floor';
 const SETTLE_TICKS = 30;
+/** The 'teleport' visuals one jump emits (to be checked against a real jump). */
+const ONE_JUMP_VISUALS = 2;
 const MAX_WAIT_TICKS = 40;
 const START_X = 2;
 /** The cell he steps onto, the free pad he is sent to, and the cell he leaves it by (east of the pad). */
@@ -49,6 +54,14 @@ const PAD_C = { x: 6, y: 9 };
 
 type Cell = { x: number; y: number };
 const key = (cell: Cell): string => `${cell.x},${cell.y}`;
+/** Counts the 'teleport' visuals the engine emits from now on: one jump emits a fixed number, so a double jump doubles it. */
+function countTeleportVisuals(engine: GameEngine): () => number {
+  let count = 0;
+  engine.setOnVisualEventCallback((kind) => {
+    if (kind === 'teleport') count++;
+  });
+  return () => count;
+}
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const at = (engine: GameEngine): Cell => ({ x: engine.getPlayer().x, y: engine.getPlayer().y });
 
@@ -83,7 +96,9 @@ function stepEast(engine: GameEngine): void {
 describe('a yellow pad pushed off the belt under the arriving player', () => {
   it('sets the pad down and jumps to the free pad when the step ends (Venice shape)', () => {
     const engine = load('cc2', NEW_BOOTS);
+    const jumpVisuals = countTeleportVisuals(engine);
     stepEast(engine);
+    expect(jumpVisuals()).toBe(ONE_JUMP_VISUALS);
     expect(world(engine).terrain[TARGET.y][TARGET.x]).toBe(PAD);
     expect(engine.getPlayer().keys[PAD_ITEM]).toBeUndefined();
     expect(engine.getPlayer().belt).toEqual([...BOOTS, NEW_BOOTS]);
@@ -108,6 +123,7 @@ describe('a yellow pad pushed off the belt under the arriving player', () => {
 
   it('jumps once for a pad stepped onto directly: the pushed-out tool is no second teleport', () => {
     const engine = load('cc2', NEW_BOOTS, { terrain: { [key(TARGET)]: PAD } });
+    const jumpVisuals = countTeleportVisuals(engine);
     // The oldest tool is a boot here, so it is pushed out onto the pad cell and the pad under him jumps him once.
     const p = world(engine).player;
     delete p.keys[PAD_ITEM];
@@ -116,6 +132,9 @@ describe('a yellow pad pushed off the belt under the arriving player', () => {
     stepEast(engine);
     expect(world(engine).terrain[TARGET.y][TARGET.x]).toBe(PAD);
     expect(at(engine)).toEqual(B_EXIT);
+    // Counted visuals catch a double jump (the guard of the pushed-out pad is idempotent with the arrival flag: measured, reverting it
+    // changes nothing here, so this is a pin of the single jump, not a proof of the guard).
+    expect(jumpVisuals()).toBe(ONE_JUMP_VISUALS);
   });
 
   it('is a CC2-engine rule: a classic level has no belt, so no pad is set down', () => {
