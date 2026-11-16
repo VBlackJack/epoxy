@@ -31,6 +31,7 @@ vi.mock('./epoxySignals', async (importOriginal) => {
   return {
     ...real,
     // Records every settle (its gate phases and the edges it returned) and delegates to the real one.
+    // The pre-pass settle of epoxyFrames is not recorded (a circular import hands it the real function).
     settleWorldSignals: (...args: Parameters<typeof real.settleWorldSignals>) => {
       const edges = real.settleWorldSignals(...args);
       settleCalls.push({ gates: args[3], edges: edges.map((edge) => ({ ...edge })) });
@@ -42,8 +43,9 @@ vi.mock('./epoxySignals', async (importOriginal) => {
 import { ROOM_ROW, ROOM_SIZE, room, type RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
+import { stableStringify } from '../engineSimHash';
 import type { CompiledLevel, EntityPlacement, RuntimeEntity, SignalLink } from '../types';
-import type { EpoxyWorld } from './epoxyWorld';
+import { cc2HiddenStateKey, type EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -352,5 +354,43 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
   it('opens the door of an AND of two block-held plates at the first decision', () => {
     expect(doorPassed('cc2')).toBe(true);
     expect(doorPassed('native')).toBe(true);
+  });
+});
+
+describe('the hidden state key and the capture of a gate-delay network (HK)', () => {
+  function doorLane(mode: RoomMode): GameEngine {
+    const tiles: [string, string][] = [at(PLATE_X, PLATE), at(GATE_X, OR_GATE), at(SINK_X, DOOR)];
+    return load(build(mode, tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)]));
+  }
+  const fingerprint = (engine: GameEngine): string => `${stableStringify(engine.captureState())}|${cc2HiddenStateKey(world(engine))}`;
+
+  it('differs with a delayed gate on and off', () => {
+    const engine = doorLane('cc2');
+    const off = cc2HiddenStateKey(world(engine));
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < LANE_TICKS; i++) engine.tick();
+    const on = cc2HiddenStateKey(world(engine));
+    expect(on).not.toBe(off);
+    expect(on).toContain('g');
+  });
+
+  it('has no gate part on a level that is not on a gate-delay network', () => {
+    const engine = doorLane('native');
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < LANE_TICKS; i++) engine.tick();
+    expect(cc2HiddenStateKey(world(engine))).toBe('');
+  });
+
+  it('a capture and restore across a tick where a delayed gate changes replays the same state', () => {
+    const engine = doorLane('cc2');
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < LANE_TICKS; i++) {
+      const snapshot = engine.captureState();
+      engine.tick();
+      const straight = fingerprint(engine);
+      engine.restoreState(snapshot);
+      engine.tick();
+      expect(fingerprint(engine), `tick ${i}`).toBe(straight);
+    }
   });
 });
