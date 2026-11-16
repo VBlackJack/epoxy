@@ -1291,6 +1291,12 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
       w.player.slideDir = null;
     }
   }
+  // CC2 engine: a slide step of the main turn is a frame-2 step (it ends the slide frame); a forced step on a force floor that stayed
+  // refused retries in frames 0 and 1 of the next tick (pre-pass). Only the controlled player in his own slot carries the marks.
+  if (w.cc2PrePassPlayer !== true && usesCc2Engine(w.level) && !w.cc3dPace && w.swappedIn === null && mover === w.player) {
+    delete mover.cc2SlideFrame;
+    if (!steppedOff && currentTile.slideType === 'force') mover.cc2FrameRetry = true;
+  }
   // A converted CC3D level: a slide goes on at the fast pace once its first step is made, and the step that ends it
   // leaves the player busy one more tick.
   if (w.cc3dPace && steppedOff && mover === w.player && w.player.alive && w.player.exited !== true) {

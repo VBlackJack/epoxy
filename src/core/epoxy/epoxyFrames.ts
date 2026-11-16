@@ -18,6 +18,7 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence } from '../coreConstants';
 import { canMonsterEnter, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
+import { isCarriedByForceFloor, processPlayerSlideStep, resumeForceCarry } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -110,14 +111,17 @@ export function holdFrameArrival(w: EpoxyWorld, block: RuntimeEntity, total: num
 export function tagPushedBlock(w: EpoxyWorld, block: RuntimeEntity, byPlayer: boolean, playerSliding: boolean, later: boolean, sliderFrame: 0 | 1 | 2 | undefined): void {
   if (!frameModelOn(w) || !w.entities.includes(block)) return;
   const d = later ? 1 : 0;
+  // A push made by the player's forced step in the pre-pass happens in that step's frame, not in frame 2.
+  const inPrePass = w.cc2PrePassPlayer === true && w.cc2PrePassFrame !== undefined;
+  const pushFrame = inPrePass ? (w.cc2PrePassFrame as 0 | 1) : DECISION_FRAME;
   if (byPlayer) {
     if (block.arrivalTicks !== undefined) {
       // Onto a plain cell: the 12-frame out-of-turn step of frame 2 ends 10 frames later after a decision-phase push, 11 - d
       // after a sliding player's action-phase push.
       const dd = playerSliding ? d : 1;
-      holdFrameArrival(w, block, DECISION_FRAME + PLAIN_STEP_FRAMES - 1 - dd);
+      holdFrameArrival(w, block, pushFrame + PLAIN_STEP_FRAMES - 1 - dd, !inPrePass);
     } else if (playerSliding) {
-      const total = DECISION_FRAME + SLIDE_STEP_FRAMES - d;
+      const total = pushFrame + SLIDE_STEP_FRAMES - d;
       tagSlideFrame(w, block, (total % FRAMES_PER_TICK) as 0 | 1 | 2, Math.floor(total / FRAMES_PER_TICK));
     } else tagSlideFrame(w, block, 1, DECISION_PUSH_SLIDE_TICKS);
     return;
@@ -163,7 +167,17 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
   const pendingArrivals = w.entities.filter((e) => e.kind === 'block' && e.cc2ArrivalWait !== undefined);
   for (const block of pendingArrivals) block.cc2ArrivalWait = (block.cc2ArrivalWait ?? 0) - 1;
   for (const frame of PRE_PASS_FRAMES) {
+    // The player is an actor of the list (Lexy reading order): in the reverse loop he moves just before the first actor listed
+    // ahead of him, after the loop when none is.
+    let playerStepped = false;
+    const playerOrdinal = w.player.listOrdinal;
     for (const block of [...w.entities].reverse()) {
+      if (w.levelCompleted) return arrivalFrame;
+      if (!playerStepped && playerOrdinal !== undefined && block.listOrdinal !== undefined && block.listOrdinal < playerOrdinal) {
+        playerStepped = true;
+        if (!playerFrameStep(ctx, frame)) return arrivalFrame;
+        if (w.levelCompleted) return arrivalFrame;
+      }
       if (block.kind === 'monster' && monsterForcedRetry(w, block)) {
         if (!retryForcedMonster(ctx, block)) return arrivalFrame;
         continue;
@@ -213,7 +227,11 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         block.cooldownTicks = 0;
       }
     }
+    if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;
+    if (w.levelCompleted) return arrivalFrame;
   }
+  // The retry of a refused forced step lasts the frames of this pre-pass only.
+  delete w.player.cc2FrameRetry;
   // A plain step that ends in frame 2 ends in the main pass: its turn settles it.
   for (const block of pendingArrivals) {
     if (block.cc2ArrivalWait !== undefined && arrivalDue(block.cc2ArrivalWait) && block.cc2ArrivalFrame === DECISION_FRAME && w.entities.includes(block)) {
@@ -226,6 +244,7 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
 
 /** Whether the world holds anything the pre-pass acts on. */
 function prePassHasWork(w: EpoxyWorld): boolean {
+  if (frameModelOn(w) && (w.player.cc2FrameRetry === true || w.player.cc2SlideFrame !== undefined)) return true;
   return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && monsterForcedRetry(w, e)));
 }
 
@@ -269,6 +288,60 @@ function retryForcedMonster(ctx: EpoxyContext, e: RuntimeEntity): boolean {
   }
   if (w.entities.includes(e) && (e.x !== x || e.y !== y)) e.cc2PrePassMoved = true;
   return w.player.alive;
+}
+
+/**
+ * The player half of the pre-pass: a player whose forced step on a force floor was refused at frame 2 tries it again in frames 0
+ * and 1 of the next tic (forced decisions, game.js:869-888), before his input; once a forced step goes in frame f, his next forced
+ * steps on the force floor stay in frame f, before the input of their tic, which they therefore refuse (map054 t617-t632 ftrace).
+ * Only the controlled player in his own slot (a parked player never takes a mark). False when he died.
+ */
+function playerFrameStep(ctx: EpoxyContext, frame: 0 | 1): boolean {
+  const w = ctx.world;
+  const p = w.player;
+  if (!frameModelOn(w) || !p.alive || w.levelCompleted || w.swappedIn !== null || p.cc2PrePassMoved === true) return p.alive;
+  const tile = ConfigRegistry.getTile(w.terrain[p.y]?.[p.x]);
+  if (tile.slideType !== 'force' || !isCarriedByForceFloor(w, tile)) {
+    delete p.cc2SlideFrame;
+    delete p.cc2FrameRetry;
+    return true;
+  }
+  const retry = p.cc2FrameRetry === true;
+  const due = retry || (p.cc2SlideFrame === frame && p.isSliding && p.slideCooldown === 0);
+  if (!due || p.moveCooldown > 0) return true;
+  if (!p.isSliding) {
+    if (tile.forceCycle === true) {
+      p.isSliding = true;
+      p.slideDir = p.dir;
+      p.slideCooldown = 0;
+    } else resumeForceCarry(w);
+  }
+  if (!p.isSliding) return true;
+  const x = p.x;
+  const y = p.y;
+  w.cc2PrePassPlayer = true;
+  w.cc2PrePassFrame = frame;
+  try {
+    processPlayerSlideStep(ctx);
+  } finally {
+    delete w.cc2PrePassPlayer;
+    delete w.cc2PrePassFrame;
+  }
+  if (!p.alive) return false;
+  // A step that handed control on (an exit) leaves the marks to the swap.
+  if (p !== w.player) return true;
+  if (p.x !== x || p.y !== y) {
+    delete p.cc2FrameRetry;
+    p.cc2PrePassMoved = true;
+    const here = ConfigRegistry.getTile(w.terrain[p.y]?.[p.x]);
+    if (p.isSliding && here.slideType === 'force' && isCarriedByForceFloor(w, here)) p.cc2SlideFrame = frame;
+    else delete p.cc2SlideFrame;
+  } else if (!retry) {
+    // Its frame step refused: it becomes a retry in the frames left, then the main pass.
+    p.cc2FrameRetry = true;
+    delete p.cc2SlideFrame;
+  }
+  return true;
 }
 
 /** Runs the pre-pass and, when a block arrived in it, the wire phase that arrival reaches. False when the player died. */
@@ -325,6 +398,7 @@ export function resetFrameWorld(w: EpoxyWorld): void {
 export function closeFramePass(w: EpoxyWorld): void {
   delete w.cc2PrePassDone;
   for (const e of w.entities) if (e.cc2PrePassMoved === true) delete e.cc2PrePassMoved;
+  for (const pl of [w.player, ...w.parked]) delete pl.cc2PrePassMoved;
 }
 
 /** The frame of the slider stepping in the pre-pass now, else undefined (the main pass: frame 2). */

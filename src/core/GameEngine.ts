@@ -1207,7 +1207,10 @@ export class GameEngine {
     if (actorOrder) {
       this.openActorTick();
     } else {
-      if (this.w.player.moveCooldown > 0) {
+      // CC2 engine: a forced step the pre-pass already made in this tick is the step of the tick (frames 0 and 1 come before the input):
+      // the wait and the slide do not run again, or the input of the next tick would be let through.
+      const prePassMoved = this.w.player.cc2PrePassMoved === true;
+      if (this.w.player.moveCooldown > 0 && !prePassMoved) {
         this.w.player.moveCooldown--;
       }
       // A converted CC3D level: what the player's step onto a cell does acts when that step ends.
@@ -1218,8 +1221,8 @@ export class GameEngine {
 
       // Classic rules: a floor keeps trying to carry the player, so a blocked or never started push still grants the choice.
       // A converted CC3D level retries the carry every tick too (a refused push is tried again, a start on a force floor is carried).
-      if (this.w.ccRules || this.w.cc3dPace) resumeForceCarry(this.w);
-      if (this.w.player.isSliding) {
+      if ((this.w.ccRules || this.w.cc3dPace) && !prePassMoved) resumeForceCarry(this.w);
+      if (this.w.player.isSliding && !prePassMoved) {
         if (this.w.player.slideCooldown > 0) {
           this.w.player.slideCooldown--;
           if (this.w.cc3dPace && this.w.player.slideCooldown === 0 && !applyCc3dStepEnd(this.ctx)) {
@@ -1537,9 +1540,11 @@ export class GameEngine {
     w.cc2PendingDecision = undefined;
     if (stored !== undefined) this.playStoredInput(stored, tick);
     if (!w.player.alive || w.levelCompleted) return [];
-    if (w.player.moveCooldown > 0) w.player.moveCooldown--;
-    resumeForceCarry(w);
-    if (w.player.isSliding) {
+    // A forced step the pre-pass already made in this tick (frame 0 or 1, before the input) is the step of the turn.
+    const prePassMoved = w.player.cc2PrePassMoved === true;
+    if (w.player.moveCooldown > 0 && !prePassMoved) w.player.moveCooldown--;
+    if (!prePassMoved) resumeForceCarry(w);
+    if (w.player.isSliding && !prePassMoved) {
       if (w.player.slideCooldown > 0) w.player.slideCooldown--;
       else processPlayerSlideStep(this.ctx);
     }

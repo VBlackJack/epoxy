@@ -40,6 +40,8 @@ const WALL_EAST = { x: 4, y: 5 };
 const FIRST_DRAW_BLOCKED_TERRAIN = { [`${PAD.x},${PAD.y}`]: CYCLE, [`${WALL_EAST.x},${WALL_EAST.y}`]: 'wall' };
 const TICKS_TO_LEAVE = 6;
 const TICKS_BOXED = 8;
+/** A boxed player on a turning floor tries in frame 0, in frame 1 and at the decisions of frame 2 (the retry of PFS): one turn each. */
+const TRIES_PER_TICK = 3;
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
@@ -73,7 +75,7 @@ describe('PRF: a refused forced step on a turning force floor', () => {
     expect(w.forceCycleTurn).toBe(2);
   });
 
-  it('a boxed player draws exactly one turn per try: the floor is not turned twice (item 3)', () => {
+  it('a boxed player draws exactly one turn per try: one floor turn per try, three per tick (item 3)', () => {
     const engine = load(boxedPad());
     const w = worldOf(engine);
     // The first tick starts the carry (the level starts on the floor): it draws the arrival turn as well.
@@ -84,7 +86,7 @@ describe('PRF: a refused forced step on a turning force floor', () => {
       engine.tick();
       deltas.push(w.forceCycleTurn - before);
     }
-    expect(deltas).toEqual(Array(TICKS_BOXED).fill(1));
+    expect(deltas).toEqual(Array(TICKS_BOXED).fill(TRIES_PER_TICK));
     expect({ x: w.player.x, y: w.player.y }).toEqual(PAD);
   });
 
