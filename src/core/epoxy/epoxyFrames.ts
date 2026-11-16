@@ -151,22 +151,25 @@ function arrivalDue(wait: number): boolean {
 
 /**
  * The slide steps Lexy takes in frames 0 and 1 of the tick, before the decisions of frame 2, and the arrivals of plain steps that
- * end in frame 0 or 1: frame 0 first, then frame 1; in each, the actors in reverse list order.
+ * end in frame 0 or 1: frame 0 first, then frame 1; in each, the actors in reverse list order. Returns the frame of the first
+ * arrival it settled (the earliest, since frame 0 runs first), undefined when none settled.
  */
-function runPrePass(ctx: EpoxyContext): void {
+function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
   const w = ctx.world;
+  let arrivalFrame: 0 | 1 | undefined;
   const pendingArrivals = w.entities.filter((e) => e.kind === 'block' && e.cc2ArrivalWait !== undefined);
   for (const block of pendingArrivals) block.cc2ArrivalWait = (block.cc2ArrivalWait ?? 0) - 1;
   for (const frame of PRE_PASS_FRAMES) {
     for (const block of [...w.entities].reverse()) {
       if (block.kind === 'monster' && monsterForcedRetry(w, block)) {
-        if (!retryForcedMonster(ctx, block)) return;
+        if (!retryForcedMonster(ctx, block)) return arrivalFrame;
         continue;
       }
       if (block.kind !== 'block' || w.removedUids.has(block.uid) || !w.entities.includes(block)) continue;
       if (block.cc2ArrivalWait !== undefined && arrivalDue(block.cc2ArrivalWait) && block.cc2ArrivalFrame === frame) {
         settleFrameArrival(ctx, block, frame);
-        if (!w.player.alive) return;
+        arrivalFrame ??= frame;
+        if (!w.player.alive) return arrivalFrame;
         continue;
       }
       if (block.cc2SlideFrame !== frame) continue;
@@ -189,7 +192,7 @@ function runPrePass(ctx: EpoxyContext): void {
         delete w.cc2PrePassStepping;
         delete w.cc2PrePassFrame;
       }
-      if (!w.player.alive) return;
+      if (!w.player.alive) return arrivalFrame;
       if (!w.entities.includes(block)) continue;
       // The main pass of this tick does not move it again.
       block.cc2PrePassMoved = true;
@@ -215,6 +218,7 @@ function runPrePass(ctx: EpoxyContext): void {
       block.arrivalTicks = 1;
     }
   }
+  return arrivalFrame;
 }
 
 /** Whether the world holds anything the pre-pass acts on. */
@@ -268,8 +272,9 @@ function retryForcedMonster(ctx: EpoxyContext, e: RuntimeEntity): boolean {
 function runPrePassAndWires(ctx: EpoxyContext): boolean {
   const w = ctx.world;
   let arrived = false;
+  let arrivalFrame: 0 | 1 | undefined;
   try {
-    runPrePass(ctx);
+    arrivalFrame = runPrePass(ctx);
     arrived = w.cc2PrePassArrived === true;
   } finally {
     delete w.cc2PrePassArrived;
@@ -280,8 +285,11 @@ function runPrePassAndWires(ctx: EpoxyContext): boolean {
     setPoweredCells(ctx);
     setHoldDoors(ctx);
     fireSignalSinks(ctx, edges, SIGNAL_PHASE_TICK);
-    // The clone machines and launchers that rose fire in that wire phase too, not at the next tick.
-    fireSinksBeforePass(ctx);
+    // The clone machines and launchers that rose fire in that wire phase too, not at the next tick. The press is the arrival of this
+    // pre-pass, in its frame: the settled block carries no frame of its own (a clone does), so the frame is given here, else a frame-0
+    // arrival would release its clone as a press of frame 1 (game.js:869-888). fireSinksBeforePass sets cc2BeforePass, so the clone is
+    // counted down by the pass at once: the pre-pass does set that flag, through this call.
+    fireSinksBeforePass(ctx, arrivalFrame);
   }
   return w.player.alive;
 }
