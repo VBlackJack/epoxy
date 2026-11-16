@@ -328,8 +328,19 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
         plan = iceHere.deflectionMap?.[entity.dir] || entity.dir;
         // A fireball whose forced slide bumps an ice block melts it (Lexy ice_block.on_after_bumped, tiletypes.js:1386-1395); the step
         // itself stays blocked and bounces (game.js:1166-1200). Not modelled: the double bonk, where a bounce also blocked by an ice
-        // block melts the second block too (game.js:1197-1200).
-        if (def?.meltsIceOnBumpCc2 === true && !w.cc3dPace && meltIceBlockAhead(w, entity, plan, true)) plan = iceBounceDirection(w, entity, def, plan) ?? plan;
+        // block melts the second block too (game.js:1197-1200). The melt happens here, at the decision, where Lexy melts it at the move
+        // (the same model as the free-decision melt of chooseMonsterDirection).
+        if (def?.meltsIceOnBumpCc2 === true && !w.cc3dPace && meltIceBlockAhead(w, entity, plan, true)) {
+          // The bounce is tried at once (game.js:1192-1207): when its way is open the step goes that way, else the monster only turns
+          // round and takes no second bounce at the move, which would walk it into the cell just melted.
+          const bounce = iceBounceDirection(w, entity, def, plan);
+          if (bounce !== null && canStep(w, entity, bounce)) {
+            plan = bounce;
+          } else {
+            if (bounce !== null) entity.dir = bounce;
+            plan = null;
+          }
+        }
       }
     }
     if (plan === null && ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).slideType === undefined && !(followsTeethPhase(behaviourType, cc2) && entity.x === w.player.x && entity.y === w.player.y)) {
