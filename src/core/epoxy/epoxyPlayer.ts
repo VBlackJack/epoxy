@@ -631,7 +631,8 @@ export function isBeltTool(def: TileDefinition): boolean {
 
 /**
  * Boots the player cannot hold twice (the boots are a set) or a second ward: the pickup is the plain one and never pushes
- * a tool off the belt.
+ * a tool off the belt. Exception, CC2 belt: a second pair of the same boots is a tool of its own, so it is never redundant there
+ * (the ward that absorbs monster contact still is).
  */
 function isRedundantBootPickup(w: EpoxyWorld, itemId: string, def: TileDefinition): boolean {
   if (def.collectible !== 'boot') return false;
@@ -904,7 +905,7 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     if (takesBoots) {
       w.player.boots.clear();
       // The extra pairs of boots go with the worn ones (Lexy take_all_tools_from_actor takes every tool).
-      w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => ConfigRegistry.getTile(id).collectible !== 'boot'));
+      if (usesToolBelt(w)) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => ConfigRegistry.getTile(id).collectible !== 'boot'));
       if (takesCountedTools) w.player.keys = Object.fromEntries(Object.entries(w.player.keys).filter(([id]) => !isCountedTool(id)));
       w.statusBannerKey = 'hud.messages.thief_stole';
       AudioManager.playSfx('thief');
