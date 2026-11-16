@@ -2418,7 +2418,7 @@ export interface RuntimeEntity {
    */
   cc2Frame?: 0 | 2;
   /**
-   * CC2 engine, on a sliding block whose slide steps fall in Lexy frame 0 or 1 of the tic (game.js:869-888): that frame. The
+   * CC2 engine, on a sliding block or a monster whose slide steps fall in Lexy frame 0 or 1 of the tic (game.js:869-888): that frame. The
    * frame pre-pass moves it; the main pass skips it. Set only under the CC2 engine, never on cc3dPace; deleted with
    * `cc2SlideDue` once the slide ends or its frame is 2. 0 is falsy: read it with `!== undefined`.
    */
@@ -2496,6 +2496,7 @@ export interface PlayerState {
   moveCooldown: number;
   slideCooldown: number;
   inWater: boolean;
+  /** Held keys by colour; on a CC2 belt level also the extra copies of boots already worn, by boot id (deleted at 0). */
   keys: Record<string, number>;
   boots: Set<string>;
   /**
