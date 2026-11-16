@@ -44,6 +44,7 @@ import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
+import { holdFrameArrival, tagSlideFrame } from './epoxyFrames';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
@@ -502,6 +503,10 @@ const CC2_LATE_RELEASE_FRAME = 2;
 export const CC2_DEFAULT_FRAME = 1;
 /** CC2 engine: frames per tic; an out-of-turn step spends one frame at once, so the clone ends at frame p - 1 (game.js:2218-2242). */
 const CC2_FRAMES_PER_TIC = 3;
+/** CC2 engine: frames from the press to the end of a cloned block's 12-frame plain step (a new actor is not visited again in that frame). */
+const PLAIN_CLONE_STEP_END_FRAMES = 11;
+/** CC2 engine: ticks before the first slide step of a block cloned onto a slide. */
+const CLONE_SLIDE_TICKS = 2;
 
 /** CC2 engine: gives a clone released at press frame p the frame (p + 2) mod 3 its step ends at, unless that is the default one. */
 function tagCloneFrame(clone: RuntimeEntity, releaseFrame: 0 | 1 | 2): void {
@@ -735,6 +740,14 @@ function spawnFromClonerOneWay(
         else if (spawned.cooldownTicks > 0) spawned.cooldownTicks -= 1;
       }
       tagCloneFrame(spawned, releaseFrame);
+    }
+    // A block cloned onto ice or a force floor by a press of frame p takes its out-of-turn 6-frame step then and slides in frame p
+    // two ticks later; onto a plain cell by a press of frame 0 or 1, its 12-frame step ends at p + 11 (game.js:2218-2242).
+    const pressFrame = releaseFrame ?? (w.cc2BeforePass === true ? CC2_DEFAULT_FRAME : CC2_LATE_RELEASE_FRAME);
+    if (cc2Clone && w.entities.includes(spawned) && spawned.arrivalTicks !== undefined && pressFrame !== CC2_LATE_RELEASE_FRAME) {
+      holdFrameArrival(w, spawned, pressFrame + PLAIN_CLONE_STEP_END_FRAMES);
+    } else if (cc2Clone && w.entities.includes(spawned) && spawned.isSliding) {
+      tagSlideFrame(w, spawned, pressFrame as 0 | 1 | 2, CLONE_SLIDE_TICKS);
     }
   } else {
     // The same out-of-turn rule for a monster clone, before it resolves its arrival.
