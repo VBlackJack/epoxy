@@ -16,8 +16,9 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { Direction, RuntimeEntity } from '../types';
-import { followsCcCadence } from '../coreConstants';
-import { canMonsterEnter, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
+import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
+import { canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
+import { forceCycleArrival } from './epoxyForceCycle';
 import { isCarriedByForceFloor, processPlayerSlideStep, resumeForceCarry } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
@@ -186,8 +187,16 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         if (!playerFrameStep(ctx, frame)) return arrivalFrame;
         if (w.levelCompleted) return arrivalFrame;
       }
+      if (block.kind === 'monster' && monsterFrameStep(w, block, frame)) {
+        if (!stepMonsterInFrame(ctx, block, frame)) return arrivalFrame;
+        continue;
+      }
+      if (block.kind === 'monster' && monsterRffRetry(w, block)) {
+        if (!retryRffMonster(ctx, block, frame)) return arrivalFrame;
+        continue;
+      }
       if (block.kind === 'monster' && monsterForcedRetry(w, block)) {
-        if (!retryForcedMonster(ctx, block)) return arrivalFrame;
+        if (!retryForcedMonster(ctx, block, frame)) return arrivalFrame;
         continue;
       }
       if (block.kind !== 'block' || w.removedUids.has(block.uid) || !w.entities.includes(block)) continue;
@@ -253,15 +262,15 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
 /** Whether the world holds anything the pre-pass acts on. */
 function prePassHasWork(w: EpoxyWorld): boolean {
   if (frameModelOn(w) && (w.player.cc2FrameRetry === true || w.player.cc2SlideFrame !== undefined)) return true;
-  return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && monsterForcedRetry(w, e)));
+  return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && (monsterForcedRetry(w, e) || monsterRffRetry(w, e))));
 }
 
 /**
  * Monster half, minimal: a monster on a force floor whose forced step was refused at the decisions of the last tic retries it in
  * frames 0 and 1 (frames 0 and 1 make forced decisions, game.js:869-888 and 1702-1720; the force floor's slide, 1014-1019 and
  * 1127-1158; force_floor on_arrive, tiletypes.js:3395-3399; the combined action phase, game.js:1074-1088). Not a monster that has
- * just arrived: its first try is at frame 2 (the main pass). Partial scope: Lexy keeps such a monster's later force-floor steps in
- * frame 0; here they go back to the tick timing. The bonk cycling of a forced move (RFF) is not modelled.
+ * just arrived: its first try is at frame 2 (the main pass). A step it takes there tags its slide frame (tagMonsterSlide), so its
+ * later force-floor steps stay in that frame, as Lexy keeps them.
  */
 export function monsterForcedRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
   if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
@@ -279,13 +288,92 @@ export function monsterForcedRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
 }
 
 /**
- * Tries the forced step of a monster in the pre-pass; when it goes, the main pass of the tick skips it. False when the player
- * died. It sets the plan first, so the step takes the plan branch: no direction is chosen and no random number is drawn.
+ * A monster at rest on a turning force floor whose forced step was refused at the last decisions retries in frames 0 and 1, as one
+ * on a fixed force floor does (monsterForcedRetry); the retry bonks, so the floor turns it and it tries the new way (Lexy
+ * _possibly_bonk, game.js:1127-1162; MAP120 t424, ftrace).
  */
-function retryForcedMonster(ctx: EpoxyContext, e: RuntimeEntity): boolean {
+function monsterRffRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
+  if (e.cc2PrePassMoved === true) return false;
+  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  const def = ConfigRegistry.getEntityDef(e.type);
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || def?.steeredBy !== undefined) return false;
+  const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
+  if (tile.forceCycle !== true || tile.isCloneMachine === true || slideImmune(w, e, tile)) return false;
+  const coming = w.ccMonsterClock + 1;
+  if (e.stepEndedPass !== undefined && e.stepEndedPass >= coming - 1) return false;
+  if ((e.heldTools ?? []).length > 0) return false;
+  return true;
+}
+
+/** One frame's try of a monster on a turning floor: its way, else the floor turns it and it tries the new way. False when the player died. */
+function retryRffMonster(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): boolean {
   const w = ctx.world;
-  const dir = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).forceDirection as Direction;
-  if (!canMonsterEnter(w, e, dir)) return w.player.alive;
+  let dir = e.dir;
+  if (!canMonsterEnter(w, e, dir)) {
+    const redraw = forceCycleArrival(w, ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]));
+    if (redraw === null) return w.player.alive;
+    e.dir = redraw;
+    dir = redraw;
+    if (!canMonsterEnter(w, e, dir)) return w.player.alive;
+  }
+  return stepMonsterAlong(ctx, e, dir, frame);
+}
+
+/** The slide floor that carries a monster here (ice, or a force floor, a turning one included: it goes the way the floor gave it), else undefined. */
+function monsterSlideHere(w: EpoxyWorld, e: RuntimeEntity): 'ice' | 'force' | undefined {
+  const def = ConfigRegistry.getEntityDef(e.type);
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || def?.steeredBy !== undefined) return undefined;
+  const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
+  if (tile.isCloneMachine === true || slideImmune(w, e, tile)) return undefined;
+  if (tile.slideType === 'ice') return 'ice';
+  if (tile.slideType !== 'force') return undefined;
+  if (tile.forceCycle === true) return 'force';
+  return tile.forceDirection !== undefined && tile.forceDirection !== 'RANDOM' ? 'force' : undefined;
+}
+
+/** A monster that has just slid in pre-pass frame `frame` keeps that frame for its next slide step while a slide carries it. */
+function tagMonsterSlide(w: EpoxyWorld, e: RuntimeEntity, frame: 0 | 1): void {
+  if (monsterSlideHere(w, e) !== undefined && e.cooldownTicks > 0) e.cc2SlideFrame = frame;
+  else delete e.cc2SlideFrame;
+}
+
+/**
+ * Whether a monster tagged with a slide frame steps in this frame of the pre-pass (Lexy game.js:869-888: a slide step keeps its
+ * frame; MAP120 t849-t857, a paramecium forced in frame 0 keeps frame 0). The tag of a monster no slide carries any more is dropped.
+ */
+function monsterFrameStep(w: EpoxyWorld, e: RuntimeEntity, frame: 0 | 1): boolean {
+  if (e.cc2SlideFrame === undefined) return false;
+  if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
+  if (e.cc2PrePassMoved === true) return false;
+  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  if ((e.heldTools ?? []).length > 0) return false;
+  if (monsterSlideHere(w, e) === undefined) {
+    delete e.cc2SlideFrame;
+    return false;
+  }
+  return e.cc2SlideFrame === frame;
+}
+
+/** The slide step of a tagged monster in a frame of the pre-pass. False when the player died. */
+function stepMonsterInFrame(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): boolean {
+  const w = ctx.world;
+  const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
+  const plan = (tile.slideType === 'ice' ? tile.deflectionMap?.[e.dir] || e.dir : tile.forceCycle === true ? e.dir : tile.forceDirection) as Direction;
+  if (tile.slideType === 'ice') {
+    const bounce = (tile.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan]) as Direction;
+    if (!canMonsterEnter(w, e, plan) && !canMonsterEnter(w, e, bounce)) return w.player.alive;
+  } else if (!canMonsterEnter(w, e, plan)) return w.player.alive;
+  return stepMonsterAlong(ctx, e, plan, frame);
+}
+
+/**
+ * One out-of-turn step of a monster along `dir` in pre-pass frame `frame`: the plan is set first, so the step takes the plan branch
+ * (no direction is chosen, no random number is drawn). When it moved, the main pass skips the monster and its slide frame is tagged.
+ * False when the player died.
+ */
+function stepMonsterAlong(ctx: EpoxyContext, e: RuntimeEntity, dir: Direction, frame: 0 | 1): boolean {
+  const w = ctx.world;
   const x = e.x;
   const y = e.y;
   w.ccPlans.set(e.uid, dir);
@@ -294,8 +382,22 @@ function retryForcedMonster(ctx: EpoxyContext, e: RuntimeEntity): boolean {
   } finally {
     w.ccPlans.delete(e.uid);
   }
-  if (w.entities.includes(e) && (e.x !== x || e.y !== y)) e.cc2PrePassMoved = true;
+  if (w.entities.includes(e) && (e.x !== x || e.y !== y)) {
+    e.cc2PrePassMoved = true;
+    tagMonsterSlide(w, e, frame);
+  }
   return w.player.alive;
+}
+
+/**
+ * Tries the forced step of a monster in the pre-pass; when it goes, the main pass of the tick skips it. False when the player
+ * died. It sets the plan first, so the step takes the plan branch: no direction is chosen and no random number is drawn.
+ */
+function retryForcedMonster(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): boolean {
+  const w = ctx.world;
+  const dir = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).forceDirection as Direction;
+  if (!canMonsterEnter(w, e, dir)) return w.player.alive;
+  return stepMonsterAlong(ctx, e, dir, frame);
 }
 
 /**
