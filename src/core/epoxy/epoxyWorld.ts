@@ -463,6 +463,9 @@ export function buildGhostBar(level: CompiledLevel, width: number, height: numbe
   return cells.size > 0 ? cells : undefined;
 }
 
+/** The id of the CC2 blue pad, the only pad that follows wire networks. */
+export const CC2_WIRED_PAD_ID = 'teleport_blue';
+
 /**
  * CC2 engine: the wired blue pad networks of the import, as cell -> network index. Undefined (the whole list ignored) when the list is
  * malformed, or when a listed cell is out of the grid, listed twice or no longer holds a blue pad (an edited or resized level): a
@@ -478,7 +481,7 @@ export function buildCc2PadNets(level: CompiledLevel, terrain: string[][]): Map<
     if (!Array.isArray(net) || net.length === 0) return undefined;
     for (const cell of net) {
       if (!Number.isInteger(cell) || cell < 0 || cell >= width * terrain.length || map.has(cell)) return undefined;
-      if (terrain[Math.floor(cell / width)][cell % width] !== 'teleport_blue') return undefined;
+      if (terrain[Math.floor(cell / width)][cell % width] !== CC2_WIRED_PAD_ID) return undefined;
       map.set(cell, n);
     }
   }

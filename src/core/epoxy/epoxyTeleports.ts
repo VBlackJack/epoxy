@@ -33,7 +33,8 @@ import {
   getEntityAt,
   isEdgeBlocked,
   isInBounds,
-  playerAtCell
+  playerAtCell,
+  CC2_WIRED_PAD_ID
 } from './epoxyWorld';
 
 /**
@@ -215,9 +216,6 @@ function nativePadPlan(
   }
   return plan;
 }
-
-/** The id of the CC2 blue pad, the only pad that follows wire networks. */
-const CC2_WIRED_PAD_ID = 'teleport_blue';
 
 /**
  * CC2 engine, blue pads: a wired pad jumps only within its wire network and an unwired pad only to unwired pads
