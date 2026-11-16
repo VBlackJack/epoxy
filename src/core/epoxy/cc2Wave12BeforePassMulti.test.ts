@@ -30,9 +30,9 @@ vi.mock('./epoxyDevices', async (importOriginal) => {
   const original = await importOriginal<typeof import('./epoxyDevices')>();
   return {
     ...original,
-    fireClonerAt: (ctx: import('./epoxyWorld').EpoxyContext, x: number, y: number): boolean => {
+    fireClonerAt: (ctx: import('./epoxyWorld').EpoxyContext, x: number, y: number, ...rest: [boolean?]): boolean => {
       fired.calls.push({ x, y, frame: ctx.world.cc2ReleaseFrame, beforePass: ctx.world.cc2BeforePass, tick: fired.tick });
-      return original.fireClonerAt(ctx, x, y);
+      return original.fireClonerAt(ctx, x, y, ...rest);
     }
   };
 });
