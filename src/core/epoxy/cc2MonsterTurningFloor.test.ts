@@ -197,6 +197,35 @@ describe('CC2 engine: a turning force floor carries the slide frame too (MSFR)',
   });
 });
 
+describe('CC2 engine: a monster tagged with a slide frame on a turning floor still bonks in that frame', () => {
+  it('turns the floor in its tagged frame 0 and goes the new way, before a blocker listed to move first in the main pass leaves', () => {
+    // Lexy _possibly_bonk (game.js:1127-1162) runs in the frame of the refused step: the fireball (listed last, so first in the main
+    // pass) is still ahead in frame 0, so the floor turns the paramecium south there; without the bonk it would go east.
+    const engine = load('cc2', { entities: [paramecium(), { type: FIREBALL, x: AHEAD_X, y: ROOM_ROW, dir: 'E' }] }, false);
+    monsterOf(engine, PARAMECIUM).cc2SlideFrame = FRAME_0;
+    engine.tick();
+    const para = monsterOf(engine, PARAMECIUM);
+    expect([para.x, para.y]).toEqual([FLOOR_X, BELOW_Y]);
+    expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN + 1);
+  });
+});
+
+describe('CC2 engine: a retry step off a turning floor onto a force row keeps frame 0', () => {
+  it('stays tagged frame 0 over the steps along the row (MAP120 t849-t857 shape)', () => {
+    const terrain: Record<string, string> = { [`${FLOOR_X},${ROOM_ROW}`]: FORCE_CYCLE };
+    for (let x = AHEAD_X; x <= AHEAD_X + 5; x++) terrain[`${x},${ROOM_ROW}`] = FORCE_EAST;
+    const engine = new GameEngine();
+    engine.loadLevel(room({ mode: 'cc2', startX: PLAYER_START_X, terrain, entities: [paramecium()] }));
+    const seen: (number | undefined)[] = [];
+    for (let tick = 1; tick <= 3; tick++) {
+      engine.tick();
+      seen.push(monsterOf(engine, PARAMECIUM).cc2SlideFrame);
+    }
+    expect(monsterOf(engine, PARAMECIUM).x).toBeGreaterThan(AHEAD_X);
+    expect(seen).toEqual(Array(seen.length).fill(FRAME_0));
+  });
+});
+
 describe('CC2 engine: the monster slide frame is state', () => {
   it('the hidden state key differs with and without the tag', () => {
     const engine = load('cc2', { entities: [paramecium()] }, false);

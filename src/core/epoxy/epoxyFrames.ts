@@ -359,7 +359,10 @@ function monsterFrameStep(w: EpoxyWorld, e: RuntimeEntity, frame: 0 | 1): boolea
 function stepMonsterInFrame(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): boolean {
   const w = ctx.world;
   const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
-  const plan = (tile.slideType === 'ice' ? tile.deflectionMap?.[e.dir] || e.dir : tile.forceCycle === true ? e.dir : tile.forceDirection) as Direction;
+  // A turning floor: refused in its tagged frame, the monster bonks there and the floor turns it (Lexy game.js:1127-1162,
+  // _possibly_bonk), as in the retry of an untagged one.
+  if (tile.forceCycle === true) return retryRffMonster(ctx, e, frame);
+  const plan = (tile.slideType === 'ice' ? tile.deflectionMap?.[e.dir] || e.dir : tile.forceDirection) as Direction;
   if (tile.slideType === 'ice') {
     const bounce = (tile.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan]) as Direction;
     if (!canMonsterEnter(w, e, plan) && !canMonsterEnter(w, e, bounce)) return w.player.alive;
