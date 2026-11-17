@@ -243,7 +243,8 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
       const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
       if (arrival.action === undefined || tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
       // The press of a clone's step end carries the frame that step ends in (its cc2Frame tag), as a direct wire press does; the release
-      // frame of the surrounding press is saved and restored, never deleted.
+      // frame of the surrounding press is saved and restored, never deleted: it is undefined on every path today, and is restored
+      // rather than deleted so a future caller inside a release scope keeps its frame.
       const savedFrame = w.cc2ReleaseFrame;
       if (arrival.stepEnd === true) w.cc2ReleaseFrame = monster.cc2Frame ?? CC2_DEFAULT_FRAME;
       try {
