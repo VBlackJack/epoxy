@@ -25,7 +25,7 @@
  *
  * tick() k plays the Lexy tic k - 1: "at the decisions of tick N" is the frame-2 decision point inside tick N (Lexy tic N - 1, frame-2
  * decision phase), "after tick N" is the end of Lexy tic N - 1. Every expected value below is the value of the Lexy lane named next to
- * it (decision rows of local/plans/lane/w20-lexy-decisions.jsonl), which the lane fixture reproduces before the rule is switched on and off.
+ * it (the decision rows of the Lexy run of that lane), which the lane fixture reproduces before the rule is switched on and off.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,6 +62,24 @@ const FIRST_TICK = 1;
 const JET_OUT_INPUT_TICK = 3;
 /** Lane beh_jet_k4: the second input (north) is at Lexy tic 4, the fifth tick. */
 const BEH_SECOND_INPUT_TICK = 5;
+/** Lexy ticks (as tick numbers) of lane nest3: the first glider out at the t8 decisions, the last ball out at the t12 decisions, its first step end in t15. */
+const NEST3_GLIDER_OUT_TICK = 9;
+const NEST3_BALL_OUT_TICK = 13;
+const NEST3_BALL_STEP_TICK = 16;
+/** Lexy: nest_walk lets its ball out at the t12 decisions, nest_block (a dirt block clone) at the t8 decisions. */
+const NEST_WALK_BALL_OUT_TICK = 13;
+const NEST_BLOCK_BALL_OUT_TICK = 9;
+/** Lexy: hz_flame_jet_on kills at the end of t4 (dead after tick 5); beh_jet_k4 at t8 (dead after tick 9). */
+const JET_ON_DEAD_TICK = 5;
+const BEH_JET_DEAD_TICK = 9;
+/** Lexy jet_out_mid: the player survives the step onto the jet put out, and rests on its cell. */
+const JET_OUT_PLAYER_X = 3;
+/** Lane jet_lit_mid: the tick whose decisions light the jet (Lexy t4), Epoxy's tick of death (the lighting) and Lexy's (the step end, t6). */
+const JET_LIT_MID_LIGHTING_TICK = 5;
+const JET_LIT_MID_EPOXY_DEAD_TICK = 5;
+const JET_LIT_MID_LEXY_DEAD_TICK = 7;
+/** Ticks played after the step onto a lit jet: well past the step end that judges it. */
+const JET_BOOTS_IDLE_TICKS = 6;
 /** The hand-built jet rooms: the glider walks west onto the plate two rows below the jet's row, so it never reaches the player (as in the lane). */
 const PLATE_ROW = ROOM_ROW + 2;
 
@@ -153,60 +171,52 @@ describe('RB: a clone that steps onto a red button presses it when its step ends
       const index = seen.findIndex((s) => s.decision?.entities.some((e) => e.type === GLIDER && e.x === x) === true);
       return index < 0 ? undefined : index + 1;
     };
-    expect(glidersOutAt(BALL_CLONER_X + RELEASE_OFFSET)).toBe(9);
-    expect(ballOutAtDecisions(seen, NEST3_BALL_CLONER_X + RELEASE_OFFSET)).toBe(13);
-    expect(ballOnAfter(seen, NEST3_BALL_CLONER_X + RELEASE_OFFSET + 1)).toBe(16);
+    expect(glidersOutAt(BALL_CLONER_X + RELEASE_OFFSET)).toBe(NEST3_GLIDER_OUT_TICK);
+    expect(ballOutAtDecisions(seen, NEST3_BALL_CLONER_X + RELEASE_OFFSET)).toBe(NEST3_BALL_OUT_TICK);
+    expect(ballOnAfter(seen, NEST3_BALL_CLONER_X + RELEASE_OFFSET + 1)).toBe(NEST3_BALL_STEP_TICK);
   });
 
   it('controls: a glider that walks onto the button (nest_walk) and a block clone (nest_block) keep their own timing', async () => {
     // Lexy nest_walk: ball out at the t12 decisions (tick 13); nest_block (a dirt block clone): t8 (tick 9). Neither is a clone that
     // steps out of a machine onto the button with a monster, so RB does not touch them.
     const walk = play(await lane('nest_walk'), {}, LANE_TICKS);
-    expect(ballOutAtDecisions(walk, BALL_CLONER_X + RELEASE_OFFSET)).toBe(13);
+    expect(ballOutAtDecisions(walk, BALL_CLONER_X + RELEASE_OFFSET)).toBe(NEST_WALK_BALL_OUT_TICK);
     const block = play(await lane('nest_block'), { [FIRST_TICK]: 'E' }, LANE_TICKS);
-    expect(ballOutAtDecisions(block, BALL_CLONER_X + RELEASE_OFFSET)).toBe(9);
+    expect(ballOutAtDecisions(block, BALL_CLONER_X + RELEASE_OFFSET)).toBe(NEST_BLOCK_BALL_OUT_TICK);
   });
 });
 
 describe('JET: a lit flame jet burns the player when his step onto it ends (CC2 engine)', () => {
   it('lane hz_flame_jet_on: stepping onto a lit jet kills at the step end (Lexy t4), not at its start', async () => {
     const seen = play(await lane('hz_flame_jet_on'), { [FIRST_TICK]: 'E' }, LANE_TICKS);
-    expect(seen[3].after.alive).toBe(true);
-    expect(deadAfter(seen)).toBe(5);
+    expect(seen[JET_ON_DEAD_TICK - 2].after.alive).toBe(true);
+    expect(deadAfter(seen)).toBe(JET_ON_DEAD_TICK);
   });
 
   it('lane beh_jet_k4: a jet the plate lit at t4 and entered at the t4 decision kills at t8 (the tick 9)', async () => {
     const seen = play(await lane('beh_jet_k4'), { [FIRST_TICK]: 'E', [BEH_SECOND_INPUT_TICK]: 'N' }, LANE_TICKS);
-    expect(seen[7].after.alive).toBe(true);
-    expect(deadAfter(seen)).toBe(9);
+    expect(seen[BEH_JET_DEAD_TICK - 2].after.alive).toBe(true);
+    expect(deadAfter(seen)).toBe(BEH_JET_DEAD_TICK);
   });
 
   it('lane jet_out_mid: a jet put out during the step spares him (Lexy: survives)', async () => {
     const seen = play(await lane('jet_out_mid'), { [JET_OUT_INPUT_TICK]: 'E' }, LANE_TICKS);
     expect(deadAfter(seen)).toBeUndefined();
-    expect(seen[LANE_TICKS - 1].after.px).toBe(3);
+    expect(seen[LANE_TICKS - 1].after.px).toBe(JET_OUT_PLAYER_X);
   });
 
-  it('jet_lit_mid is a known gap: a jet lit during the step burns at the lighting, Lexy waits for the step end', () => {
-    // Lexy jet_lit_mid: the player steps onto an unlit jet at t2, a glider's plate lights it at the t4 decisions during his step, and he
-    // dies at the step end, t6 (alive after tick 6, dead after tick 7). Epoxy's wired lighting burns him at once: dead after tick 5.
-    // Wave 21 closes it with the hazards of the step end (HZ); this pins today's value. Built by hand: the lane is not a fixture.
-    const jetX = 3;
-    const plateX = 6;
-    const gliderX = 7;
-    const link: SignalLink = { fromX: plateX, fromY: PLATE_ROW, toX: jetX, toY: ROOM_ROW };
-    const level: CompiledLevel = {
-      ...room({
-        mode: 'cc2',
-        startX: 2,
-        terrain: { [`${jetX},${ROOM_ROW}`]: 'flame_jet_cc2_off', [`${plateX},${PLATE_ROW}`]: 'signal_plate' },
-        entities: [{ type: GLIDER, x: gliderX, y: PLATE_ROW, dir: 'W' }]
-      }),
-      signalLinks: [link]
-    };
-    const seen = play(level, { [JET_OUT_INPUT_TICK]: 'E' }, LANE_TICKS);
-    expect(seen[3].after.alive).toBe(true);
-    expect(deadAfter(seen)).toBe(5);
+  // Lane jet_lit_mid (Lexy): the player steps onto an unlit jet at tic 2 (input at tick 3), a glider's plate lights it at the t4 decisions
+  // (tick 5), during his step, and he dies at the step end, t6: alive after tick 6, dead after tick 7. Epoxy's wired lighting burns him at
+  // once, at the lighting: dead after tick 5. A known gap: the wired flip under a player still in his step belongs with the hazards of the
+  // step end (HZ), wave 21. This pins today's value; when wave 21 lands it becomes JET_LIT_MID_LEXY_DEAD_TICK.
+  it('lane jet_lit_mid is a known gap: a jet lit during the step burns at the lighting, Lexy waits for the step end', async () => {
+    const seen = play(await lane('jet_lit_mid'), { [JET_OUT_INPUT_TICK]: 'E' }, LANE_TICKS);
+    // Alive at the end of the tick before the lighting; in Epoxy he is already dead when the decisions of the lighting tick would run
+    // (Lexy: alive at them, the jet is lit there).
+    expect(seen[JET_LIT_MID_LIGHTING_TICK - 2].after.alive).toBe(true);
+    expect(seen[JET_LIT_MID_LIGHTING_TICK - 1].decision).toBeUndefined();
+    expect(deadAfter(seen)).toBe(JET_LIT_MID_EPOXY_DEAD_TICK);
+    expect(JET_LIT_MID_EPOXY_DEAD_TICK).toBeLessThan(JET_LIT_MID_LEXY_DEAD_TICK);
   });
 
   it('the same room with a jet put out by the plate (the jet starts lit) spares him, as lane jet_out_mid', () => {
@@ -224,6 +234,18 @@ describe('JET: a lit flame jet burns the player when his step onto it ends (CC2 
     };
     const seen = play(level, { [JET_OUT_INPUT_TICK]: 'E' }, LANE_TICKS);
     expect(deadAfter(seen)).toBeUndefined();
+  });
+
+  it('fire boots spare him at the step end of a lit jet (the twin of lane hz_flame_jet_on, with boots_fire)', () => {
+    const jetX = 3;
+    const level = room({ mode: 'cc2', startX: 2, terrain: { [`${jetX},${ROOM_ROW}`]: 'flame_jet_cc2_on' } });
+    const engine = new GameEngine();
+    engine.loadLevel(level, SEED);
+    engine.getPlayer().boots.add('boots_fire');
+    expect(playMove(engine, 'E').moved).toBe(true);
+    idleTicks(engine, JET_BOOTS_IDLE_TICKS);
+    expect(world(engine).player.x).toBe(jetX);
+    expect(world(engine).player.alive).toBe(true);
   });
 
   it('native levels keep the burn at the start of the step', () => {

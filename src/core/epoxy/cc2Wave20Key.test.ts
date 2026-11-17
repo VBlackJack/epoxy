@@ -16,8 +16,9 @@
 
 /**
  * CC2 wave 20, batch I0: the hidden state keys of the wave 20 rules (cc2-wave20 plan, F3). Each new part of cc2HiddenStateKey and of
- * cc3dArrivalKey is present exactly when its state is, and absent otherwise. The state is set by hand: no rule writes it yet, so nothing
- * here is a Lexy lane; the lane fixtures are only checked to import and run on the CC2 engine.
+ * cc3dArrivalKey is present exactly when its state is, and absent otherwise. The state is set by hand so that each key part is tested
+ * apart from the rule that writes it (the rules have their own lane tests); the lane fixtures are only checked to import and run on the
+ * CC2 engine.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,10 +57,12 @@ const COUNTER_VALUE = 3;
 const SEEN_INCREMENT = 1;
 const HAZARD_CELL = { x: 3, y: ROOM_ROW };
 const PASS_SHIFT = 5;
-/** The 18 lane fixtures the wave 20 tests cite (src/core/epoxy/__fixtures__/cc2-lanes). */
+/** Ticks each lane fixture is played for in the smoke test: enough to reach the first clone, far from any lane's end. */
+const LANE_SMOKE_TICKS = 5;
+/** The 19 lane fixtures the wave 20 tests cite (src/core/epoxy/__fixtures__/cc2-lanes). */
 const LANE_FIXTURES: readonly string[] = [
   'mixed', 'mixed2', 'mixed_push', 'gateonly', 'latch_or', 'latch_mid', 'cnt_mid', 'dlnot', 'nest_or1', 'nest_oror', 'nest_direct',
-  'nest_player', 'nest3', 'nest_walk', 'nest_block', 'hz_flame_jet_on', 'beh_jet_k4', 'jet_out_mid'
+  'nest_player', 'nest3', 'nest_walk', 'nest_block', 'hz_flame_jet_on', 'beh_jet_k4', 'jet_out_mid', 'jet_lit_mid'
 ];
 
 const link = (fromX: number, toX: number, port?: string): SignalLink => ({ fromX, fromY: ROOM_ROW, toX, toY: ROOM_ROW, ...(port === undefined ? {} : { port }) });
@@ -260,7 +263,7 @@ describe('the wave 20 lane fixtures', () => {
     expect(usesCc2Engine(level)).toBe(true);
     const engine = new GameEngine();
     engine.loadLevel(level, SEED);
-    for (let i = 0; i < PASS_SHIFT; i++) engine.tick();
-    expect(engine.getTick()).toBe(PASS_SHIFT);
+    for (let i = 0; i < LANE_SMOKE_TICKS; i++) engine.tick();
+    expect(engine.getTick()).toBe(LANE_SMOKE_TICKS);
   });
 });

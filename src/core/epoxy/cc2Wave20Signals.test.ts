@@ -50,6 +50,13 @@ const LANE_TICKS = 14;
 const LANE_INPUT_TICKS = 1;
 const NO_INPUT_TICKS = 0;
 
+/** The Lexy ticks of the clone of each lane, as tick numbers (see LaneTicks): out and landed, at the decisions and at the end of the tick. */
+const MIXED_TICKS: LaneTicks = { decOut: 5, decLanded: 9, postOut: 5, postLanded: 9 };
+/** Lanes gateonly, mixed2 (identical), latch_mid and cnt_mid. */
+const GATE_TIMED_TICKS: LaneTicks = { decOut: 6, decLanded: 9, postOut: 5, postLanded: 9 };
+const LATCH_OR_TICKS: LaneTicks = { decOut: 6, decLanded: 10, postOut: 6, postLanded: 9 };
+const DLNOT_TICKS: LaneTicks = { decOut: 1, decLanded: 5, postOut: 1, postLanded: 4 };
+
 interface CloneSeen {
   /** The clone is on the floor. */
   out: boolean;
@@ -90,19 +97,19 @@ async function playLane(lane: string, inputTicks: number): Promise<LaneTicks> {
 describe('a mixed sink: the straight or gate timing is decided at its edge (MIXS, MIXG)', () => {
   // Lane mixed (Lexy): plate -> direct wire and OR -> cloner: clone at the t4 decisions and at the end of t4, landed at t8 (decisions and end).
   it('lane mixed: a straight-wired plate that is on fires the cloner with the direct sinks', async () => {
-    expect(await playLane('mixed', LANE_INPUT_TICKS)).toEqual({ decOut: 5, decLanded: 9, postOut: 5, postLanded: 9 });
+    expect(await playLane('mixed', LANE_INPUT_TICKS)).toEqual(MIXED_TICKS);
   });
 
   // Lanes mixed2 and gateonly (Lexy, identical): the OR path pressed, no straight-wired source on: clone at the t5 decisions, end of t4,
   // landed at t8. mixed2 must be exactly gateonly: the straight wire of a plate no one presses changes nothing.
   it('lane gateonly: the gate path alone', async () => {
-    expect(await playLane('gateonly', LANE_INPUT_TICKS)).toEqual({ decOut: 6, decLanded: 9, postOut: 5, postLanded: 9 });
+    expect(await playLane('gateonly', LANE_INPUT_TICKS)).toEqual(GATE_TIMED_TICKS);
   });
 
   it('lane mixed2: the straight wire of a plate that is never pressed times the sink as the gate path alone', async () => {
     const mixed2 = await playLane('mixed2', LANE_INPUT_TICKS);
     expect(mixed2).toEqual(await playLane('gateonly', LANE_INPUT_TICKS));
-    expect(mixed2).toEqual({ decOut: 6, decLanded: 9, postOut: 5, postLanded: 9 });
+    expect(mixed2).toEqual(GATE_TIMED_TICKS);
   });
 });
 
@@ -110,24 +117,24 @@ describe('a data latch or a counter is delayed like a gate (LG)', () => {
   // Lane latch_mid (Lexy): the latch (input plate held at load, trigger plate stepped on at tic 0) feeds the cloner directly: powered at the t5
   // decisions, clone out at the end of t4 and at the t5 decisions, landed by the t8 decisions (end of t8).
   it('lane latch_mid: a data latch feeding a cloner', async () => {
-    expect(await playLane('latch_mid', LANE_INPUT_TICKS)).toEqual({ decOut: 6, decLanded: 9, postOut: 5, postLanded: 9 });
+    expect(await playLane('latch_mid', LANE_INPUT_TICKS)).toEqual(GATE_TIMED_TICKS);
   });
 
   // Lane cnt_mid (Lexy): a counter at 0 whose decrement plate is stepped on at tic 0: the underflow feeds the cloner, as latch_mid.
   it('lane cnt_mid: a counter underflow feeding a cloner', async () => {
-    expect(await playLane('cnt_mid', LANE_INPUT_TICKS)).toEqual({ decOut: 6, decLanded: 9, postOut: 5, postLanded: 9 });
+    expect(await playLane('cnt_mid', LANE_INPUT_TICKS)).toEqual(GATE_TIMED_TICKS);
   });
 
   // Lane latch_or (Lexy): latch -> OR -> cloner: clone at the t5 decisions (no extra tick), out at the end of t5, landed at the t9 decisions
   // (end of t8). The latch-class deferral made it a tick later; delaying the latch without gate-timing the sink would too (the LGD mutant).
   it('lane latch_or: a data latch behind an OR feeding a cloner', async () => {
-    expect(await playLane('latch_or', LANE_INPUT_TICKS)).toEqual({ decOut: 6, decLanded: 10, postOut: 6, postLanded: 9 });
+    expect(await playLane('latch_or', LANE_INPUT_TICKS)).toEqual(LATCH_OR_TICKS);
   });
 
   // Lane dlnot (Lexy, wave 18 leftover): data and clock plates held at load, latch -> NOT -> cloner: clone at tic 0 (decisions and end of tic),
   // landed at the end of t3 (decisions of t4).
   it('lane dlnot: a data latch held on at load behind a NOT lands its clone at tic 3', async () => {
-    expect(await playLane('dlnot', NO_INPUT_TICKS)).toEqual({ decOut: 1, decLanded: 5, postOut: 1, postLanded: 4 });
+    expect(await playLane('dlnot', NO_INPUT_TICKS)).toEqual(DLNOT_TICKS);
   });
 });
 
