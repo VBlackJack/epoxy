@@ -45,7 +45,7 @@ import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { holdFrameArrival, tagSlideFrame } from './epoxyFrames';
-import { deferHazardToStepEnd, stepStillRuns } from './epoxyPlayer';
+import { deferHazardToStepEnd, judgesHazardsAtStepEnd, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc2EntryStepTicks, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
@@ -461,7 +461,7 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
  * 2163-2168, game.js 2365-2366). Marks the cell as his pending hazard and returns true then.
  */
 function deferJetBurnToStepEnd(w: EpoxyWorld, p: PlayerState): boolean {
-  if (!usesCc2Engine(w.level) || w.cc3dPace || !stepStillRuns(p)) return false;
+  if (!judgesHazardsAtStepEnd(w) || !stepStillRuns(p)) return false;
   deferHazardToStepEnd(p, p.x, p.y);
   return true;
 }

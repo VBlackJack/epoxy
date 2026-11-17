@@ -763,15 +763,23 @@ function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: s
 }
 
 /** The hazard kinds that kill the CC2 player at the end of his step (Lexy on_arrive from step_on_cell, tiletypes.js 941-1010, 1121-1137). */
-const STEP_END_HAZARDS: readonly string[] = ['fire', 'water', 'slime'];
+const STEP_END_HAZARDS: ReadonlySet<NonNullable<TileDefinition['hazard']>> = new Set(['fire', 'water', 'slime']);
+
+/**
+ * Whether the hazards of the cell the player steps onto are judged when his step ends, not when it starts: the CC2 engine, off the CC3D
+ * pace (Lexy runs on_arrive and on_stand from step_on_cell, game.js 2310-2367).
+ */
+export function judgesHazardsAtStepEnd(w: EpoxyWorld): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace;
+}
 
 /**
  * CC2 engine: whether the hazard of `tile` (fire, water, slime, or a lit flame jet, Lexy flame_jet_on on_stand) is judged when the
  * player's step onto it ends, not when it starts (Lexy runs on_arrive and on_stand from step_on_cell, game.js 2310-2367).
  */
 function hazardWaitsForStepEnd(w: EpoxyWorld, tile: TileDefinition): boolean {
-  if (!usesCc2Engine(w.level) || w.cc3dPace || tile.hazard === undefined) return false;
-  return tile.burnsOccupants === true || STEP_END_HAZARDS.includes(tile.hazard);
+  if (!judgesHazardsAtStepEnd(w) || tile.hazard === undefined) return false;
+  return tile.burnsOccupants === true || STEP_END_HAZARDS.has(tile.hazard);
 }
 
 /** Whether the step of `p` still runs: his move wait, or his slide wait while he slides. */
@@ -782,11 +790,11 @@ export function stepStillRuns(p: PlayerState): boolean {
 /**
  * CC2 engine: whether putting down `itemId` now would strip the boots that guard the hazard his step onto his own cell still has to
  * be judged on (the judge runs when the step ends, so the drop would turn a safe step into a death). Lexy sets tools down at decision
- * time only (game.js 989-990, 1577-1598), never mid-step, so a drop refused here matches a tap that CC2 cannot make. A spare pair
- * held on a belt level is not refused: the worn pair stays.
+ * time only (game.js 989-990, 1577-1598), never mid-step, so a drop refused here matches a tap that CC2 cannot make. A drop made in the
+ * turn the step ends is judged after the flush. A spare pair held on a belt level is not refused: the worn pair stays.
  */
 export function dropWouldUnguardPendingHazard(w: EpoxyWorld, itemId: string): boolean {
-  if (!usesCc2Engine(w.level) || w.cc3dPace) return false;
+  if (!judgesHazardsAtStepEnd(w)) return false;
   const p = w.player;
   const at = p.cc3dArrival?.hazard;
   if (at === undefined || at.x !== p.x || at.y !== p.y) return false;
