@@ -145,9 +145,10 @@ function landingTickAt(gated: boolean, x: number, gateTile: string = GATE): numb
 describe('CC2 engine: where a wired press lands in the tick', () => {
   // A press at a step end fires its button-fed clone machine before the pass that follows (game.js:872-876); a clone released by a
   // press of frame 1 ends its 12-frame out-of-turn step in frame 0 of tick 9, before the decisions (game.js:2218-2242, 869-888). A
-  // clone machine fed through a gate (the AND-fed shape) keeps the deferral to the end of the tick, so its clone lands in the pass
-  // of the same tick 9, one phase later. Both land in tick 9; what separates them is what the landing reaches: the first clone sits
-  // on a plate that fires the second clone machine, in the wire phase before the decisions (direct) or after the pass (gated).
+  // clone machine fed through a gate (the AND-fed shape) fires in the tick-end settle, where its edge rises (GPDE2: a clone machine
+  // behind delayed gates is not deferred), and the gate delay carries the phase: its clone lands in the pass of the same tick 9, one
+  // phase later. Both land in tick 9; what separates them is what the landing reaches: the first clone sits on a plate that fires the
+  // second clone machine, in the wire phase before the decisions (direct) or after the pass (gated).
   it('clones a pink button pressed at a step end before the pass, and keeps a gate-fed edge for the end of the tick', () => {
     const LANDING_TICK = 9;
     expect(landingTickAt(false, CLONE_X)).toBe(LANDING_TICK);

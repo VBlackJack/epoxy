@@ -607,8 +607,9 @@ export function isTeleportNetList(value: unknown): boolean {
 }
 
 /**
- * Returns the CC2 record without its wired blue teleport networks when they are malformed: only that field is dropped, never
- * the record, so a level keeps its other CC2 data. The record is returned as is when the field is absent or well formed.
+ * Returns the CC2 record without its wired blue teleport networks, or without its self links, when that field is malformed: only
+ * that field is dropped, never the record, so a level keeps its other CC2 data. The record is returned as is when the fields are
+ * absent or well formed.
  */
 export function withValidTeleportNets(cc2: Cc2LevelData): Cc2LevelData {
   let out = cc2;
