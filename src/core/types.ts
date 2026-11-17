@@ -2478,7 +2478,7 @@ export interface Cc3dPlayerArrival {
   brown?: GridPoint;
   /** CC2 engine: the bomb stepped onto: it goes off when the step ends. */
   bomb?: GridPoint;
-  /** CC2 engine: the hazard cell stepped onto (a lit jet): it is judged when the step ends. */
+  /** CC2 engine: the cell of a hazard stepped onto (fire, water, slime or a lit jet), or of a jet lit under a step that runs: it is judged when the step ends. */
   hazard?: GridPoint;
 }
 

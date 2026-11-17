@@ -65,6 +65,9 @@ function standOnFireWithBoots(level: CompiledLevel): GameEngine {
   const engine = new GameEngine();
   engine.loadLevel(level);
   for (let i = 0; i < FIRE_X; i++) step(engine, 'E');
+  // The step onto the fire is judged when it ends (Lexy on_arrive); the boots are dropped at decision time, after that.
+  for (let waited = 0; waited < MOVE_WAIT_TICKS && (engine.getPlayer().moveCooldown > 0 || engine.getPlayer().cc3dArrival !== undefined); waited++) engine.tick();
+  expect(engine.getPlayer().cc3dArrival).toBeUndefined();
   expect(engine.getPlayer()).toMatchObject({ x: FIRE_X, alive: true });
   expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(true);
   return engine;
@@ -99,6 +102,33 @@ describe('dropping the boots that protect the current cell', () => {
     expect(engine.getPlayer().x).toBe(FIRE_X);
     expect(engine.getPlayer().alive).toBe(true);
     expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(true);
+  });
+
+  // Lexy sets tools down at decision time only (game.js 989-990, 1577-1598), never while the step onto the cell still runs; the hazard
+  // of that cell is judged when the step ends, so the drop is refused until then (F3).
+  it('is refused while the step onto the fire still runs, and the player lives on', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(fireLevel());
+    for (let i = 0; i < FIRE_X; i++) step(engine, 'E');
+    expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: FIRE_X, y: 0 });
+    engine.dropItem(FIRE_BOOTS_ID);
+    engine.tick();
+    expect(engine.getPlayer().x).toBe(FIRE_X);
+    expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: FIRE_X, y: 0 });
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_mid_step');
+    expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(true);
+    expect(engine.getItems()[0][FIRE_X]).not.toBe(FIRE_BOOTS_ID);
+    for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
+    expect(engine.getPlayer()).toMatchObject({ x: FIRE_X, alive: true });
+    expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(true);
+  });
+
+  it('is accepted once the step has ended, and he lives', () => {
+    const engine = standOnFireWithBoots(fireLevel());
+    expect(engine.dropItem(FIRE_BOOTS_ID)).toBe(true);
+    for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
+    expect(engine.getPlayer()).toMatchObject({ x: FIRE_X, alive: true });
+    expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(false);
   });
 
   it('is still refused on a native level', () => {

@@ -74,10 +74,10 @@ const JET_ON_DEAD_TICK = 5;
 const BEH_JET_DEAD_TICK = 9;
 /** Lexy jet_out_mid: the player survives the step onto the jet put out, and rests on its cell. */
 const JET_OUT_PLAYER_X = 3;
-/** Lane jet_lit_mid: the tick whose decisions light the jet (Lexy t4), Epoxy's tick of death (the lighting) and Lexy's (the step end, t6). */
+/** Lane jet_lit_mid: the tick whose decisions light the jet (Lexy t4) and the tick he dies in (Lexy: the step end, t6). */
 const JET_LIT_MID_LIGHTING_TICK = 5;
-const JET_LIT_MID_EPOXY_DEAD_TICK = 5;
 const JET_LIT_MID_LEXY_DEAD_TICK = 7;
+const DEATH_FIRE_KEY = 'hud.messages.death_fire';
 /** Ticks played after the step onto a lit jet: well past the step end that judges it. */
 const JET_BOOTS_IDLE_TICKS = 6;
 /** The hand-built jet rooms: the glider walks west onto the plate two rows below the jet's row, so it never reaches the player (as in the lane). */
@@ -92,6 +92,7 @@ interface Seen {
 
 interface Snapshot {
   alive: boolean;
+  deathReasonKey: string | null;
   inWater: boolean;
   px: number;
   py: number;
@@ -103,6 +104,7 @@ const snapshotOf = (engine: GameEngine): Snapshot => {
   const w = world(engine);
   return {
     alive: w.player.alive,
+    deathReasonKey: w.player.deathReasonKey,
     inWater: w.player.inWater === true,
     px: w.player.x,
     py: w.player.y,
@@ -206,17 +208,15 @@ describe('JET: a lit flame jet burns the player when his step onto it ends (CC2 
   });
 
   // Lane jet_lit_mid (Lexy): the player steps onto an unlit jet at tic 2 (input at tick 3), a glider's plate lights it at the t4 decisions
-  // (tick 5), during his step, and he dies at the step end, t6: alive after tick 6, dead after tick 7. Epoxy's wired lighting burns him at
-  // once, at the lighting: dead after tick 5. A known gap: the wired flip under a player still in his step belongs with the hazards of the
-  // step end (HZ), wave 21. This pins today's value; when wave 21 lands it becomes JET_LIT_MID_LEXY_DEAD_TICK.
-  it('lane jet_lit_mid is a known gap: a jet lit during the step burns at the lighting, Lexy waits for the step end', async () => {
+  // (tick 5), during his step, and he dies at the step end, t6: alive after tick 6, dead after tick 7. The jet lit under a step that still
+  // runs burns him when the step ends (JLM), not at the lighting.
+  it('lane jet_lit_mid: a jet lit during the step burns him when the step ends', async () => {
     const seen = play(await lane('jet_lit_mid'), { [JET_OUT_INPUT_TICK]: 'E' }, LANE_TICKS);
-    // Alive at the end of the tick before the lighting; in Epoxy he is already dead when the decisions of the lighting tick would run
-    // (Lexy: alive at them, the jet is lit there).
-    expect(seen[JET_LIT_MID_LIGHTING_TICK - 2].after.alive).toBe(true);
-    expect(seen[JET_LIT_MID_LIGHTING_TICK - 1].decision).toBeUndefined();
-    expect(deadAfter(seen)).toBe(JET_LIT_MID_EPOXY_DEAD_TICK);
-    expect(JET_LIT_MID_EPOXY_DEAD_TICK).toBeLessThan(JET_LIT_MID_LEXY_DEAD_TICK);
+    // Alive at the decisions of the lighting tick (Lexy: alive at them, the jet is lit there) and after tick 6; dead after tick 7.
+    expect(seen[JET_LIT_MID_LIGHTING_TICK - 1].decision?.alive).toBe(true);
+    expect(seen[JET_LIT_MID_LEXY_DEAD_TICK - 2].after.alive).toBe(true);
+    expect(deadAfter(seen)).toBe(JET_LIT_MID_LEXY_DEAD_TICK);
+    expect(seen[JET_LIT_MID_LEXY_DEAD_TICK - 1].after.deathReasonKey).toBe(DEATH_FIRE_KEY);
   });
 
   it('the same room with a jet put out by the plate (the jet starts lit) spares him, as lane jet_out_mid', () => {
@@ -259,7 +259,7 @@ describe('JET: a lit flame jet burns the player when his step onto it ends (CC2 
 
   it('a step onto water still sets inWater at once, and a step from the water onto a lit jet clears it', () => {
     // Water boots keep him alive in the water. The jet block returns early to wait for the step end: inWater is assigned before it,
-    // so the step onto the jet no longer leaves the value of the water behind (F6a). Water death timing is not part of JET (wave 21).
+    // so the step onto the jet no longer leaves the value of the water behind (F6a). Water deaths are judged at the step end since wave 21; with flippers he lives either way.
     const waterX = 3;
     const jetX = 4;
     const level = room({ mode: 'cc2', startX: 2, terrain: { [`${waterX},${ROOM_ROW}`]: 'water', [`${jetX},${ROOM_ROW}`]: 'flame_jet_cc2_on' } });
