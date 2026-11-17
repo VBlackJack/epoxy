@@ -32,6 +32,8 @@ import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
 import {
+  DELAYED_GATE_KINDS,
+  SettleResult,
   SignalEdge,
   SignalNetwork,
   SignalState,
@@ -78,8 +80,9 @@ export class SignalWiringError extends Error {
 export const registryTileLookup: TerrainTileLookup = (id) => ConfigRegistry.getTile(id);
 
 /** Builds the runtime of a level's signal network; everything starts off. */
-export function createSignalRuntime(spec: SignalSpec): SignalRuntime {
-  const network = buildSignalNetwork(spec.nodes, spec.links);
+export function createSignalRuntime(spec: SignalSpec, cc2Engine: boolean = false): SignalRuntime {
+  // Only a CC2-engine network delays its gates (and lets an OR or NOT read its own output); a native or .DAT network settles as before.
+  const network = buildSignalNetwork(spec.nodes, spec.links, { gateDelay: cc2Engine });
   const defs = new Map<number, SignalNodeDef>();
   for (const def of spec.nodes) {
     const index = network.indexOfCell.get(def.cell) as number;
@@ -291,17 +294,104 @@ export const SIGNAL_PHASE_MOVE: SignalPhase = 'move';
 export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
 
 /**
+ * The Lexy wire phases a settle stands for on a gate-delay network, which is how often the delayed gates step in it. 'hold' stands for
+ * none: the gates keep their outputs. 'tickEnd' is the three phases from the frame-2 one of this tic to the frame-1 one of the next
+ * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, of which only the second is a gate step (see
+ * TIC0_SUB_SETTLES); 'prePass0' and 'prePass1' the phases a block
+ * arrival of frame 0 or frame 1 of the pre-pass reaches before the decisions.
+ */
+export type GateSettle = 'hold' | 'tickEnd' | 'tic0' | 'prePass0' | 'prePass1';
+export const GATE_SETTLE_HOLD: GateSettle = 'hold';
+export const GATE_SETTLE_TICK_END: GateSettle = 'tickEnd';
+export const GATE_SETTLE_TIC0: GateSettle = 'tic0';
+export const GATE_SETTLE_PRE_PASS0: GateSettle = 'prePass0';
+export const GATE_SETTLE_PRE_PASS1: GateSettle = 'prePass1';
+/** Gate sub-settles of the tick-end settle (see GateSettle). */
+const TICK_END_SUB_SETTLES = 3;
+/**
+ * Gate sub-settles of the tic-0 settle. The oracle runs the emulate_60fps loop (compat.emulate_60fps, game.js:839-843, then
+ * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. Every
+ * gate reads the powered edges of the last wire phase and the wires start all off (game.js:602, 728), so f0 only carries the sources
+ * onto the wires and the gates step from f1: one gate step before the first decision, not two. A chain of two gates fed by plates
+ * held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ */
+const TIC0_SUB_SETTLES = 1;
+/** Gate sub-settles after a frame-0 arrival of the pre-pass: it reaches the f0 and the f1 wire phase. */
+const PRE_PASS0_SUB_SETTLES = 2;
+/** Gate sub-settles after a frame-1 arrival of the pre-pass: it reaches the f1 wire phase only. */
+const PRE_PASS1_SUB_SETTLES = 1;
+
+/**
+ * The source levels each gate sub-settle of a settle reads. At the tick end a source an actor vacated in the pass (a departure, a
+ * Lexy frame-2 action) reaches the wires in the first sub-settle, any other new level in the last (an arrival is a frame-1 event of
+ * the next tic); the other settles read the sampled levels. Undefined for a settle that holds the gates.
+ */
+function gateSubSettleLevels(
+  runtime: SignalRuntime,
+  settle: GateSettle,
+  sampled: ReadonlyMap<number, boolean>
+): ReadonlyMap<number, boolean>[] | undefined {
+  if (settle === GATE_SETTLE_HOLD) return undefined;
+  if (settle === GATE_SETTLE_TIC0) return Array.from({ length: TIC0_SUB_SETTLES }, () => sampled);
+  if (settle === GATE_SETTLE_PRE_PASS0) return Array.from({ length: PRE_PASS0_SUB_SETTLES }, () => sampled);
+  if (settle === GATE_SETTLE_PRE_PASS1) return Array.from({ length: PRE_PASS1_SUB_SETTLES }, () => sampled);
+  const network = runtime.network;
+  const early = new Map<number, boolean>();
+  for (const i of network.sourceIndexes) {
+    const cell = network.nodes[i].cell;
+    const was = runtime.state.lastOutputs[i] === true;
+    const now = sampled.get(cell) === true;
+    const sample = runtime.defs.get(i)?.sample;
+    const vacated = was !== now && (sample === 'inverted' ? now : sample === 'held' || sample === 'charged' ? !now : false);
+    early.set(cell, vacated ? now : was);
+  }
+  return [...Array.from({ length: TICK_END_SUB_SETTLES - 1 }, () => early), sampled];
+}
+
+/**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
  * source never reads the trace of the pass before. With `prime` (level load) it only records, no edge. Settle before the hold doors are set, so a door follows
  * the signals of the same pass. Returns the edges of the sinks. Clears the pending arrivals of the pulse buttons
  * right after sampling, before the caller fires the sinks.
+ *
+ * Gate-delay network (CC2 engine): `gates` says which Lexy wire phases the settle stands for (see GateSettle). The delayed gates step
+ * once per phase, each sub-settle reading the levels of its phase; the edges of every sub-settle are returned in order (a sink may
+ * rise and fall inside one settle). Any other settle holds the delayed gates. The prime settle (level load) steps no gate phase:
+ * the gate outputs are computed once from the gates' own initial (all off) outputs and no edge is reported, as at load every Lexy
+ * wire is off (game.js:602, 728); the gate phases before the first decision belong to the tic-0 settle (GATE_SETTLE_TIC0).
  */
-export function settleWorldSignals(w: EpoxyWorld, prime: boolean = false, phase: SignalPhase = SIGNAL_PHASE_TICK): SignalEdge[] {
+export function settleWorldSignals(
+  w: EpoxyWorld,
+  prime: boolean = false,
+  phase: SignalPhase = SIGNAL_PHASE_TICK,
+  gates: GateSettle = GATE_SETTLE_HOLD
+): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
-  const result = settleSignals(runtime.network, runtime.state, sampleSources(w, runtime, prime, phase), prime);
+  const sampled = sampleSources(w, runtime, prime, phase);
+  // The load prime steps no gate phase (see above); every later settle of a gate-delay network does.
+  const stepsGates = runtime.network.gateDelay === true && !prime;
+  const subLevels = stepsGates ? gateSubSettleLevels(runtime, gates, sampled) : undefined;
+  let result: SettleResult;
+  if (stepsGates) {
+    if (subLevels === undefined) result = settleSignals(runtime.network, runtime.state, sampled, false, true);
+    else {
+      let current = runtime.state;
+      const edges: SignalEdge[] = [];
+      let last: SettleResult | undefined;
+      for (const levels of subLevels) {
+        last = settleSignals(runtime.network, current, levels);
+        edges.push(...last.edges);
+        current = last.state;
+      }
+      const done = last as SettleResult;
+      result = { state: done.state, sinkOutputs: done.sinkOutputs, edges };
+    }
+  } else {
+    result = settleSignals(runtime.network, runtime.state, sampled, prime);
+  }
   runtime.state = result.state;
   // CC2 engine: every wired sink starts off (Lexy recalculate_circuitry), so one whose source is held at load rises on the first
   // settle. A sink fed by a button link keeps the primed state, and gates keep it too.
@@ -379,6 +469,9 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * wired flame jet), which flips on a falling edge too; on a CC2 level a wired flame jet flips on the rising edge only, unless an
  * orange button works it.
  *
+ * Gate-delay network (CC2 engine, tick phase): the phase a gate adds is already in the levels, so a clone machine or launcher fed
+ * only through delayed gates is the exception to the deferral below: it fires in the settle where its edge rises (see gateDelayedSink).
+ *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
  * `cc2DeferredSinkEdges`. A sink wired directly to buttons fires before the next entity pass (fireSinksBeforePass); only the
@@ -398,8 +491,12 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
       const fires = index === undefined ? undefined : runtime.defs.get(index)?.fires;
       return edge.rising && (fires === 'cloner' || fires === 'launcher');
     };
-    const deferred = edgesNow.filter(isActionEdge);
-    const immediate = edgesNow.filter((edge) => !isActionEdge(edge));
+    // Gate-delay network: the phase a gate adds is in the levels already, so in the tick phase a clone machine or launcher fed through
+    // delayed gates only fires in the settle where its edge rises (Lexy frame-2 wire phase). A directly wired one keeps the before-pass
+    // deferral, and one behind a latch, a counter or a loop (which the gate delay does not time) keeps the end-of-next-tick deferral.
+    const gateTimed = phase === SIGNAL_PHASE_TICK && runtime.network.gateDelay === true;
+    const deferred = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
+    const immediate = edgesNow.filter((edge) => !deferred.includes(edge));
     if (phase === SIGNAL_PHASE_TICK) {
       w.cc2DeferredSinkEdges = deferred;
       edges = [...waiting, ...immediate];
@@ -436,6 +533,30 @@ function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
     else if (fires === 'flip') flipCellAt(w, x, y);
     else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true))) return;
   }
+}
+
+/**
+ * Whether every node behind a sink is a source or a gate the gate delay times (DELAYED_GATE_KINDS), none in a loop, and no source is
+ * wired straight into the sink (a mixed upstream keeps the deferral of its direct source). A latch, a data latch or a counter on the
+ * way is not delayed, so the deferral still carries its phase.
+ */
+function gateDelayedSink(runtime: SignalRuntime, cell: number): boolean {
+  const net = runtime.network;
+  const start = net.indexOfCell.get(cell);
+  if (start === undefined) return false;
+  const seen = new Set<number>();
+  const stack = [start];
+  while (stack.length > 0) {
+    const i = stack.pop() as number;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    const node = net.nodes[i];
+    if (node.cyclic) return false;
+    if (i === start && node.wires.some((wire) => net.nodes[wire.from].kind === 'source')) return false;
+    if (i !== start && node.kind !== 'source' && !DELAYED_GATE_KINDS.has(node.kind)) return false;
+    for (const wire of node.wires) if (wire.from !== i) stack.push(wire.from);
+  }
+  return true;
 }
 
 /**

@@ -25,7 +25,7 @@ import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCc2Engine, usesCcRules } from './ccRules';
 import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
-import type { SignalEdge } from './signalNetwork';
+import { DELAYED_GATE_KINDS, type SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2MirrorMove, Cc2PendingDecision, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
@@ -898,6 +898,15 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const pass = currentEntityPass(w);
   const modifier = w.ccGenerators?.blobModifier;
   if (modifier !== undefined) parts.push(`m${modifier}`);
+  // A gate-delay network reads its gates' outputs of the last settle, so those outputs (and the latch bits) are state. A network with
+  // no delayed gate and no latch has none: its key stays as it was before the gate delay.
+  const network = w.signals?.network;
+  const keepsGateState = network?.nodes.some((node) => DELAYED_GATE_KINDS.has(node.kind) || node.kind === 'latch' || node.kind === 'dlatch') === true;
+  if (network?.gateDelay === true && keepsGateState && w.signals !== undefined) {
+    const { lastOutputs, latchBits } = w.signals.state;
+    const delayed = network.nodes.map((node, i) => (DELAYED_GATE_KINDS.has(node.kind) && lastOutputs[i] === true ? '1' : '0')).join('');
+    parts.push(`g${delayed}/${latchBits.map((bit) => (bit ? '1' : '0')).join('')}`);
+  }
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue !== undefined ? e.pendingSteerDue - pass : ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);

@@ -25,7 +25,8 @@ import {
   LevelSizeBounds,
   normalizeCellEdges,
   normalizeUnderlays,
-  sanitizeStoredLevels
+  sanitizeStoredLevels,
+  withValidTeleportNets
 } from './ConfigValidation';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { ConfigRegistry } from './ConfigRegistry';
@@ -434,5 +435,35 @@ describe('findTouchConfigErrors', () => {
       'touch.joystickReleaseRadiusPx: larger than joystickDeadZonePx'
     ]);
     expect(findTouchConfigErrors({ joystickDeadZonePx: 14, joystickReleaseRadiusPx: 14 })).toEqual([]);
+  });
+});
+
+describe('withValidTeleportNets and the self link list', () => {
+  const record = {
+    v: 1 as const,
+    sha256: 'ab'.repeat(32),
+    file: 'one.c2m',
+    order: 1,
+    gridHash: 'x',
+    coverage: { verdict: 'approx' as const, lost: [], approx: [] }
+  };
+
+  it('keeps a well formed ascending list, the same object', () => {
+    const kept = { ...record, selfLinks: [4, 9, 12] };
+    expect(withValidTeleportNets(kept)).toBe(kept);
+  });
+
+  it('drops a malformed list alone and keeps the teleport networks', () => {
+    for (const bad of ['x', [], [3, 3], [5, 2], [-1], [1.5], ['a'], { 0: 1 }]) {
+      const cleaned = withValidTeleportNets({ ...record, teleportNets: [[1, 2]], selfLinks: bad as number[] });
+      expect('selfLinks' in cleaned, JSON.stringify(bad)).toBe(false);
+      expect(cleaned.teleportNets).toEqual([[1, 2]]);
+    }
+  });
+
+  it('drops a malformed teleport list and keeps a good self link list', () => {
+    const cleaned = withValidTeleportNets({ ...record, teleportNets: 'x' as unknown as number[][], selfLinks: [7] });
+    expect('teleportNets' in cleaned).toBe(false);
+    expect(cleaned.selfLinks).toEqual([7]);
   });
 });

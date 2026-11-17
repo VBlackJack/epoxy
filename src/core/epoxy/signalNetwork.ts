@@ -114,7 +114,27 @@ export interface SignalNetwork {
   sinkIndexes: number[];
   /** The cycles: node indexes of each strongly connected component that loops, in evaluation order. */
   cycles: number[][];
+  /**
+   * CC2 engine: a logic gate (and, or, not, xor, nand) reads its wires as the last settle left them, one wire phase per gate. Absent
+   * on a native or .DAT network, which settles a gate in the same phase as its inputs.
+   */
+  gateDelay?: boolean;
 }
+
+/** Options of buildSignalNetwork. */
+export interface SignalNetworkOptions {
+  /** CC2 engine: gates are delayed one wire phase, so an OR or NOT gate wired to its own input is a latch or a clock, not a cycle. */
+  gateDelay?: boolean;
+}
+
+/** The combinational gate kinds a gate-delay network delays by one wire phase (latches, data latches and counters are not delayed). */
+export const DELAYED_GATE_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['and', 'or', 'not', 'xor', 'nand']);
+
+/**
+ * The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). The one set the
+ * stored self links (signalLinks.ts), the CC2 wire reader (cc2Wires.ts) and the network build read.
+ */
+export const SELF_LOOP_KINDS: ReadonlySet<string> = new Set<string>(['or', 'not']);
 
 export interface SignalSinkOutput {
   cell: number;
@@ -194,7 +214,12 @@ function stronglyConnected(count: number, successors: readonly (readonly number[
  * Builds a network: validates the nodes and links, finds the cycles and fixes the evaluation order, a
  * topological order of the components with ties broken by the smallest cell index.
  */
-export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpecs: readonly SignalLinkSpec[]): SignalNetwork {
+export function buildSignalNetwork(
+  nodeSpecs: readonly SignalNodeSpec[],
+  linkSpecs: readonly SignalLinkSpec[],
+  options: SignalNetworkOptions = {}
+): SignalNetwork {
+  const gateDelay = options.gateDelay === true;
   const seen = new Set<number>();
   for (const spec of nodeSpecs) {
     if (!SIGNAL_NODE_KINDS.includes(spec.kind)) throw new SignalBuildError('unknown_kind', spec.cell);
@@ -222,7 +247,10 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
 
   const { comp, size } = stronglyConnected(count, successors);
   const looping = size.map(() => false);
-  for (let i = 0; i < count; i++) if (size[comp[i]] > 1 || selfLoop[i]) looping[comp[i]] = true;
+  // A gate-delay network reads a gate's own wire from the last settle, so an OR or a NOT linked only to itself is no cycle.
+  for (let i = 0; i < count; i++) {
+    if (size[comp[i]] > 1 || (selfLoop[i] && !(gateDelay && SELF_LOOP_KINDS.has(sorted[i].kind)))) looping[comp[i]] = true;
+  }
 
   // Kahn over the components. A component ranks by its smallest cell; the ready component of least rank goes first.
   const members: number[][] = size.map(() => []);
@@ -275,7 +303,8 @@ export function buildSignalNetwork(nodeSpecs: readonly SignalNodeSpec[], linkSpe
     indexOfCell: new Map<number, number>(nodes.map((node, i) => [node.cell, i])),
     sourceIndexes: nodes.flatMap((node, i) => (node.kind === 'source' ? [i] : [])),
     sinkIndexes: nodes.flatMap((node, i) => (node.kind === 'sink' ? [i] : [])),
-    cycles
+    cycles,
+    ...(gateDelay ? { gateDelay: true } : {})
   };
 }
 
@@ -373,12 +402,16 @@ function settleCounter(
  * Settles the network: takes the sampled source levels (by cell index, missing means off), evaluates every
  * node in order and returns the new state, the sink levels and the edges. The given state is not changed.
  * With `prime` (the settle at level load) the levels and outputs are recorded but no latch flips and no edge is reported.
+ * On a gate-delay network a combinational gate (DELAYED_GATE_KINDS) reads every wire as the last settle left it, its own wire
+ * included (Lexy: a gate emits from the powered edges of the last wire phase, game.js do_wire_phase); with `holdGates` it keeps its
+ * output instead (a settle that stands for no Lexy wire phase). Latches, data latches, counters, sources and sinks are unchanged.
  */
 export function settleSignals(
   network: SignalNetwork,
   state: SignalState,
   sourceLevels: ReadonlyMap<number, boolean>,
-  prime: boolean = false
+  prime: boolean = false,
+  holdGates: boolean = false
 ): SettleResult {
   const next = cloneSignalState(state);
   const outputs: boolean[] = network.nodes.map(() => false);
@@ -387,7 +420,12 @@ export function settleSignals(
     // A node of a cycle outputs off, and a latch in one holds its bit.
     if (node.cyclic) continue;
     // Each wire carries the output it leaves by: a counter has two (see wireLevel).
-    const inputs = node.wires.map((wire) => wireLevel(wire, outputs, next.counterUnderflow));
+    const delayed = network.gateDelay === true && DELAYED_GATE_KINDS.has(node.kind);
+    if (delayed && holdGates) {
+      outputs[i] = state.lastOutputs[i] === true;
+      continue;
+    }
+    const inputs = node.wires.map((wire) => wireLevel(wire, delayed ? state.lastOutputs : outputs, delayed ? state.counterUnderflow : next.counterUnderflow));
     switch (node.kind) {
       case 'source':
         outputs[i] = sourceLevels.get(node.cell) === true;

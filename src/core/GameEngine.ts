@@ -51,6 +51,8 @@ import {
   copySignalState,
   fireSignalSinks,
   fireSinksBeforePass,
+  GATE_SETTLE_TIC0,
+  GATE_SETTLE_TICK_END,
   counterValuesOf,
   poweredSignalCellsOf,
   restoreSignalPulses,
@@ -1274,7 +1276,7 @@ export class GameEngine {
     this.w.inTick = false;
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
-    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK) : [];
+    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, GATE_SETTLE_TICK_END) : [];
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
@@ -1370,7 +1372,7 @@ export class GameEngine {
    */
   private runBeforePassWirePhase(): void {
     if (this.ticksElapsed === 1 && this.w.signals !== undefined) {
-      const loadEdges = settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK);
+      const loadEdges = settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, GATE_SETTLE_TIC0);
       setPoweredCells(this.ctx);
       setHoldDoors(this.ctx);
       fireSignalSinks(this.ctx, loadEdges, SIGNAL_PHASE_TICK);

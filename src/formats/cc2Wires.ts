@@ -15,6 +15,7 @@
  */
 
 import { formatSignalPort } from '../core/signalPorts';
+import { SELF_LOOP_KINDS } from '../core/epoxy/signalNetwork';
 import type { SignalLink } from '../core/types';
 import type { Cc2Map } from './cc2Model';
 import { Cc2Layer } from './cc2Model';
@@ -201,6 +202,12 @@ export interface Cc2WireResult {
    * cell. Absent when the map holds no blue pad with a wire nibble.
    */
   teleportNets?: number[][];
+  /**
+   * Cell indices (ascending) of the supported OR and NOT gates whose output wire reaches one of their own inputs (Lexy powers the
+   * circuit from the gate's output, so the input reads it one wire phase later: an OR gate latches). Never in the links; absent
+   * when there is none.
+   */
+  selfLinks?: number[];
 }
 
 function terrainTile(cell: { tiles: { code: number; mod?: number }[] }): { code: number; mod?: number } | undefined {
@@ -503,6 +510,7 @@ export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2Wir
   }
 
   const seen = new Set<string>();
+  const selfLinks = new Set<number>();
   const unsupportedSeen = new Set<string>();
   const links: SignalLink[] = [];
   const note = (index: number, end: 'source' | 'sink'): void => {
@@ -516,7 +524,12 @@ export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2Wir
     }
   };
   const emit = (from: number, to: number, fromName?: string, toName?: string): void => {
-    if (from === to) return;
+    if (from === to) {
+      // Only a supported OR or NOT gate keeps its self link; the other kinds drop it, as before.
+      const own = cells[from] as CellInfo;
+      if (own.role === 'gate' && own.supported && SELF_LOOP_KINDS.has(own.gate?.kind as string)) selfLinks.add(from);
+      return;
+    }
     const source = cells[from] as CellInfo;
     const sink = cells[to] as CellInfo;
     if (!source.supported) {
@@ -550,6 +563,7 @@ export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2Wir
     }
   }
   for (const edge of direct) emit(edge.from, edge.to, edge.fromName, edge.toName);
+  if (selfLinks.size > 0) result.selfLinks = [...selfLinks].sort((a, b) => a - b);
 
   // Every sink a wire touches, whether or not a source feeds it: such a device is played in its wired form.
   const reached = new Set<number>();

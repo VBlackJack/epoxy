@@ -23,7 +23,14 @@ import { isCarriedByForceFloor, processPlayerSlideStep, resumeForceCarry } from 
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
-import { fireSignalSinks, fireSinksBeforePass, settleWorldSignals, SIGNAL_PHASE_TICK } from './epoxySignals';
+import {
+  fireSignalSinks,
+  fireSinksBeforePass,
+  GATE_SETTLE_PRE_PASS0,
+  GATE_SETTLE_PRE_PASS1,
+  settleWorldSignals,
+  SIGNAL_PHASE_TICK
+} from './epoxySignals';
 import { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
 /**
@@ -470,7 +477,8 @@ function runPrePassAndWires(ctx: EpoxyContext): boolean {
   }
   if (!w.player.alive) return false;
   if (arrived && w.signals !== undefined) {
-    const edges = settleWorldSignals(w, false, SIGNAL_PHASE_TICK);
+    // A frame-0 arrival reaches two wire phases before the decisions (f0, f1), a frame-1 arrival one: the gates step that often.
+    const edges = settleWorldSignals(w, false, SIGNAL_PHASE_TICK, arrivalFrame === 0 ? GATE_SETTLE_PRE_PASS0 : GATE_SETTLE_PRE_PASS1);
     setPoweredCells(ctx);
     setHoldDoors(ctx);
     fireSignalSinks(ctx, edges, SIGNAL_PHASE_TICK);

@@ -177,6 +177,33 @@ describe('signal network: cycles', () => {
     expect(settleSignals(network, createSignalState(network), levels(1)).sinkOutputs[0].on).toBe(false);
   });
 
+  it('keeps an OR or a NOT self-loop off the cycle list only with the gate-delay option', () => {
+    for (const kind of ['or', 'not'] as const) {
+      const specs = [node(1, 'source'), node(2, kind), node(3, 'sink')];
+      const links = [link(1, 2), link(2, 2), link(2, 3)];
+      expect(buildSignalNetwork(specs, links).cycles, kind).toHaveLength(1);
+      const delayed = buildSignalNetwork(specs, links, { gateDelay: true });
+      expect(delayed.cycles, kind).toEqual([]);
+      expect(delayed.gateDelay).toBe(true);
+    }
+  });
+
+  it('keeps an AND, XOR or NAND self-loop a cycle even with the gate-delay option', () => {
+    for (const kind of ['and', 'xor', 'nand'] as const) {
+      const network = buildSignalNetwork([node(1, 'source'), node(2, kind), node(3, 'sink')], [link(1, 2), link(2, 2), link(2, 3)], { gateDelay: true });
+      expect(network.cycles, kind).toHaveLength(1);
+    }
+  });
+
+  it('keeps a loop of two gates a cycle with the gate-delay option', () => {
+    const network = buildSignalNetwork([node(1, 'source'), node(2, 'or'), node(3, 'or'), node(4, 'sink')], [link(1, 2), link(2, 3), link(3, 2), link(3, 4)], { gateDelay: true });
+    expect(network.cycles).toHaveLength(1);
+  });
+
+  it('leaves the gate-delay flag off a network built without the option', () => {
+    expect('gateDelay' in gateNetwork('or', [SOURCE_A])).toBe(false);
+  });
+
   it('keeps a NOT inside a cycle off instead of oscillating', () => {
     const network = buildSignalNetwork([node(1, 'not'), node(2, 'not'), node(3, 'sink')], [link(1, 2), link(2, 1), link(2, 3)]);
     const first = settleSignals(network, createSignalState(network), new Map());

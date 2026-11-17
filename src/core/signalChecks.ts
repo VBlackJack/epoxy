@@ -361,7 +361,14 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
   const chargedCells = new Set(spec.nodes.filter((node) => node.kind === 'source' && node.sample === 'charged').map((node) => node.cell));
   const inputs = new Map<number, number>();
   const chargedInto = new Set<number>();
+  // A CC2 level may wire an OR or a NOT gate to its own output (cc2.selfLinks): that wire is no input of the gate for the count below.
+  const cc2Level = level.cc2 !== undefined;
+  const selfLinked = new Set<number>();
   for (const link of spec.links) {
+    if (cc2Level && link.from === link.to) {
+      selfLinked.add(link.to);
+      continue;
+    }
     if (chargedCells.has(link.from)) {
       if (chargedInto.has(link.to)) continue;
       chargedInto.add(link.to);
@@ -393,7 +400,9 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
       if (count > 1) multiSinks.push(cellOf(node.cell));
       if (node.color !== undefined) sinkCellsByColor.set(node.color, [...(sinkCellsByColor.get(node.color) ?? []), cellOf(node.cell)]);
     } else if (node.kind === 'not') {
-      if (count !== 1) notBad.push(cellOf(node.cell));
+      // Lexy plays a NOT whose only input is its own output as a clock, so on a CC2 level that wire counts as the one input.
+      const effective = count === 0 && selfLinked.has(node.cell) ? 1 : count;
+      if (effective !== 1) notBad.push(cellOf(node.cell));
     } else if (node.kind !== 'source' && count === 0) {
       noInput.push(cellOf(node.cell));
     } else if (node.kind === 'dlatch' || node.kind === 'counter') {
@@ -439,7 +448,8 @@ export function checkSignalWiring(level: CompiledLevel, issues: ValidationIssue[
     issues.push({ severity: 'warning', i18nKey: 'validator.issues.signal_counter_no_up.label', params: located(counterNoUp) });
   }
 
-  const network = buildSignalNetwork(spec.nodes, spec.links);
+  // A CC2 level delays its gates by a wire phase, so an OR or a NOT that reads its own output is no cycle there.
+  const network = buildSignalNetwork(spec.nodes, spec.links, { gateDelay: level.cc2 !== undefined });
   const cyclic = network.cycles.flat().map((i) => cellOf(network.nodes[i].cell));
   if (cyclic.length > 0) {
     issues.push({ severity: 'error', i18nKey: 'validator.issues.signal_cycle.label', params: located(cyclic) });
