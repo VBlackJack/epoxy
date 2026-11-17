@@ -482,6 +482,7 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   for (const p of [...playersOf(w)]) {
     const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
     if (p.alive && tile.hazard === 'fire' && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
+      if (deferJetBurnToStepEnd(w, p)) continue;
       ctx.emitVisual('explosion', p.x, p.y);
       killPlayerAt(ctx, p, 'hud.messages.death_fire', 'burn');
       return;
