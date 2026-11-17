@@ -177,9 +177,10 @@ function ballFirstStep(gates: number): { tick: number; cooldownAtDecision: numbe
 
 describe('C: scope guards (the stamp is for block clones released by a clone machine only)', () => {
   // A guard on the placement: a launcher fires in the wire phase its sink rises in, the model the Lexy cloner lanes check (no Lexy
-  // launcher lane exists). Its shot is in flight after tick 5 / 6 / 6 and at the decisions of tick 6 for all three. The guard part: the
-  // gate release stamp (frameGateRelease) is for a clone machine only, so a stamp widened to a launcher moves these ticks.
-  it('a launcher fed through an OR fires in the wire phase its sink rises in (cloner stamp only)', () => {
+  // launcher lane exists). Its shot is in flight after tick 5 / 6 / 6 and at the decisions of tick 6 for all three. fireLauncherAt takes
+  // no release stamp, so this is no stamp guard: it pins today's launcher timing (the wire phase its sink rises in), and fails when a
+  // change moves the tick a launcher fires in.
+  it('a launcher fed through an OR fires in the wire phase its sink rises in (launcher timing guard)', () => {
     const shots = GATE_COUNTS.map(launcherFirstShot);
     expect(shots.map((s) => s.post)).toEqual(LAUNCHER_FIRST_SHOT_TICKS);
     expect(shots.map((s) => s.decision)).toEqual(GATE_COUNTS.map(() => LAUNCHER_SHOT_AT_DECISION_TICK));

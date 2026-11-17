@@ -28,6 +28,8 @@ import type { Cc2LevelData, CompiledLevel, Direction, SignalLink } from '../type
 const SIZE = 13;
 const MAX_WAIT_TICKS = 40;
 const SETTLE_TICKS = 4;
+/** The tick that shows the sink powered, at its end and at its decisions (Lexy bolt_purple_wall: end and decisions of tic t4; tick k plays tic k - 1). */
+const POWERED_TICK = 5;
 const START = { x: 2, y: 5 };
 const SOURCE = { x: 3, y: 5 };
 const SINK = { x: 8, y: 3 };
@@ -124,12 +126,13 @@ describe('CC2 lightning bolt holder keeps its level through the move settle', ()
     const next = viewTick(engine);
     expect(next.decision).toBe(WALL_B);
     expect(next.after).toBe(WALL_B);
+    expect(engine.getTick()).toBe(POWERED_TICK);
     settle(engine);
     expect(sinkTile(engine)).toBe(WALL_B);
   });
 
-  // Lexy lane bolt_purple_wall: the holder leaves at tic t11; the wire phase of that tic drops the level (the sink is shut at its end),
-  // while the frame-2 decisions of the tic still see it open and those of the next tic see it shut.
+  // Lexy lane bolt_purple_wall: the holder leaves at tic t11; the sink is shut at the end of tic t12 and its frame-2 decisions see it
+  // shut from t13. Here the tick of the step off shows it shut at its end and open at its decisions, the next tick's decisions see it shut.
   it('falling edge: the source stays powered at the decisions of the step off the wire, drops at the end of that tick', () => {
     const engine = powered(true);
     expect(sinkTile(engine)).toBe(WALL_B);

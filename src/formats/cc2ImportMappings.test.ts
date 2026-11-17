@@ -148,7 +148,8 @@ describe('wired track switches', () => {
 
     // Onto the pink button: the wire rises once he has settled, the switch advances once. It is still on its first segment at the end of
     // the tick his step ends, and shows the second at the end and at the decisions of the next one (Lexy lane track: end of tic t4 and
-    // frame-2 decisions of t4; a step decided there follows the switched track).
+    // frame-2 decisions of t4). The decision read is a read of the active segment at that point: the behavioural lane beh_track_k4 (a step
+    // decided there follows the switched track) is not reproduced as a unit room.
     step(engine, 'E');
     for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; waited++) engine.tick();
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);

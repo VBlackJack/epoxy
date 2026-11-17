@@ -174,7 +174,7 @@ describe('a logic gate adds one wire phase (GPD, GPD3)', () => {
   // a source that changed reaches a sink through k gates in the k-th phase after it.
   // CC2 engine (wave 19): the tick end is the frame-2 phase (one gate step); the f0 and f1 phases of the next tic run with its pre-pass,
   // before the decisions. The end of tic shows 0 to 4 gates powered at 5, 5, 6, 6, 6 (before wave 19: 4, 5, 5, 5, 6) and the decisions
-  // see them at 5, 6, 6, 6, 7, where a step into the door decided then passes.
+  // see them at 5, 6, 6, 6, 7. Both are reads of the door at those points (decision-value reads, not a step decided there).
   it('puts a chain of 0 to 4 gates in the end of tick 5, 5, 6, 6, 6 and in the decisions of tick 5, 6, 6, 6, 7', () => {
     const seen = CHAIN_GATE_COUNTS.map((gates) => chainFirstPowered('cc2', gates));
     expect(seen.map((s) => s.post)).toEqual(CHAIN_POWERED_AFTER_TICK);

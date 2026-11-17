@@ -34,6 +34,8 @@ const MAX_WAIT_TICKS = 40;
  * and at the decisions of tick 5 (before wave 19: tick 4).
  */
 const SETTLE_TICKS = 5;
+/** The ticks a native level (no frame wire phases) runs after the input of the step: its pin is as it was before wave 19. */
+const NATIVE_SETTLE_TICKS = 4;
 /** The tick that shows the flip, at its end and at its decisions. */
 const FLIP_TICK = 5;
 const START = { x: 2, y: 5 };
@@ -92,7 +94,8 @@ const tileAt = (engine: GameEngine, cell: Cell): string => engine.getTerrain()[c
 function pressButton(sink: string, cc2: boolean): GameEngine {
   const engine = load(room(SIGNAL_PLATE_TILE_ID, sink, cc2));
   step(engine, 'E');
-  for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
+  const settleTicks = cc2 ? SETTLE_TICKS : NATIVE_SETTLE_TICKS;
+  for (let i = 0; i < settleTicks; i++) engine.tick();
   return engine;
 }
 

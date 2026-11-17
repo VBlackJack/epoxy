@@ -18,7 +18,10 @@
  * Test seam for the point of a tick where Lexy takes its frame-2 decisions: the entity pass has run the pre-pass frames and the frame
  * wire phases, and the decisions are not planned yet. The engine has no hook there; a test mocks epoxyFrames with
  * `decisionSamplingFrames` (vi.mock factory) and registers its sampler with `sampleAtDecisions`. The sampler runs only from the
- * entity pass (the pass is open), never from the tick end that also finishes the frame wire phases.
+ * entity pass (the pass is open), never from the tick end that also finishes the frame wire phases, and only while the player is alive
+ * and the level not completed (a pass cut short by a death or a win reaches no decision). On a level with actor order the point comes
+ * after the pre-pass moves and the frame wire phases; on a level without it (parked players, who step at the input) the pre-pass and
+ * the phases already ran at the end of the previous tick, so the point is after the player's own move.
  *
  * Usage in a test file:
  *   vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal()));
@@ -39,7 +42,7 @@ export function decisionSamplingFrames(real: typeof Frames): typeof Frames {
     ...real,
     finishFrameWirePhases: (ctx) => {
       real.finishFrameWirePhases(ctx);
-      if (ctx.world.ccPassOpen) sampler?.();
+      if (ctx.world.ccPassOpen && ctx.world.player.alive && !ctx.world.levelCompleted) sampler?.();
     }
   };
 }
