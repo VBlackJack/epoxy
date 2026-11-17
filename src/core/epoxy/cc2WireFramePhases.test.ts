@@ -46,6 +46,9 @@ const PURPLE_WALL = 'purple_wall';
 const PURPLE_FLOOR = 'purple_floor';
 const GREEN_WALL = 'toggle_wall_closed';
 const FORCE_FLOOR = 'force_n';
+const SWIVEL_DOOR = 'swivel_door_cc2_ne';
+const FLAME_JET = 'flame_jet_cc2_off';
+const LIT_FLAME_JET = 'flame_jet_cc2_on';
 const CLONE_MACHINE = 'clone_machine';
 const BLOCK = 'dirt_block';
 const SEED = 3;
@@ -108,12 +111,12 @@ function pushedBlockLane(template: string): GameEngine {
 }
 
 /** The player steps onto a plate wired through `gates` OR gates to a cloner holding `template` (Lexy lanes f4_*). */
-function orChainLane(gates: number, template: string): GameEngine {
+function orChainLane(gates: number, template: string, extraTiles: readonly [string, string][] = []): GameEngine {
   const gateXs = Array.from({ length: gates }, (_, i) => GATE_X + i);
   const xs = [PLATE_X, ...gateXs, SINK_X];
   const engine = load(
     'cc2',
-    [at(PLATE_X, PLATE), ...gateXs.map((x): [string, string] => at(x, OR_GATE)), at(SINK_X, CLONE_MACHINE)],
+    [at(PLATE_X, PLATE), ...gateXs.map((x): [string, string] => at(x, OR_GATE)), at(SINK_X, CLONE_MACHINE), ...extraTiles],
     xs.slice(1).map((x, i) => link(xs[i], x)),
     PLATE_X - 1,
     [{ type: template, x: SINK_X, y: ROOM_ROW, dir: 'E' }]
@@ -198,12 +201,17 @@ describe('a toggle switch enters the wires in the frame after its flip (F15)', (
     return { post, decision };
   }
 
+  /** The tick the block lands in (Lexy tic t4): its wall is open at the end and at the decisions of that tick. */
+  const BLOCK_SWITCH_OPEN_TICK = 5;
+  /** The tick the player arrives in: open at its end, shut at its decisions, open at those of the next tick. */
+  const PLAYER_SWITCH_OPEN_AFTER_TICK = 5;
+  const PLAYER_SWITCH_OPEN_AT_DECISIONS = 6;
   it('opens the wall of a switch a pushed block lands on at the decisions of the tick the block lands in (lswitch_blk)', () => {
-    expect(wallOpening('block')).toEqual({ post: 5, decision: 5 });
+    expect(wallOpening('block')).toEqual({ post: BLOCK_SWITCH_OPEN_TICK, decision: BLOCK_SWITCH_OPEN_TICK });
   });
 
   it('opens the wall of a switch the player steps onto at the end of that tick and at the decisions of the next (lswitch_ply)', () => {
-    expect(wallOpening('player')).toEqual({ post: 5, decision: 6 });
+    expect(wallOpening('player')).toEqual({ post: PLAYER_SWITCH_OPEN_AFTER_TICK, decision: PLAYER_SWITCH_OPEN_AT_DECISIONS });
   });
 });
 
@@ -211,11 +219,11 @@ describe('what a step decided at the frame-2 decisions finds (behaviour lanes)',
   // Lexy lanes beh_*_k4: the player pushes a block onto the plate (it lands in frame 0 of t4) and asks to step north into the sink wired
   // from the plate at tic 4. The sink the plate flipped is passable at those decisions in Lexy and in Epoxy alike: observation points,
   // pinned so that the phase model keeps them.
-  function behaviourLane(sink: string): GameEngine {
+  function behaviourLane(sink: string, wired = true): GameEngine {
     const engine = load(
       'cc2',
       [at(PLATE_X, PLATE), at(BEHAVIOUR_SINK_X, sink, BEHAVIOUR_SINK_Y)],
-      [link(PLATE_X, BEHAVIOUR_SINK_X, ROOM_ROW, BEHAVIOUR_SINK_Y)],
+      wired ? [link(PLATE_X, BEHAVIOUR_SINK_X, ROOM_ROW, BEHAVIOUR_SINK_Y)] : [],
       PUSHER_X,
       [{ type: BLOCK, x: PUSHED_X, y: ROOM_ROW, dir: 'E' }]
     );
@@ -224,12 +232,31 @@ describe('what a step decided at the frame-2 decisions finds (behaviour lanes)',
     return engine;
   }
   /** Whether the player has entered the sink cell after the tick whose input asks him to step north. */
-  function entersSink(sink: string): boolean {
-    const engine = behaviourLane(sink);
+  function entersSink(sink: string, wired = true): boolean {
+    const engine = behaviourLane(sink, wired);
     engine.attemptPlayerMove('N');
     engine.tick();
     return engine.getPlayer().y === BEHAVIOUR_SINK_Y;
   }
+
+  // Lexy beh_swivel_k4: the swivel the plate turned (ne -> se, shut on its south side) is turned at those decisions already: the step north
+  // from the south is refused, the player stays. The control: the same door with no wire (south side open) is entered.
+  it('is refused by a swivel door the plate turned shut on his side', () => {
+    expect(entersSink(SWIVEL_DOOR, false)).toBe(true);
+    expect(entersSink(SWIVEL_DOOR)).toBe(false);
+  });
+
+  // Lexy beh_jet_k4: the jet the plate lit is on at those decisions: he steps onto it (the control, a jet with no wire, is off and is
+  // entered too, so the cell read is the jet's own state). Lexy burns him four tics later (failure at t8); Epoxy burns him at the step,
+  // a timing gap this test does not pin.
+  it('steps onto a flame jet the plate lit, which is on at those decisions', () => {
+    const engine = behaviourLane(FLAME_JET);
+    engine.attemptPlayerMove('N');
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => engine.getTerrain()[BEHAVIOUR_SINK_Y][BEHAVIOUR_SINK_X]);
+    expect(seen.decision).toBe(LIT_FLAME_JET);
+    expect(engine.getPlayer().y).toBe(BEHAVIOUR_SINK_Y);
+    expect(entersSink(FLAME_JET, false)).toBe(true);
+  });
 
   it('enters a green wall the plate opened', () => {
     expect(entersSink(GREEN_WALL)).toBe(true);
@@ -239,10 +266,24 @@ describe('what a step decided at the frame-2 decisions finds (behaviour lanes)',
     expect(entersSink(PURPLE_WALL)).toBe(true);
   });
 
-  // The force floor the plate reversed carries him back south (Lexy beh_force_k4: he enters, carried back at t6): he is on the sink cell
-  // after the tick of the step.
-  it('enters a force floor the plate reversed', () => {
-    expect(entersSink(FORCE_FLOOR)).toBe(true);
+  // The force floor the plate reversed (force_n -> force_s) carries him back south (Lexy beh_force_k4: he enters, carried back at t6): the
+  // tile is already reversed at the decisions of the tick of the step, he is on the sink cell after that tick, and back on the plate row
+  // at tick 7.
+  const REVERSED_FORCE_FLOOR = 'force_s';
+  const STEP_TICK = BEHAVIOUR_INPUT_AFTER_TICKS + 1;
+  const CARRIED_BACK_TICK = 7;
+  it('enters a force floor the plate reversed and is carried back south', () => {
+    const engine = behaviourLane(FORCE_FLOOR);
+    engine.attemptPlayerMove('N');
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => engine.getTerrain()[BEHAVIOUR_SINK_Y][BEHAVIOUR_SINK_X]);
+    expect(engine.getTick()).toBe(STEP_TICK);
+    expect(seen.decision).toBe(REVERSED_FORCE_FLOOR);
+    expect(engine.getPlayer().y).toBe(BEHAVIOUR_SINK_Y);
+    while (engine.getTick() < CARRIED_BACK_TICK) {
+      expect(engine.getPlayer().y).toBe(BEHAVIOUR_SINK_Y);
+      engine.tick();
+    }
+    expect(engine.getPlayer().y).toBe(ROOM_ROW);
   });
 });
 
@@ -260,5 +301,26 @@ describe('a pulse press with nothing else moving still reaches the wires (frame-
       flipped = engine.getTerrain()[ROOM_ROW][SINK_X] !== GREEN_WALL;
     }
     expect(flipped).toBe(true);
+  });
+});
+
+describe('a frame wire phase reads the pass as a before-pass release does (closed pass view)', () => {
+  // A glider cloned through three ORs is released by the f1 phase of tick 6 (Lexy t5) onto a lit CC2 flame jet in the clone cell. A lit-jet
+  // removal keeps the old pass arithmetic, which reads the pass clock: with the pass view closed during the frame phase the glider is
+  // still there at the decisions of tick 9 and gone at those of tick 10 (game.js:954-972; Lexy pieces8 dec t188 / t189). With the pass
+  // view left open it burns a tick early (gone at tick 9).
+  const GLIDER_SEEN_FROM_TICK = 6;
+  const GLIDER_AT_JET_LAST_DECISION_TICK = 9;
+  const GLIDER_GONE_DECISION_TICK = 10;
+  it('keeps a monster clone on a lit jet through the decisions of tick 9 and burns it by those of tick 10', () => {
+    const engine = orChainLane(3, 'glider', [at(CLONE_X, LIT_FLAME_JET)]);
+    const countAtDecision = new Map<number, number | undefined>();
+    for (let i = 0; i < GLIDER_GONE_DECISION_TICK; i++) {
+      const seen = readAtDecisionAndAfter(() => engine.tick(), () => monsters(engine).filter((e) => e.x === CLONE_X).length);
+      countAtDecision.set(engine.getTick(), seen.decision);
+    }
+    expect(countAtDecision.get(GLIDER_SEEN_FROM_TICK)).toBe(1);
+    expect(countAtDecision.get(GLIDER_AT_JET_LAST_DECISION_TICK)).toBe(1);
+    expect(countAtDecision.get(GLIDER_GONE_DECISION_TICK)).toBe(0);
   });
 });
