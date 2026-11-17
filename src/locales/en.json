@@ -1401,6 +1401,9 @@
       "drop_protected": {
         "label": "These boots keep you safe right here: step off first."
       },
+      "drop_mid_step": {
+        "label": "Wait for your step to end before putting these boots down."
+      },
       "ward_spent": {
         "label": "The Ward destroyed the monster and is used up."
       },

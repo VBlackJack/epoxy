@@ -1401,6 +1401,9 @@
       "drop_protected": {
         "label": "Ces bottes vous protègent ici même : quittez d'abord la case."
       },
+      "drop_mid_step": {
+        "label": "Attendez la fin du pas pour poser ces bottes."
+      },
       "ward_spent": {
         "label": "L'Égide a détruit le monstre et est épuisée."
       },

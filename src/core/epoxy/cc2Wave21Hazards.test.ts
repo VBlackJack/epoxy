@@ -343,7 +343,7 @@ describe('F3: the boots that guard the cell of a step that still runs are not pu
     expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: 3, y: ROOM_ROW });
     engine.dropItem(FIRE_BOOTS);
     engine.tick();
-    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_protected');
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_mid_step');
     expect(engine.holdsItem(FIRE_BOOTS)).toBe(true);
     for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
     expect(engine.getPlayer().alive).toBe(true);
@@ -373,7 +373,7 @@ describe('F3: the boots that guard the cell of a step that still runs are not pu
     expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: 3, y: ROOM_ROW });
     engine.dropItem(FIRE_BOOTS);
     engine.tick();
-    expect(engine.getStatusBannerKey()).not.toBe('hud.messages.drop_protected');
+    expect(engine.getStatusBannerKey()).not.toBe('hud.messages.drop_mid_step');
     expect(engine.getPlayer().boots.has(FIRE_BOOTS)).toBe(true);
     for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
     expect(engine.getPlayer().alive).toBe(true);

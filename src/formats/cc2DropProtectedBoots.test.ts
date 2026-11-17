@@ -115,7 +115,7 @@ describe('dropping the boots that protect the current cell', () => {
     engine.tick();
     expect(engine.getPlayer().x).toBe(FIRE_X);
     expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: FIRE_X, y: 0 });
-    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_protected');
+    expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_mid_step');
     expect(engine.holdsItem(FIRE_BOOTS_ID)).toBe(true);
     expect(engine.getItems()[0][FIRE_X]).not.toBe(FIRE_BOOTS_ID);
     for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();

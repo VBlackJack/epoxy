@@ -714,7 +714,7 @@ export class GameEngine {
     }
 
     if (dropWouldUnguardPendingHazard(this.w, itemId)) {
-      this.w.statusBannerKey = 'hud.messages.drop_protected';
+      this.w.statusBannerKey = 'hud.messages.drop_mid_step';
       AudioManager.playSfx('blocked');
       return false;
     }
