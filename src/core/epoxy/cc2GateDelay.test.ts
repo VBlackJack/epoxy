@@ -52,6 +52,7 @@ vi.mock('./epoxySignals', async (importOriginal) => {
 });
 
 import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { ROOM_ROW, ROOM_SIZE, room, type RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -69,6 +70,7 @@ const OR_GATE = 'signal_gate_or_cc2';
 const AND_GATE = 'signal_gate_and_cc2';
 const NOT_GATE = 'signal_gate_not_cc2';
 const LATCH = 'signal_latch_off';
+const DLATCH = 'signal_gate_dlatch_cc2';
 const COUNTER = 'signal_counter_0_cc2';
 const PLATE = 'signal_plate';
 const DOOR = 'hold_door_red_closed';
@@ -90,11 +92,27 @@ const FAR_START_X = 7;
 const LANE_TICKS = 16;
 /** The tick the clone of the NOT lane notheld lands in: Lexy tic t3 (0-based), so the fourth tick Epoxy counts (getTick starts at 1). */
 const NOT_LANE_LANDING_TICK = 4;
+/** The count after the first tick of the NOT clock lane (the tic-0 all-off phase and one gate step: one rising edge counted). */
+const COUNTER_FIRST_TICK_COUNT = 1;
 /** The counter wraps at ten: five ticks keep the counts below it. */
 const COUNTER_TICKS = 5;
 const SETTLE_TICKS = 4;
 /** The mixed upstream sink is powered in this tick, at the end of the tick and at its decisions (Lexy lane mixed, t4). */
 const MIXED_POWERED_TICK = 5;
+/** The gate-only sink (and mixed2, which times as it) is powered, with its clone, at the decisions of this tick (Lexy lanes gateonly / mixed2, t5). */
+const GATE_ONLY_DECISION_TICK = 6;
+/** Lane mixed_push: the first clone cell, the second one (south, the east cell is taken) and the ticks they are first seen at the decisions. */
+const MIXED_PUSH_CLONE_X = 11;
+const MIXED_PUSH_CLONE_Y = 7;
+const MIXED_PUSH_SECOND_CLONE_X = 10;
+const MIXED_PUSH_SECOND_CLONE_Y = 8;
+/** Lexy t4 decisions: the first clone; t8: the second; t12: the second has landed (tick = tic + 1). */
+const MIXED_PUSH_FIRST_TICK = 5;
+const MIXED_PUSH_SECOND_TICK = 9;
+const MIXED_PUSH_LANDED_TICK = 13;
+const MIXED_PUSH_TICKS = 14;
+/** The lane holds RIGHT for tics 0-4 (a block pushed over the plate, then the player). */
+const MIXED_PUSH_INPUT_TICKS = 5;
 /** Native levels only: a chain of this many gates or fewer reaches the sink in the same tick end as one gate does (three sub-settles); one more gate is a tick end later. */
 const GATES_IN_ONE_TICK_END = 3;
 /** Chains of 0 to 4 gates: the tick whose end first shows the door powered (Lexy lanes chain0-4, end of tic t4, t4, t5, t5, t5). */
@@ -266,10 +284,10 @@ describe('an OR or a NOT gate wired to its own input (GSL, GPD3)', () => {
     expect(OPEN_AT.map((_, tic) => stepsThrough(tic))).toEqual(OPEN_AT);
   });
 
-  // The same clock through a counter: 1, 2, 1, 2 rising edges a tick end from the second tick. Lexy's own counter reads 2, 1, 2, 1 there
-  // (counter lane, memory after each tic): a counter is a gate in Lexy and lags its input by one wire phase, which Epoxy's counter does
-  // not model; the clock itself (the wall lane above) is in Lexy's phase.
-  it('a NOT clock counts 1, 2, 1, 2 rising edges per tick end through a counter', () => {
+  // The same clock through a counter: 1 after the first tick, then 2, 1, 2, 1 rising edges a tick end. Lexy's own counter reads 2, 1, 2, 1
+  // there (counter lane, memory after each tic): a counter is a gate in Lexy and lags its input by one wire phase, which a delayed counter
+  // models (it counts the inputs it read at the last wire phase); the clock itself (the wall lane above) is in Lexy's phase.
+  it('a NOT clock counts 2, 1, 2, 1 rising edges per tick end through a counter', () => {
     const tiles: [string, string][] = [at(GATE_X, NOT_GATE), at(SINK_X, COUNTER)];
     const engine = load(build('cc2', tiles, [link(GATE_X, SINK_X, 'in0')], { selfLinks: [cell(GATE_X)] }));
     const counts: number[] = [];
@@ -278,7 +296,8 @@ describe('an OR or a NOT gate wired to its own input (GSL, GPD3)', () => {
       counts.push(engine.getCounterValues()?.get(cell(SINK_X)) as number);
     }
     // The first tick adds the tic-0 phases; from the second the pattern is steady.
-    expect(counts.slice(1).map((count, i) => count - counts[i])).toEqual([1, 2, 1, 2]);
+    expect(counts[0]).toBe(COUNTER_FIRST_TICK_COUNT);
+    expect(counts.slice(1).map((count, i) => count - counts[i])).toEqual([2, 1, 2, 1]);
   });
 });
 
@@ -338,23 +357,72 @@ describe('a clone machine fed through delayed gates fires in the settle (GPDE, G
   });
 
   // Lexy lane mixed (a plate wired to the cloner straight and through one gate): the clone is on the floor at the end of tic t4 and at its
-  // frame-2 decisions, with the power. Epoxy: the end of the tick is Lexy's (power and clone in tick 5), but the straight-wired source
-  // keeps its deferral to the next pass, so the decisions of tick 5 see the sink powered and the clone only at tick 6: a pinned gap
-  // (the decisions of Lexy t4 see the clone). Fixing it is a separate change in the shared before-pass path.
-  it('keeps the deferral of a sink that also has a source wired straight in (mixed upstream)', () => {
+  // frame-2 decisions, with the power. The straight-wired source is on when the edge rises, so the sink fires with the direct ones (the
+  // straight mark, decided at the edge): the end of the tick and the decisions of tick 5 both see the sink powered and the clone.
+  it('fires a mixed sink with its straight wire', () => {
     const { post, decision } = fireSeen([plateTile, at(GATE_X, OR_GATE), cloner], [link(PLATE_X, GATE_X), link(GATE_X, SINK_X), link(PLATE_X, SINK_X)]);
     expect(post).toEqual([MIXED_POWERED_TICK, MIXED_POWERED_TICK]);
-    expect(decision[1]).toBe(decision[0] + 1);
+    expect(decision[1]).toBe(decision[0]);
     expect(decision[0]).toBe(MIXED_POWERED_TICK);
   });
 
-  // No Lexy case was measured for a latch upstream of a gate (unverified): the deferral stays as the wave 11 calibration set it.
-  it('keeps the deferral of a sink fed through a latch and a gate (unverified against Lexy)', () => {
+  // Lexy lane mixed2 (= gateonly): the gate path is pressed and a second plate wired straight to the cloner is never pressed. No
+  // straight-wired source is on, so the sink rose through its gates and is gate-timed: the clone at the t5 decisions, as without the straight wire.
+  it('times a mixed sink whose straight-wired plate is never pressed as a gate-fed one', () => {
+    const gateOnly = fireSeen([plateTile, at(GATE_X, OR_GATE), cloner], [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)]);
+    const mixed2 = fireSeen(
+      [plateTile, at(SECOND_PLATE_X, PLATE), at(GATE_X, OR_GATE), cloner],
+      [link(PLATE_X, GATE_X), link(GATE_X, SINK_X), link(SECOND_PLATE_X, SINK_X)]
+    );
+    expect(mixed2).toEqual(gateOnly);
+    expect(mixed2.post[1]).toBe(mixed2.post[0]);
+    expect(mixed2.decision[1]).toBe(mixed2.decision[0]);
+    expect(mixed2.decision[0]).toBe(GATE_ONLY_DECISION_TICK);
+  });
+
+  // Lexy lane mixed_push: a block is pushed onto the plate wired straight to the cloner (and through an OR) and off it again within a tic,
+  // then the player steps onto it. The edge is decided when it rises: the first clone is at the t4 decisions (tick 5) and lands at the end of
+  // t7; the second clone, south as the east cell is taken, is at the t8 decisions (tick 9) and has landed by the t12 decisions (tick 13).
+  it('decides the timing of a mixed sink at its edge when a block crosses the straight plate (mixed_push)', async () => {
+    const engine = load(await loadCc2Lane('mixed_push'));
+    const clones = (): { first: boolean; second: boolean; secondLanded: boolean } => {
+      const blocks = engine.getEntities().filter((e) => e.type === BLOCK);
+      const second = blocks.find((e) => e.x === MIXED_PUSH_SECOND_CLONE_X && e.y === MIXED_PUSH_SECOND_CLONE_Y);
+      return {
+        first: blocks.some((e) => e.x === MIXED_PUSH_CLONE_X && e.y === MIXED_PUSH_CLONE_Y),
+        second: second !== undefined,
+        secondLanded: second !== undefined && !second.isSliding
+      };
+    };
+    const decisionTick = { first: -1, second: -1, secondLanded: -1 };
+    for (let i = 0; i < MIXED_PUSH_TICKS; i++) {
+      if (i < MIXED_PUSH_INPUT_TICKS) engine.attemptPlayerMove('E');
+      const seen = readAtDecisionAndAfter(() => engine.tick(), clones);
+      for (const key of ['first', 'second', 'secondLanded'] as const) if (decisionTick[key] < 0 && seen.decision?.[key] === true) decisionTick[key] = engine.getTick();
+    }
+    expect(decisionTick).toEqual({ first: MIXED_PUSH_FIRST_TICK, second: MIXED_PUSH_SECOND_TICK, secondLanded: MIXED_PUSH_LANDED_TICK });
+  });
+
+  // A native toggle latch (signal_latch_off, outside the gate delay: no CC2 import makes one) keeps the end-of-next-tick deferral the wave 11
+  // calibration set: pinned as it is, no Lexy lane.
+  it('a native toggle latch keeps the deferral of a sink behind it', () => {
     const [powered, cloned] = fireTicks(
       [plateTile, at(PLATE_X + 1, LATCH), at(GATE_X, OR_GATE), cloner],
       [link(PLATE_X, PLATE_X + 1), link(PLATE_X + 1, GATE_X), link(GATE_X, SINK_X)]
     );
     expect(cloned).toBe(powered + 1);
+  });
+
+  // Lexy lane latch_or (a data latch, then an OR, then the cloner): the latch is a gate in Lexy and lags one wire phase like the OR, so the
+  // clone is at the t5 decisions with no extra tick: the sink is gate-timed. The data latch (signal_gate_dlatch_cc2): data from the plate,
+  // the clock from a plate the player never reaches would not open it, so both inputs come from the same pressed plate.
+  it('a data latch behind a gate fires the clone in the settle where the sink rises (twin of the native latch pin)', () => {
+    const [powered, cloned] = fireTicks(
+      [plateTile, at(PLATE_X + 1, DLATCH), at(GATE_X, OR_GATE), cloner],
+      [link(PLATE_X, PLATE_X + 1, 'in0'), link(PLATE_X, PLATE_X + 1, 'in1'), link(PLATE_X + 1, GATE_X), link(GATE_X, SINK_X)]
+    );
+    expect(powered).toBeGreaterThan(0);
+    expect(cloned).toBe(powered);
   });
 });
 

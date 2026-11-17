@@ -127,8 +127,18 @@ export interface SignalNetworkOptions {
   gateDelay?: boolean;
 }
 
-/** The combinational gate kinds a gate-delay network delays by one wire phase (latches, data latches and counters are not delayed). */
+/** The combinational gate kinds a gate-delay network delays by one wire phase (the native toggle latch is not delayed). */
 export const DELAYED_GATE_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['and', 'or', 'not', 'xor', 'nand']);
+
+/** Bits of SignalState.counterSeen: the increment and the decrement input a delayed counter read at its last settle. */
+const COUNTER_SEEN_INCREMENT = 1;
+const COUNTER_SEEN_DECREMENT = 2;
+
+/**
+ * The memory kinds a gate-delay network delays by one wire phase as well: a data latch and a counter read the levels of the last wire
+ * phase, as every Lexy logic_gate type does (update_power_emission, tiletypes.js:2541-2640).
+ */
+export const DELAYED_MEMORY_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['dlatch', 'counter']);
 
 /**
  * The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). The one set the
@@ -145,6 +155,8 @@ export interface SignalEdge {
   cell: number;
   /** True for off to on, false for on to off. */
   rising: boolean;
+  /** A deferred edge of a mixed sink raised by a straight-wired source; decided once, when the edge is deferred (see markStraight). */
+  straight?: true;
 }
 
 export interface SettleResult {
@@ -331,7 +343,8 @@ export function cloneSignalState(state: SignalState): SignalState {
     latchBits: [...state.latchBits],
     lastOutputs: [...state.lastOutputs],
     ...(state.counterValues !== undefined ? { counterValues: [...state.counterValues] } : {}),
-    ...(state.counterUnderflow !== undefined ? { counterUnderflow: [...state.counterUnderflow] } : {})
+    ...(state.counterUnderflow !== undefined ? { counterUnderflow: [...state.counterUnderflow] } : {}),
+    ...(state.counterSeen !== undefined ? { counterSeen: [...state.counterSeen] } : {})
   };
 }
 
@@ -361,24 +374,26 @@ function wireLevel(wire: SignalWire, outputs: readonly boolean[], underflow: rea
 }
 
 /**
- * Settles one counter and returns its overflow output. The counting is on the rising edge of each input, read against
- * the levels of the last settle; the prime settle counts nothing. Both inputs rising at once cancel.
+ * Settles one counter of a gate-delay network: it reads its inputs as the last settle left them and counts on a rise against the
+ * inputs it read at its previous settle (Lexy incrementing / decrementing, tiletypes.js:2602-2632), kept in counterSeen (bit 0 the
+ * increment input, bit 1 the decrement input; absent reads 0). The prime settle counts nothing. Both inputs rising at once cancel.
  */
-function settleCounter(
-  node: SignalNode,
-  index: number,
-  previous: SignalState,
-  next: SignalState,
-  outputs: readonly boolean[],
-  prime: boolean
-): boolean {
+function settleCounterDelayed(node: SignalNode, index: number, previous: SignalState, next: SignalState, prime: boolean): boolean {
   const values = next.counterValues as number[];
   const underflow = next.counterUnderflow as boolean[];
-  const on = (port: 0 | 1): boolean => node.wires.some((wire) => wire.toPort === port && wireLevel(wire, outputs, underflow));
-  const was = (port: 0 | 1): boolean =>
-    node.wires.some((wire) => wire.toPort === port && wireLevel(wire, previous.lastOutputs, previous.counterUnderflow));
-  const up = !prime && on(0) && !was(0);
-  const down = !prime && on(1) && !was(1);
+  const seen = (next.counterSeen ??= previous.lastOutputs.map(() => 0));
+  const on = (port: 0 | 1): boolean => node.wires.some((wire) => wire.toPort === port && wireLevel(wire, previous.lastOutputs, previous.counterUnderflow));
+  const inc = on(0);
+  const dec = on(1);
+  const was = seen[index] ?? 0;
+  seen[index] = (inc ? COUNTER_SEEN_INCREMENT : 0) | (dec ? COUNTER_SEEN_DECREMENT : 0);
+  const up = !prime && inc && (was & COUNTER_SEEN_INCREMENT) === 0;
+  const down = !prime && dec && (was & COUNTER_SEEN_DECREMENT) === 0;
+  return applyCount(values, underflow, index, up, down);
+}
+
+/** Applies one counting step to counter `index` and returns its overflow output (an increment past the maximum wraps to 0). */
+function applyCount(values: number[], underflow: boolean[], index: number, up: boolean, down: boolean): boolean {
   if (up || down) underflow[index] = false;
   if (up === down) return false;
   if (up) {
@@ -399,12 +414,35 @@ function settleCounter(
 }
 
 /**
+ * Settles one counter and returns its overflow output. The counting is on the rising edge of each input, read against
+ * the levels of the last settle; the prime settle counts nothing. Both inputs rising at once cancel.
+ */
+function settleCounter(
+  node: SignalNode,
+  index: number,
+  previous: SignalState,
+  next: SignalState,
+  outputs: readonly boolean[],
+  prime: boolean
+): boolean {
+  const values = next.counterValues as number[];
+  const underflow = next.counterUnderflow as boolean[];
+  const on = (port: 0 | 1): boolean => node.wires.some((wire) => wire.toPort === port && wireLevel(wire, outputs, underflow));
+  const was = (port: 0 | 1): boolean =>
+    node.wires.some((wire) => wire.toPort === port && wireLevel(wire, previous.lastOutputs, previous.counterUnderflow));
+  const up = !prime && on(0) && !was(0);
+  const down = !prime && on(1) && !was(1);
+  return applyCount(values, underflow, index, up, down);
+}
+
+/**
  * Settles the network: takes the sampled source levels (by cell index, missing means off), evaluates every
  * node in order and returns the new state, the sink levels and the edges. The given state is not changed.
  * With `prime` (the settle at level load) the levels and outputs are recorded but no latch flips and no edge is reported.
- * On a gate-delay network a combinational gate (DELAYED_GATE_KINDS) reads every wire as the last settle left it, its own wire
- * included (Lexy: a gate emits from the powered edges of the last wire phase, game.js do_wire_phase); with `holdGates` it keeps its
- * output instead (a settle that stands for no Lexy wire phase). Latches, data latches, counters, sources and sinks are unchanged.
+ * On a gate-delay network a combinational gate (DELAYED_GATE_KINDS), a data latch and a counter (DELAYED_MEMORY_KINDS) read every wire
+ * as the last settle left it, its own wire included (Lexy: a gate emits from the powered edges of the last wire phase, game.js
+ * do_wire_phase, tiletypes.js:2541-2640); with `holdGates` it keeps its output instead (a settle that stands for no Lexy wire phase).
+ * The native toggle latch, sources and sinks are unchanged.
  */
 export function settleSignals(
   network: SignalNetwork,
@@ -420,9 +458,22 @@ export function settleSignals(
     // A node of a cycle outputs off, and a latch in one holds its bit.
     if (node.cyclic) continue;
     // Each wire carries the output it leaves by: a counter has two (see wireLevel).
-    const delayed = network.gateDelay === true && DELAYED_GATE_KINDS.has(node.kind);
+    const memoryDelayed = network.gateDelay === true && DELAYED_MEMORY_KINDS.has(node.kind);
+    const delayed = (network.gateDelay === true && DELAYED_GATE_KINDS.has(node.kind)) || memoryDelayed;
     if (delayed && holdGates) {
       outputs[i] = state.lastOutputs[i] === true;
+      continue;
+    }
+    if (memoryDelayed && node.kind === 'dlatch') {
+      // The clock and the data are read as the last settle left them; while the clock is on the bit follows the data.
+      if (node.wires.some((wire) => wire.toPort === 1 && wireLevel(wire, state.lastOutputs, state.counterUnderflow))) {
+        next.latchBits[i] = node.wires.some((wire) => wire.toPort === 0 && wireLevel(wire, state.lastOutputs, state.counterUnderflow));
+      }
+      outputs[i] = next.latchBits[i];
+      continue;
+    }
+    if (memoryDelayed && node.kind === 'counter') {
+      outputs[i] = settleCounterDelayed(node, i, state, next, prime);
       continue;
     }
     const inputs = node.wires.map((wire) => wireLevel(wire, delayed ? state.lastOutputs : outputs, delayed ? state.counterUnderflow : next.counterUnderflow));

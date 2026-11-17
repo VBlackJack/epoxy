@@ -2123,6 +2123,8 @@ export interface SignalState {
   counterValues?: number[];
   /** The underflow output of each counter gate, held until its next count (false for other nodes). Present with counterValues. */
   counterUnderflow?: boolean[];
+  /** The inputs each counter of a gate-delay network read at its last settle (bit 0 the increment wire, bit 1 the decrement wire). Written by the gate-delay counter only. */
+  counterSeen?: number[];
 }
 
 /**
@@ -2270,6 +2272,8 @@ export interface CcArrival {
   due: number;
   /** CC2 engine: the entity worked a light switch or pulse source when its step ended; the next settle reads it. Absent otherwise. */
   pulse?: true;
+  /** CC2 engine: a clone's press of a button (a red button), due at the first pass start where its step has ended. Absent otherwise. */
+  stepEnd?: true;
 }
 
 /** The start of a player beyond the first on a level with several. */
@@ -2474,6 +2478,8 @@ export interface Cc3dPlayerArrival {
   brown?: GridPoint;
   /** CC2 engine: the bomb stepped onto: it goes off when the step ends. */
   bomb?: GridPoint;
+  /** CC2 engine: the hazard cell stepped onto (a lit jet): it is judged when the step ends. */
+  hazard?: GridPoint;
 }
 
 /**
@@ -2687,7 +2693,7 @@ export interface UndoSnapshot {
   /** The blob modifier of the CC2 generators; written only once a CC2 level set one, absent otherwise. */
   ccBlobModifier?: number;
   /** Wire-fired cloner and launcher edges waiting for the next tick on a CC2-engine level; written only while one waits, absent otherwise. */
-  cc2DeferredSinkEdges?: { cell: number; rising: boolean }[];
+  cc2DeferredSinkEdges?: { cell: number; rising: boolean; straight?: true }[];
   /** The ascending cell indices of the brown buttons held by CC2-engine players' steps; written only while one is held, absent otherwise. */
   cc2BrownHeld?: number[];
   /** The ascending cell indices of the buttons a rolling ball toggled (a button held by an actor that was removed); written only while one is toggled, absent otherwise. */

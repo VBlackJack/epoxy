@@ -33,6 +33,7 @@ import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
 import {
   DELAYED_GATE_KINDS,
+  DELAYED_MEMORY_KINDS,
   SettleResult,
   SignalEdge,
   SignalNetwork,
@@ -325,7 +326,7 @@ const TICK_END_SUB_SETTLES = 3;
  * from all-off wires (a NOT emits, a source feeds no delayed gate yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
  * step on the sources. Two gate steps before the first decision: a NOT whose plate is held at load is on in f0, so its clone machine fires
  * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one after tic 0 (cntheld,
- * cntnot): Lexy counts it in f1, Epoxy's undelayed counter counts it in the f0 sub-settle against the all-off copy, the value is the same. A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ * cntnot): Lexy counts it in f1, and so does Epoxy's delayed counter (it reads the all-off copy in f0, then the plate in f1). A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
  */
 const TIC0_SUB_SETTLES = 2;
 /** The 1-based tic-0 sub-settle (f0) that reads the all-off wires. */
@@ -598,12 +599,14 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * orange button works it.
  *
  * Gate-delay network (CC2 engine, tick phase): the phase a gate adds is already in the levels, so a clone machine or launcher fed
- * only through delayed gates is the exception to the deferral below: it fires in the settle where its edge rises (see gateDelayedSink).
+ * only through delayed gates, data latches and counters is the exception to the deferral below: it fires in the settle where its edge
+ * rises (see gateDelayedSink).
  *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
- * `cc2DeferredSinkEdges`. A sink wired directly to buttons fires before the next entity pass (fireSinksBeforePass); only the
- * edges fed by a gate keep the old timing: one from the move phase fires at the end of the same tick (the next tick phase), one
+ * `cc2DeferredSinkEdges`. A sink wired directly to buttons, or a mixed one a straight-wired source raised (the `straight` mark decided
+ * when the edge is deferred, markStraight), fires before the next entity pass (fireSinksBeforePass); only the edges fed by a gate keep
+ * the old timing: one from the move phase fires at the end of the same tick (the next tick phase), one
  * from the tick phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  * On an actor-order level the edges of the move phase come only from settleBeforeActorPass: the player's turn settles no wire with his move.
  */
@@ -627,13 +630,14 @@ export function fireSignalSinks(
     };
     // Gate-delay network: the phase a gate adds is in the levels already, so in the tick phase a clone machine or launcher fed through
     // delayed gates only fires in the settle where its edge rises (Lexy frame-2 wire phase). A directly wired one keeps the before-pass
-    // deferral, and one behind a latch, a counter or a loop (which the gate delay does not time) keeps the end-of-next-tick deferral.
+    // deferral (unless a source wired straight in is on: markStraight), and one behind a native toggle latch or a loop (which the gate
+    // delay does not time) keeps the end-of-next-tick deferral. A data latch or a counter is delayed like a gate (Lexy logic_gate).
     const gateTimed = phase === SIGNAL_PHASE_TICK && runtime.network.gateDelay === true;
     // A frame-0 or frame-1 wire phase: the deferred edges join the waiting ones (the press fire of the phase reads them); the others fire
     // now, a gate-timed clone machine released at the frame of the phase, as a frame release (see spawnFromCloner).
     if (framePhase !== undefined) {
       const deferredF = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
-      w.cc2DeferredSinkEdges = [...waiting, ...deferredF];
+      w.cc2DeferredSinkEdges = [...waiting, ...deferredF.map((edge) => markStraight(runtime, edge))];
       // Each edge is a release of frame `framePhase` (cc2ReleaseFrame): the clone carries that press frame (a monster's step ends in
       // frame f - 1, see tagCloneFrame) and a block clone's 12-frame step ends PLAIN_CLONE_STEP_END_FRAMES after it (spawnFromCloner).
       for (const edge of edgesNow.filter((e) => !deferredF.includes(e))) {
@@ -650,7 +654,7 @@ export function fireSignalSinks(
     const deferred = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
     const immediate = edgesNow.filter((edge) => !deferred.includes(edge));
     if (phase === SIGNAL_PHASE_TICK) {
-      w.cc2DeferredSinkEdges = deferred;
+      w.cc2DeferredSinkEdges = deferred.map((edge) => markStraight(runtime, edge));
       edges = [...waiting, ...immediate];
       // A tick-end gate release stamps its clone with the frame of its own sub-settle (see tickEndGateRelease); the edges that waited
       // are not from this settle and keep the plain path.
@@ -659,7 +663,7 @@ export function fireSignalSinks(
         return;
       }
     } else {
-      w.cc2DeferredSinkEdges = [...waiting, ...deferred];
+      w.cc2DeferredSinkEdges = [...waiting, ...deferred.map((edge) => markStraight(runtime, edge))];
       edges = immediate;
     }
   }
@@ -715,9 +719,53 @@ function fireEdges(
 }
 
 /**
- * Whether every node behind a sink is a source or a gate the gate delay times (DELAYED_GATE_KINDS), none in a loop, and no source is
- * wired straight into the sink (a mixed upstream keeps the deferral of its direct source). A latch, a data latch or a counter on the
- * way is not delayed, so the deferral still carries its phase.
+ * The deferred copy of a rising edge of a mixed sink (not direct) raised while one of its straight-wired sources is on carries the
+ * straight mark: the straight / gate choice is made once, here, and fireSinksBeforePass reads the mark (a source that goes off before
+ * the edge fires, a block pushed across the plate, changes nothing). Lexy lanes mixed, mixed_push.
+ */
+function markStraight(runtime: SignalRuntime, edge: SignalEdge): SignalEdge {
+  if (!edge.rising || isDirectSink(runtime, edge.cell) || !fedStraight(runtime, edge.cell, true)) return edge;
+  return { ...edge, straight: true };
+}
+
+/** The press frame of a straight edge, from the straight-wired sources that are on only (see pressFrameOfSink). */
+function pressFrameOfStraight(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
+  const net = runtime.network;
+  const start = net.indexOfCell.get(cell);
+  let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
+  if (start === undefined) return best;
+  for (const wire of net.nodes[start].wires) {
+    const node = net.nodes[wire.from];
+    if (node.kind !== 'source' || runtime.state.lastOutputs[wire.from] !== true) continue;
+    best = earliestPressFrameAt(w, node.cell, best);
+  }
+  return best;
+}
+
+/** The earliest press frame, up to `best`, among the actors at rest on a source cell (a clone carries `cc2Frame`; any other actor ends in frame 1). */
+function earliestPressFrameAt(w: EpoxyWorld, cell: number, best: 0 | 1 | 2): 0 | 1 | 2 {
+  const x = cell % mapWidth(w);
+  const y = Math.floor(cell / mapWidth(w));
+  for (const e of w.entities) {
+    if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
+    const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
+    if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
+  }
+  return best;
+}
+
+/** Whether a source is wired straight into the sink (with `on`: one whose last level is on). */
+function fedStraight(runtime: SignalRuntime, cell: number, on: boolean): boolean {
+  const start = runtime.network.indexOfCell.get(cell);
+  return start !== undefined && runtime.network.nodes[start].wires.some((wire) => runtime.network.nodes[wire.from].kind === 'source' && (!on || runtime.state.lastOutputs[wire.from] === true));
+}
+
+/**
+ * Whether every node behind a sink is a source or a gate the gate delay times (DELAYED_GATE_KINDS, or a data latch or a counter:
+ * settleSignals delays them on a gate-delay network too), none in a loop, and no source that is on is wired straight into the sink: a
+ * mixed sink (a source wired straight in as well as gates) none of whose straight-wired sources is on rose through its gates and is
+ * gate-timed, one a straight-wired source raised keeps the before-pass deferral (Lexy lanes mixed, mixed2). Only the native toggle
+ * latch is not delayed, so the deferral still carries its phase there.
  */
 function gateDelayedSink(runtime: SignalRuntime, cell: number): boolean {
   const net = runtime.network;
@@ -731,8 +779,8 @@ function gateDelayedSink(runtime: SignalRuntime, cell: number): boolean {
     seen.add(i);
     const node = net.nodes[i];
     if (node.cyclic) return false;
-    if (i === start && node.wires.some((wire) => net.nodes[wire.from].kind === 'source')) return false;
-    if (i !== start && node.kind !== 'source' && !DELAYED_GATE_KINDS.has(node.kind)) return false;
+    if (i === start && fedStraight(runtime, cell, true)) return false;
+    if (i !== start && node.kind !== 'source' && !DELAYED_GATE_KINDS.has(node.kind) && !DELAYED_MEMORY_KINDS.has(node.kind)) return false;
     for (const wire of node.wires) if (wire.from !== i) stack.push(wire.from);
   }
   return true;
@@ -773,7 +821,6 @@ function isDirectSink(runtime: SignalRuntime, cell: number): boolean {
  */
 function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
   const net = runtime.network;
-  const width = mapWidth(w);
   const start = net.indexOfCell.get(cell);
   let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
   const seen = new Set<number>();
@@ -783,15 +830,7 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
     if (seen.has(i)) continue;
     seen.add(i);
     const node = net.nodes[i];
-    if (node.kind === 'source') {
-      const x = node.cell % width;
-      const y = Math.floor(node.cell / width);
-      for (const e of w.entities) {
-        if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
-        const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
-        if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
-      }
-    }
+    if (node.kind === 'source') best = earliestPressFrameAt(w, node.cell, best);
     for (const wire of node.wires) stack.push(wire.from);
   }
   return best;
@@ -813,11 +852,12 @@ export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2, 
   const waiting = w.cc2DeferredSinkEdges;
   if (waiting.length === 0) return;
   w.cc2DeferredSinkEdges = [];
-  const direct = waiting.filter((edge) => isDirectSink(runtime, edge.cell));
+  // An edge fires now when its sink is wired to buttons only, or when it carries the straight mark decided at the edge (markStraight).
+  const direct = waiting.filter((edge) => isDirectSink(runtime, edge.cell) || edge.straight === true);
   w.cc2BeforePass = true;
   try {
     for (const edge of direct) {
-      w.cc2ReleaseFrame = forcedFrame ?? pressFrameOfSink(w, runtime, edge.cell);
+      w.cc2ReleaseFrame = forcedFrame ?? (edge.straight === true ? pressFrameOfStraight(w, runtime, edge.cell) : pressFrameOfSink(w, runtime, edge.cell));
       try {
         fireEdges(ctx, [edge], undefined, frameRelease);
       } finally {
@@ -828,7 +868,7 @@ export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2, 
     w.cc2BeforePass = undefined;
     delete w.cc2ReleaseFrame;
   }
-  w.cc2DeferredSinkEdges = [...waiting.filter((edge) => !isDirectSink(runtime, edge.cell)), ...w.cc2DeferredSinkEdges];
+  w.cc2DeferredSinkEdges = [...waiting.filter((edge) => !direct.includes(edge)), ...w.cc2DeferredSinkEdges];
 }
 
 /** A copy of the pulse memory of the world's network, for a snapshot or a hash; undefined when nothing is pending or carried. */

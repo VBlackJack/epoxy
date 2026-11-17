@@ -762,6 +762,24 @@ function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: s
   }
 }
 
+/** CC2 engine: whether the lit flame jet `tile` burns the player when his step onto it ends, not when it starts (Lexy flame_jet_on on_stand, called from step_on_cell). */
+function jetWaitsForStepEnd(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && tile.hazard !== undefined && tile.burnsOccupants === true;
+}
+
+/** CC2 engine: the jet of the cell his step ended on, judged now: false when it burned him (still lit, and he has no fire boots). */
+function judgeJetAtStepEnd(ctx: EpoxyContext, at: { x: number; y: number }): boolean {
+  const w = ctx.world;
+  const p = w.player;
+  if (p.x !== at.x || p.y !== at.y) return true;
+  const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
+  if (tile.burnsOccupants !== true || tile.hazard !== 'fire') return true;
+  if (tile.protectedByItem && p.boots.has(tile.protectedByItem)) return true;
+  ctx.emitVisual('explosion', p.x, p.y);
+  killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+  return false;
+}
+
 /** CC2 engine: a bomb the player steps onto goes off when his step ends, not when it starts (Lexy tiletypes.js bomb on_arrive). */
 function bombWaitsForStepEnd(w: EpoxyWorld): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace;
@@ -937,7 +955,16 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     if (!w.player.alive) return;
   }
 
+  // A lit flame jet burns him when his step onto it ends, judged again then (judgeJetAtStepEnd); inWater is assigned before this early
+  // return, so the deferral never leaves a stale value.
   w.player.inWater = tile.hazard === 'water';
+  if (!atStepEnd && jetWaitsForStepEnd(w, tile)) {
+    cc3dArrivalOf(w.player).hazard = { x, y };
+    if (tile.isLevelExit !== true) {
+      evaluatePlayerSliding(w, tile, entryDir);
+      return;
+    }
+  }
   if (tile.hazard === 'water' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
     ctx.emitVisual('splash', x, y);
     killPlayer(ctx, 'hud.messages.death_water', 'death');
@@ -1043,6 +1070,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
   }
+  if (pending.hazard !== undefined && !judgeJetAtStepEnd(ctx, pending.hazard)) return true;
   if (pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y) {
     const itemId = w.items[p.y]?.[p.x];
     const itemDef = itemId ? ConfigRegistry.getTile(itemId) : undefined;

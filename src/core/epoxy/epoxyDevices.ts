@@ -792,7 +792,7 @@ function spawnFromClonerOneWay(
       if (releaseFrame === CC2_LATE_RELEASE_FRAME && spawned.cooldownTicks > 0) spawned.cooldownTicks -= 1;
       tagCloneFrame(spawned, releaseFrame);
     }
-    return resolveMonsterArrival(ctx, spawned, true);
+    return resolveMonsterArrival(ctx, spawned, true, true);
   }
   return true;
 }
