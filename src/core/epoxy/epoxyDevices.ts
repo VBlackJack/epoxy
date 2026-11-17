@@ -496,8 +496,8 @@ export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire =
 
 /**
  * CC2 engine: the wire phase a clone machine fed through delayed gates is released in, at a tick end: the Lexy frame `frame` of the
- * wire phase and `total`, the frames from frame 0 of this tic to the end of the clone's out-of-turn 12-frame step (the phase's frame plus
- * PLAIN_CLONE_STEP_END_FRAMES). Only a block clone takes it; a monster clone keeps the untagged path.
+ * wire phase and `total`, the frames from frame 0 of this tic to the end of the clone's out-of-turn 12-frame step (the frame of the
+ * phase counted from frame 0 of this tic, 2, 3 or 4, plus PLAIN_CLONE_STEP_END_FRAMES). Only a block clone takes it; a monster clone keeps the untagged path.
  */
 export interface GateRelease {
   frame: 0 | 1 | 2;
@@ -508,13 +508,13 @@ export interface GateRelease {
 const CC2_CLONE_BEFORE_PASS_TICKS = 1;
 
 /** CC2 engine: the press frame of a wire edge released at the end of the last tic (after its decisions); its clone ends a tick sooner. */
-const CC2_LATE_RELEASE_FRAME = 2;
+export const CC2_LATE_RELEASE_FRAME = 2;
 /** CC2 engine: the Lexy frame an actor ends its step at when it is the default one (no tag is kept for a clone at it). */
 export const CC2_DEFAULT_FRAME = 1;
 /** CC2 engine: frames per tic; an out-of-turn step spends one frame at once, so the clone ends at frame p - 1 (game.js:2218-2242). */
 const CC2_FRAMES_PER_TIC = 3;
 /** CC2 engine: frames from the press to the end of a cloned block's 12-frame plain step (a new actor is not visited again in that frame). */
-const PLAIN_CLONE_STEP_END_FRAMES = 11;
+export const PLAIN_CLONE_STEP_END_FRAMES = 11;
 /** CC2 engine: ticks before the first slide step of a block cloned onto a slide. */
 const CLONE_SLIDE_TICKS = 2;
 
