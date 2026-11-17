@@ -313,10 +313,10 @@ const TICK_END_SUB_SETTLES = 3;
  * Gate sub-settles of the tic-0 settle. The oracle runs the emulate_60fps loop (compat.emulate_60fps, game.js:839-843, then
  * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. The
  * wires start all off (game.js:602, 728) and every gate reads the powered edges of the last wire phase, so f0 is a gate step too: it runs
- * from all-off wires (a NOT emits, a source feeds nothing yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
+ * from all-off wires (a NOT emits, a source feeds no delayed gate yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
  * step on the sources. Two gate steps before the first decision: a NOT whose plate is held at load is on in f0, so its clone machine fires
- * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one in f1 (cntheld,
- * cntnot). A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one after tic 0 (cntheld,
+ * cntnot): Lexy counts it in f1, Epoxy's undelayed counter counts it in the f0 sub-settle against the all-off copy, the value is the same. A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
  */
 const TIC0_SUB_SETTLES = 2;
 /** The 1-based tic-0 sub-settle (f0) that reads the all-off wires. */

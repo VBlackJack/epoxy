@@ -62,7 +62,8 @@ function load(tiles: readonly [string, string][], links: SignalLink[], entities:
 }
 
 describe('Z: tic 0 starts from all-off wires (N0, N0L)', () => {
-  // Lexy lanes cntheld / cntnot: the counter reads 1 after tic 0 (its input rises in the f1 phase after the all-off f0 one). Without the
+  // Lexy lanes cntheld / cntnot: the counter reads 1 after tic 0. Lexy counts it in f1, after the all-off f0 phase; Epoxy's undelayed counter counts it in
+  // the f0 sub-settle against the all-off copy, and the value after tic 0 is the same. Without the
   // all-off phase the held plate is already on in the one gate step, a level not an edge, and the counter stays at 0.
   it('counts one at tic 0 for a counter fed by a plate held at load (cntheld)', () => {
     const engine = load([at(PLATE_X, PLATE), at(SINK_X, COUNTER)], [link(PLATE_X, SINK_X, 'in0')], [held(PLATE_X)]);
