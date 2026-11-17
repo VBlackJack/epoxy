@@ -548,8 +548,9 @@ function runFrameWirePhase(ctx: EpoxyContext, frame: 0 | 1, frameStart: Readonly
 }
 
 /**
- * The frame wire phases still due when the pre-pass did not run them (it had nothing to move, or it was cut short). No frame-start
- * sample: nothing moved in frame 0, so the frame-0 phase lets in only a frame-0 arrival.
+ * The frame wire phases still due when the pre-pass did not run them (it had nothing to move, or it was cut short). Nothing moved in
+ * frame 0, so the pure sample taken now is the frame-start one: the frame-0 phase lets in a frame-0 arrival and a pulse source's press
+ * (the pure sample reads a pulse at its last level, so the pending press counts as a change).
  */
 export function finishFrameWirePhases(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -558,7 +559,7 @@ export function finishFrameWirePhases(ctx: EpoxyContext): void {
     delete w.cc2WireFrameNext;
     return;
   }
-  if (w.cc2WireFrameNext === 0 && !runFrameWirePhase(ctx, 0, undefined)) return;
+  if (w.cc2WireFrameNext === 0 && !runFrameWirePhase(ctx, 0, sampleFrameStart(w))) return;
   if (w.cc2WireFrameNext === 1) runFrameWirePhase(ctx, 1, undefined);
 }
 

@@ -40,6 +40,7 @@ beforeEach(() => {
 
 const OR_GATE = 'signal_gate_or_cc2';
 const PLATE = 'signal_plate';
+const PULSE_BUTTON = 'signal_button';
 const LIGHT_SWITCH = 'toggle_switch_off';
 const PURPLE_WALL = 'purple_wall';
 const PURPLE_FLOOR = 'purple_floor';
@@ -242,5 +243,22 @@ describe('what a step decided at the frame-2 decisions finds (behaviour lanes)',
   // after the tick of the step.
   it('enters a force floor the plate reversed', () => {
     expect(entersSink(FORCE_FLOOR)).toBe(true);
+  });
+});
+
+describe('a pulse press with nothing else moving still reaches the wires (frame-0 phase without a sample)', () => {
+  // The player steps onto a push button wired straight to a green wall (a flip on the rising edge only: a purple wall flips on both
+  // edges of the one-phase pulse and ends where it began); no block, no clone, nothing else moves, so the pre-pass has nothing to move
+  // and the frame phases are finished without a frame-start sample. The press must not be lost (Lexy button: a press pulses the wire in
+  // the wire phase that follows the step end).
+  it('flips the wall within the lane ticks', () => {
+    const engine = load('cc2', [at(PLATE_X, PULSE_BUTTON), at(SINK_X, GREEN_WALL)], [link(PLATE_X, SINK_X)], PLATE_X - 1, []);
+    engine.attemptPlayerMove('E');
+    let flipped = false;
+    for (let i = 0; i < LANE_TICKS && !flipped; i++) {
+      engine.tick();
+      flipped = engine.getTerrain()[ROOM_ROW][SINK_X] !== GREEN_WALL;
+    }
+    expect(flipped).toBe(true);
   });
 });
