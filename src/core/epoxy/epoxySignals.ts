@@ -33,6 +33,7 @@ import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
 import {
   DELAYED_GATE_KINDS,
+  DELAYED_MEMORY_KINDS,
   SettleResult,
   SignalEdge,
   SignalNetwork,
@@ -325,7 +326,7 @@ const TICK_END_SUB_SETTLES = 3;
  * from all-off wires (a NOT emits, a source feeds no delayed gate yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
  * step on the sources. Two gate steps before the first decision: a NOT whose plate is held at load is on in f0, so its clone machine fires
  * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one after tic 0 (cntheld,
- * cntnot): Lexy counts it in f1, Epoxy's undelayed counter counts it in the f0 sub-settle against the all-off copy, the value is the same. A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ * cntnot): Lexy counts it in f1, and so does Epoxy's delayed counter (it reads the all-off copy in f0, then the plate in f1). A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
  */
 const TIC0_SUB_SETTLES = 2;
 /** The 1-based tic-0 sub-settle (f0) that reads the all-off wires. */
@@ -598,7 +599,8 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * orange button works it.
  *
  * Gate-delay network (CC2 engine, tick phase): the phase a gate adds is already in the levels, so a clone machine or launcher fed
- * only through delayed gates is the exception to the deferral below: it fires in the settle where its edge rises (see gateDelayedSink).
+ * only through delayed gates, data latches and counters is the exception to the deferral below: it fires in the settle where its edge
+ * rises (see gateDelayedSink).
  *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in
@@ -627,7 +629,8 @@ export function fireSignalSinks(
     };
     // Gate-delay network: the phase a gate adds is in the levels already, so in the tick phase a clone machine or launcher fed through
     // delayed gates only fires in the settle where its edge rises (Lexy frame-2 wire phase). A directly wired one keeps the before-pass
-    // deferral, and one behind a latch, a counter or a loop (which the gate delay does not time) keeps the end-of-next-tick deferral.
+    // deferral, and one behind a native toggle latch or a loop (which the gate
+    // delay does not time) keeps the end-of-next-tick deferral. A data latch or a counter is delayed like a gate (Lexy logic_gate).
     const gateTimed = phase === SIGNAL_PHASE_TICK && runtime.network.gateDelay === true;
     // A frame-0 or frame-1 wire phase: the deferred edges join the waiting ones (the press fire of the phase reads them); the others fire
     // now, a gate-timed clone machine released at the frame of the phase, as a frame release (see spawnFromCloner).
@@ -715,9 +718,10 @@ function fireEdges(
 }
 
 /**
- * Whether every node behind a sink is a source or a gate the gate delay times (DELAYED_GATE_KINDS), none in a loop, and no source is
- * wired straight into the sink (a mixed upstream keeps the deferral of its direct source). A latch, a data latch or a counter on the
- * way is not delayed, so the deferral still carries its phase.
+ * Whether every node behind a sink is a source or a gate the gate delay times (DELAYED_GATE_KINDS, or a data latch or a counter:
+ * settleSignals delays them on a gate-delay network too), none in a loop, and no source is wired straight into the sink (a mixed
+ * upstream keeps the deferral of its direct source). Only the native toggle latch is not delayed, so the deferral still carries its
+ * phase there.
  */
 function gateDelayedSink(runtime: SignalRuntime, cell: number): boolean {
   const net = runtime.network;
@@ -732,7 +736,7 @@ function gateDelayedSink(runtime: SignalRuntime, cell: number): boolean {
     const node = net.nodes[i];
     if (node.cyclic) return false;
     if (i === start && node.wires.some((wire) => net.nodes[wire.from].kind === 'source')) return false;
-    if (i !== start && node.kind !== 'source' && !DELAYED_GATE_KINDS.has(node.kind)) return false;
+    if (i !== start && node.kind !== 'source' && !DELAYED_GATE_KINDS.has(node.kind) && !DELAYED_MEMORY_KINDS.has(node.kind)) return false;
     for (const wire of node.wires) if (wire.from !== i) stack.push(wire.from);
   }
   return true;
