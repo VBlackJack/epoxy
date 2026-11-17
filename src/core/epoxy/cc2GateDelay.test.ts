@@ -67,6 +67,10 @@ beforeEach(() => {
 });
 
 const OR_GATE = 'signal_gate_or_cc2';
+/** Lexy ff_start (the room of the F5 test): the tick() call that drowns him, the tick counter then, and the reason. */
+const F5_DEATH_CALLS = 7;
+const F5_DEATH_TICK = 6;
+const DEATH_WATER_KEY = 'hud.messages.death_water';
 const AND_GATE = 'signal_gate_and_cc2';
 const NOT_GATE = 'signal_gate_not_cc2';
 const LATCH = 'signal_latch_off';
@@ -659,13 +663,25 @@ describe('the hidden state key and the capture of a gate-delay network (HK)', ()
     let snapshot = engine.captureState();
     let key = cc2HiddenStateKey(world(engine));
     let deathTick = -1;
+    let calls = 0;
+    let decisionAtDeath: boolean | undefined;
     for (let i = 0; i < DEATH_LANE_TICKS && engine.getPlayer().alive; i++) {
       snapshot = engine.captureState();
       key = cc2HiddenStateKey(world(engine));
-      engine.tick();
-      if (!engine.getPlayer().alive) deathTick = engine.getTick();
+      const read = readAtDecisionAndAfter(() => engine.tick(), () => engine.getPlayer().alive);
+      calls++;
+      if (!read.after) {
+        deathTick = engine.getTick();
+        decisionAtDeath = read.decision;
+      }
     }
     expect(deathTick).toBeGreaterThan(0);
+    // Lexy ff_start: he drowns at t6 in the step-end flush that opens the seventh tick() call, before the decisions of that tic
+    // (the tick counter has not advanced: getTick() is 6), and the decisions of that tick are not sampled.
+    expect(calls).toBe(F5_DEATH_CALLS);
+    expect(deathTick).toBe(F5_DEATH_TICK);
+    expect(decisionAtDeath).toBeUndefined();
+    expect(engine.getPlayer().deathReasonKey).toBe(DEATH_WATER_KEY);
     const dueAfterDeath = world(engine).cc2WireFrameNext;
     expect(dueAfterDeath).toBeDefined();
     // The phase still due is part of the hidden state key (part W), so two states that differ in it never share a key.

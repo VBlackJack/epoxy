@@ -21,16 +21,17 @@ import type { CompiledLevel } from '../core/types';
 
 /** Folder of the lane levels: small original constructions made from an empty grid, one per Lexy decision lane. */
 const LANE_FIXTURE_DIR = new URL('../core/epoxy/__fixtures__/cc2-lanes/', import.meta.url);
-const LANE_FILE_PREFIX = 'w20_';
+/** The prefix of the lanes of wave 20, the default; the lanes of a later wave pass their own (`w21_`). */
+const DEFAULT_LANE_FILE_PREFIX = 'w20_';
 const LANE_FILE_EXTENSION = '.c2m';
 const IMPORT_MAX_BYTES = 1 << 20;
 
 /**
- * Imports one lane level (for example `mixed_push`, file `w20_mixed_push.c2m`) through the CC2 importer, as a player would, and returns the
- * compiled level. Call loadTestConfigs() first. The level plays on the CC2 engine.
+ * Imports one lane level (for example `mixed_push`, file `w20_mixed_push.c2m`; `prefix` names the wave, `w20_` by default) through the
+ * CC2 importer, as a player would, and returns the compiled level. Call loadTestConfigs() first. The level plays on the CC2 engine.
  */
-export async function loadCc2Lane(lane: string): Promise<CompiledLevel> {
-  const name = `${LANE_FILE_PREFIX}${lane}${LANE_FILE_EXTENSION}`;
+export async function loadCc2Lane(lane: string, prefix: string = DEFAULT_LANE_FILE_PREFIX): Promise<CompiledLevel> {
+  const name = `${prefix}${lane}${LANE_FILE_EXTENSION}`;
   const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL(name, LANE_FIXTURE_DIR))));
   const result = await importCc2Selection(
     [{ name, size: bytes.length, arrayBuffer: async () => bytes.slice().buffer as ArrayBuffer }],

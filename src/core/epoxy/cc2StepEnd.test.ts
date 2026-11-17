@@ -43,6 +43,7 @@ const GREEN_BUTTON = 'button_green';
 const CLOSED_WALL = 'toggle_wall_closed';
 const OPEN_WALL = 'toggle_wall_open';
 const WALL_CELL = '9,5';
+const DEATH_WATER_KEY = 'hud.messages.death_water';
 
 function world(engine: GameEngine): EpoxyWorld {
   return (engine as unknown as { w: EpoxyWorld }).w;
@@ -145,7 +146,8 @@ describe('CC2 engine: a button is pressed when the step onto it ends', () => {
     expect(wallAt(engine)).toBe(CLOSED_WALL);
   });
 
-  it('a press does not apply after the player died in the step', () => {
+  // Lexy hz_water: a step into water drowns him when the step ends, not when it starts. The press of the button he left stays applied.
+  it('a step into water after the press drowns when it ends; the press stays applied', () => {
     const level = room({ mode: 'cc2', terrain: { [`${TARGET_X},${ROOM_ROW}`]: GREEN_BUTTON, [WALL_CELL]: CLOSED_WALL, [`${TARGET_X + 1},${ROOM_ROW}`]: 'water' } });
     const engine = load(level);
     playMove(engine, 'E');
@@ -153,7 +155,14 @@ describe('CC2 engine: a button is pressed when the step onto it ends', () => {
     engine.tick();
     expect(wallAt(engine)).toBe(OPEN_WALL);
     expect(playMove(engine, 'E').moved).toBe(true);
+    expect(engine.getPlayer().alive).toBe(true);
+    waitOut(engine);
+    expect(engine.getPlayer().alive).toBe(true);
+    expect(engine.getPlayer().cc3dArrival?.hazard).toEqual({ x: TARGET_X + 1, y: ROOM_ROW });
+    engine.tick();
     expect(engine.getPlayer().alive).toBe(false);
+    expect(engine.getPlayer().deathReasonKey).toBe(DEATH_WATER_KEY);
+    expect(wallAt(engine)).toBe(OPEN_WALL);
     engine.tick();
     expect(wallAt(engine)).toBe(OPEN_WALL);
   });
