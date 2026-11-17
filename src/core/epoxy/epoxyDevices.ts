@@ -483,28 +483,38 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
  * machine now. Used by a signal sink. `byWire` marks a wire edge, which searches clockwise for a free way on the CC2 engine
  * (see spawnFromCloner). Returns false when the clone's arrival killed the player.
  */
-export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire = false): boolean {
+export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire = false, gateRelease?: GateRelease): boolean {
   const w = ctx.world;
   if (!ConfigRegistry.getTile(w.terrain[cy]?.[cx]).isCloneMachine) return true;
   const link = w.cloneLinks.find((l) => l.clonerX === cx && l.clonerY === cy);
   // CC2 engine: a linked cloner clones its actual occupant, nothing when empty (Lexy tiletypes.js:1704-1706).
   const fromOccupant = usesCc2Engine(w.level) && !w.cc3dPace;
-  if (link !== undefined && !fromOccupant) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir, byWire);
+  if (link !== undefined && !fromOccupant) return spawnFromCloner(ctx, cx, cy, link.templateType, link.templateDir, byWire, gateRelease);
   const template = w.entities.find((e) => e.x === cx && e.y === cy && !isPhasingEntityType(e.type));
-  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir, byWire);
+  return template === undefined ? true : spawnFromCloner(ctx, cx, cy, template.type, template.dir, byWire, gateRelease);
+}
+
+/**
+ * CC2 engine: the wire phase a clone machine fed through delayed gates is released in, at a tick end: the Lexy frame `frame` of the
+ * wire phase and `total`, the frames from frame 0 of this tic to the end of the clone's out-of-turn 12-frame step (the frame of the
+ * phase counted from frame 0 of this tic, 2, 3 or 4, plus PLAIN_CLONE_STEP_END_FRAMES). Only a block clone takes it; a monster clone keeps the untagged path.
+ */
+export interface GateRelease {
+  frame: 0 | 1 | 2;
+  total: number;
 }
 
 /** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
 const CC2_CLONE_BEFORE_PASS_TICKS = 1;
 
 /** CC2 engine: the press frame of a wire edge released at the end of the last tic (after its decisions); its clone ends a tick sooner. */
-const CC2_LATE_RELEASE_FRAME = 2;
+export const CC2_LATE_RELEASE_FRAME = 2;
 /** CC2 engine: the Lexy frame an actor ends its step at when it is the default one (no tag is kept for a clone at it). */
 export const CC2_DEFAULT_FRAME = 1;
 /** CC2 engine: frames per tic; an out-of-turn step spends one frame at once, so the clone ends at frame p - 1 (game.js:2218-2242). */
 const CC2_FRAMES_PER_TIC = 3;
 /** CC2 engine: frames from the press to the end of a cloned block's 12-frame plain step (a new actor is not visited again in that frame). */
-const PLAIN_CLONE_STEP_END_FRAMES = 11;
+export const PLAIN_CLONE_STEP_END_FRAMES = 11;
 /** CC2 engine: ticks before the first slide step of a block cloned onto a slide. */
 const CLONE_SLIDE_TICKS = 2;
 
@@ -527,7 +537,8 @@ export function spawnFromCloner(
   clonerY: number,
   templateType: string,
   templateDir: Direction,
-  byWire = false
+  byWire = false,
+  gateRelease?: GateRelease
 ): boolean {
   const w = ctx.world;
   // The press frame of the wire edge that fired this clone is read once and dropped, so a clone made while this one arrives
@@ -541,12 +552,12 @@ export function spawnFromCloner(
   if (byWire && usesCc2Engine(w.level) && !w.cc3dPace) {
     for (let turn = 0; turn < CLONER_WAY_COUNT; turn++) {
       const tryDir = turnClockwise(templateDir, turn);
-      if (spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, tryDir, releaseFrame, true)) return w.player.alive;
+      if (spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, tryDir, releaseFrame, true, gateRelease)) return w.player.alive;
       if (!w.player.alive) return false;
     }
     return true;
   }
-  return spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, templateDir, releaseFrame, false);
+  return spawnFromClonerOneWay(ctx, clonerX, clonerY, templateType, templateDir, releaseFrame, false, gateRelease);
 }
 
 /** CC2 engine: the ways a wire-powered clone machine tries, clockwise from the template's own. */
@@ -612,7 +623,8 @@ function spawnFromClonerOneWay(
   templateType: string,
   templateDir: Direction,
   releaseFrame: 0 | 1 | 2 | undefined,
-  report: boolean
+  report: boolean,
+  gateRelease?: GateRelease
 ): boolean {
   const w = ctx.world;
   const vec = DIRECTION_VECTORS[templateDir];
@@ -742,6 +754,14 @@ function spawnFromClonerOneWay(
     if (beforePass && w.entities.includes(spawned)) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
     // The wire phase that released the clone is frame p of the tic; the out-of-turn step spends a frame at once, so a frame-2
     // release ends a tick sooner and the clone carries frame p - 1 for its own press (Lexy game.js:2218-2242, 872-888).
+    if (cc2Clone && gateRelease !== undefined && w.entities.includes(spawned)) {
+      // A clone a gate-timed tick-end wire phase releases: its out-of-turn step starts in that phase (no late-release shortening) and
+      // ends at the frame total, counted from frame 0 of this tic; the pre-pass still to run is not in the wait (the release is after it).
+      tagCloneFrame(spawned, gateRelease.frame);
+      if (spawned.arrivalTicks !== undefined) holdFrameArrival(w, spawned, gateRelease.total, false);
+      else if (spawned.isSliding) tagSlideFrame(w, spawned, gateRelease.frame, CLONE_SLIDE_TICKS);
+      return true;
+    }
     if (cc2Clone && releaseFrame !== undefined && w.entities.includes(spawned)) {
       if (releaseFrame === CC2_LATE_RELEASE_FRAME) {
         if (spawned.arrivalTicks !== undefined && spawned.arrivalTicks > 1) spawned.arrivalTicks -= 1;

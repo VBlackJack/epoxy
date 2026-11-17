@@ -27,7 +27,7 @@ import {
   SIGNAL_PLATE_TILE_ID
 } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
-import { CC2_DEFAULT_FRAME, fireClonerAt, flipCellAt, flipWiredCellAt } from './epoxyDevices';
+import { CC2_DEFAULT_FRAME, CC2_LATE_RELEASE_FRAME, PLAIN_CLONE_STEP_END_FRAMES, fireClonerAt, flipCellAt, flipWiredCellAt, type GateRelease } from './epoxyDevices';
 import { refreshBeams } from './epoxyLasers';
 import { fireLauncherAt } from './epoxyShots';
 import { EpoxyContext, EpoxyWorld, closeOpenTrapAt, entityPressesPlate, mapWidth, playerAtCell } from './epoxyWorld';
@@ -36,6 +36,7 @@ import {
   SettleResult,
   SignalEdge,
   SignalNetwork,
+  SignalNodeKind,
   SignalState,
   buildSignalNetwork,
   cloneSignalState,
@@ -296,7 +297,7 @@ export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
 /**
  * The Lexy wire phases a settle stands for on a gate-delay network, which is how often the delayed gates step in it. 'hold' stands for
  * none: the gates keep their outputs. 'tickEnd' is the three phases from the frame-2 one of this tic to the frame-1 one of the next
- * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, of which only the second is a gate step (see
+ * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, both gate steps, the first from all-off wires (see
  * TIC0_SUB_SETTLES); 'prePass0' and 'prePass1' the phases a block
  * arrival of frame 0 or frame 1 of the pre-pass reaches before the decisions.
  */
@@ -310,12 +311,23 @@ export const GATE_SETTLE_PRE_PASS1: GateSettle = 'prePass1';
 const TICK_END_SUB_SETTLES = 3;
 /**
  * Gate sub-settles of the tic-0 settle. The oracle runs the emulate_60fps loop (compat.emulate_60fps, game.js:839-843, then
- * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. Every
- * gate reads the powered edges of the last wire phase and the wires start all off (game.js:602, 728), so f0 only carries the sources
- * onto the wires and the gates step from f1: one gate step before the first decision, not two. A chain of two gates fed by plates
- * held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. The
+ * wires start all off (game.js:602, 728) and every gate reads the powered edges of the last wire phase, so f0 is a gate step too: it runs
+ * from all-off wires (a NOT emits, a source feeds no delayed gate yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
+ * step on the sources. Two gate steps before the first decision: a NOT whose plate is held at load is on in f0, so its clone machine fires
+ * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one after tic 0 (cntheld,
+ * cntnot): Lexy counts it in f1, Epoxy's undelayed counter counts it in the f0 sub-settle against the all-off copy, the value is the same. A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
  */
-const TIC0_SUB_SETTLES = 1;
+const TIC0_SUB_SETTLES = 2;
+/** The 1-based tic-0 sub-settle (f0) that reads the all-off wires. */
+const TIC0_ALL_OFF_SUB_SETTLE = 1;
+/** Lexy frame of the wire phase of each tick-end gate sub-settle: the frame-2 one of this tic, then the frame-0 and frame-1 ones of the next. */
+const TICK_END_SUB_FRAMES: readonly (0 | 1 | 2)[] = [2, 0, 1];
+/**
+ * Frames from frame 0 of this tic to the end of the 12-frame out-of-turn step of a clone released in the first tick-end wire phase (frame 2,
+ * then 11 more frames, game.js:2218-2242); each later sub-settle is one frame later.
+ */
+const TICK_END_FIRST_RELEASE_TOTAL = CC2_LATE_RELEASE_FRAME + PLAIN_CLONE_STEP_END_FRAMES;
 /** Gate sub-settles after a frame-0 arrival of the pre-pass: it reaches the f0 and the f1 wire phase. */
 const PRE_PASS0_SUB_SETTLES = 2;
 /** Gate sub-settles after a frame-1 arrival of the pre-pass: it reaches the f1 wire phase only. */
@@ -348,6 +360,22 @@ function gateSubSettleLevels(
   return [...Array.from({ length: TICK_END_SUB_SETTLES - 1 }, () => early), sampled];
 }
 
+/** The memory gates whose output also reads off in the all-off phase of tic 0. */
+const ALL_OFF_STATE_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['latch', 'dlatch', 'counter']);
+
+/**
+ * A copy of `state` with every wire as it is at level load in Lexy (game.js:602, 728): the output of every source, delayed gate, latch,
+ * data latch and counter reads off. The sinks keep their own level (the edge compares against it) and the counters keep their
+ * underflow output (the held output a counter at zero gives is not a wire phase's).
+ */
+function allOffState(network: SignalNetwork, state: SignalState): SignalState {
+  const off = cloneSignalState(state);
+  network.nodes.forEach((node, index) => {
+    if (node.kind === 'source' || DELAYED_GATE_KINDS.has(node.kind) || ALL_OFF_STATE_KINDS.has(node.kind)) off.lastOutputs[index] = false;
+  });
+  return off;
+}
+
 /**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
@@ -365,7 +393,8 @@ export function settleWorldSignals(
   w: EpoxyWorld,
   prime: boolean = false,
   phase: SignalPhase = SIGNAL_PHASE_TICK,
-  gates: GateSettle = GATE_SETTLE_HOLD
+  gates: GateSettle = GATE_SETTLE_HOLD,
+  subOf?: Map<SignalEdge, number>
 ): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
@@ -381,8 +410,13 @@ export function settleWorldSignals(
       let current = runtime.state;
       const edges: SignalEdge[] = [];
       let last: SettleResult | undefined;
+      let sub = 0;
       for (const levels of subLevels) {
-        last = settleSignals(runtime.network, current, levels);
+        sub++;
+        // Tic 0, frame-0 wire phase: it runs from all-off wires, so every source and delayed gate (and latch, data latch, counter) reads off.
+        const from = gates === GATE_SETTLE_TIC0 && sub === TIC0_ALL_OFF_SUB_SETTLE ? allOffState(runtime.network, current) : current;
+        last = settleSignals(runtime.network, from, levels);
+        if (subOf !== undefined) for (const edge of last.edges) subOf.set(edge, sub);
         edges.push(...last.edges);
         current = last.state;
       }
@@ -479,7 +513,12 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * from the tick phase fires at the end of the tick after, as the prototype measured. The edges that waited fire first, then the rest in order.
  * On an actor-order level the edges of the move phase come only from settleBeforeActorPass: the player's turn settles no wire with his move.
  */
-export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge[], phase: SignalPhase = SIGNAL_PHASE_TICK): void {
+export function fireSignalSinks(
+  ctx: EpoxyContext,
+  edgesNow: readonly SignalEdge[],
+  phase: SignalPhase = SIGNAL_PHASE_TICK,
+  subOf?: ReadonlyMap<SignalEdge, number>
+): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
@@ -500,6 +539,12 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
     if (phase === SIGNAL_PHASE_TICK) {
       w.cc2DeferredSinkEdges = deferred;
       edges = [...waiting, ...immediate];
+      // A tick-end gate release stamps its clone with the frame of its own sub-settle (see tickEndGateRelease); the edges that waited
+      // are not from this settle and keep the plain path.
+      if (subOf !== undefined && gateTimed) {
+        fireEdges(ctx, edges, (edge) => (waiting.includes(edge) ? undefined : tickEndGateRelease(runtime, edge, subOf)));
+        return;
+      }
     } else {
       w.cc2DeferredSinkEdges = [...waiting, ...deferred];
       edges = immediate;
@@ -508,8 +553,21 @@ export function fireSignalSinks(ctx: EpoxyContext, edgesNow: readonly SignalEdge
   fireEdges(ctx, edges);
 }
 
+/**
+ * The stamp of a rising edge of a clone machine from a tick-end settle: its release frame follows its gate sub-settle s (the frame-2, then
+ * frame-0 and frame-1 wire phase: TICK_END_SUB_FRAMES) and its step ends s - 1 frames after the first one's (Lexy lanes or1, oror, oror3).
+ * Undefined for a launcher, a falling edge, or an edge no sub-settle produced.
+ */
+function tickEndGateRelease(runtime: SignalRuntime, edge: SignalEdge, subOf: ReadonlyMap<SignalEdge, number>): GateRelease | undefined {
+  const index = runtime.network.indexOfCell.get(edge.cell);
+  if (!edge.rising || index === undefined || runtime.defs.get(index)?.fires !== 'cloner') return undefined;
+  const sub = subOf.get(edge);
+  if (sub === undefined) return undefined;
+  return { frame: TICK_END_SUB_FRAMES[sub - 1], total: TICK_END_FIRST_RELEASE_TOTAL + sub - 1 };
+}
+
 /** Fires the sinks of `edges` in order, now (no deferral): the shared firing loop of fireSignalSinks and fireSinksBeforePass. */
-function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
+function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[], releaseOf?: (edge: SignalEdge) => GateRelease | undefined): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
@@ -531,7 +589,7 @@ function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[]): void {
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
     else if (!edge.rising) continue;
     else if (fires === 'flip') flipCellAt(w, x, y);
-    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true))) return;
+    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true, releaseOf?.(edge)))) return;
   }
 }
 

@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 14;
+export const CC2_RULES_VERSION = 15;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -532,6 +532,8 @@ export const CC2_RULES_VERSION = 14;
 // Version 14: the wave 17 rules (a logic gate adds one wire phase, OR and NOT gates wired to their own input, the tick-end settle
 // of three wire phases, gate-fed clone machines and launchers firing in the settle, gates stepping in the tic-0 and pre-pass settles,
 // a vacated source reaching the wires first). Wave 16 is live as 13.
+// Version 15: the wave 18 rules (a clone machine fed through delayed gates releases its clone in the frame of its wire phase, the tic-0
+// frame-0 phase starts from all-off wires). Wave 17 is live as 14.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

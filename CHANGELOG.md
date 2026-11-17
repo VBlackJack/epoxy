@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- CC2 imports follow CC2 more closely in their wiring at two more moments: a block cloned by a clone machine behind logic gates now comes out at the moment CC2 gives it, however many gates the signal crosses, instead of one tick late after a gated clone; and when a level starts, every wire begins off, so a NOT gate whose button is held from the start fires its clone machine once, and a counter or latch fed by a button held from the start counts it. CC1 .DAT imports, native levels and CC3D levels are unchanged; CC1 Steam .c2m levels follow the same CC2 rules. Official replays won on Epoxy stay at 200 of 200 for CC2 and 147 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
+
 ## [2.36.0] - 2026-11-17
 
 ### Changed

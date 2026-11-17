@@ -79,6 +79,8 @@ const CLONE_X = SINK_X + 1;
 const START_X = 2;
 const FAR_START_X = 7;
 const LANE_TICKS = 16;
+/** The tick the clone of the NOT lane notheld lands in: Lexy tic t3 (0-based), so the fourth tick Epoxy counts (getTick starts at 1). */
+const NOT_LANE_LANDING_TICK = 4;
 /** The counter wraps at ten: five ticks keep the counts below it. */
 const COUNTER_TICKS = 5;
 const SETTLE_TICKS = 4;
@@ -208,7 +210,8 @@ describe('an OR or a NOT gate wired to its own input (GSL, GPD3)', () => {
   // A NOT on its own output toggles once per wire phase: three times a tick end (game.js:872-889), and holds in a move settle. Lexy lane
   // (a NOT wired to its own input, a purple wall on its output circuit, the player one step into the wall at tic t only; dump.mjs on the
   // .c2m): the step succeeds at tics 1, 3, 5 and is refused at 0, 2, 4, 6, because the clock has run one gate step before the first
-  // decision (TIC0_SUB_SETTLES). With two tic-0 gate steps the clock is in the other phase and the pattern is inverted.
+  // decision. Tic 0 runs two gate steps (TIC0_SUB_SETTLES), the first from all-off wires; the clock reaches the first decision in the phase
+  // of one step from load, as the first of the two steps starts from all-off wires.
   it('a NOT clock leaves the wall it toggles open at the decisions of tics 1, 3, 5 only', () => {
     const OPEN_AT = [false, true, false, true, false, true];
     const stepsThrough = (waitTicks: number): boolean => {
@@ -410,11 +413,17 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
 
   // Lexy lane (a pink plate, held or not by a block at load, a NOT gate, a clone machine): with the plate empty the NOT emits at once and
   // the clone appears at tic 0. With the plate held the NOT also emits in the first wire phase (it reads every wire off), then falls:
-  // Lexy clones once at tic 0 there too. Epoxy does not: this pins the open divergence (a NOT whose source is on at load never rises).
-  function notCloneBlocks(held: boolean): number {
+  // Lexy clones once at tic 0 there too (lanes w18_notheld / w18_notempty: one clone, appears t0, lands t3 in both). Tic 0 runs two gate
+  // steps, the first from all-off wires, so Epoxy clones once as well and the clone lands with the empty-plate one.
+  /** The Lexy lane notheld / notempty: a plate wired to a NOT wired to a clone machine, a block on the plate when `held`. */
+  function notLane(held: boolean): GameEngine {
     const tiles: [string, string][] = [at(PLATE_X, PLATE), at(GATE_X, NOT_GATE), at(SINK_X, CLONE_MACHINE)];
     const entities: EntityPlacement[] = [{ type: BLOCK, x: SINK_X, y: ROOM_ROW, dir: 'E' }, ...(held ? [{ type: BLOCK, x: PLATE_X, y: ROOM_ROW, dir: 'E' as const }] : [])];
-    const engine = load(build('cc2', tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)], { startX: FAR_START_X, entities }));
+    return load(build('cc2', tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)], { startX: FAR_START_X, entities }));
+  }
+
+  function notCloneBlocks(held: boolean): number {
+    const engine = notLane(held);
     engine.tick();
     return engine.getEntities().filter((e) => e.type === BLOCK && e.x === CLONE_X).length;
   }
@@ -423,8 +432,21 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
     expect(notCloneBlocks(false)).toBe(1);
   });
 
-  it('pin: a NOT whose plate is held at load does not fire its clone machine (Lexy fires it once at tic 0)', () => {
-    expect(notCloneBlocks(true)).toBe(0);
+  /** The tick the clone of the lane lands (its arrival fields all gone); -1 when none does. */
+  function notCloneLanding(held: boolean): number {
+    const engine = notLane(held);
+    for (let i = 0; i < LANE_TICKS; i++) {
+      engine.tick();
+      const clone = engine.getEntities().find((e) => e.type === BLOCK && e.x === CLONE_X);
+      if (clone !== undefined && clone.arrivalTicks === undefined && clone.cc2ArrivalWait === undefined && clone.cc2ArrivalFrame === undefined) return engine.getTick();
+    }
+    return -1;
+  }
+
+  it('a NOT whose plate is held at load fires its clone machine once at tic 0, landing with the empty-plate clone (Lexy notheld)', () => {
+    expect(notCloneBlocks(true)).toBe(1);
+    expect(notCloneLanding(true)).toBe(NOT_LANE_LANDING_TICK);
+    expect(notCloneLanding(true)).toBe(notCloneLanding(false));
   });
 });
 

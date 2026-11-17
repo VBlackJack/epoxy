@@ -61,7 +61,7 @@ import {
   SIGNAL_PHASE_TICK,
   signalLinksOf
 } from './epoxy/epoxySignals';
-import { cloneSignalState, createSignalState } from './epoxy/signalNetwork';
+import { cloneSignalState, createSignalState, type SignalEdge } from './epoxy/signalNetwork';
 import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
 import { resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
 import { usesCc2Engine } from './epoxy/ccRules';
@@ -1276,11 +1276,13 @@ export class GameEngine {
     this.w.inTick = false;
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
-    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, GATE_SETTLE_TICK_END) : [];
+    // The sub-settle each edge came from stamps a tick-end gate release (see fireSignalSinks).
+    const subOf = new Map<SignalEdge, number>();
+    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, GATE_SETTLE_TICK_END, subOf) : [];
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
-    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK);
+    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK, subOf);
     // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
     // fired by a signal in this pass counts with the buttons of the pass.
     this.w.firedLaunchers.clear();

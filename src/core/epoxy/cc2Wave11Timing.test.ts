@@ -169,3 +169,26 @@ describe('CC2 engine: an OR-fed clone machine against Lexy (wave 17)', () => {
     expect(landingTickAt(true, SECOND_CLONE_X, GATE_OR)).toBeGreaterThan(landingTickAt(false, SECOND_CLONE_X));
   });
 });
+
+/** The tick the first block stands at `x` (the clone appeared in its cell, landed or not), for a lane whose first stage is direct or gated. */
+function appearanceTickAt(gated: boolean, x: number, gateTile: string = GATE): number {
+  const engine = load(pressLane(gated, gateTile));
+  expect(engine.attemptPlayerMove('E')).toBe(true);
+  for (let tick = 0; tick < LANE_TICKS; tick++) {
+    engine.tick();
+    if (engine.getEntities().some((e) => e.kind === 'block' && e.x === x && e.y === ROW)) return engine.getTick();
+  }
+  throw new Error('no block ever stood there');
+}
+
+describe('CC2 engine: the second stage of a gated press appears with the direct one (wave 18)', () => {
+  // Lexy lanes lane_direct / lane_diode / lane_or (w17-lane .c2m; the second clone, x8, appears in tic 8 in all three): a clone machine
+  // fed through one delayed gate (a one-input AND, the diode, or an OR) releases its clone in the frame-2 wire phase, so the clone lands
+  // in the tick of the direct one and its plate fires the second clone machine in that tick. Without the release frame the gated second
+  // stage appears one tick after the direct one (the untagged late release lands the clone in the main pass).
+  it('shows the second clone in the tick of the direct one through a diode and through an OR', () => {
+    const direct = appearanceTickAt(false, SECOND_CLONE_X);
+    expect(appearanceTickAt(true, SECOND_CLONE_X, GATE)).toBe(direct);
+    expect(appearanceTickAt(true, SECOND_CLONE_X, GATE_OR)).toBe(direct);
+  });
+});
