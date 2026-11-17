@@ -91,7 +91,7 @@ import {
   withPlayer,
   killPlayerAt
 } from './epoxyWorld';
-import { turnMarkedTanks } from './epoxyDevices';
+import { CC2_DEFAULT_FRAME, turnMarkedTanks } from './epoxyDevices';
 import { closeFramePass, finishFrameWirePhases, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
@@ -194,9 +194,18 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     if (monster.stepEndedPass === undefined) return a.due <= pass;
     return monster.stepEndedPass <= pass;
   };
+  // CC2 engine: the press of a clone's out-of-turn step onto a button (stepEnd) is due at the first pass start where that step has ended
+  // (cooldown 0, the same test as the hazard removals), or at the old arithmetic plus the margin when the cooldown never counts down.
+  // A monster that is gone or has left the cell makes it void: it is due at once and dropped by the loop below.
+  const stepEndDue = (a: CcArrival): boolean | undefined => {
+    if (a.stepEnd !== true) return undefined;
+    const monster = w.entities.find((e) => e.uid === a.uid);
+    if (monster === undefined || monster.x !== a.x || monster.y !== a.y) return true;
+    return monster.cooldownTicks === 0 || a.due + HAZARD_REMOVAL_MARGIN_PASSES <= pass;
+  };
   const isDue = (a: CcArrival): boolean =>
     (!onlyRemovals || a.removal !== undefined) &&
-    (hazardStepEnded(a) ?? a.due <= pass) &&
+    (stepEndDue(a) ?? hazardStepEnded(a) ?? a.due <= pass) &&
     (ownerUid === undefined || a.uid === ownerUid) &&
     (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
     (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
@@ -233,7 +242,18 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
       // The button fires what it is now: a tile changed since the step fires its current action, or nothing.
       const tile = ConfigRegistry.getTile(w.terrain[arrival.y]?.[arrival.x]);
       if (arrival.action === undefined || tile.buttonAction === undefined || tile.buttonWorkedBy === 'player') continue;
-      if (!ctx.triggerButton(arrival.x, arrival.y, tile.buttonAction)) return false;
+      // The press of a clone's step end carries the frame that step ends in (its cc2Frame tag), as a direct wire press does; the release
+      // frame of the surrounding press is saved and restored, never deleted.
+      const savedFrame = w.cc2ReleaseFrame;
+      if (arrival.stepEnd === true) w.cc2ReleaseFrame = monster.cc2Frame ?? CC2_DEFAULT_FRAME;
+      try {
+        if (!ctx.triggerButton(arrival.x, arrival.y, tile.buttonAction)) return false;
+      } finally {
+        if (arrival.stepEnd === true) {
+          if (savedFrame === undefined) delete w.cc2ReleaseFrame;
+          else w.cc2ReleaseFrame = savedFrame;
+        }
+      }
     }
   } finally {
     w.ccArrivalsRunning = false;
@@ -893,7 +913,7 @@ function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean
  * jumps it on.
  * Returns false when the player was killed, so the caller stops processing.
  */
-export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean): boolean {
+export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean, cloneRelease = false): boolean {
   const w = ctx.world;
   const nx = entity.x;
   const ny = entity.y;
@@ -1024,8 +1044,15 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   }
   // A button worked by the player alone (a steering pad) does nothing when a monster steps on it.
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
+  // CC2 engine: a clone's out-of-turn step onto the red button presses it when that step ends (Lexy step_on_cell on_arrive, game.js:2316-2366),
+  // whatever the phase that released it (a tick-end release is outside the tick): the press waits for the first pass start where its step
+  // has ended. Other buttons keep their own timing.
+  const cloneStepEnd = cloneRelease && usesCc2Engine(w.level) && !w.cc3dPace && entity.kind === 'monster' && destTile.buttonAction === CC2_CLONER_BUTTON_ACTION;
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
-    if (queuesButtonPress(w, entity, destTile.buttonAction)) {
+    if (cloneStepEnd) {
+      const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + entity.cooldownTicks, stepEnd: true });
+    } else if (queuesButtonPress(w, entity, destTile.buttonAction)) {
       // A converted CC3D level applies the press when the step ends (the wrapper of stepMonster sets the final time).
       // CC2 engine: every monster press but the green and blue buttons lands when the step ends, at the start of the pass after its
       // cooldown ran out (Lexy on_arrive). The two exceptions are Lexy's pending_green_toggle (applied after the actor pass) and
@@ -1075,6 +1102,9 @@ const TOOL_EXCLUDED_COLLECTIBLE = 'key';
 
 /** The green button action: a CC2 monster press of it is applied after the actor pass (Lexy pending_green_toggle). */
 const CC2_GREEN_TOGGLE_ACTION: ButtonAction = 'toggle_walls';
+
+/** The red button action: a clone released onto it presses it when its step ends (Lexy button_red on_arrive). */
+const CC2_CLONER_BUTTON_ACTION: ButtonAction = 'trigger_cloner';
 
 /** The blue button action: a CC2 monster press of it is applied at the next decision (Lexy pending_reverse). */
 const CC2_BLUE_REVERSE_ACTION: ButtonAction = 'reverse_tanks';
