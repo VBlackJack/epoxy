@@ -95,7 +95,7 @@ const COUNTER_TICKS = 5;
 const SETTLE_TICKS = 4;
 /** The mixed upstream sink is powered in this tick, at the end of the tick and at its decisions (Lexy lane mixed, t4). */
 const MIXED_POWERED_TICK = 5;
-/** A chain of this many gates or fewer reaches the sink in the same tick end as one gate does; one more gate is a tick end later again. */
+/** Native levels only: a chain of this many gates or fewer reaches the sink in the same tick end as one gate does (three sub-settles); one more gate is a tick end later. */
 const GATES_IN_ONE_TICK_END = 3;
 /** Chains of 0 to 4 gates: the tick whose end first shows the door powered (Lexy lanes chain0-4, end of tic t4, t4, t5, t5, t5). */
 const CHAIN_POWERED_AFTER_TICK: readonly number[] = [5, 5, 6, 6, 6];
@@ -116,6 +116,8 @@ const DEATH_DOOR_X = 10;
 const DEATH_LANE_TICKS = 20;
 /** Ticks the frame-1 arrival lane is observed for: the arrival tick and the one after it. */
 const FRAME_ONE_ARRIVAL_TICKS = 2;
+/** The hidden state key joins its parts with this separator (cc2HiddenStateKey). */
+const HIDDEN_KEY_PART_SEPARATOR = ';';
 const CHAIN_SINK_X = 10;
 
 const cell = (x: number): number => ROOM_ROW * ROOM_SIZE + x;
@@ -169,11 +171,10 @@ const chainPoweredTick = (mode: RoomMode, gates: number): number => chainFirstPo
 
 describe('a logic gate adds one wire phase (GPD, GPD3)', () => {
   // Lexy game.js:872-889 runs a wire phase at the end of each of the three frames of a tic, and a gate emits from the powered edges of the last phase:
-  // a source that changed reaches a sink through k gates in the k-th phase after it. One to three gates land in the same tick end,
-  // the fourth gate waits for the next one.
-  // Wave 19: the tick end is the frame-2 phase (one gate step); the f0 and f1 phases of the next tic run with its pre-pass, before the
-  // decisions. The end of tic shows 0 to 4 gates powered at 5, 5, 6, 6, 6 (before wave 19: 4, 5, 5, 5, 6) and the decisions see them at
-  // 5, 6, 6, 6, 7, where a step into the door decided then passes.
+  // a source that changed reaches a sink through k gates in the k-th phase after it.
+  // CC2 engine (wave 19): the tick end is the frame-2 phase (one gate step); the f0 and f1 phases of the next tic run with its pre-pass,
+  // before the decisions. The end of tic shows 0 to 4 gates powered at 5, 5, 6, 6, 6 (before wave 19: 4, 5, 5, 5, 6) and the decisions
+  // see them at 5, 6, 6, 6, 7, where a step into the door decided then passes.
   it('puts a chain of 0 to 4 gates in the end of tick 5, 5, 6, 6, 6 and in the decisions of tick 5, 6, 6, 6, 7', () => {
     const seen = CHAIN_GATE_COUNTS.map((gates) => chainFirstPowered('cc2', gates));
     expect(seen.map((s) => s.post)).toEqual(CHAIN_POWERED_AFTER_TICK);
@@ -439,9 +440,13 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
   it('a frame-1 arrival through one gate reaches the sink in the tick end, and the decisions of the next tick', () => {
     const engine = prePassLane(1);
     const seen: { decision: boolean | undefined; after: boolean }[] = [];
-    for (let i = 0; i < FRAME_ONE_ARRIVAL_TICKS; i++) seen.push(readAtDecisionAndAfter(() => engine.tick(), () => poweredAt(engine, SINK_X)));
+    let rose = false;
+    for (let i = 0; i < FRAME_ONE_ARRIVAL_TICKS; i++) {
+      seen.push(readAtDecisionAndAfter(() => engine.tick(), () => poweredAt(engine, SINK_X)));
+      if (i === 0) rose = risingInFrame2();
+    }
     expect(seen[0].after).toBe(true);
-    expect(risingInFrame2()).toBe(true);
+    expect(rose).toBe(true);
     expect(seen.map((s) => s.decision)).toEqual([false, true]);
   });
 
@@ -596,7 +601,7 @@ describe('the hidden state key and the capture of a gate-delay network (HK)', ()
     const dueAfterDeath = world(engine).cc2WireFrameNext;
     expect(dueAfterDeath).toBeDefined();
     // The phase still due is part of the hidden state key (part W), so two states that differ in it never share a key.
-    expect(cc2HiddenStateKey(world(engine))).toContain(`W${dueAfterDeath}`);
+    expect(cc2HiddenStateKey(world(engine)).split(HIDDEN_KEY_PART_SEPARATOR)).toContain(`W${dueAfterDeath}`);
     engine.restoreState(snapshot);
     expect(cc2HiddenStateKey(world(engine))).toBe(key);
     expect(engine.getPlayer().alive).toBe(true);
