@@ -779,6 +779,21 @@ export function stepStillRuns(p: PlayerState): boolean {
   return p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0;
 }
 
+/**
+ * CC2 engine: whether putting down `itemId` now would strip the boots that guard the hazard his step onto his own cell still has to
+ * be judged on (the judge runs when the step ends, so the drop would turn a safe step into a death). Lexy sets tools down at decision
+ * time only (game.js 989-990, 1577-1598), never mid-step, so a drop refused here matches a tap that CC2 cannot make. A spare pair
+ * held on a belt level is not refused: the worn pair stays.
+ */
+export function dropWouldUnguardPendingHazard(w: EpoxyWorld, itemId: string): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace) return false;
+  const p = w.player;
+  const at = p.cc3dArrival?.hazard;
+  if (at === undefined || at.x !== p.x || at.y !== p.y) return false;
+  if (ConfigRegistry.getTile(w.terrain[p.y][p.x]).protectedByItem !== itemId) return false;
+  return !(usesToolBelt(w) && (p.keys[itemId] ?? 0) > 0);
+}
+
 /** CC2 engine: marks the hazard of the cell (x, y) as pending on `p`: it is judged when his step ends (judgeHazardAtStepEnd). */
 export function deferHazardToStepEnd(p: PlayerState, x: number, y: number): void {
   cc3dArrivalOf(p).hazard = { x, y };
