@@ -898,9 +898,11 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const pass = currentEntityPass(w);
   const modifier = w.ccGenerators?.blobModifier;
   if (modifier !== undefined) parts.push(`m${modifier}`);
-  // A gate-delay network reads its gates' outputs of the last settle, so those outputs (and the latch bits) are state.
+  // A gate-delay network reads its gates' outputs of the last settle, so those outputs (and the latch bits) are state. A network with
+  // no delayed gate and no latch has none: its key stays as it was before the gate delay.
   const network = w.signals?.network;
-  if (network?.gateDelay === true && w.signals !== undefined) {
+  const keepsGateState = network?.nodes.some((node) => DELAYED_GATE_KINDS.has(node.kind) || node.kind === 'latch' || node.kind === 'dlatch') === true;
+  if (network?.gateDelay === true && keepsGateState && w.signals !== undefined) {
     const { lastOutputs, latchBits } = w.signals.state;
     const delayed = network.nodes.map((node, i) => (DELAYED_GATE_KINDS.has(node.kind) && lastOutputs[i] === true ? '1' : '0')).join('');
     parts.push(`g${delayed}/${latchBits.map((bit) => (bit ? '1' : '0')).join('')}`);
