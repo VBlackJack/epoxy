@@ -52,8 +52,9 @@ const LANE_TICKS = 24;
 const GATE_END_FRAMES: readonly number[] = [1, 2, 0];
 /** Measured on the code before the stamp: the tick the first shot of a launcher through 1, 2, 3 OR gates is in flight. */
 const LAUNCHER_FIRST_SHOT_TICKS: readonly number[] = [5, 5, 5];
-/** Measured on the code before the stamp: the ball template through 1 OR, released at the fifth tick, steps out and on (position:cooldown). */
-const BALL_TRACE_ONE_OR = '9:0 9:0 9:0 9:0 10:3/9:0 10:2/9:0 10:1/9:0 10:0/9:0 11:3/9:0 11:2/9:0 11:1/9:0 11:0/9:0';
+/** Measured on the code before the stamp: the ball template through 1, 2 and 3 ORs (position:cooldown:frame tag per monster, per tick). */
+const BALL_TRACE = '9:0:- 9:0:- 9:0:- 9:0:- 10:3:-/9:0:- 10:2:-/9:0:- 10:1:-/9:0:- 10:0:-/9:0:- 11:3:-/9:0:- 11:2:-/9:0:- 11:1:-/9:0:- 11:0:-/9:0:-';
+const BALL_TRACES: readonly string[] = [BALL_TRACE, BALL_TRACE, BALL_TRACE];
 /** Ticks of the ball trace the guard pins. */
 const BALL_TRACE_TICKS = 12;
 /** The gate counts of the lanes or1, oror, oror3. */
@@ -120,7 +121,7 @@ function launcherFirstShotTick(gates: number): number {
   return -1;
 }
 
-/** The position and cooldown of every monster, per tick, of a ball template cloned through `gates` OR gates. */
+/** The position, cooldown and frame tag of every monster, per tick, of a ball template cloned through `gates` OR gates. */
 function ballTrace(gates: number): string {
   const engine = orChain(gates, CLONE_MACHINE, BALL);
   const trace: string[] = [];
@@ -130,7 +131,7 @@ function ballTrace(gates: number): string {
       engine
         .getEntities()
         .filter((e) => e.kind === 'monster')
-        .map((e) => `${e.x}:${e.cooldownTicks}`)
+        .map((e) => `${e.x}:${e.cooldownTicks}:${e.cc2Frame ?? '-'}`)
         .join('/')
     );
   }
@@ -144,8 +145,9 @@ describe('C: scope guards (the stamp is for block clones released by a clone mac
     expect(GATE_COUNTS.map(launcherFirstShotTick)).toEqual(LAUNCHER_FIRST_SHOT_TICKS);
   });
 
-  it('a ball template through an OR keeps its cooldown trace (blocks only)', () => {
-    expect(ballTrace(1)).toBe(BALL_TRACE_ONE_OR);
+  // A guard: the traces carry the frame tag (cc2Frame) of every ball, so a stamp widened to monster templates (a tag only, no
+  // visible move change) fails here.
+  it('a ball template through 1, 2 and 3 ORs keeps its cooldown and frame trace (blocks only)', () => {
+    expect(GATE_COUNTS.map(ballTrace)).toEqual(BALL_TRACES);
   });
 });
-
