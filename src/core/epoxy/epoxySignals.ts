@@ -390,6 +390,7 @@ function gateSubSettleLevels(
     return [f0];
   }
   const early = new Map<number, boolean>();
+  const width = mapWidth(w);
   for (const i of network.sourceIndexes) {
     const cell = network.nodes[i].cell;
     const was = runtime.state.lastOutputs[i] === true;
@@ -399,7 +400,6 @@ function gateSubSettleLevels(
     // The frame-2 phase also lets in an arrival whose step ends in frame 2 (a clone's cc2Frame) and a toggle switch.
     // An orange button acts on its flame jet in the action phase of the step that leaves it (Lexy button_orange on_depart, no circuit):
     // a change of its level with nothing left on it is a departure, a frame-2 event (an arrival keeps the frame-1 timing).
-    const width = mapWidth(w);
     const bx = cell % width;
     const by = Math.floor(cell / width);
     const departed = was !== now && BUTTON_LINK_SOURCE_TILE_IDS.has(w.terrain[by]?.[bx] ?? '') &&
@@ -419,7 +419,7 @@ function arrivalFrameAt(w: EpoxyWorld, cell: number): 0 | 1 | 2 | undefined {
   let best: 0 | 1 | 2 | undefined;
   for (const e of w.entities) {
     if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
-    const frame = e.cc2Frame !== undefined ? e.cc2Frame : CC2_DEFAULT_FRAME;
+    const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
     if (best === undefined || PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
   }
   return best;
@@ -634,13 +634,13 @@ export function fireSignalSinks(
     if (framePhase !== undefined) {
       const deferredF = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
       w.cc2DeferredSinkEdges = [...waiting, ...deferredF];
-      // Each edge is a release of frame `framePhase`: a monster clone carries that press frame (its step ends in frame f - 1, see
-      // tagCloneFrame), a block clone takes the GateRelease stamp.
+      // Each edge is a release of frame `framePhase` (cc2ReleaseFrame): the clone carries that press frame (a monster's step ends in
+      // frame f - 1, see tagCloneFrame) and a block clone's 12-frame step ends PLAIN_CLONE_STEP_END_FRAMES after it (spawnFromCloner).
       for (const edge of edgesNow.filter((e) => !deferredF.includes(e))) {
         if (!w.player.alive || w.levelCompleted) return;
         w.cc2ReleaseFrame = framePhase;
         try {
-          fireEdges(ctx, [edge], (e) => frameGateRelease(runtime, e, framePhase), true);
+          fireEdges(ctx, [edge], undefined, true);
         } finally {
           delete w.cc2ReleaseFrame;
         }
@@ -677,18 +677,6 @@ function tickEndGateRelease(runtime: SignalRuntime, edge: SignalEdge, subOf: Rea
   const sub = subOf.get(edge);
   if (sub === undefined) return undefined;
   return { frame: TICK_END_SUB_FRAMES[sub - 1], total: TICK_END_FIRST_RELEASE_TOTAL + sub - 1 };
-}
-
-/**
- * The stamp of a rising edge of a gate-timed clone machine raised by the frame-`frame` wire phase: released at that frame, its 12-frame
- * step ends `frame` + 11 frames after frame 0 of this tic, counted (the pre-pass of the tic may still be ahead: no actor order, or a phase
- * run without the pre-pass). Undefined for a launcher, a falling edge or a sink with a source wired straight in.
- */
-function frameGateRelease(runtime: SignalRuntime, edge: SignalEdge, frame: 0 | 1): GateRelease | undefined {
-  const index = runtime.network.indexOfCell.get(edge.cell);
-  if (!edge.rising || index === undefined || runtime.defs.get(index)?.fires !== 'cloner') return undefined;
-  if (isDirectSink(runtime, edge.cell) || !gateDelayedSink(runtime, edge.cell)) return undefined;
-  return { frame, total: frame + PLAIN_CLONE_STEP_END_FRAMES, counted: true };
 }
 
 /**
@@ -800,7 +788,7 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
       const y = Math.floor(node.cell / width);
       for (const e of w.entities) {
         if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
-        const frame = e.cc2Frame !== undefined ? e.cc2Frame : CC2_DEFAULT_FRAME;
+        const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
         if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
       }
     }
@@ -815,7 +803,8 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
  * next pass (game.js:872-876). Each edge fires on its own with w.cc2ReleaseFrame = `forcedFrame` or the frame of its press
  * (pressFrameOfSink), and with w.cc2BeforePass set so the pass counts a clone let out down at once; both are cleared in a
  * finally. The edges of sinks fed by a gate keep waiting (put back in front of the edges deferred meanwhile) and fire at the end of
- * the tick as before. `forcedFrame` is 0 at tic 0. Does nothing off the CC2 engine or under cc3dPace.
+ * the tick as before. `forcedFrame` is 0 at tic 0. `frameRelease`: the call comes from a frame-0 or frame-1 wire phase (runFrameWirePhase),
+ * so a clone it releases is a frame release (see spawnFromCloner). Does nothing off the CC2 engine or under cc3dPace.
  */
 export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2, frameRelease = false): void {
   const w = ctx.world;

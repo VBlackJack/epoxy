@@ -502,8 +502,6 @@ export function fireClonerAt(ctx: EpoxyContext, cx: number, cy: number, byWire =
 export interface GateRelease {
   frame: 0 | 1 | 2;
   total: number;
-  /** The pre-pass still to run in this tic counts the wait (a frame-0 or frame-1 phase release); a tick-end release is past it. */
-  counted?: boolean;
 }
 
 /** CC2 engine: ticks added to the wait of a creature or block cloned before the entity pass of the tick (see spawnFromCloner). */
@@ -738,8 +736,9 @@ function spawnFromClonerOneWay(
     // The template that went out has had (or will not have) its turn for this pass: it acts from the next one.
     // CC2 engine, actor order: the player's turn is part of the pass, so a template fired during it has had its turn too.
     // A clone a frame-0 or frame-1 wire phase releases is in the list before the frame-2 actions of its tic, which count its step down
-    // (Lexy game.js:872-889; Boiler t4f1 release, step t8f2; lanes arrball, arrfireball): its template has not had its turn yet.
-    if (!frameRelease && (w.ccPassOpen || (w.inTick && w.cc2TurnSeen !== undefined))) (w.cc2SkipTurn ??= new Set<number>()).add(template.uid);
+    // (Lexy game.js:872-889; Boiler t4f1 release, step t8f2; lanes arrball, arrfireball): its template has not had its turn yet. The
+    // frame phase runs with the pass view closed, so this test already reads false for it.
+    if (w.ccPassOpen || (w.inTick && w.cc2TurnSeen !== undefined)) (w.cc2SkipTurn ??= new Set<number>()).add(template.uid);
     spawned = template;
   } else {
     addClonedEntity(w, spawned);
@@ -762,12 +761,13 @@ function spawnFromClonerOneWay(
     // The same for a block: its first wait is counted down by the pass that follows.
     if (beforePass && w.entities.includes(spawned)) spawned.cooldownTicks += CC2_CLONE_BEFORE_PASS_TICKS;
     // The wire phase that released the clone is frame p of the tic; the out-of-turn step spends a frame at once, so a frame-2
-    // release ends a tick sooner and the clone carries frame p - 1 for its own press (Lexy game.js:2218-2242, 872-888).
+    // release ends a tick sooner and the clone carries frame p - 1 for its own press (Lexy game.js:2218-2242, 872-888). A frame-0 or
+    // frame-1 phase release has no stamp: its press frame (releaseFrame) below carries the frame.
     if (cc2Clone && gateRelease !== undefined && w.entities.includes(spawned)) {
       // A clone a gate-timed tick-end wire phase releases: its out-of-turn step starts in that phase (no late-release shortening) and
       // ends at the frame total, counted from frame 0 of this tic; the pre-pass still to run is not in the wait (the release is after it).
       tagCloneFrame(spawned, gateRelease.frame);
-      if (spawned.arrivalTicks !== undefined) holdFrameArrival(w, spawned, gateRelease.total, gateRelease.counted === true);
+      if (spawned.arrivalTicks !== undefined) holdFrameArrival(w, spawned, gateRelease.total, false);
       else if (spawned.isSliding) tagSlideFrame(w, spawned, gateRelease.frame, CLONE_SLIDE_TICKS);
       return true;
     }
