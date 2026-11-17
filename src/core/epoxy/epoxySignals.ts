@@ -296,7 +296,7 @@ export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
 /**
  * The Lexy wire phases a settle stands for on a gate-delay network, which is how often the delayed gates step in it. 'hold' stands for
  * none: the gates keep their outputs. 'tickEnd' is the three phases from the frame-2 one of this tic to the frame-1 one of the next
- * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, of which only the second is a gate step (see
+ * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, both gate steps, the first from all-off wires (see
  * TIC0_SUB_SETTLES); 'prePass0' and 'prePass1' the phases a block
  * arrival of frame 0 or frame 1 of the pre-pass reaches before the decisions.
  */
@@ -310,12 +310,16 @@ export const GATE_SETTLE_PRE_PASS1: GateSettle = 'prePass1';
 const TICK_END_SUB_SETTLES = 3;
 /**
  * Gate sub-settles of the tic-0 settle. The oracle runs the emulate_60fps loop (compat.emulate_60fps, game.js:839-843, then
- * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. Every
- * gate reads the powered edges of the last wire phase and the wires start all off (game.js:602, 728), so f0 only carries the sources
- * onto the wires and the gates step from f1: one gate step before the first decision, not two. A chain of two gates fed by plates
- * held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. The
+ * wires start all off (game.js:602, 728) and every gate reads the powered edges of the last wire phase, so f0 is a gate step too: it runs
+ * from all-off wires (a NOT emits, a source feeds nothing yet; the first sub-settle reads the off copy, see allOffState), and f1 is the
+ * step on the sources. Two gate steps before the first decision: a NOT whose plate is held at load is on in f0, so its clone machine fires
+ * before f1 reads the plate and drops it (Lexy lanes notheld / notempty), a counter fed by a plate held at load counts one in f1 (cntheld,
+ * cntnot). A chain of two gates fed by plates held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
  */
-const TIC0_SUB_SETTLES = 1;
+const TIC0_SUB_SETTLES = 2;
+/** The 1-based tic-0 sub-settle (f0) that reads the all-off wires. */
+const TIC0_ALL_OFF_SUB_SETTLE = 1;
 /**
  * The 1-based gate sub-settle each edge of a settle came from (side table on the transient edge objects, never in the runtime state, a
  * snapshot or a hash). Only a multi-phase settle records it; fireSignalSinks reads it for a tick-end gate release.
@@ -361,6 +365,22 @@ function gateSubSettleLevels(
 }
 
 /**
+ * A copy of `state` with every wire as it is at level load in Lexy (game.js:602, 728): the output of every source, delayed gate, latch,
+ * data latch and counter reads off. The sinks keep their own level (the edge compares against it) and the counters keep their
+ * underflow output (the held output a counter at zero gives is not a wire phase's).
+ */
+function allOffState(network: SignalNetwork, state: SignalState): SignalState {
+  const off = cloneSignalState(state);
+  network.nodes.forEach((node, index) => {
+    if (node.kind === 'source' || DELAYED_GATE_KINDS.has(node.kind) || ALL_OFF_STATE_KINDS.has(node.kind)) off.lastOutputs[index] = false;
+  });
+  return off;
+}
+
+/** The memory gates whose output also reads off in the all-off phase of tic 0. */
+const ALL_OFF_STATE_KINDS: ReadonlySet<string> = new Set(['latch', 'dlatch', 'counter']);
+
+/**
  * Settles the level's signal network from the world as it is now and keeps the new state. Does nothing on a
  * level without signals. The beams are refreshed first (a trace only when something moved), so a receiver
  * source never reads the trace of the pass before. With `prime` (level load) it only records, no edge. Settle before the hold doors are set, so a door follows
@@ -395,8 +415,10 @@ export function settleWorldSignals(
       let last: SettleResult | undefined;
       let sub = 0;
       for (const levels of subLevels) {
-        last = settleSignals(runtime.network, current, levels);
         sub++;
+        // Tic 0, frame-0 wire phase: it runs from all-off wires, so every source and delayed gate (and latch, data latch, counter) reads off.
+        const from = gates === GATE_SETTLE_TIC0 && sub === TIC0_ALL_OFF_SUB_SETTLE ? allOffState(runtime.network, current) : current;
+        last = settleSignals(runtime.network, from, levels);
         for (const edge of last.edges) EDGE_SUB_SETTLE.set(edge, sub);
         edges.push(...last.edges);
         current = last.state;
