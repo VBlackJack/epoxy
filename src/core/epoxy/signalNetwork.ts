@@ -130,8 +130,11 @@ export interface SignalNetworkOptions {
 /** The combinational gate kinds a gate-delay network delays by one wire phase (latches, data latches and counters are not delayed). */
 export const DELAYED_GATE_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['and', 'or', 'not', 'xor', 'nand']);
 
-/** The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). */
-const SELF_LOOP_KINDS: ReadonlySet<SignalNodeKind> = new Set<SignalNodeKind>(['or', 'not']);
+/**
+ * The gate kinds whose self loop is no cycle on a gate-delay network (the kinds a CC2 level wires to their own output). The one set the
+ * stored self links (signalLinks.ts), the CC2 wire reader (cc2Wires.ts) and the network build read.
+ */
+export const SELF_LOOP_KINDS: ReadonlySet<string> = new Set<string>(['or', 'not']);
 
 export interface SignalSinkOutput {
   cell: number;

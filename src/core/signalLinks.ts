@@ -40,6 +40,7 @@ import {
 } from './coreConstants';
 import { canonicalSignalPort, isSignalPort } from './signalPorts';
 import { usesCc2Engine } from './epoxy/ccRules';
+import { SELF_LOOP_KINDS } from './epoxy/signalNetwork';
 import type { CellUnderlay, CompiledLevel, SignalLink, SignalNodeDef, SignalSpec, TileDefinition } from './types';
 
 /** What a tile is to a signal network. */
@@ -192,8 +193,6 @@ export function normalizeSignalLinks(
   );
 }
 
-/** The node kinds a stored CC2 self link may name: the OR and NOT gates a CC2 level wires to their own output. */
-const SELF_LINK_NODE_KINDS: ReadonlySet<string> = new Set(['or', 'not']);
 
 /**
  * The signal network of a level, or undefined when it has no signal link left after normalizing. The
@@ -231,7 +230,7 @@ export function compileSignalSpec(
       const cell: unknown = self[i];
       if (!Number.isInteger(cell) || (cell as number) < 0 || (cell as number) >= cellCount || (i > 0 && (cell as number) <= (self[i - 1] as number))) continue;
       const def = nodes.get(cell as number);
-      if (def === undefined || !SELF_LINK_NODE_KINDS.has(def.kind)) continue;
+      if (def === undefined || !SELF_LOOP_KINDS.has(def.kind)) continue;
       specLinks.push({ from: cell as number, to: cell as number });
     }
   }

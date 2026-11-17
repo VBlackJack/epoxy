@@ -15,6 +15,7 @@
  */
 
 import { formatSignalPort } from '../core/signalPorts';
+import { SELF_LOOP_KINDS } from '../core/epoxy/signalNetwork';
 import type { SignalLink } from '../core/types';
 import type { Cc2Map } from './cc2Model';
 import { Cc2Layer } from './cc2Model';
@@ -208,9 +209,6 @@ export interface Cc2WireResult {
    */
   selfLinks?: number[];
 }
-
-/** The gate kinds that keep a self link: the two a CC2 level wires to their own output (the others drop it). */
-const SELF_LINK_GATE_KINDS: ReadonlySet<string> = new Set(['or', 'not']);
 
 function terrainTile(cell: { tiles: { code: number; mod?: number }[] }): { code: number; mod?: number } | undefined {
   for (let i = cell.tiles.length - 1; i >= 0; i--) {
@@ -529,7 +527,7 @@ export function buildCc2Wires(map: Cc2Map, options: Cc2WireOptions = {}): Cc2Wir
     if (from === to) {
       // Only a supported OR or NOT gate keeps its self link; the other kinds drop it, as before.
       const own = cells[from] as CellInfo;
-      if (own.role === 'gate' && own.supported && SELF_LINK_GATE_KINDS.has(own.gate?.kind as string)) selfLinks.add(from);
+      if (own.role === 'gate' && own.supported && SELF_LOOP_KINDS.has(own.gate?.kind as string)) selfLinks.add(from);
       return;
     }
     const source = cells[from] as CellInfo;
