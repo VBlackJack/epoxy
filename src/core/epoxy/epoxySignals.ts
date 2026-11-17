@@ -296,7 +296,8 @@ export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
 /**
  * The Lexy wire phases a settle stands for on a gate-delay network, which is how often the delayed gates step in it. 'hold' stands for
  * none: the gates keep their outputs. 'tickEnd' is the three phases from the frame-2 one of this tic to the frame-1 one of the next
- * (game.js:869-888); 'tic0' the two early phases (f0, f1) before the first decisions; 'prePass0' and 'prePass1' the phases a block
+ * (game.js:872-889); 'tic0' the early phases (f0, f1) before the first decisions, of which only the second is a gate step (see
+ * TIC0_SUB_SETTLES); 'prePass0' and 'prePass1' the phases a block
  * arrival of frame 0 or frame 1 of the pre-pass reaches before the decisions.
  */
 export type GateSettle = 'hold' | 'tickEnd' | 'tic0' | 'prePass0' | 'prePass1';
@@ -307,8 +308,14 @@ export const GATE_SETTLE_PRE_PASS0: GateSettle = 'prePass0';
 export const GATE_SETTLE_PRE_PASS1: GateSettle = 'prePass1';
 /** Gate sub-settles of the tick-end settle (see GateSettle). */
 const TICK_END_SUB_SETTLES = 3;
-/** Gate sub-settles of the tic-0 settle. */
-const TIC0_SUB_SETTLES = 2;
+/**
+ * Gate sub-settles of the tic-0 settle. The oracle runs the emulate_60fps loop (compat.emulate_60fps, game.js:839-843, then
+ * _advance_tic_lynx60, game.js:872-889): the first decision of a non-forced move is at frame 2, after the wire phases f0 and f1. Every
+ * gate reads the powered edges of the last wire phase and the wires start all off (game.js:602, 728), so f0 only carries the sources
+ * onto the wires and the gates step from f1: one gate step before the first decision, not two. A chain of two gates fed by plates
+ * held at load has not opened its door at the first decision (Lexy lane, wave 17 review).
+ */
+const TIC0_SUB_SETTLES = 1;
 /** Gate sub-settles after a frame-0 arrival of the pre-pass: it reaches the f0 and the f1 wire phase. */
 const PRE_PASS0_SUB_SETTLES = 2;
 /** Gate sub-settles after a frame-1 arrival of the pre-pass: it reaches the f1 wire phase only. */
@@ -350,7 +357,9 @@ function gateSubSettleLevels(
  *
  * Gate-delay network (CC2 engine): `gates` says which Lexy wire phases the settle stands for (see GateSettle). The delayed gates step
  * once per phase, each sub-settle reading the levels of its phase; the edges of every sub-settle are returned in order (a sink may
- * rise and fall inside one settle). Any other settle holds the delayed gates. The prime settle is unchanged.
+ * rise and fall inside one settle). Any other settle holds the delayed gates. The prime settle (level load) steps no gate phase:
+ * the gate outputs are computed once from the gates' own initial (all off) outputs and no edge is reported, as at load every Lexy
+ * wire is off (game.js:602, 728); the gate phases before the first decision belong to the tic-0 settle (GATE_SETTLE_TIC0).
  */
 export function settleWorldSignals(
   w: EpoxyWorld,
@@ -362,9 +371,11 @@ export function settleWorldSignals(
   if (runtime === undefined) return [];
   refreshBeams(w);
   const sampled = sampleSources(w, runtime, prime, phase);
-  const subLevels = runtime.network.gateDelay === true && !prime ? gateSubSettleLevels(runtime, gates, sampled) : undefined;
+  // The load prime steps no gate phase (see above); every later settle of a gate-delay network does.
+  const stepsGates = runtime.network.gateDelay === true && !prime;
+  const subLevels = stepsGates ? gateSubSettleLevels(runtime, gates, sampled) : undefined;
   let result: SettleResult;
-  if (runtime.network.gateDelay === true && !prime) {
+  if (stepsGates) {
     if (subLevels === undefined) result = settleSignals(runtime.network, runtime.state, sampled, false, true);
     else {
       let current = runtime.state;
@@ -457,6 +468,9 @@ export function copySignalState(w: EpoxyWorld): SignalState | undefined {
  * soon as the player is dead or the level is completed. Only a rising edge fires, except a wired flip tile (a purple wall or a
  * wired flame jet), which flips on a falling edge too; on a CC2 level a wired flame jet flips on the rising edge only, unless an
  * orange button works it.
+ *
+ * Gate-delay network (CC2 engine, tick phase): the phase a gate adds is already in the levels, so a clone machine or launcher fed
+ * only through delayed gates is the exception to the deferral below: it fires in the settle where its edge rises (see gateDelayedSink).
  *
  * CC2 engine: a clone machine or launcher fired by a wire acts one wire phase later (Lexy runs the wire phase after the action
  * phase, game.js:822-866, and a cloner acts on power at tiletypes.js:1750). Its rising edge waits in

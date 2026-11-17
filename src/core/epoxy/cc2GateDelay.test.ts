@@ -16,9 +16,13 @@
 
 /**
  * CC2 wave 17, the wire model of the CC2 engine: a logic gate adds one wire phase (Lexy tiletypes.js logic_gate is_emitting reads the
- * powered edges of the last wire phase; game.js do_wire_phase), a tick end stands for three wire phases and tic 0 for two early ones
- * (game.js:854-865), an OR or a NOT gate wired to its own input latches or clocks, and a clone machine fed through delayed gates fires
- * in the settle where its edge rises. Native, .DAT and CC1 levels keep the gates in the phase of their inputs.
+ * powered edges of the last wire phase; game.js do_wire_phase), a tick end stands for three wire phases and tic 0 for one early gate
+ * step, an OR or a NOT gate wired to its own input latches or clocks, and a clone machine fed through delayed gates fires in the
+ * settle where its edge rises. Native, .DAT and CC1 levels keep the gates in the phase of their inputs.
+ *
+ * The Lexy loop every citation here means is the one the oracle runs: compat.emulate_60fps (game.js:839-843) selects
+ * _advance_tic_lynx60 (game.js:872-889), three frames of decision, action and wire phase; the first non-forced decision is at frame 2,
+ * so it sees the wire phases f0 and f1, and f0 only carries the sources onto the wires (every wire starts off, game.js:602, 728).
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -59,6 +63,7 @@ const LATCH = 'signal_latch_off';
 const COUNTER = 'signal_counter_0_cc2';
 const PLATE = 'signal_plate';
 const DOOR = 'hold_door_red_closed';
+const PURPLE_WALL = 'purple_wall';
 const TRAP = 'trap_wired';
 const CLONE_MACHINE = 'clone_machine';
 const BLOCK = 'dirt_block';
@@ -123,7 +128,7 @@ function chainPoweredTick(mode: RoomMode, gates: number): number {
 }
 
 describe('a logic gate adds one wire phase (GPD, GPD3)', () => {
-  // Lexy game.js:862-865 runs three wire phases at the end of a tic, and a gate emits from the powered edges of the last phase:
+  // Lexy game.js:872-889 runs a wire phase at the end of each of the three frames of a tic, and a gate emits from the powered edges of the last phase:
   // a source that changed reaches a sink through k gates in the k-th phase after it. One to three gates land in the same tick end,
   // the fourth gate waits for the next one.
   it('puts a chain of 1 to 3 gates in the tick end after a direct wire, and 4 gates one tick end later', () => {
@@ -200,9 +205,27 @@ describe('an OR or a NOT gate wired to its own input (GSL, GPD3)', () => {
     expect(history[history.length - 1]).toBe(0);
   });
 
-  // A NOT on its own output toggles once per wire phase: three times a tick end (game.js:862-865), and holds in a move settle. A
-  // counter wired to it counts its rising edges: 2, 1, 2, 1 a tick end.
-  it('a NOT clock counts 2, 1, 2, 1 rising edges per tick end through a counter', () => {
+  // A NOT on its own output toggles once per wire phase: three times a tick end (game.js:872-889), and holds in a move settle. Lexy lane
+  // (a NOT wired to its own input, a purple wall on its output circuit, the player one step into the wall at tic t only; dump.mjs on the
+  // .c2m): the step succeeds at tics 1, 3, 5 and is refused at 0, 2, 4, 6, because the clock has run one gate step before the first
+  // decision (TIC0_SUB_SETTLES). With two tic-0 gate steps the clock is in the other phase and the pattern is inverted.
+  it('a NOT clock leaves the wall it toggles open at the decisions of tics 1, 3, 5 only', () => {
+    const OPEN_AT = [false, true, false, true, false, true];
+    const stepsThrough = (waitTicks: number): boolean => {
+      const tiles: [string, string][] = [at(GATE_X, NOT_GATE), at(SINK_X, PURPLE_WALL)];
+      const engine = load(build('cc2', tiles, [link(GATE_X, SINK_X)], { selfLinks: [cell(GATE_X)], startX: FAR_START_X }));
+      for (let i = 0; i < waitTicks; i++) engine.tick();
+      engine.attemptPlayerMove('E');
+      engine.tick();
+      return engine.getPlayer().x === SINK_X;
+    };
+    expect(OPEN_AT.map((_, tic) => stepsThrough(tic))).toEqual(OPEN_AT);
+  });
+
+  // The same clock through a counter: 1, 2, 1, 2 rising edges a tick end from the second tick. Lexy's own counter reads 2, 1, 2, 1 there
+  // (counter lane, memory after each tic): a counter is a gate in Lexy and lags its input by one wire phase, which Epoxy's counter does
+  // not model; the clock itself (the wall lane above) is in Lexy's phase.
+  it('a NOT clock counts 1, 2, 1, 2 rising edges per tick end through a counter', () => {
     const tiles: [string, string][] = [at(GATE_X, NOT_GATE), at(SINK_X, COUNTER)];
     const engine = load(build('cc2', tiles, [link(GATE_X, SINK_X, 'in0')], { selfLinks: [cell(GATE_X)] }));
     const counts: number[] = [];
@@ -211,7 +234,7 @@ describe('an OR or a NOT gate wired to its own input (GSL, GPD3)', () => {
       counts.push(engine.getCounterValues()?.get(cell(SINK_X)) as number);
     }
     // The first tick adds the tic-0 phases; from the second the pattern is steady.
-    expect(counts.slice(1).map((count, i) => count - counts[i])).toEqual([2, 1, 2, 1]);
+    expect(counts.slice(1).map((count, i) => count - counts[i])).toEqual([1, 2, 1, 2]);
   });
 });
 
@@ -319,7 +342,7 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
   /** The tick-end settles of the tick that carried the sink's rising edge, and whether the sink is on once the tick is over. */
   const risingInTickEnd = (): boolean => settleCalls.some((call) => call.gates === 'tickEnd' && call.edges.some((edge) => edge.rising && edge.cell === cell(SINK_X)));
 
-  // Lexy game.js:869-888: a frame-0 arrival reaches the f0 and the f1 wire phase before the decisions (two gate steps), a frame-1
+  // Lexy game.js:872-889: a frame-0 arrival reaches the f0 and the f1 wire phase before the decisions (two gate steps), a frame-1
   // arrival only the f1 one (one step): the gate sink rises in the pre-pass after the first (the tick end finds it risen already), in
   // the tick end after the second.
   it('a frame-0 arrival through one gate reaches the sink in the pre-pass, before the decisions', () => {
@@ -329,6 +352,8 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
     expect(risingInTickEnd()).toBe(false);
   });
 
+  // A pin of the placement measured on the level replays, not a guard: no Lexy lane was built for it and it was not checked to fail
+  // without the one-step rule of GPDP.
   it('a frame-1 arrival through one gate reaches the sink only in the tick end', () => {
     const engine = prePassLane(1);
     engine.tick();
@@ -336,28 +361,82 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
     expect(risingInTickEnd()).toBe(true);
   });
 
-  // Lexy game.js:854-855: tic 0 runs two early wire phases, so an AND of two plates held at load drives its door at the first decision.
-  function doorPassed(mode: RoomMode): boolean {
-    const tiles: [string, string][] = [at(PLATE_X, PLATE), at(SECOND_PLATE_X, PLATE), at(GATE_X, AND_GATE), at(SINK_X, DOOR)];
-    const links = [link(PLATE_X, GATE_X, 'in0'), link(SECOND_PLATE_X, GATE_X, 'in1'), link(GATE_X, SINK_X)];
+  // Lexy lane (a purple wall fed by a pink plate held by a block at load through k diode gates, the player one step west into it at
+  // tic 0; dump.mjs on the .c2m): the player stands in the wall cell after tic 0 with k = 0 and k = 1, and has been refused with k = 2
+  // (a refused step is not retried). The two wire phases before the first decision (game.js:872-882) give one gate step.
+  function doorPassed(mode: RoomMode, tiles: [string, string][], links: SignalLink[], plates: readonly number[]): boolean {
     const engine = load(
       build(mode, tiles, links, {
         startX: FAR_START_X,
-        entities: [{ type: BLOCK, x: PLATE_X, y: ROOM_ROW, dir: 'E' }, { type: BLOCK, x: SECOND_PLATE_X, y: ROOM_ROW, dir: 'E' }]
+        entities: plates.map((x) => ({ type: BLOCK, x, y: ROOM_ROW, dir: 'E' }))
       })
     );
     engine.attemptPlayerMove('E');
     engine.tick();
     return engine.getPlayer().x === SINK_X;
   }
+  const andDoor = (mode: RoomMode): boolean =>
+    doorPassed(
+      mode,
+      [at(PLATE_X, PLATE), at(SECOND_PLATE_X, PLATE), at(GATE_X, AND_GATE), at(SINK_X, DOOR)],
+      [link(PLATE_X, GATE_X, 'in0'), link(SECOND_PLATE_X, GATE_X, 'in1'), link(GATE_X, SINK_X)],
+      [PLATE_X, SECOND_PLATE_X]
+    );
+  const chainDoor = (mode: RoomMode, gates: number): boolean => {
+    const gateXs = Array.from({ length: gates }, (_, i) => GATE_X + i);
+    const xs = [PLATE_X, ...gateXs, SINK_X];
+    return doorPassed(
+      mode,
+      [at(PLATE_X, PLATE), ...gateXs.map((x): [string, string] => at(x, OR_GATE)), at(SINK_X, DOOR)],
+      xs.slice(1).map((x, i) => link(xs[i], x)),
+      [PLATE_X]
+    );
+  };
 
   it('opens the door of an AND of two block-held plates at the first decision', () => {
-    expect(doorPassed('cc2')).toBe(true);
-    expect(doorPassed('native')).toBe(true);
+    expect(andDoor('cc2')).toBe(true);
+    expect(andDoor('native')).toBe(true);
+  });
+
+  it('opens the door behind one gate at the first decision and keeps it shut behind two chained gates', () => {
+    expect(chainDoor('cc2', 0)).toBe(true);
+    expect(chainDoor('cc2', 1)).toBe(true);
+    expect(chainDoor('cc2', 2)).toBe(false);
+  });
+
+  it('leaves a native chain of two gates open at the first decision', () => {
+    expect(chainDoor('native', 2)).toBe(true);
+  });
+
+  // Lexy lane (a pink plate, held or not by a block at load, a NOT gate, a clone machine): with the plate empty the NOT emits at once and
+  // the clone appears at tic 0. With the plate held the NOT also emits in the first wire phase (it reads every wire off), then falls:
+  // Lexy clones once at tic 0 there too. Epoxy does not: this pins the open divergence (a NOT whose source is on at load never rises).
+  function notCloneBlocks(held: boolean): number {
+    const tiles: [string, string][] = [at(PLATE_X, PLATE), at(GATE_X, NOT_GATE), at(SINK_X, CLONE_MACHINE)];
+    const entities: EntityPlacement[] = [{ type: BLOCK, x: SINK_X, y: ROOM_ROW, dir: 'E' }, ...(held ? [{ type: BLOCK, x: PLATE_X, y: ROOM_ROW, dir: 'E' as const }] : [])];
+    const engine = load(build('cc2', tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)], { startX: FAR_START_X, entities }));
+    engine.tick();
+    return engine.getEntities().filter((e) => e.type === BLOCK && e.x === CLONE_X).length;
+  }
+
+  it('fires the clone machine of a NOT whose plate is empty at tic 0', () => {
+    expect(notCloneBlocks(false)).toBe(1);
+  });
+
+  it('pin: a NOT whose plate is held at load does not fire its clone machine (Lexy fires it once at tic 0)', () => {
+    expect(notCloneBlocks(true)).toBe(0);
   });
 });
 
 describe('the hidden state key and the capture of a gate-delay network (HK)', () => {
+  // A gate-delay network with no delayed gate and no latch has no gate state: its key is the one it had before the gate delay.
+  it('keeps no gate part on a CC2 network of plates and doors only', () => {
+    const engine = load(build('cc2', [at(PLATE_X, PLATE), at(SINK_X, DOOR)], [link(PLATE_X, SINK_X)]));
+    engine.attemptPlayerMove('E');
+    for (let i = 0; i < LANE_TICKS; i++) engine.tick();
+    expect(cc2HiddenStateKey(world(engine))).not.toMatch(/g[01]*\//);
+  });
+
   function doorLane(mode: RoomMode): GameEngine {
     const tiles: [string, string][] = [at(PLATE_X, PLATE), at(GATE_X, OR_GATE), at(SINK_X, DOOR)];
     return load(build(mode, tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)]));
