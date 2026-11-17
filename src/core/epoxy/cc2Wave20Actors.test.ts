@@ -259,7 +259,7 @@ describe('JET: a lit flame jet burns the player when his step onto it ends (CC2 
 
   it('a step onto water still sets inWater at once, and a step from the water onto a lit jet clears it', () => {
     // Water boots keep him alive in the water. The jet block returns early to wait for the step end: inWater is assigned before it,
-    // so the step onto the jet no longer leaves the value of the water behind (F6a). Water death timing is not part of JET (wave 21).
+    // so the step onto the jet no longer leaves the value of the water behind (F6a). Water deaths are judged at the step end since wave 21; with flippers he lives either way.
     const waterX = 3;
     const jetX = 4;
     const level = room({ mode: 'cc2', startX: 2, terrain: { [`${waterX},${ROOM_ROW}`]: 'water', [`${jetX},${ROOM_ROW}`]: 'flame_jet_cc2_on' } });

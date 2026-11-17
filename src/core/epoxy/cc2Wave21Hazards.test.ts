@@ -38,7 +38,7 @@ import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
-import type { CompiledLevel, Direction, SignalLink } from '../types';
+import type { CompiledLevel, Direction, PlayerState, SignalLink } from '../types';
 import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
@@ -72,6 +72,32 @@ const CLASSIC_JET_OFF = 'flame_jet_off';
 const CLASSIC_JET_ON = 'flame_jet_on';
 const WATER = 'water';
 const FLOOR_ROW_OFFSET = 2;
+/** The x of the hazard cell and of the jet in the rooms and lanes (the player starts at START_X, one cell west of the first hazard). */
+const START_X = 2;
+const HAZARD_X = 3;
+const PLATE_X = 6;
+const GLIDER_X = 7;
+/** Lanes hz_*: Lexy has the player dead at the end of t4, so he is alive after tick 4 and dead after tick 5 (tick k plays tic k - 1). */
+const HZ_ALIVE_TICK = 4;
+const HZ_DEAD_TICK = 5;
+/** Lanes ff_water, ice_fire, ice_water, tele_water: the slide step ends in the hazard, Lexy t8. */
+const SLIDE_ALIVE_TICK = 8;
+const SLIDE_DEAD_TICK = 9;
+/** Lane monster_mid1: the step starts at t1 (input at tick 2), the glider arrives at t4: dead after tick 5. */
+const MONSTER_MID_INPUT_TICK = 2;
+const MONSTER_DEAD_TICK = 5;
+/** Lanes time_mid15 / time_mid16: the step starts at t15 / t16 (input at tick 16 / 17); both end dead at t19 (tick 20). */
+const TIME_MID15_INPUT_TICK = 16;
+const TIME_MID16_INPUT_TICK = 17;
+const TIME_DEAD_TICK = 20;
+/** Lane ff_start: the force floor carries him into the water, dead at t6 (tick 7). */
+const FF_START_DEAD_TICK = 7;
+/** Lane jet_orange_mid: the glider lights the jet for one tic during the step, input at tick 3 (t2). */
+const JET_ORANGE_INPUT_TICK = 3;
+/** Lanes jet_lit_still / jet_lit_k0: the jet burns him at the lighting, Lexy t4 (dead after tick 5). */
+const JET_AT_LIGHTING_DEAD_TICK = 5;
+/** The tick the controlled player steps onto the unlit jet in the two-players room (the plate lights it at tick 4). */
+const TWO_PLAYERS_JET_INPUT_TICK = 3;
 
 interface Seen {
   alive: boolean;
@@ -122,9 +148,9 @@ describe('HZ: a step onto fire, water or slime is judged when the step ends (CC2
     ['hz_slime', DEATH_SLIME]
   ])('lane %s: alive after tick 4, dead after tick 5 of %s', async (name, reason) => {
     const seen = await playLane(name, at(FIRST_TICK));
-    expect(seen[3].alive).toBe(true);
-    expect(deadAfter(seen)).toBe(5);
-    expect(seen[4].reason).toBe(reason);
+    expect(seen[HZ_ALIVE_TICK - 1].alive).toBe(true);
+    expect(deadAfter(seen)).toBe(HZ_DEAD_TICK);
+    expect(seen[HZ_DEAD_TICK - 1].reason).toBe(reason);
   });
 
   // Lanes ff_water, ice_fire, ice_water, tele_water: the slide step, or the exit step of a teleporter, that ends in the hazard. Lexy: t8.
@@ -135,31 +161,31 @@ describe('HZ: a step onto fire, water or slime is judged when the step ends (CC2
     ['tele_water', DEATH_WATER]
   ])('lane %s: alive after tick 8, dead after tick 9 of %s', async (name, reason) => {
     const seen = await playLane(name, at(FIRST_TICK));
-    expect(seen[7].alive).toBe(true);
-    expect(deadAfter(seen)).toBe(9);
-    expect(seen[8].reason).toBe(reason);
+    expect(seen[SLIDE_ALIVE_TICK - 1].alive).toBe(true);
+    expect(deadAfter(seen)).toBe(SLIDE_DEAD_TICK);
+    expect(seen[SLIDE_DEAD_TICK - 1].reason).toBe(reason);
   });
 
   // Lane monster_mid1: the step into water starts at t1 (input at tick 2); a glider moves into his cell at t4, in the window. Lexy: t4,
   // the monster kills first (reason monster), not the water.
   it('lane monster_mid1: a monster that moves into him during the step kills him, not the water', async () => {
-    const seen = await playLane('monster_mid1', at(2));
-    expect(deadAfter(seen)).toBe(5);
-    expect(seen[4].reason).toBe(DEATH_MONSTER);
+    const seen = await playLane('monster_mid1', at(MONSTER_MID_INPUT_TICK));
+    expect(deadAfter(seen)).toBe(MONSTER_DEAD_TICK);
+    expect(seen[MONSTER_DEAD_TICK - 1].reason).toBe(DEATH_MONSTER);
   });
 
   // Lanes time_mid15 / time_mid16 (a one second limit, 60 tics, 15 ticks of a second here): the step into water starts at t15 / t16.
   // Lexy: the step that ends before the clock does drowns him (t19); the step that ends after it is a time-out.
   it('lane time_mid15: a step that ends before the clock runs out drowns him', async () => {
-    const seen = await playLane('time_mid15', at(16));
-    expect(deadAfter(seen)).toBe(20);
-    expect(seen[19].reason).toBe(DEATH_WATER);
+    const seen = await playLane('time_mid15', at(TIME_MID15_INPUT_TICK));
+    expect(deadAfter(seen)).toBe(TIME_DEAD_TICK);
+    expect(seen[TIME_DEAD_TICK - 1].reason).toBe(DEATH_WATER);
   });
 
   it('lane time_mid16: a step that ends after the clock runs out is a time-out', async () => {
-    const seen = await playLane('time_mid16', at(17));
-    expect(deadAfter(seen)).toBe(20);
-    expect(seen[19].reason).toBe(DEATH_TIME);
+    const seen = await playLane('time_mid16', at(TIME_MID16_INPUT_TICK));
+    expect(deadAfter(seen)).toBe(TIME_DEAD_TICK);
+    expect(seen[TIME_DEAD_TICK - 1].reason).toBe(DEATH_TIME);
   });
 
   // Lanes flippers / fireboots: the tool is picked up, then two hazard cells are crossed with the key held. Lexy: alive.
@@ -173,28 +199,28 @@ describe('HZ: a step onto fire, water or slime is judged when the step ends (CC2
   // waterproof player. The judge sets inWater, so it is true at the death.
   it('lane hz_water: inWater is false while the step into the water runs, and true at the death', async () => {
     const seen = await playLane('hz_water', at(FIRST_TICK));
-    expect(seen[3].alive).toBe(true);
-    expect(seen[3].hazardPending).toBe(true);
-    expect(seen[3].inWater).toBe(false);
-    expect(seen[4].alive).toBe(false);
-    expect(seen[4].inWater).toBe(true);
+    expect(seen[HZ_ALIVE_TICK - 1].alive).toBe(true);
+    expect(seen[HZ_ALIVE_TICK - 1].hazardPending).toBe(true);
+    expect(seen[HZ_ALIVE_TICK - 1].inWater).toBe(false);
+    expect(seen[HZ_DEAD_TICK - 1].alive).toBe(false);
+    expect(seen[HZ_DEAD_TICK - 1].inWater).toBe(true);
   });
 
   it('flippers keep the swim pose from the start of the step into the water', async () => {
-    const level = room({ mode: 'cc2', startX: 2, terrain: { [`3,${ROOM_ROW}`]: WATER } });
+    const level = room({ mode: 'cc2', startX: START_X, terrain: { [`${HAZARD_X},${ROOM_ROW}`]: WATER } });
     const seen = playLevel(level, at(FIRST_TICK), (engine) => engine.getPlayer().boots.add('boots_water'));
     expect(seen[0].inWater).toBe(true);
     expect(deadAfter(seen)).toBeUndefined();
   });
 
   it('native levels keep the death at the start of the step', () => {
-    const level = room({ mode: 'native', startX: 2, terrain: { [`3,${ROOM_ROW}`]: WATER } });
+    const level = room({ mode: 'native', startX: START_X, terrain: { [`${HAZARD_X},${ROOM_ROW}`]: WATER } });
     const seen = playLevel(level, at(FIRST_TICK));
     expect(deadAfter(seen)).toBe(1);
   });
 
   it('CC1 classic levels keep the death at the start of the step', () => {
-    const level = room({ mode: 'cc', startX: 2, terrain: { [`3,${ROOM_ROW}`]: WATER } });
+    const level = room({ mode: 'cc', startX: START_X, terrain: { [`${HAZARD_X},${ROOM_ROW}`]: WATER } });
     const seen = playLevel(level, at(FIRST_TICK));
     expect(deadAfter(seen)).toBe(1);
   });
@@ -203,8 +229,8 @@ describe('HZ: a step onto fire, water or slime is judged when the step ends (CC2
   // decisions. The room is the one of the cc2GateDelay F5 test; the lane is the same construction.
   it('lane ff_start: the player carried from his start cell into water drowns at tick 7 of the flush', async () => {
     const seen = playLevel(await loadCc2Lane('ff_start', LANE_PREFIX), {});
-    expect(deadAfter(seen)).toBe(7);
-    expect(seen[6].reason).toBe(DEATH_WATER);
+    expect(deadAfter(seen)).toBe(FF_START_DEAD_TICK);
+    expect(seen[FF_START_DEAD_TICK - 1].reason).toBe(DEATH_WATER);
   });
 });
 
@@ -223,7 +249,7 @@ describe('JLM: a jet lit under a player whose step runs burns him when the step 
 
   // Lane jet_orange_mid: a glider on an orange button lights the jet for one tic during his step; it is out at the step end. Lexy: alive.
   it('lane jet_orange_mid: an orange button that lights the jet for one tic during the step spares him', async () => {
-    const seen = await playLane('jet_orange_mid', at(3));
+    const seen = await playLane('jet_orange_mid', at(JET_ORANGE_INPUT_TICK));
     expect(deadAfter(seen)).toBeUndefined();
   });
 
@@ -234,8 +260,8 @@ describe('JLM: a jet lit under a player whose step runs burns him when the step 
     ['jet_lit_k0', at(FIRST_TICK)]
   ])('lane %s: the jet burns him at the lighting (dead after tick 5)', async (name, inputs) => {
     const seen = await playLane(name, inputs);
-    expect(deadAfter(seen)).toBe(5);
-    expect(seen[4].reason).toBe(DEATH_FIRE);
+    expect(deadAfter(seen)).toBe(JET_AT_LIGHTING_DEAD_TICK);
+    expect(seen[JET_AT_LIGHTING_DEAD_TICK - 1].reason).toBe(DEATH_FIRE);
   });
 
   // Native and CC1 classic levels keep the burn at the lighting of a jet, in the tick of the lighting even while his step runs: a glider
@@ -247,9 +273,9 @@ describe('JLM: a jet lit under a player whose step runs burns him when the step 
     const row = ROOM_ROW + FLOOR_ROW_OFFSET;
     const level = room({
       mode,
-      startX: 2,
-      terrain: { [`3,${ROOM_ROW}`]: CLASSIC_JET_OFF, [`6,${row}`]: ORANGE_BUTTON },
-      entities: [{ type: GLIDER, x: 7, y: row, dir: 'W' }]
+      startX: START_X,
+      terrain: { [`${HAZARD_X},${ROOM_ROW}`]: CLASSIC_JET_OFF, [`${PLATE_X},${row}`]: ORANGE_BUTTON },
+      entities: [{ type: GLIDER, x: GLIDER_X, y: row, dir: 'W' }]
     });
     const engine = new GameEngine();
     engine.loadLevel(level, SEED);
@@ -259,7 +285,7 @@ describe('JLM: a jet lit under a player whose step runs burns him when the step 
     for (let tick = FIRST_TICK; tick <= LANE_TICKS && deadTick === undefined; tick++) {
       if (tick === input) engine.attemptPlayerMove('E');
       engine.tick();
-      if (litTick === undefined && world(engine).terrain[ROOM_ROW][3] === CLASSIC_JET_ON) {
+      if (litTick === undefined && world(engine).terrain[ROOM_ROW][HAZARD_X] === CLASSIC_JET_ON) {
         litTick = tick;
         stepRanAtLighting = world(engine).player.moveCooldown > 0;
       }
@@ -275,14 +301,16 @@ describe('two players: the step end of a player who is not controlled', () => {
   const PARKED_X = 9;
   const PARKED_ROW = 8;
   const twoPlayerRoom = (terrain: Record<string, string>, extra: Partial<CompiledLevel> = {}): CompiledLevel => ({
-    ...room({ mode: 'cc2', startX: 2, terrain }),
+    ...room({ mode: 'cc2', startX: START_X, terrain }),
     extraPlayers: [{ x: PARKED_X, y: PARKED_ROW, dir: 'E', character: 'chip' }],
     ...extra
   });
 
+  // A swap in the middle of a step has no Lexy counterpart (the player switch is a decision-time input, game.js 989-990, 1602), so this
+  // pins the Epoxy rule: the parked player's pending hazard is judged when his own step ends.
   it('a player swapped out in his step into water drowns when that step ends, not before and not never', () => {
     const engine = new GameEngine();
-    engine.loadLevel(twoPlayerRoom({ [`3,${ROOM_ROW}`]: WATER }), SEED);
+    engine.loadLevel(twoPlayerRoom({ [`${HAZARD_X},${ROOM_ROW}`]: WATER }), SEED);
     expect(engine.attemptPlayerMove('E')).toBe(true);
     engine.tick();
     expect(engine.swapPlayer()).toBe(true);
@@ -297,14 +325,28 @@ describe('two players: the step end of a player who is not controlled', () => {
     expect(died).toBeDefined();
     expect(died).toBeLessThanOrEqual(STEP_TICKS);
     expect(died).toBeGreaterThan(0);
+    // The dead one is the parked player (the one in the water, x 3), by water; the controlled player is alive where he was parked. A parked
+    // player who dies takes the controlled slot, so the players are told apart by their cells.
+    const all = [world(engine).player, ...world(engine).parked];
+    const drowned = all.find((p) => p.x === HAZARD_X);
+    const survivor = all.find((p) => p.x === PARKED_X);
+    expect(drowned?.alive).toBe(false);
+    expect(drowned?.deathReasonKey).toBe(DEATH_WATER);
+    expect(survivor?.alive).toBe(true);
   });
 
   // The several-players branch of the lighting: each player is judged on his own step. A jet lit under the player who still steps burns
   // him at his step end; the one who stands still on a lit jet burns at once.
-  function jetRoom(): CompiledLevel {
+  function jetRoom(underParkedPlayer = false): CompiledLevel {
     const plateRow = ROOM_ROW + FLOOR_ROW_OFFSET;
-    const link: SignalLink = { fromX: 6, fromY: plateRow, toX: 3, toY: ROOM_ROW };
-    return twoPlayerRoom({ [`3,${ROOM_ROW}`]: JET_OFF, [`6,${plateRow}`]: PLATE }, { entities: [{ type: GLIDER, x: 7, y: plateRow, dir: 'W' }], signalLinks: [link] });
+    const links: SignalLink[] = [{ fromX: PLATE_X, fromY: plateRow, toX: HAZARD_X, toY: ROOM_ROW }];
+    const terrain: Record<string, string> = { [`${HAZARD_X},${ROOM_ROW}`]: JET_OFF, [`${PLATE_X},${plateRow}`]: PLATE };
+    if (underParkedPlayer) {
+      // The same plate lights a second jet under the parked player, who stands still on it.
+      links.push({ fromX: PLATE_X, fromY: plateRow, toX: PARKED_X, toY: PARKED_ROW });
+      terrain[`${PARKED_X},${PARKED_ROW}`] = JET_OFF;
+    }
+    return twoPlayerRoom(terrain, { entities: [{ type: GLIDER, x: GLIDER_X, y: plateRow, dir: 'W' }], signalLinks: links });
   }
 
   it('a jet lit under the controlled player in his step burns him at the step end, with another player on the map', () => {
@@ -313,10 +355,10 @@ describe('two players: the step end of a player who is not controlled', () => {
     let litTick: number | undefined;
     let deadTick: number | undefined;
     let litWhileAlive = false;
-    for (let tick = 1; tick <= LANE_TICKS && deadTick === undefined; tick++) {
-      if (tick === 3) engine.attemptPlayerMove('E');
+    for (let tick = FIRST_TICK; tick <= LANE_TICKS && deadTick === undefined; tick++) {
+      if (tick === TWO_PLAYERS_JET_INPUT_TICK) engine.attemptPlayerMove('E');
       engine.tick();
-      const lit = world(engine).terrain[ROOM_ROW][3] === JET_ON;
+      const lit = world(engine).terrain[ROOM_ROW][HAZARD_X] === JET_ON;
       if (lit && litTick === undefined) {
         litTick = tick;
         litWhileAlive = world(engine).player.alive && world(engine).player.cc3dArrival?.hazard !== undefined;
@@ -326,6 +368,27 @@ describe('two players: the step end of a player who is not controlled', () => {
     expect(litTick).toBeDefined();
     expect(litWhileAlive).toBe(true);
     expect(deadTick).toBeGreaterThan(litTick as number);
+  });
+
+  // Lexy jet_lit_still: a player standing still on the jet that lights burns in the tic of the lighting (on_stand, no step runs), even while
+  // the controlled player's own step still runs under the same lighting. A player who burns takes the controlled slot, so the two are told
+  // apart by their cells.
+  it('a jet lit under a parked player who stands still burns him in the lighting tick, while the other player steps', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(jetRoom(true), SEED);
+    const playerAt = (x: number): PlayerState | undefined => [world(engine).player, ...world(engine).parked].find((p) => p.x === x);
+    let litTick: number | undefined;
+    for (let tick = FIRST_TICK; tick <= LANE_TICKS && litTick === undefined; tick++) {
+      if (tick === TWO_PLAYERS_JET_INPUT_TICK) engine.attemptPlayerMove('E');
+      engine.tick();
+      if (world(engine).terrain[ROOM_ROW][HAZARD_X] === JET_ON) litTick = tick;
+    }
+    expect(litTick).toBeDefined();
+    const standing = playerAt(PARKED_X);
+    expect(standing?.alive).toBe(false);
+    expect(standing?.deathReasonKey).toBe(DEATH_FIRE);
+    // The one who steps is still in his step, and has not burned yet.
+    expect(playerAt(HAZARD_X)?.alive).toBe(true);
   });
 });
 
@@ -345,6 +408,7 @@ describe('F3: the boots that guard the cell of a step that still runs are not pu
     engine.tick();
     expect(engine.getStatusBannerKey()).toBe('hud.messages.drop_mid_step');
     expect(engine.holdsItem(FIRE_BOOTS)).toBe(true);
+    expect(engine.getItems()[ROOM_ROW][HAZARD_X]).not.toBe(FIRE_BOOTS);
     for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
     expect(engine.getPlayer().alive).toBe(true);
     expect(engine.holdsItem(FIRE_BOOTS)).toBe(true);
@@ -375,6 +439,9 @@ describe('F3: the boots that guard the cell of a step that still runs are not pu
     engine.tick();
     expect(engine.getStatusBannerKey()).not.toBe('hud.messages.drop_mid_step');
     expect(engine.getPlayer().boots.has(FIRE_BOOTS)).toBe(true);
+    // The spare pair lies on the cell and the belt holds none any more.
+    expect(engine.getItems()[ROOM_ROW][HAZARD_X]).toBe(FIRE_BOOTS);
+    expect(engine.getPlayer().keys[FIRE_BOOTS] ?? 0).toBe(0);
     for (let i = 0; i < MOVE_WAIT_TICKS; i++) engine.tick();
     expect(engine.getPlayer().alive).toBe(true);
   });
