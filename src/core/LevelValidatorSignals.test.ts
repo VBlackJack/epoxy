@@ -446,5 +446,8 @@ describe('gates wired to their own input on a CC2 level (wave 17)', () => {
   it('leaves a native NOT with no input an error, whatever a stray cc2-less field says', () => {
     const level = room([[GATE, NOT], [DOOR_CELL, DOOR]], [link(GATE, DOOR_CELL)]);
     expect(find(level, 'signal_not_inputs')?.severity).toBe('error');
+    // A stray self link list on the level itself (outside any cc2 record) is not read either.
+    const stray = { ...level, selfLinks: [cellIndex(GATE)] } as unknown as CompiledLevel;
+    expect(find(stray, 'signal_not_inputs')?.severity).toBe('error');
   });
 });
