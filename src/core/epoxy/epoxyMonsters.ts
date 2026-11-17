@@ -92,7 +92,7 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { turnMarkedTanks } from './epoxyDevices';
-import { closeFramePass, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
+import { closeFramePass, finishFrameWirePhases, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -109,6 +109,11 @@ export function updateEntities(ctx: EpoxyContext): void {
     // that lands in frame 0 then reads the clock of this pass (map045: a fireball released t1541f0 steps at t1545; with the pass
     // closed its first wait is one pass short).
     if (w.ccRules && !runFramePrePass(ctx)) return;
+    // Actor order: the frame wire phases the pre-pass did not run (nothing to move) run before the decisions.
+    if (w.ccRules) {
+      finishFrameWirePhases(ctx);
+      if (!w.player.alive || w.levelCompleted) return;
+    }
     if (w.ccRules && !planClassicDecisions(ctx)) return;
     const passClock = w.ccMonsterClock;
     runEntityPass(ctx);

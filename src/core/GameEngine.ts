@@ -53,6 +53,7 @@ import {
   fireSinksBeforePass,
   GATE_SETTLE_TIC0,
   GATE_SETTLE_TICK_END,
+  GATE_SETTLE_FRAME2,
   counterValuesOf,
   poweredSignalCellsOf,
   restoreSignalPulses,
@@ -63,7 +64,7 @@ import {
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState, type SignalEdge } from './epoxy/signalNetwork';
 import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
-import { resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
+import { finishFrameWirePhases, frameModelOn, resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
 import { usesCc2Engine } from './epoxy/ccRules';
 import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
@@ -968,6 +969,7 @@ export class GameEngine {
       ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
       // Only a CC2-engine level whose coming tick's frame pre-pass already ran has it to put back.
       ...(this.w.cc2PrePassDone === true ? { cc2PrePassDone: true as const } : {}),
+      ...(this.w.cc2WireFrameNext !== undefined ? { cc2WireFrameNext: this.w.cc2WireFrameNext } : {}),
       // The CC2 engine keeps its creatures in the list itself (a clone takes the template's place), so it has no slots to put back.
       ...(this.w.ccRules && !usesCc2Engine(this.w.level) ? { ccSlots: [...this.w.ccSlots] } : {}),
       ...(this.w.ccArrivals.length > 0 ? { ccArrivals: this.w.ccArrivals.map((a) => ({ ...a })) } : {}),
@@ -1090,6 +1092,7 @@ export class GameEngine {
     // The pre-pass transients never cross a snapshot; only the done mark does.
     resetFrameWorld(this.w);
     if (snap.cc2PrePassDone === true) this.w.cc2PrePassDone = true;
+    if (snap.cc2WireFrameNext !== undefined) this.w.cc2WireFrameNext = snap.cc2WireFrameNext;
     this.w.blockSplashes = new Map(snap.blockSplashes ?? []);
     this.w.blockExplosions = new Set(snap.blockExplosions ?? []);
     this.w.cc2PlayerView = snap.cc2PlayerView !== undefined ? copyCc2PlayerView(snap.cc2PlayerView) : undefined;
@@ -1277,12 +1280,16 @@ export class GameEngine {
     // Before the laser pass, which may return early; doors settle at the end of each pass.
     // The signals settle before the doors they drive; a no-op without signals.
     // The sub-settle each edge came from stamps a tick-end gate release (see fireSignalSinks).
+    // Frame model, gate-delay network: the tick end is the frame-2 wire phase only; the frame-0 and frame-1 ones run with the pre-pass
+    // frames of the next tic (runFrameWirePhase).
+    const framePhases = this.w.signals?.network.gateDelay === true && frameModelOn(this.w);
     const subOf = new Map<SignalEdge, number>();
-    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, GATE_SETTLE_TICK_END, subOf) : [];
+    const edges = this.w.signals !== undefined ? settleWorldSignals(this.w, false, SIGNAL_PHASE_TICK, framePhases ? GATE_SETTLE_FRAME2 : GATE_SETTLE_TICK_END, subOf) : [];
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
     fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK, subOf);
+    if (framePhases) this.w.cc2WireFrameNext = 0;
     // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
     // fired by a signal in this pass counts with the buttons of the pass.
     this.w.firedLaunchers.clear();
@@ -1300,6 +1307,9 @@ export class GameEngine {
     // CC2 engine, no actor order: the next tick's frames 0 and 1 run first, so the view, the mirror tick end and the light switches
     // below see what they moved.
     this.runEndOfTickPrePass();
+    // No actor order: the frame wire phases belong to this tick end (the pre-pass ran them, or it had nothing to move), unless the
+    // coming tick times out before any frame (game.js:1507-1510).
+    if (this.w.cc2ActorOrder !== true && this.w.cc2WireFrameNext !== undefined && !this.comingTickTimesOut()) finishFrameWirePhases(this.ctx);
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
     this.endMirrorTick();

@@ -225,7 +225,7 @@ function sourceBlastedAway(w: EpoxyWorld, x: number, y: number): boolean {
 }
 
 /** Samples every source of the network, by cell index. A receiver reads litReceiverCells, so the beams must be fresh. */
-function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, phase: SignalPhase): Map<number, boolean> {
+function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, phase: SignalPhase, pure = false): Map<number, boolean> {
   const width = mapWidth(w);
   const lit = new Set(w.litReceiverCells.map((cell) => cell.y * width + cell.x));
   const levels = new Map<number, boolean>();
@@ -236,7 +236,8 @@ function sampleSources(w: EpoxyWorld, runtime: SignalRuntime, prime: boolean, ph
     const def = runtime.defs.get(index) as SignalNodeDef;
     // A source terrain that dynamite blasted away feeds nothing any more.
     if (sourceBlastedAway(w, x, y)) levels.set(cell, false);
-    else if (def.sample === 'pulse') levels.set(cell, samplePulse(runtime, index, cell, prime));
+    // A pure sample (the frame-start one) reads a pulse source at its last level: it must not consume the pending press.
+    else if (def.sample === 'pulse') levels.set(cell, pure ? runtime.state.lastOutputs[index] === true : samplePulse(runtime, index, cell, prime));
     else if (def.sample === 'receiver') levels.set(cell, lit.has(cell));
     // A black button is powered unless something presses it.
     else if (def.sample === 'inverted') levels.set(cell, !cellOccupied(w, x, y, phase));
@@ -301,12 +302,20 @@ export const SIGNAL_PHASE_TICK: SignalPhase = 'tick';
  * TIC0_SUB_SETTLES); 'prePass0' and 'prePass1' the phases a block
  * arrival of frame 0 or frame 1 of the pre-pass reaches before the decisions.
  */
-export type GateSettle = 'hold' | 'tickEnd' | 'tic0' | 'prePass0' | 'prePass1';
+export type GateSettle = 'hold' | 'tickEnd' | 'tic0' | 'prePass0' | 'prePass1' | 'frame2' | 'frame0' | 'frame1';
 export const GATE_SETTLE_HOLD: GateSettle = 'hold';
 export const GATE_SETTLE_TICK_END: GateSettle = 'tickEnd';
 export const GATE_SETTLE_TIC0: GateSettle = 'tic0';
 export const GATE_SETTLE_PRE_PASS0: GateSettle = 'prePass0';
 export const GATE_SETTLE_PRE_PASS1: GateSettle = 'prePass1';
+/**
+ * The three Lexy wire phases of a tic, one settle each (game.js:872-889: every frame is decision, action, wire), on a gate-delay network
+ * under the frame model: 'frame2' is the tick-end settle (one gate step), 'frame0' and 'frame1' run after the pre-pass frames 0 and 1
+ * of the next tic (runFrameWirePhase). While a frame phase is due no other settle lets a source in (see settleWorldSignals).
+ */
+export const GATE_SETTLE_FRAME2: GateSettle = 'frame2';
+export const GATE_SETTLE_FRAME0: GateSettle = 'frame0';
+export const GATE_SETTLE_FRAME1: GateSettle = 'frame1';
 /** Gate sub-settles of the tick-end settle (see GateSettle). */
 const TICK_END_SUB_SETTLES = 3;
 /**
@@ -339,15 +348,47 @@ const PRE_PASS1_SUB_SETTLES = 1;
  * the next tic); the other settles read the sampled levels. Undefined for a settle that holds the gates.
  */
 function gateSubSettleLevels(
+  w: EpoxyWorld,
   runtime: SignalRuntime,
   settle: GateSettle,
-  sampled: ReadonlyMap<number, boolean>
+  sampled: ReadonlyMap<number, boolean>,
+  frameStart: ReadonlyMap<number, boolean> | undefined
 ): ReadonlyMap<number, boolean>[] | undefined {
   if (settle === GATE_SETTLE_HOLD) return undefined;
   if (settle === GATE_SETTLE_TIC0) return Array.from({ length: TIC0_SUB_SETTLES }, () => sampled);
   if (settle === GATE_SETTLE_PRE_PASS0) return Array.from({ length: PRE_PASS0_SUB_SETTLES }, () => sampled);
   if (settle === GATE_SETTLE_PRE_PASS1) return Array.from({ length: PRE_PASS1_SUB_SETTLES }, () => sampled);
   const network = runtime.network;
+  if (settle === GATE_SETTLE_FRAME1) {
+    // Every source reaches the wires in the frame-1 phase, except a toggle switch: a Lexy light switch emits its new level from the second
+    // wire phase after the step that flipped it (light_switch on_arrive / update_power_emission, is_first_frame), so only a switch the
+    // pre-pass frame 0 flipped (`frameStart` is then the sample after frame 0) enters now; a frame-1 flip enters at frame 2 (lanes
+    // lswitch_blk, lswitch_ply; wire oracle).
+    const f1 = new Map<number, boolean>(sampled);
+    for (const i of network.sourceIndexes) {
+      if (runtime.defs.get(i)?.sample !== 'toggle') continue;
+      const cell = network.nodes[i].cell;
+      const was = runtime.state.lastOutputs[i] === true;
+      const afterFrame0 = frameStart?.get(cell);
+      f1.set(cell, afterFrame0 !== undefined && afterFrame0 !== was ? afterFrame0 : was);
+    }
+    return [f1];
+  }
+  if (settle === GATE_SETTLE_FRAME0) {
+    // The frame-0 phase reads what the pre-pass frame 0 changed (the level differs from the sample taken before that frame; no sample:
+    // nothing moved) and an arrival whose step ends in frame 0 (a clone's cc2Frame); any other new level waits for the frame-1 phase.
+    const f0 = new Map<number, boolean>();
+    for (const i of network.sourceIndexes) {
+      const cell = network.nodes[i].cell;
+      const now = sampled.get(cell) === true;
+      const before = frameStart === undefined ? now : frameStart.get(cell) === true;
+      const was = runtime.state.lastOutputs[i] === true;
+      const frameEvent = now !== was && arrivalFrameAt(w, cell) === 0;
+      const toggle = runtime.defs.get(i)?.sample === 'toggle';
+      f0.set(cell, (now !== before || frameEvent) && !toggle ? now : was);
+    }
+    return [f0];
+  }
   const early = new Map<number, boolean>();
   for (const i of network.sourceIndexes) {
     const cell = network.nodes[i].cell;
@@ -355,9 +396,44 @@ function gateSubSettleLevels(
     const now = sampled.get(cell) === true;
     const sample = runtime.defs.get(i)?.sample;
     const vacated = was !== now && (sample === 'inverted' ? now : sample === 'held' || sample === 'charged' ? !now : false);
-    early.set(cell, vacated ? now : was);
+    // The frame-2 phase also lets in an arrival whose step ends in frame 2 (a clone's cc2Frame) and a toggle switch.
+    // An orange button acts on its flame jet in the action phase of the step that leaves it (Lexy button_orange on_depart, no circuit):
+    // a change of its level with nothing left on it is a departure, a frame-2 event (an arrival keeps the frame-1 timing).
+    const width = mapWidth(w);
+    const bx = cell % width;
+    const by = Math.floor(cell / width);
+    const departed = was !== now && BUTTON_LINK_SOURCE_TILE_IDS.has(w.terrain[by]?.[bx] ?? '') &&
+      playerAtCell(w, bx, by) === undefined && !w.entities.some((e) => e.x === bx && e.y === by);
+    const frame2 = settle === GATE_SETTLE_FRAME2 && ((was !== now && arrivalFrameAt(w, cell) === 2) || sample === 'toggle' || departed);
+    early.set(cell, vacated || frame2 ? now : was);
   }
+  if (settle === GATE_SETTLE_FRAME2) return [early];
   return [...Array.from({ length: TICK_END_SUB_SETTLES - 1 }, () => early), sampled];
+}
+
+/** The earliest end frame (cc2Frame, absent = 1) of the actors at rest on a cell, undefined when none stands there. */
+function arrivalFrameAt(w: EpoxyWorld, cell: number): 0 | 1 | 2 | undefined {
+  const width = mapWidth(w);
+  const x = cell % width;
+  const y = Math.floor(cell / width);
+  let best: 0 | 1 | 2 | undefined;
+  for (const e of w.entities) {
+    if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
+    const frame = e.cc2Frame !== undefined ? e.cc2Frame : CC2_DEFAULT_FRAME;
+    if (best === undefined || PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
+  }
+  return best;
+}
+
+/**
+ * The source levels as they stand before the pre-pass frame 0 moves anything, for the frame-0 phase (see gateSubSettleLevels). Pure:
+ * a pulse source reads its last level and no pending press is consumed. Undefined without signals.
+ */
+export function sampleFrameStart(w: EpoxyWorld): ReadonlyMap<number, boolean> | undefined {
+  const runtime = w.signals;
+  if (runtime === undefined) return undefined;
+  refreshBeams(w);
+  return sampleSources(w, runtime, false, SIGNAL_PHASE_TICK, true);
 }
 
 /** The memory gates whose output also reads off in the all-off phase of tic 0. */
@@ -394,15 +470,30 @@ export function settleWorldSignals(
   prime: boolean = false,
   phase: SignalPhase = SIGNAL_PHASE_TICK,
   gates: GateSettle = GATE_SETTLE_HOLD,
-  subOf?: Map<SignalEdge, number>
+  subOf?: Map<SignalEdge, number>,
+  frameStart?: ReadonlyMap<number, boolean>
 ): SignalEdge[] {
   const runtime = w.signals;
   if (runtime === undefined) return [];
   refreshBeams(w);
+  // While a frame wire phase is due (cc2WireFrameNext, from the frame-2 settle to the frame-1 one) a settle that is not a frame phase
+  // lets no source in: every source keeps its last level, the gates hold. Nothing is sampled, so no pulse press is consumed, and the
+  // pending, carried and lit sets are left to the frame phase that reads them.
+  if (runtime.network.gateDelay === true && !prime && gates === GATE_SETTLE_HOLD && w.cc2WireFrameNext !== undefined) {
+    const kept = new Map<number, boolean>();
+    for (const i of runtime.network.sourceIndexes) kept.set(runtime.network.nodes[i].cell, runtime.state.lastOutputs[i] === true);
+    const held = settleSignals(runtime.network, runtime.state, kept, false, true);
+    runtime.state = held.state;
+    for (const edge of held.edges) {
+      if (edge.rising) runtime.edgeCounts.rising++;
+      else runtime.edgeCounts.falling++;
+    }
+    return held.edges;
+  }
   const sampled = sampleSources(w, runtime, prime, phase);
   // The load prime steps no gate phase (see above); every later settle of a gate-delay network does.
   const stepsGates = runtime.network.gateDelay === true && !prime;
-  const subLevels = stepsGates ? gateSubSettleLevels(runtime, gates, sampled) : undefined;
+  const subLevels = stepsGates ? gateSubSettleLevels(w, runtime, gates, sampled, frameStart) : undefined;
   let result: SettleResult;
   if (stepsGates) {
     if (subLevels === undefined) result = settleSignals(runtime.network, runtime.state, sampled, false, true);
@@ -433,8 +524,11 @@ export function settleWorldSignals(
   // The arrivals are read: an arrival caused by a sink that fires now lands in the next settle, none lost, none doubled.
   runtime.pending.clear();
   // A gray area button holds its level sinks on for this settle only: the set read now is the next settle's to replace.
-  runtime.lit = new Set(runtime.areaPending);
-  runtime.areaPending.clear();
+  // The frame-0 and frame-1 phases keep the gray-button set of the frame-2 one (one set per tic).
+  if (gates !== GATE_SETTLE_FRAME0 && gates !== GATE_SETTLE_FRAME1) {
+    runtime.lit = new Set(runtime.areaPending);
+    runtime.areaPending.clear();
+  }
   for (const edge of result.edges) {
     if (edge.rising) runtime.edgeCounts.rising++;
     else runtime.edgeCounts.falling++;
@@ -517,7 +611,8 @@ export function fireSignalSinks(
   ctx: EpoxyContext,
   edgesNow: readonly SignalEdge[],
   phase: SignalPhase = SIGNAL_PHASE_TICK,
-  subOf?: ReadonlyMap<SignalEdge, number>
+  subOf?: ReadonlyMap<SignalEdge, number>,
+  framePhase?: 0 | 1
 ): void {
   const w = ctx.world;
   const runtime = w.signals;
@@ -534,6 +629,24 @@ export function fireSignalSinks(
     // delayed gates only fires in the settle where its edge rises (Lexy frame-2 wire phase). A directly wired one keeps the before-pass
     // deferral, and one behind a latch, a counter or a loop (which the gate delay does not time) keeps the end-of-next-tick deferral.
     const gateTimed = phase === SIGNAL_PHASE_TICK && runtime.network.gateDelay === true;
+    // A frame-0 or frame-1 wire phase: the deferred edges join the waiting ones (the press fire of the phase reads them); the others fire
+    // now, a gate-timed clone machine released at the frame of the phase, as a frame release (see spawnFromCloner).
+    if (framePhase !== undefined) {
+      const deferredF = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
+      w.cc2DeferredSinkEdges = [...waiting, ...deferredF];
+      // Each edge is a release of frame `framePhase`: a monster clone carries that press frame (its step ends in frame f - 1, see
+      // tagCloneFrame), a block clone takes the GateRelease stamp.
+      for (const edge of edgesNow.filter((e) => !deferredF.includes(e))) {
+        if (!w.player.alive || w.levelCompleted) return;
+        w.cc2ReleaseFrame = framePhase;
+        try {
+          fireEdges(ctx, [edge], (e) => frameGateRelease(runtime, e, framePhase), true);
+        } finally {
+          delete w.cc2ReleaseFrame;
+        }
+      }
+      return;
+    }
     const deferred = edgesNow.filter((edge) => isActionEdge(edge) && !(gateTimed && !isDirectSink(runtime, edge.cell) && gateDelayedSink(runtime, edge.cell)));
     const immediate = edgesNow.filter((edge) => !deferred.includes(edge));
     if (phase === SIGNAL_PHASE_TICK) {
@@ -566,8 +679,28 @@ function tickEndGateRelease(runtime: SignalRuntime, edge: SignalEdge, subOf: Rea
   return { frame: TICK_END_SUB_FRAMES[sub - 1], total: TICK_END_FIRST_RELEASE_TOTAL + sub - 1 };
 }
 
-/** Fires the sinks of `edges` in order, now (no deferral): the shared firing loop of fireSignalSinks and fireSinksBeforePass. */
-function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[], releaseOf?: (edge: SignalEdge) => GateRelease | undefined): void {
+/**
+ * The stamp of a rising edge of a gate-timed clone machine raised by the frame-`frame` wire phase: released at that frame, its 12-frame
+ * step ends `frame` + 11 frames after frame 0 of this tic, counted (the pre-pass of the tic may still be ahead: no actor order, or a phase
+ * run without the pre-pass). Undefined for a launcher, a falling edge or a sink with a source wired straight in.
+ */
+function frameGateRelease(runtime: SignalRuntime, edge: SignalEdge, frame: 0 | 1): GateRelease | undefined {
+  const index = runtime.network.indexOfCell.get(edge.cell);
+  if (!edge.rising || index === undefined || runtime.defs.get(index)?.fires !== 'cloner') return undefined;
+  if (isDirectSink(runtime, edge.cell) || !gateDelayedSink(runtime, edge.cell)) return undefined;
+  return { frame, total: frame + PLAIN_CLONE_STEP_END_FRAMES, counted: true };
+}
+
+/**
+ * Fires the sinks of `edges` in order, now (no deferral): the shared firing loop of fireSignalSinks and fireSinksBeforePass. `frameRelease`:
+ * the edges come from a frame-0 or frame-1 wire phase (see spawnFromCloner).
+ */
+function fireEdges(
+  ctx: EpoxyContext,
+  edges: readonly SignalEdge[],
+  releaseOf?: (edge: SignalEdge) => GateRelease | undefined,
+  frameRelease = false
+): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined) return;
@@ -589,7 +722,7 @@ function fireEdges(ctx: EpoxyContext, edges: readonly SignalEdge[], releaseOf?: 
     if (fires === 'flip_edges') flipWiredCellAt(ctx, x, y);
     else if (!edge.rising) continue;
     else if (fires === 'flip') flipCellAt(w, x, y);
-    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true, releaseOf?.(edge)))) return;
+    else if (!(fires === 'launcher' ? fireLauncherAt(ctx, x, y) : fireClonerAt(ctx, x, y, true, releaseOf?.(edge), frameRelease))) return;
   }
 }
 
@@ -684,7 +817,7 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
  * finally. The edges of sinks fed by a gate keep waiting (put back in front of the edges deferred meanwhile) and fire at the end of
  * the tick as before. `forcedFrame` is 0 at tic 0. Does nothing off the CC2 engine or under cc3dPace.
  */
-export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2): void {
+export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2, frameRelease = false): void {
   const w = ctx.world;
   const runtime = w.signals;
   if (runtime === undefined || !usesCc2Engine(w.level) || w.cc3dPace) return;
@@ -697,7 +830,7 @@ export function fireSinksBeforePass(ctx: EpoxyContext, forcedFrame?: 0 | 1 | 2):
     for (const edge of direct) {
       w.cc2ReleaseFrame = forcedFrame ?? pressFrameOfSink(w, runtime, edge.cell);
       try {
-        fireEdges(ctx, [edge]);
+        fireEdges(ctx, [edge], undefined, frameRelease);
       } finally {
         delete w.cc2ReleaseFrame;
       }

@@ -2628,6 +2628,8 @@ export interface PlayerSnapshot {
 export interface UndoSnapshot {
   /** CC2 engine: the coming tick's frame pre-pass already ran (game.js:872-889). Absent otherwise. */
   cc2PrePassDone?: true;
+  /** CC2 engine: the frame wire phase still to run (see EpoxyWorld.cc2WireFrameNext). Absent otherwise. */
+  cc2WireFrameNext?: 0 | 1;
   terrain: string[][];
   items: (string | null)[][];
   entities: RuntimeEntity[];

@@ -23,7 +23,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('./epoxyFrames')>()));
 
+import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
@@ -103,6 +106,12 @@ describe('toggleHeldButton: an orange button toggled with nothing on it', () => 
     engine.tick();
     expect(visitor.x).toBe(BUTTON.x + 1);
     expect(jet(engine)).toBe(JET_ON);
+
+    // Lexy button_orange on_depart acts in the action phase of the leaving step, with no circuit: the frame-2 wire phase of that tic
+    // shows the jet on at its end, and the decisions of the next tick see it on (orange lane, nothing waits for the frame 0 / 1 phases).
+    const next = readAtDecisionAndAfter(() => engine.tick(), () => jet(engine));
+    expect(next.decision).toBe(JET_ON);
+    expect(next.after).toBe(JET_ON);
   });
 
   it('releases the button on a second toggle', () => {

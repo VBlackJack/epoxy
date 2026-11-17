@@ -22,7 +22,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('./epoxyFrames')>()));
 
+import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
 import { playMove } from '../../test/cc2Play';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
@@ -203,6 +206,25 @@ function landingTick(engine: GameEngine): number {
 /** The landing tick of a clone released by a press in mid-level (the test below), and of the two clones released at the player's turn. */
 const LANDING_TICK_MID_LEVEL = 12;
 const LANDING_TICK_AT_TURN = 9;
+/** The tick the clone is in its exit cell, at the end of the tick and at the decisions inside it: the tick of the release. */
+const CLONE_OUT_TICK_MID_LEVEL = 8;
+const CLONE_OUT_TICK_AT_TURN = 5;
+
+/**
+ * Ticks until the clone is on the floor, checking every tick before it: no clone at the end of the tick nor at its decisions, and what
+ * the player's step is doing. The tick of the release, whether the decisions of that tick already saw the clone, and the cooldown of the
+ * player at the end of the tick before it.
+ */
+function untilCloneOut(engine: GameEngine): { tick: number; atDecision: boolean; cooldownBefore: number } {
+  let cooldownBefore = engine.getPlayer().moveCooldown;
+  for (let waited = 0; waited < MAX_WAIT_TICKS; waited++) {
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => clonesAt(engine));
+    if (seen.after > 0) return { tick: engine.getTick(), atDecision: (seen.decision ?? 0) > 0, cooldownBefore };
+    expect(seen.decision).toBe(0);
+    cooldownBefore = engine.getPlayer().moveCooldown;
+  }
+  throw new Error('the clone was never released');
+}
 
 describe('CC2 engine: a wire-fired clone machine acts before the pass that follows its edge', () => {
   // Lexy runs the wire phase of tic 0 before its decisions (game.js:872-876): the load edge fires before the pass of tick 0.
@@ -213,20 +235,18 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(deferredCount(engine)).toBe(0);
   });
 
-  // A press made in mid-level: the pink plate reads the player once his step has ended, the wire phase that follows raises the
-  // edge, and the clone machine acts before the decisions of the next pass (game.js:872-876, the wire phase before the decisions;
-  // the edge of a press is read at the end of the step, game.js:2350-2357).
+  // A press made in mid-level: the pink plate reads the player once his step has ended, the wire phase of that tick end raises the
+  // edge, and the clone machine acts before the decisions of the next pass (game.js:872-876, the wire phase before the decisions; the edge
+  // of a press is read at the end of the step, game.js:2350-2357). The clone is in the exit cell at the decisions of the tick of its
+  // release already (Lexy lane wdirect: out at the decisions and at the end of that tic alike).
   it('fires an edge made in mid-level before the pass that follows it', () => {
     const engine = load(cloneLane('cc2', PLATE, false));
     run(engine, SETTLE_TICKS);
     stepEast(engine);
-    for (let waited = 0; deferredCount(engine) === 0; waited++) {
-      expect(waited).toBeLessThan(MAX_WAIT_TICKS);
-      expect(clonesAt(engine)).toBe(0);
-      engine.tick();
-    }
-    expect(clonesAt(engine)).toBe(0);
-    engine.tick();
+    const out = untilCloneOut(engine);
+    expect(out.cooldownBefore).toBe(0);
+    expect(out.tick).toBe(CLONE_OUT_TICK_MID_LEVEL);
+    expect(out.atDecision).toBe(true);
     expect(clonesAt(engine)).toBe(1);
     expect(deferredCount(engine)).toBe(0);
     expect(landingTick(engine)).toBe(LANDING_TICK_MID_LEVEL);
@@ -239,14 +259,10 @@ describe('CC2 engine: a wire-fired clone machine acts before the pass that follo
     expect(engine.attemptPlayerMove('E')).toBe(true);
     expect(clonesAt(engine)).toBe(0);
     expect(deferredCount(engine)).toBe(0);
-    for (let waited = 0; deferredCount(engine) === 0; waited++) {
-      expect(waited).toBeLessThan(MAX_WAIT_TICKS);
-      expect(clonesAt(engine)).toBe(0);
-      engine.tick();
-    }
-    expect(engine.getPlayer().moveCooldown).toBe(0);
-    expect(clonesAt(engine)).toBe(0);
-    engine.tick();
+    const out = untilCloneOut(engine);
+    expect(out.cooldownBefore).toBe(0);
+    expect(out.tick).toBe(CLONE_OUT_TICK_AT_TURN);
+    expect(out.atDecision).toBe(true);
     expect(clonesAt(engine)).toBe(1);
     expect(deferredCount(engine)).toBe(0);
     expect(landingTick(engine)).toBe(LANDING_TICK_AT_TURN);
