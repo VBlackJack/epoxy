@@ -39,12 +39,13 @@ import {
   channelOfButtonAction
 } from '../coreConstants';
 import { isPhasingEntityType } from '../RulesetFeatures';
-import { ButtonAction, ChannelColor, Direction, RuntimeEntity, TileDefinition } from '../types';
+import { ButtonAction, ChannelColor, Direction, PlayerState, RuntimeEntity, TileDefinition } from '../types';
 import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
 import { holdFrameArrival, tagSlideFrame } from './epoxyFrames';
+import { deferHazardToStepEnd, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { canMonsterEnter, cc2EntryStepTicks, cc3dReleaseCooldown, resolveMonsterArrival } from './epoxyMonsters';
 import { fireLauncherAt, fireLaunchers } from './epoxyShots';
@@ -454,13 +455,24 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
   }
 }
 
+/**
+ * CC2 engine: whether a jet that lit under `p` does not burn him yet because his step still runs: it is judged when the step ends, if
+ * still lit (Lexy flame_jet_off.activate kills nothing, tiletypes.js 2146-2152; flame_jet_on on_stand runs from step_on_cell, tiletypes.js
+ * 2163-2168, game.js 2365-2366). Marks the cell as his pending hazard and returns true then.
+ */
+function deferJetBurnToStepEnd(w: EpoxyWorld, p: PlayerState): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || !stepStillRuns(p)) return false;
+  deferHazardToStepEnd(p, p.x, p.y);
+  return true;
+}
+
 /** A flame jet lit under the player (a monster or block pressed the button) burns them. */
 function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (!w.player.alive) return;
   if (w.parked.length === 0) {
     const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
-    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem))) {
+    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem)) && !deferJetBurnToStepEnd(w, w.player)) {
       ctx.emitVisual('explosion', w.player.x, w.player.y);
       killPlayer(ctx, 'hud.messages.death_fire', 'burn');
     }

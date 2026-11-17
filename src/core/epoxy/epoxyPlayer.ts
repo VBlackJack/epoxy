@@ -762,22 +762,60 @@ function setDownPushedOutTool(ctx: EpoxyContext, x: number, y: number, itemId: s
   }
 }
 
-/** CC2 engine: whether the lit flame jet `tile` burns the player when his step onto it ends, not when it starts (Lexy flame_jet_on on_stand, called from step_on_cell). */
-function jetWaitsForStepEnd(w: EpoxyWorld, tile: TileDefinition): boolean {
-  return usesCc2Engine(w.level) && !w.cc3dPace && tile.hazard !== undefined && tile.burnsOccupants === true;
+/** The hazard kinds that kill the CC2 player at the end of his step (Lexy on_arrive from step_on_cell, tiletypes.js 941-1010, 1121-1137). */
+const STEP_END_HAZARDS: readonly string[] = ['fire', 'water', 'slime'];
+
+/**
+ * CC2 engine: whether the hazard of `tile` (fire, water, slime, or a lit flame jet, Lexy flame_jet_on on_stand) is judged when the
+ * player's step onto it ends, not when it starts (Lexy runs on_arrive and on_stand from step_on_cell, game.js 2310-2367).
+ */
+function hazardWaitsForStepEnd(w: EpoxyWorld, tile: TileDefinition): boolean {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || tile.hazard === undefined) return false;
+  return tile.burnsOccupants === true || STEP_END_HAZARDS.includes(tile.hazard);
 }
 
-/** CC2 engine: the jet of the cell his step ended on, judged now: false when it burned him (still lit, and he has no fire boots). */
-function judgeJetAtStepEnd(ctx: EpoxyContext, at: { x: number; y: number }): boolean {
+/** Whether the step of `p` still runs: his move wait, or his slide wait while he slides. */
+export function stepStillRuns(p: PlayerState): boolean {
+  return p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0;
+}
+
+/** CC2 engine: marks the hazard of the cell (x, y) as pending on `p`: it is judged when his step ends (judgeHazardAtStepEnd). */
+export function deferHazardToStepEnd(p: PlayerState, x: number, y: number): void {
+  cc3dArrivalOf(p).hazard = { x, y };
+}
+
+/** Whether `p` holds the boots that make the hazard of `tile` harmless to him. */
+function guardedAgainst(p: PlayerState, tile: TileDefinition): boolean {
+  return tile.protectedByItem !== undefined && p.boots.has(tile.protectedByItem);
+}
+
+/**
+ * CC2 engine: the hazard of the cell his step ended on, judged now on the terrain it has then (a jet may be out again, or lit since):
+ * false when it killed him. Water drowns, fire and a lit jet burn, slime kills, unless he holds the boots.
+ */
+function judgeHazardAtStepEnd(ctx: EpoxyContext, at: { x: number; y: number }): boolean {
   const w = ctx.world;
   const p = w.player;
   if (p.x !== at.x || p.y !== at.y) return true;
   const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
-  if (tile.burnsOccupants !== true || tile.hazard !== 'fire') return true;
-  if (tile.protectedByItem && p.boots.has(tile.protectedByItem)) return true;
-  ctx.emitVisual('explosion', p.x, p.y);
-  killPlayer(ctx, 'hud.messages.death_fire', 'burn');
-  return false;
+  p.inWater = tile.hazard === 'water';
+  if (guardedAgainst(p, tile)) return true;
+  if (tile.hazard === 'water') {
+    ctx.emitVisual('splash', p.x, p.y);
+    killPlayer(ctx, 'hud.messages.death_water', 'death');
+    return false;
+  }
+  if (tile.hazard === 'fire') {
+    ctx.emitVisual('explosion', p.x, p.y);
+    killPlayer(ctx, 'hud.messages.death_fire', 'burn');
+    return false;
+  }
+  if (tile.hazard === 'slime') {
+    ctx.emitVisual('splash', p.x, p.y, 'green');
+    killPlayer(ctx, 'hud.messages.death_slime', 'death');
+    return false;
+  }
+  return true;
 }
 
 /** CC2 engine: a bomb the player steps onto goes off when his step ends, not when it starts (Lexy tiletypes.js bomb on_arrive). */
@@ -955,11 +993,13 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
     if (!w.player.alive) return;
   }
 
-  // A lit flame jet burns him when his step onto it ends, judged again then (judgeJetAtStepEnd); inWater is assigned before this early
-  // return, so the deferral never leaves a stale value.
-  w.player.inWater = tile.hazard === 'water';
-  if (!atStepEnd && jetWaitsForStepEnd(w, tile)) {
-    cc3dArrivalOf(w.player).hazard = { x, y };
+  // Fire, water, slime and a lit flame jet act when his step onto them ends, judged again on the cell then (judgeHazardAtStepEnd). A
+  // player the hazard would kill is not drawn swimming while the step runs (Lexy swims only a waterproof player, tiletypes.js 202-208);
+  // inWater is assigned before the early return, so the deferral never leaves a stale value.
+  const waits = !atStepEnd && hazardWaitsForStepEnd(w, tile);
+  w.player.inWater = tile.hazard === 'water' && !(waits && !guardedAgainst(w.player, tile));
+  if (waits) {
+    deferHazardToStepEnd(w.player, x, y);
     if (tile.isLevelExit !== true) {
       evaluatePlayerSliding(w, tile, entryDir);
       return;
@@ -1039,7 +1079,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   const p = w.player;
   const pending = p.cc3dArrival;
   if (pending === undefined) return true;
-  if (p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0) return true;
+  if (stepStillRuns(p)) return true;
   delete p.cc3dArrival;
   // CC2 engine: the dirt he packed down goes now that his step has ended (see resolvePlayerArrival).
   if (pending.opening !== undefined) {
@@ -1070,7 +1110,7 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
   }
-  if (pending.hazard !== undefined && !judgeJetAtStepEnd(ctx, pending.hazard)) return true;
+  if (pending.hazard !== undefined && !judgeHazardAtStepEnd(ctx, pending.hazard)) return true;
   if (pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y) {
     const itemId = w.items[p.y]?.[p.x];
     const itemDef = itemId ? ConfigRegistry.getTile(itemId) : undefined;
