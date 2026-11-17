@@ -155,6 +155,8 @@ export interface SignalEdge {
   cell: number;
   /** True for off to on, false for on to off. */
   rising: boolean;
+  /** A deferred edge of a mixed sink raised by a straight-wired source; decided once, when the edge is deferred (see markStraight). */
+  straight?: true;
 }
 
 export interface SettleResult {
