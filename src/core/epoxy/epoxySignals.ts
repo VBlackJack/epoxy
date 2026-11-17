@@ -731,20 +731,25 @@ function markStraight(runtime: SignalRuntime, edge: SignalEdge): SignalEdge {
 /** The press frame of a straight edge, from the straight-wired sources that are on only (see pressFrameOfSink). */
 function pressFrameOfStraight(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
   const net = runtime.network;
-  const width = mapWidth(w);
   const start = net.indexOfCell.get(cell);
   let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
   if (start === undefined) return best;
   for (const wire of net.nodes[start].wires) {
     const node = net.nodes[wire.from];
     if (node.kind !== 'source' || runtime.state.lastOutputs[wire.from] !== true) continue;
-    const x = node.cell % width;
-    const y = Math.floor(node.cell / width);
-    for (const e of w.entities) {
-      if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
-      const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
-      if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
-    }
+    best = earliestPressFrameAt(w, node.cell, best);
+  }
+  return best;
+}
+
+/** The earliest press frame, up to `best`, among the actors at rest on a source cell (a clone carries `cc2Frame`; any other actor ends in frame 1). */
+function earliestPressFrameAt(w: EpoxyWorld, cell: number, best: 0 | 1 | 2): 0 | 1 | 2 {
+  const x = cell % mapWidth(w);
+  const y = Math.floor(cell / mapWidth(w));
+  for (const e of w.entities) {
+    if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
+    const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
+    if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
   }
   return best;
 }
@@ -816,7 +821,6 @@ function isDirectSink(runtime: SignalRuntime, cell: number): boolean {
  */
 function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 0 | 1 | 2 {
   const net = runtime.network;
-  const width = mapWidth(w);
   const start = net.indexOfCell.get(cell);
   let best: 0 | 1 | 2 = CC2_DEFAULT_FRAME;
   const seen = new Set<number>();
@@ -826,15 +830,7 @@ function pressFrameOfSink(w: EpoxyWorld, runtime: SignalRuntime, cell: number): 
     if (seen.has(i)) continue;
     seen.add(i);
     const node = net.nodes[i];
-    if (node.kind === 'source') {
-      const x = node.cell % width;
-      const y = Math.floor(node.cell / width);
-      for (const e of w.entities) {
-        if (e.x !== x || e.y !== y || !actorAtRest(e)) continue;
-        const frame = e.cc2Frame ?? CC2_DEFAULT_FRAME;
-        if (PRESS_FRAME_RANK[frame] < PRESS_FRAME_RANK[best]) best = frame;
-      }
-    }
+    if (node.kind === 'source') best = earliestPressFrameAt(w, node.cell, best);
     for (const wire of node.wires) stack.push(wire.from);
   }
   return best;

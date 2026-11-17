@@ -64,11 +64,6 @@ export interface ChannelCell extends GridPoint {
 /** Kinds of visual event the engine reports to its renderer. */
 export type EpoxyVisualKind = 'chip' | 'item' | 'unlock' | 'splash' | 'explosion' | 'teleport' | 'win';
 
-/** A wire-fired sink edge waiting for the next tick; `straight` marks one a straight-wired source raised on a mixed sink (decided once, when it was deferred). */
-export interface DeferredSinkEdge extends SignalEdge {
-  straight?: true;
-}
-
 /**
  * The play state of one Epoxy level, shared by every engine module. Made once
  * by the engine and never replaced: modules read and reassign its fields (for
@@ -217,7 +212,7 @@ export interface EpoxyWorld {
    * CC2 engine: cloner and launcher edges fired by a wire that act one tick later, oldest first (the wire phase runs after
    * the action phase). Empty on every other level; reset when a level loads, saved with the undo snapshot, dropped when the level completes.
    */
-  cc2DeferredSinkEdges: DeferredSinkEdge[];
+  cc2DeferredSinkEdges: SignalEdge[];
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
   ccSlots: (number | null)[];
   /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */

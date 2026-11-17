@@ -1985,7 +1985,7 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier, the deferred wire-fired
    * sink edges, the mirror players' remembered decision, the blasted walls and the edited ghost bar. Undefined while none is set, so a level that uses none hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: { remembered: Direction | null; snapshot: Direction | null; attempted: boolean }; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean; straight?: true }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: { remembered: Direction | null; snapshot: Direction | null; attempted: boolean }; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
     const brownHeld = this.w.cc2BrownHeld;
