@@ -45,8 +45,10 @@ const GATE_X = 4;
 const SINK_X = 9;
 const CLONE_X = SINK_X + 1;
 const FAR_START_X = SINK_X + 3;
-/** Ticks the latch lane runs: the clone appears at tic 0 in Lexy and lands in tic 3; Epoxy lands it a tick late (known gap, not pinned). */
+/** Ticks the latch lane runs: the clone appears at tic 0 in Lexy and lands at the end of tic 3 (lane dlnot, tick = tic + 1). */
 const LATCH_LANE_TICKS = 6;
+/** The tick whose end shows the dlnot clone landed (Lexy lane dlnot: clone at tic 0, lands t3). */
+const DLNOT_LANDING_TICK = 4;
 
 const cell = (x: number): number => ROOM_ROW * ROOM_SIZE + x;
 const link = (fromX: number, toX: number, port?: string): SignalLink => ({ fromX, fromY: ROOM_ROW, toX, toY: ROOM_ROW, ...(port === undefined ? {} : { port }) });
@@ -62,8 +64,8 @@ function load(tiles: readonly [string, string][], links: SignalLink[], entities:
 }
 
 describe('Z: tic 0 starts from all-off wires (N0, N0L)', () => {
-  // Lexy lanes cntheld / cntnot: the counter reads 1 after tic 0. Lexy counts it in f1, after the all-off f0 phase; Epoxy's undelayed counter counts it in
-  // the f0 sub-settle against the all-off copy, and the value after tic 0 is the same. Without the
+  // Lexy lanes cntheld / cntnot: the counter reads 1 after tic 0. Lexy counts it in f1, after the all-off f0 phase; so does Epoxy's delayed
+  // counter (it reads the all-off copy in f0, then the plate in f1). Without the
   // all-off phase the held plate is already on in the one gate step, a level not an edge, and the counter stays at 0.
   it('counts one at tic 0 for a counter fed by a plate held at load (cntheld)', () => {
     const engine = load([at(PLATE_X, PLATE), at(SINK_X, COUNTER)], [link(PLATE_X, SINK_X, 'in0')], [held(PLATE_X)]);
@@ -79,13 +81,19 @@ describe('Z: tic 0 starts from all-off wires (N0, N0L)', () => {
 
   // Lexy lane dlnot (a data latch whose data and clock plates are held at load, then a NOT, then the clone machine): the latch output reads
   // off in the frame-0 phase, so the NOT emits and Lexy clones once at tic 0. Epoxy's load prime has already set the latch bit, so without
-  // zeroing the latch output (N0L) the NOT never rises. The landing tick is not pinned: Epoxy lands it one tick late (t4 against t3), the
-  // latch-class end-of-next-tick deferral, a known gap.
+  // zeroing the latch output (N0L) the NOT never rises. The data latch is delayed like a gate, so the sink is gate-timed and the clone lands
+  // in tick 4 (Lexy tic 3, lane dlnot); the latch-class end-of-next-tick deferral landed it one tick late.
   it('clones once at tic 0 through a NOT behind a data latch held on at load (dlnot)', () => {
     const tiles: [string, string][] = [at(PLATE_X, PLATE), at(PLATE_X + 1, PLATE), at(GATE_X + 1, DLATCH), at(GATE_X + 2, NOT_GATE), at(SINK_X, CLONE_MACHINE)];
     const links = [link(PLATE_X, GATE_X + 1, 'in0'), link(PLATE_X + 1, GATE_X + 1, 'in1'), link(GATE_X + 1, GATE_X + 2), link(GATE_X + 2, SINK_X)];
     const engine = load(tiles, links, [{ type: BLOCK, x: SINK_X, y: ROOM_ROW, dir: 'E' }, held(PLATE_X), held(PLATE_X + 1)]);
-    for (let i = 0; i < LATCH_LANE_TICKS; i++) engine.tick();
+    const landed = (): boolean => engine.getEntities().some((e) => e.kind === 'block' && e.x === CLONE_X && !e.isSliding);
+    let landingTick = -1;
+    for (let i = 0; i < LATCH_LANE_TICKS; i++) {
+      engine.tick();
+      if (landingTick < 0 && landed()) landingTick = engine.getTick();
+    }
     expect(engine.getEntities().filter((e) => e.kind === 'block' && e.x === CLONE_X).length).toBe(1);
+    expect(landingTick).toBe(DLNOT_LANDING_TICK);
   });
 });
