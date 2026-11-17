@@ -51,6 +51,7 @@ import {
   copySignalState,
   fireSignalSinks,
   fireSinksBeforePass,
+  GATE_RELEASE_TICK_END,
   GATE_SETTLE_TIC0,
   GATE_SETTLE_TICK_END,
   counterValuesOf,
@@ -1280,7 +1281,7 @@ export class GameEngine {
     setPoweredCells(this.ctx);
     setHoldDoors(this.ctx);
     // The launchers and clone machines wired to a signal fire after the doors, sharing the per-tick launcher cap with the buttons.
-    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK);
+    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_TICK, GATE_RELEASE_TICK_END);
     // A new tick lets every launcher fire again; a move made before it counts with it. Cleared only now, so a launcher
     // fired by a signal in this pass counts with the buttons of the pass.
     this.w.firedLaunchers.clear();
