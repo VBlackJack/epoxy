@@ -78,6 +78,8 @@ The CC2 import (`.c2m` files, `.c2g` game scripts or a whole folder) maps these 
 - **Data latch.** Remembers the signal on its data link (port `in0`) while its clock link (port `in1`) is sending, and sends what it remembers. Both CC2 latches play as a data latch; the toggle latch is unchanged.
 - **Counter (0 to 9).** Counts up on each start of its first input (`in0`) and down on each start of its second (`in1`), from 0 to 9. Wrapping past 9 sends a short pulse on `out0`; wrapping below 0 sends on `out1` until the next count. One palette entry; `R` cycles the starting value.
 - **Ports.** Gate ports (`in0`/`in1`, `out0`/`out1`) are carried by the signal links. See section 3.3 for how to see and swap them in the editor.
+- **CC2 gate timing.** On CC2 imports (and CC1 Steam .c2m imports) an AND, OR, NOT, XOR or NAND gate takes one wire step, as in CC2: a door, trap or clone machine behind a gate reacts one step after the button that feeds it, and gates fed by buttons held at the start react before the first move. Native Epoxy levels and CC1 .DAT imports keep gates that follow their inputs at once.
+- **CC2 self-wired gates.** A CC2 OR or NOT gate whose output wire comes back to its own input keeps that wire on import: the OR holds its signal as a latch, the NOT runs as a clock. The wire is stored with the CC2 data of the level, so the level checker accepts the loop; a level imported before Epoxy 2.36.0 gets it when imported again. The editor has no CC2 data: a CC2 level edited and saved becomes a native level and loses the self wire. On native levels a gate wired to itself is still a cycle.
 
 ### 1.11 Monsters
 
