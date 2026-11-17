@@ -26,7 +26,7 @@ import { usesCc2Engine, usesCcRules } from './ccRules';
 import { leaveSplash } from './epoxyBlocks';
 import type { CcGenerators } from './ccGenerators';
 import { DELAYED_GATE_KINDS, type SignalEdge } from './signalNetwork';
-import type { CcArrival, Cc2MirrorMove, Cc2PendingDecision, Cc2PlayerView, Cc3dPlayerArrival } from '../types';
+import type { CcArrival, Cc2MirrorMove, Cc2PendingDecision, Cc2PlayerView, Cc3dPlayerArrival, SignalNodeKind } from '../types';
 import { railEdgeBlocked } from './epoxyRailsCc2';
 import type { RailActor, RailCellState } from './epoxyRailsCc2';
 import type { SignalRuntime } from './epoxySignals';
@@ -63,6 +63,11 @@ export interface ChannelCell extends GridPoint {
 
 /** Kinds of visual event the engine reports to its renderer. */
 export type EpoxyVisualKind = 'chip' | 'item' | 'unlock' | 'splash' | 'explosion' | 'teleport' | 'win';
+
+/** A wire-fired sink edge waiting for the next tick; `straight` marks one a straight-wired source raised on a mixed sink (decided once, when it was deferred). */
+export interface DeferredSinkEdge extends SignalEdge {
+  straight?: true;
+}
 
 /**
  * The play state of one Epoxy level, shared by every engine module. Made once
@@ -212,7 +217,7 @@ export interface EpoxyWorld {
    * CC2 engine: cloner and launcher edges fired by a wire that act one tick later, oldest first (the wire phase runs after
    * the action phase). Empty on every other level; reset when a level loads, saved with the undo snapshot, dropped when the level completes.
    */
-  cc2DeferredSinkEdges: SignalEdge[];
+  cc2DeferredSinkEdges: DeferredSinkEdge[];
   /** Creature slots of a classic-rules level: the uid held by each slot, null for a freed one; the entity list follows this order. Saved with the undo snapshot. */
   ccSlots: (number | null)[];
   /** The directions the classic monsters decided on in the decision pass of the current entity pass; transient, never saved. */
@@ -871,7 +876,8 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
     ...(a.opening !== undefined ? { opening: { ...a.opening } } : {}),
     ...(a.pulse !== undefined ? { pulse: { ...a.pulse } } : {}),
     ...(a.brown !== undefined ? { brown: { ...a.brown } } : {}),
-    ...(a.bomb !== undefined ? { bomb: { ...a.bomb } } : {})
+    ...(a.bomb !== undefined ? { bomb: { ...a.bomb } } : {}),
+    ...(a.hazard !== undefined ? { hazard: { ...a.hazard } } : {})
   };
 }
 
@@ -906,13 +912,21 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // A gate-delay network reads its gates' outputs of the last settle, so those outputs (and the latch bits) are state. A network with
   // no delayed gate and no latch has none: its key stays as it was before the gate delay.
   const network = w.signals?.network;
-  const keepsGateState = network?.nodes.some((node) => DELAYED_GATE_KINDS.has(node.kind) || node.kind === 'latch' || node.kind === 'dlatch') === true;
+  // A counter keeps state too (its value, its underflow output and the inputs it last read), and on a gate-delay network the outputs of
+  // data latches and counters are delayed like those of the gates.
+  const keepsGateState = network?.nodes.some((node) => DELAYED_GATE_KINDS.has(node.kind) || node.kind === 'latch' || node.kind === 'dlatch' || node.kind === 'counter') === true;
   if (network?.gateDelay === true && keepsGateState && w.signals !== undefined) {
-    const { lastOutputs, latchBits } = w.signals.state;
-    const delayed = network.nodes.map((node, i) => (DELAYED_GATE_KINDS.has(node.kind) && lastOutputs[i] === true ? '1' : '0')).join('');
+    const { lastOutputs, latchBits, counterValues, counterUnderflow, counterSeen } = w.signals.state;
+    const isDelayed = (kind: SignalNodeKind): boolean => DELAYED_GATE_KINDS.has(kind) || kind === 'dlatch' || kind === 'counter';
+    const delayed = network.nodes.map((node, i) => (isDelayed(node.kind) && lastOutputs[i] === true ? '1' : '0')).join('');
     parts.push(`g${delayed}/${latchBits.map((bit) => (bit ? '1' : '0')).join('')}`);
+    if (counterValues !== undefined) {
+      const counters = network.nodes.flatMap((node, i) => (node.kind === 'counter' ? [`${counterValues[i]}${counterUnderflow?.[i] === true ? 'u' : ''}${counterSeen?.[i] ?? 0}`] : []));
+      parts.push(`c${counters.join(',')}`);
+    }
   }
-  if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}`).join(',')}`);
+  // A deferred edge keeps the choice made when it was raised: a straight one fires with the direct sinks, the others with the gates.
+  if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}${e.straight === true ? 's' : ''}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue !== undefined ? e.pendingSteerDue - pass : ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
@@ -920,6 +934,9 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
   const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
+  // A clone's press waiting for its step end decides what fires next. Ordinary queued monster presses stay out of the key.
+  const presses = w.ccArrivals.filter((a) => a.stepEnd === true).map((a) => `${a.uid}@${a.due - pass}s`);
+  if (presses.length > 0) parts.push(`p${presses.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
   const keys = w.entities.filter((e) => e.heldKeys !== undefined && e.heldKeys.length > 0).map((e) => `${e.uid}:${(e.heldKeys as string[]).join('+')}`);
@@ -1003,7 +1020,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}${a.bomb === undefined ? '' : `:x${cell(a.bomb)}`}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}${a.bomb === undefined ? '' : `:x${cell(a.bomb)}`}${a.hazard === undefined ? '' : `:h${cell(a.hazard)}`}`);
   });
   return parts.join(';');
 }
