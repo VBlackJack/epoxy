@@ -21,12 +21,18 @@
  * 2218-2242). The lanes below are w18_or1 / w18_oror / w18_oror3 (Lexy: the clone lands in tic 8, 8, 9; the direct lane lands in 8).
  * Lane evidence, not unit-built: a parked player (no actor order) lands the gate release exactly where the direct release does in the same
  * mode (lanes directp, or1p, ororp), so the pending pre-pass needs no special case (the arrival is held uncounted).
+ *
+ * Wave 19: the guards below pin the monster and launcher timings the frame wire phases give (a gate-fed release of the frame-0 and
+ * frame-1 phases takes the before-pass tick of a monster clone, game.js:872-889, 2218-2242). tick() k plays the Lexy tic k - 1.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('./epoxyFrames')>()));
 
+import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -50,11 +56,28 @@ const CLONE_X = SINK_X + 1;
 const LANE_TICKS = 24;
 /** The arrival frame tags of the clones of 1, 2 and 3 OR gates: the 12-frame step ends in frame 1, 2, 0 (sub-settles 1, 2, 3). */
 const GATE_END_FRAMES: readonly number[] = [1, 2, 0];
-/** Measured on the code before the stamp: the tick the first shot of a launcher through 1, 2, 3 OR gates is in flight. */
-const LAUNCHER_FIRST_SHOT_TICKS: readonly number[] = [5, 5, 5];
-/** Measured on the code before the stamp: the ball template through 1, 2 and 3 ORs (position:cooldown:frame tag per monster, per tick). */
-const BALL_TRACE = '9:0:- 9:0:- 9:0:- 9:0:- 10:3:-/9:0:- 10:2:-/9:0:- 10:1:-/9:0:- 10:0:-/9:0:- 11:3:-/9:0:- 11:2:-/9:0:- 11:1:-/9:0:- 11:0:-/9:0:-';
-const BALL_TRACES: readonly string[] = [BALL_TRACE, BALL_TRACE, BALL_TRACE];
+/**
+ * The tick whose end first shows a shot in flight, for a launcher fed through 1, 2, 3 OR gates: the launcher fires in the wire phase its
+ * sink rises in (f2 of t4, f0 of t5, f1 of t5), the Lexy end of tic of those; no Lexy launcher lane exists, the cloner lanes or1 / oror /
+ * oror3 (clone out t4, t5, t5) give the phases. Before wave 19: 5, 5, 5.
+ */
+const LAUNCHER_FIRST_SHOT_TICKS: readonly number[] = [5, 6, 6];
+/** The tick whose decisions first see the shot in flight (the frame-2 decisions after the phases of the launcher above). */
+const LAUNCHER_SHOT_AT_DECISION_TICK = 6;
+/**
+ * The ball template through 1, 2 and 3 ORs (position:cooldown:frame tag per monster, per tick, after each tick). One OR is released in
+ * the frame-2 phase of the tick end and keeps the trace of before wave 19 (Lexy lane w18_or1ball: out t4, first step t8). Two and three
+ * ORs are released in the f0 / f1 phase of the next tic (out t5), the clone carries the frame of its phase (tag 2, 0) and its 12-frame
+ * step ends in frame 2 of t + 3 / frame 0 of t + 4, so its first decision is at t9 (lanes wororball, woror3ball: first step t9).
+ */
+const BALL_TRACE_ONE = '9:0:- 9:0:- 9:0:- 9:0:- 10:3:-/9:0:- 10:2:-/9:0:- 10:1:-/9:0:- 10:0:-/9:0:- 11:3:-/9:0:- 11:2:-/9:0:- 11:1:-/9:0:- 11:0:-/9:0:-';
+const BALL_TRACE_TWO = '9:0:- 9:0:- 9:0:- 9:0:- 9:0:- 10:3:2/9:0:- 10:2:2/9:0:- 10:1:2/9:0:- 10:0:2/9:0:- 11:3:-/9:0:- 11:2:-/9:0:- 11:1:-/9:0:-';
+const BALL_TRACE_THREE = '9:0:- 9:0:- 9:0:- 9:0:- 9:0:- 10:3:0/9:0:- 10:2:0/9:0:- 10:1:0/9:0:- 10:0:0/9:0:- 11:3:-/9:0:- 11:2:-/9:0:- 11:1:-/9:0:-';
+const BALL_TRACES: readonly string[] = [BALL_TRACE_ONE, BALL_TRACE_TWO, BALL_TRACE_THREE];
+/** The tick whose end shows the first step of the ball clone of 1, 2 and 3 ORs (Lexy lanes w18_or1ball, wororball, woror3ball: t8, t9, t9). */
+const BALL_FIRST_STEP_TICKS: readonly number[] = [9, 10, 10];
+/** The clone cell of the ball lane and the cell it steps to. */
+const BALL_STEP_X = CLONE_X + 1;
 /** Ticks of the ball trace the guard pins. */
 const BALL_TRACE_TICKS = 12;
 /** The gate counts of the lanes or1, oror, oror3. */
@@ -111,14 +134,17 @@ describe('C: a gate-fed clone machine releases its clone in the frame of its wir
   });
 });
 
-/** The tick the first shot of a launcher fed through `gates` OR gates is in flight. */
-function launcherFirstShotTick(gates: number): number {
+/** The first tick whose end shows a shot of a launcher fed through `gates` OR gates in flight, and the first whose decisions see it. */
+function launcherFirstShot(gates: number): { post: number; decision: number } {
   const engine = orChain(gates, LAUNCHER, BLOCK);
+  let post = -1;
+  let decision = -1;
   for (let i = 0; i < LANE_TICKS; i++) {
-    engine.tick();
-    if ((engine.getShots()?.length ?? 0) > 0) return engine.getTick();
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => (engine.getShots()?.length ?? 0) > 0);
+    if (decision < 0 && seen.decision === true) decision = engine.getTick();
+    if (post < 0 && seen.after) post = engine.getTick();
   }
-  return -1;
+  return { post, decision };
 }
 
 /** The position, cooldown and frame tag of every monster, per tick, of a ball template cloned through `gates` OR gates. */
@@ -138,16 +164,38 @@ function ballTrace(gates: number): string {
   return trace.join(' ');
 }
 
+/** The first tick whose end shows the ball clone of `gates` OR gates one cell past its machine, and what the decisions of that tick see. */
+function ballFirstStep(gates: number): { tick: number; cooldownAtDecision: number | undefined } {
+  const engine = orChain(gates, CLONE_MACHINE, BALL);
+  const ballAt = (x: number): RuntimeEntity | undefined => engine.getEntities().find((e) => e.kind === 'monster' && e.x === x);
+  for (let i = 0; i < LANE_TICKS; i++) {
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => ballAt(CLONE_X)?.cooldownTicks);
+    if (ballAt(BALL_STEP_X) !== undefined) return { tick: engine.getTick(), cooldownAtDecision: seen.decision };
+  }
+  throw new Error('the ball never stepped');
+}
+
 describe('C: scope guards (the stamp is for block clones released by a clone machine only)', () => {
-  // Guards, not rule tests: they pass with the stamp reverted too, and fail only if the stamp is widened to a launcher or a monster
-  // template. Lexy lane w18_or1ball: the ball clone moves as in the base every tick (the monster stamp changes nothing visible).
-  it('a launcher fed through an OR fires on the tick it fired before the stamp (cloner only)', () => {
-    expect(GATE_COUNTS.map(launcherFirstShotTick)).toEqual(LAUNCHER_FIRST_SHOT_TICKS);
+  // A guard on the placement: a launcher fires in the wire phase its sink rises in, the model the Lexy cloner lanes check (no Lexy
+  // launcher lane exists). Its shot is in flight after tick 5 / 6 / 6 and at the decisions of tick 6 for all three. fireLauncherAt takes
+  // no release stamp, so this is no stamp guard: it pins today's launcher timing (the wire phase its sink rises in), and fails when a
+  // change moves the tick a launcher fires in.
+  it('a launcher fed through an OR fires in the wire phase its sink rises in (launcher timing guard)', () => {
+    const shots = GATE_COUNTS.map(launcherFirstShot);
+    expect(shots.map((s) => s.post)).toEqual(LAUNCHER_FIRST_SHOT_TICKS);
+    expect(shots.map((s) => s.decision)).toEqual(GATE_COUNTS.map(() => LAUNCHER_SHOT_AT_DECISION_TICK));
   });
 
-  // A guard: the traces carry the frame tag (cc2Frame) of every ball, so a stamp widened to monster templates (a tag only, no
-  // visible move change) fails here.
+  // The traces carry the frame tag (cc2Frame) of every ball, so a stamp widened to monster templates fails here. Lexy lanes w18_or1ball /
+  // wororball / woror3ball: appear at the end of tic t4, t5, t5, first step t8, t9, t9.
   it('a ball template through 1, 2 and 3 ORs keeps its cooldown and frame trace (blocks only)', () => {
     expect(GATE_COUNTS.map(ballTrace)).toEqual(BALL_TRACES);
+  });
+
+  // The first step is decided in tick 9 / 10 / 10 (Lexy t8, t9, t9): at the decisions of that tick the clone's cooldown has run out.
+  it('a ball clone of 1, 2 and 3 ORs takes its first step in tick 9, 10, 10, with no cooldown left at those decisions', () => {
+    const steps = GATE_COUNTS.map(ballFirstStep);
+    expect(steps.map((s) => s.tick)).toEqual(BALL_FIRST_STEP_TICKS);
+    expect(steps.map((s) => s.cooldownAtDecision)).toEqual(GATE_COUNTS.map(() => 0));
   });
 });

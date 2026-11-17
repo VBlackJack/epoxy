@@ -238,6 +238,11 @@ export interface EpoxyWorld {
    * of the tic before, game.js:872-889), deleted at the end of the tick's entity pass. Saved in an undo snapshot while set.
    */
   cc2PrePassDone?: true;
+  /**
+   * CC2 engine, frame model, gate-delay network: the Lexy frame wire phase (0 or 1) still to run after the frame-2 one of the tick end;
+   * absent once the frame-1 phase ran. Saved in an undo snapshot while set (actor order: it crosses the tick boundary).
+   */
+  cc2WireFrameNext?: 0 | 1;
   /** CC2 engine, frame pre-pass: an arrival of frame 0 or 1 happened, so the wires settle before the decisions. Transient, deleted in a finally. */
   cc2PrePassArrived?: true;
   /** CC2 engine, frame pre-pass: true while a block takes its slide step inside the pre-pass. Transient. */
@@ -942,6 +947,7 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const playerMarks = [w.player, ...w.parked].map(playerMark);
   if (playerMarks.some((m) => m !== '')) parts.push(`P${playerMarks.join(',')}`);
   if (w.cc2PrePassDone === true) parts.push('Q');
+  if (w.cc2WireFrameNext !== undefined) parts.push(`W${w.cc2WireFrameNext}`);
   const preMoved = w.entities.filter((e) => e.cc2PrePassMoved === true).map((e) => e.uid);
   if (preMoved.length > 0) parts.push(`O${preMoved.join(',')}`);
   // The tool belt (order matters) and the soft pad decision of each player.

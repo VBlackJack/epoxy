@@ -23,7 +23,10 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../audio/AudioManager', () => import('../test/silentAudio'));
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('../core/epoxy/epoxyFrames', async (importOriginal) => (await import('../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('../core/epoxy/epoxyFrames')>()));
 
+import { readAtDecisionAndAfter } from '../test/cc2DecisionProbe';
 import { loadTestConfigs } from '../test/loadTestConfigs';
 import { playMove } from '../test/cc2Play';
 import { GameEngine } from '../core/GameEngine';
@@ -105,9 +108,13 @@ describe('wired track switches', () => {
     throw new Error('the player never became able to move');
   }
 
-  /** Runs the ticks until the step is over: the pink button reads the player only once he is at rest. */
+  /**
+   * Runs the ticks until the step is over, then the one whose wire phase reads him at rest: the pink button reads the player only once he
+   * is at rest, and the switch shows the new segment at the end of the next tic (Lexy lane track, end of tic t4).
+   */
   function settle(engine: GameEngine): void {
     for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; waited++) engine.tick();
+    engine.tick();
   }
 
   function activeOf(engine: GameEngine): number | undefined {
@@ -139,8 +146,16 @@ describe('wired track switches', () => {
     engine.loadLevel(level);
     expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
 
-    // Onto the pink button: the wire rises once he has settled, the switch advances once.
+    // Onto the pink button: the wire rises once he has settled, the switch advances once. It is still on its first segment at the end of
+    // the tick his step ends, and shows the second at the end and at the decisions of the next one (Lexy lane track: end of tic t4 and
+    // frame-2 decisions of t4). The decision read is a read of the active segment at that point: the behavioural lane beh_track_k4 (a step
+    // decided there follows the switched track) is not reproduced as a unit room.
     step(engine, 'E');
+    for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().moveCooldown > 0; waited++) engine.tick();
+    expect(activeOf(engine)).toBe(ACTIVE_NORTH_EAST);
+    const next = readAtDecisionAndAfter(() => engine.tick(), () => activeOf(engine));
+    expect(next.decision).toBe(ACTIVE_SOUTH_EAST);
+    expect(next.after).toBe(ACTIVE_SOUTH_EAST);
     settle(engine);
     expect(activeOf(engine)).toBe(ACTIVE_SOUTH_EAST);
 

@@ -23,6 +23,11 @@
  * The Lexy loop every citation here means is the one the oracle runs: compat.emulate_60fps (game.js:839-843) selects
  * _advance_tic_lynx60 (game.js:872-889), three frames of decision, action and wire phase; the first non-forced decision is at frame 2,
  * so it sees the wire phases f0 and f1, and f0 only carries the sources onto the wires (every wire starts off, game.js:602, 728).
+ *
+ * Wave 19: the tick end is the frame-2 wire phase only, and the frame-0 and frame-1 phases run with the pre-pass frames of the next tic.
+ * Two observation points therefore differ, and the tests below pin both: right after tick() (the Lexy end of tic, a frame-2 phase
+ * included) and at the decisions inside the tick (the frame-2 decisions of Lexy, after the frame 0 and 1 phases). tick() k plays the
+ * Lexy tic k - 1.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +35,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const settleCalls = vi.hoisted(() => [] as { gates: unknown; edges: { cell: number; rising: boolean }[] }[]);
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('./epoxyFrames')>()));
 vi.mock('./epoxySignals', async (importOriginal) => {
   const real = await importOriginal<typeof import('./epoxySignals')>();
   return {
@@ -44,11 +51,13 @@ vi.mock('./epoxySignals', async (importOriginal) => {
   };
 });
 
+import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
 import { ROOM_ROW, ROOM_SIZE, room, type RoomMode } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
 import { stableStringify } from '../engineSimHash';
 import type { CompiledLevel, EntityPlacement, RuntimeEntity, SignalLink } from '../types';
+import { GATE_SETTLE_FRAME2 } from './epoxySignals';
 import { cc2HiddenStateKey, type EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
@@ -84,8 +93,31 @@ const NOT_LANE_LANDING_TICK = 4;
 /** The counter wraps at ten: five ticks keep the counts below it. */
 const COUNTER_TICKS = 5;
 const SETTLE_TICKS = 4;
-/** A chain of this many gates or fewer reaches the sink one tick end after a direct wire; one more gate is a tick end later again. */
+/** The mixed upstream sink is powered in this tick, at the end of the tick and at its decisions (Lexy lane mixed, t4). */
+const MIXED_POWERED_TICK = 5;
+/** Native levels only: a chain of this many gates or fewer reaches the sink in the same tick end as one gate does (three sub-settles); one more gate is a tick end later. */
 const GATES_IN_ONE_TICK_END = 3;
+/** Chains of 0 to 4 gates: the tick whose end first shows the door powered (Lexy lanes chain0-4, end of tic t4, t4, t5, t5, t5). */
+const CHAIN_POWERED_AFTER_TICK: readonly number[] = [5, 5, 6, 6, 6];
+/** The tick whose decisions first see the door powered (Lexy lanes chain0-4, frame-2 decisions of tic t4, t5, t5, t5, t6). */
+const CHAIN_POWERED_AT_DECISIONS: readonly number[] = [5, 6, 6, 6, 7];
+const CHAIN_GATE_COUNTS: readonly number[] = [0, 1, 2, 3, 4];
+/** The departure lanes (direct, through one gate): the tick whose end shows the sink fallen (Lexy lanes depart0 / depart1, end of tic t4, t5). */
+const DEPARTURE_FALL_AFTER_TICK: readonly number[] = [5, 6];
+/** The tick whose decisions see the sink fallen, direct and gated (Lexy lanes depart0 / depart1, frame-2 decisions of tic t5, t5). */
+const DEPARTURE_FALL_AT_DECISIONS = 6;
+/** Ticks run before the pre-pass lane of the frame-0 phase: the frame-0 wire phase is due from the second tick on. */
+const FRAME_PHASE_DUE_TICKS = 3;
+/** The F5 lane: force floors carry the player east into water, a plate and a door make the network a gate-delay one. */
+const DEATH_FORCE_XS: readonly number[] = [2, 3];
+const DEATH_WATER_X = 4;
+const DEATH_PLATE_X = 8;
+const DEATH_DOOR_X = 10;
+const DEATH_LANE_TICKS = 20;
+/** Ticks the frame-1 arrival lane is observed for: the arrival tick and the one after it. */
+const FRAME_ONE_ARRIVAL_TICKS = 2;
+/** The hidden state key joins its parts with this separator (cc2HiddenStateKey). */
+const HIDDEN_KEY_PART_SEPARATOR = ';';
 const CHAIN_SINK_X = 10;
 
 const cell = (x: number): number => ROOM_ROW * ROOM_SIZE + x;
@@ -114,30 +146,39 @@ function load(level: CompiledLevel): GameEngine {
   return engine;
 }
 
-/** Plate at x=3, `gates` OR gates in a chain, a hold door at the end; the player steps onto the plate. The tick the door is powered. */
-function chainPoweredTick(mode: RoomMode, gates: number): number {
+/**
+ * Plate at x=3, `gates` OR gates in a chain, a hold door at the end; the player steps onto the plate. The first tick whose end shows the
+ * door powered, and the first tick whose decisions see it powered (-1 when never; no decision point off the CC2 engine).
+ */
+function chainFirstPowered(mode: RoomMode, gates: number): { post: number; decision: number } {
   const gateXs = Array.from({ length: gates }, (_, i) => GATE_X + i);
   const tiles: [string, string][] = [at(PLATE_X, PLATE), ...gateXs.map((x): [string, string] => at(x, OR_GATE)), at(CHAIN_SINK_X, DOOR)];
   const xs = [PLATE_X, ...gateXs, CHAIN_SINK_X];
   const links = xs.slice(1).map((x, i) => link(xs[i], x));
   const engine = load(build(mode, tiles, links));
   engine.attemptPlayerMove('E');
+  let post = -1;
+  let decision = -1;
   for (let i = 0; i < LANE_TICKS; i++) {
-    engine.tick();
-    if (poweredAt(engine, CHAIN_SINK_X)) return engine.getTick();
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => poweredAt(engine, CHAIN_SINK_X));
+    if (decision < 0 && seen.decision === true) decision = engine.getTick();
+    if (post < 0 && seen.after) post = engine.getTick();
   }
-  return -1;
+  return { post, decision };
 }
+
+const chainPoweredTick = (mode: RoomMode, gates: number): number => chainFirstPowered(mode, gates).post;
 
 describe('a logic gate adds one wire phase (GPD, GPD3)', () => {
   // Lexy game.js:872-889 runs a wire phase at the end of each of the three frames of a tic, and a gate emits from the powered edges of the last phase:
-  // a source that changed reaches a sink through k gates in the k-th phase after it. One to three gates land in the same tick end,
-  // the fourth gate waits for the next one.
-  it('puts a chain of 1 to 3 gates in the tick end after a direct wire, and 4 gates one tick end later', () => {
-    const direct = chainPoweredTick('cc2', 0);
-    expect(direct).toBeGreaterThan(0);
-    for (let gates = 1; gates <= GATES_IN_ONE_TICK_END; gates++) expect(chainPoweredTick('cc2', gates), `${gates} gates`).toBe(direct + 1);
-    expect(chainPoweredTick('cc2', GATES_IN_ONE_TICK_END + 1)).toBe(direct + 2);
+  // a source that changed reaches a sink through k gates in the k-th phase after it.
+  // CC2 engine (wave 19): the tick end is the frame-2 phase (one gate step); the f0 and f1 phases of the next tic run with its pre-pass,
+  // before the decisions. The end of tic shows 0 to 4 gates powered at 5, 5, 6, 6, 6 (before wave 19: 4, 5, 5, 5, 6) and the decisions
+  // see them at 5, 6, 6, 6, 7. Both are reads of the door at those points (decision-value reads, not a step decided there).
+  it('puts a chain of 0 to 4 gates in the end of tick 5, 5, 6, 6, 6 and in the decisions of tick 5, 6, 6, 6, 7', () => {
+    const seen = CHAIN_GATE_COUNTS.map((gates) => chainFirstPowered('cc2', gates));
+    expect(seen.map((s) => s.post)).toEqual(CHAIN_POWERED_AFTER_TICK);
+    expect(seen.map((s) => s.decision)).toEqual(CHAIN_POWERED_AT_DECISIONS);
   });
 
   it('keeps the gates in the phase of their inputs on a native level', () => {
@@ -264,19 +305,29 @@ describe('the edges of every sub-settle fire in order (GPDS)', () => {
 });
 
 describe('a clone machine fed through delayed gates fires in the settle (GPDE, GPDE2, GPDX)', () => {
-  /** [the tick the sink is powered, the tick its clone is on the floor]. */
-  function fireTicks(tiles: [string, string][], links: SignalLink[]): [number, number] {
+  /**
+   * The tick the sink is powered and the tick its clone is on the floor: seen at the end of the tick (post) and at the decisions inside
+   * it (decision).
+   */
+  function fireSeen(tiles: [string, string][], links: SignalLink[]): { post: [number, number]; decision: [number, number] } {
     const engine = load(build('cc2', tiles, links, { entities: [{ type: BLOCK, x: SINK_X, y: ROOM_ROW, dir: 'E' }] }));
     engine.attemptPlayerMove('E');
-    let powered = -1;
-    let cloned = -1;
+    const read = (): [boolean, boolean] => [
+      poweredAt(engine, SINK_X),
+      engine.getEntities().some((e) => e.type === BLOCK && e.x === CLONE_X && e.y === ROOM_ROW)
+    ];
+    const post: [number, number] = [-1, -1];
+    const decision: [number, number] = [-1, -1];
     for (let i = 0; i < LANE_TICKS; i++) {
-      engine.tick();
-      if (powered < 0 && poweredAt(engine, SINK_X)) powered = engine.getTick();
-      if (cloned < 0 && engine.getEntities().some((e) => e.type === BLOCK && e.x === CLONE_X && e.y === ROOM_ROW)) cloned = engine.getTick();
+      const seen = readAtDecisionAndAfter(() => engine.tick(), read);
+      for (const k of [0, 1] as const) {
+        if (post[k] < 0 && seen.after[k]) post[k] = engine.getTick();
+        if (decision[k] < 0 && seen.decision?.[k] === true) decision[k] = engine.getTick();
+      }
     }
-    return [powered, cloned];
+    return { post, decision };
   }
+  const fireTicks = (tiles: [string, string][], links: SignalLink[]): [number, number] => fireSeen(tiles, links).post;
   const plateTile = at(PLATE_X, PLATE);
   const cloner = at(SINK_X, CLONE_MACHINE);
 
@@ -286,9 +337,15 @@ describe('a clone machine fed through delayed gates fires in the settle (GPDE, G
     expect(cloned).toBe(powered);
   });
 
+  // Lexy lane mixed (a plate wired to the cloner straight and through one gate): the clone is on the floor at the end of tic t4 and at its
+  // frame-2 decisions, with the power. Epoxy: the end of the tick is Lexy's (power and clone in tick 5), but the straight-wired source
+  // keeps its deferral to the next pass, so the decisions of tick 5 see the sink powered and the clone only at tick 6: a pinned gap
+  // (the decisions of Lexy t4 see the clone). Fixing it is a separate change in the shared before-pass path.
   it('keeps the deferral of a sink that also has a source wired straight in (mixed upstream)', () => {
-    const [powered, cloned] = fireTicks([plateTile, at(GATE_X, OR_GATE), cloner], [link(PLATE_X, GATE_X), link(GATE_X, SINK_X), link(PLATE_X, SINK_X)]);
-    expect(cloned).toBe(powered + 1);
+    const { post, decision } = fireSeen([plateTile, at(GATE_X, OR_GATE), cloner], [link(PLATE_X, GATE_X), link(GATE_X, SINK_X), link(PLATE_X, SINK_X)]);
+    expect(post).toEqual([MIXED_POWERED_TICK, MIXED_POWERED_TICK]);
+    expect(decision[1]).toBe(decision[0] + 1);
+    expect(decision[0]).toBe(MIXED_POWERED_TICK);
   });
 
   // No Lexy case was measured for a latch upstream of a gate (unverified): the deferral stays as the wave 11 calibration set it.
@@ -302,32 +359,41 @@ describe('a clone machine fed through delayed gates fires in the settle (GPDE, G
 });
 
 describe('a source vacated in the pass reaches the wires first (GPDF)', () => {
-  // Lexy: a departure is a frame-2 action, so the wire phase of that frame already sees it: through one gate the sink falls in the
-  // tick end of the departure, as a direct wire does.
-  function fallTick(gated: boolean): number {
+  // Lexy: a departure is a frame-2 action, so the wire phase of that frame already sees it: a direct wire falls in the tick end of the
+  // departure (lane depart0, end of tic t4), a wire through one gate one tick end later (lane depart1, t5: the gate steps in the
+  // frame-2 phase only); both sinks are off at the decisions of the next tick (frame-2 decisions of t5, both lanes).
+  /** [the first tick whose end shows the sink fallen, the first tick whose decisions see it fallen]. */
+  function fallTicks(gated: boolean): [number, number] {
     const tiles: [string, string][] = [at(PLATE_X, PLATE), at(FAR_START_X, DOOR), ...(gated ? [at(GATE_X, OR_GATE)] : [])];
     const links = gated ? [link(PLATE_X, GATE_X), link(GATE_X, FAR_START_X)] : [link(PLATE_X, FAR_START_X)];
     const engine = load(build('cc2', tiles, links, { startX: PLATE_X }));
     for (let i = 0; i < SETTLE_TICKS; i++) engine.tick();
     expect(poweredAt(engine, FAR_START_X)).toBe(true);
     engine.attemptPlayerMove('E');
+    let post = -1;
+    let decision = -1;
     for (let i = 0; i < LANE_TICKS; i++) {
-      engine.tick();
-      if (!poweredAt(engine, FAR_START_X)) return engine.getTick();
+      const seen = readAtDecisionAndAfter(() => engine.tick(), () => poweredAt(engine, FAR_START_X));
+      if (decision < 0 && seen.decision === false) decision = engine.getTick();
+      if (post < 0 && !seen.after) post = engine.getTick();
     }
-    return -1;
+    return [post, decision];
   }
 
-  it('drops a gated sink in the tick end of the departure, with the direct one', () => {
-    const direct = fallTick(false);
-    expect(direct).toBeGreaterThan(0);
-    expect(fallTick(true)).toBe(direct);
+  it('drops a direct sink in the tick end of the departure and a gated one a tick end later, both at the decisions of tick 6', () => {
+    const [direct, directAtDecision] = fallTicks(false);
+    const [gated, gatedAtDecision] = fallTicks(true);
+    expect([direct, gated]).toEqual(DEPARTURE_FALL_AFTER_TICK);
+    expect([directAtDecision, gatedAtDecision]).toEqual([DEPARTURE_FALL_AT_DECISIONS, DEPARTURE_FALL_AT_DECISIONS]);
   });
 });
 
 describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
-  /** A block reaches a plate in the pre-pass of frame `arrivalFrame` (the plate is off at load), wired through one OR gate to a clone machine. */
-  function prePassLane(arrivalFrame: 0 | 1): GameEngine {
+  /**
+   * A block reaches a plate in the pre-pass of frame `arrivalFrame` of the tick after `ticksBefore` ticks (the plate is off), wired through
+   * one OR gate to a clone machine. The settle calls of the setup are dropped: only those of the tick under test are recorded.
+   */
+  function prePassLane(arrivalFrame: 0 | 1, ticksBefore = 0): GameEngine {
     const tiles: [string, string][] = [at(PLATE_X, PLATE), at(GATE_X, OR_GATE), at(SINK_X, CLONE_MACHINE)];
     const engine = load(
       build('cc2', tiles, [link(PLATE_X, GATE_X), link(GATE_X, SINK_X)], {
@@ -335,33 +401,53 @@ describe('the settles that stand for wire phases (GPDP, GPT0)', () => {
         entities: [{ type: BLOCK, x: SINK_X, y: ROOM_ROW, dir: 'E' }, { type: BLOCK, x: SECOND_PLATE_X, y: ROOM_ROW, dir: 'E' }]
       })
     );
+    for (let i = 0; i < ticksBefore; i++) engine.tick();
     const pushed = engine.getEntities().find((e) => e.x === SECOND_PLATE_X && e.y === ROOM_ROW) as RuntimeEntity;
     pushed.x = PLATE_X;
     pushed.arrivalTicks = 1;
     pushed.cc2ArrivalWait = 1;
     pushed.cc2ArrivalFrame = arrivalFrame;
+    settleCalls.length = 0;
     return engine;
   }
-  /** The tick-end settles of the tick that carried the sink's rising edge, and whether the sink is on once the tick is over. */
-  const risingInTickEnd = (): boolean => settleCalls.some((call) => call.gates === 'tickEnd' && call.edges.some((edge) => edge.rising && edge.cell === cell(SINK_X)));
+  /** Whether the tick-end (frame-2) settle of the tick that just ran carried a rising edge of the sink. */
+  const risingInFrame2 = (): boolean => settleCalls.some((call) => call.gates === GATE_SETTLE_FRAME2 && call.edges.some((edge) => edge.rising && edge.cell === cell(SINK_X)));
 
   // Lexy game.js:872-889: a frame-0 arrival reaches the f0 and the f1 wire phase before the decisions (two gate steps), a frame-1
   // arrival only the f1 one (one step): the gate sink rises in the pre-pass after the first (the tick end finds it risen already), in
-  // the tick end after the second.
-  it('a frame-0 arrival through one gate reaches the sink in the pre-pass, before the decisions', () => {
-    const engine = prePassLane(0);
+  // the tick end after the second. The frame-0 phase is due from the second tick on (cc2WireFrameNext): the lane runs three ticks first.
+  // Without the frame-0 phase the gate output rises in the frame-2 settle (measured by turning the phase off): this test fails then.
+  it('a frame-0 arrival through one gate reaches the sink in the frame phases of the pre-pass, not in the tick end', () => {
+    const engine = prePassLane(0, FRAME_PHASE_DUE_TICKS);
+    expect(world(engine).cc2WireFrameNext).toBe(0);
     engine.tick();
     expect(poweredAt(engine, SINK_X)).toBe(true);
-    expect(risingInTickEnd()).toBe(false);
+    expect(risingInFrame2()).toBe(false);
   });
 
-  // A pin of the placement measured on the level replays, not a guard: no Lexy lane was built for it and it was not checked to fail
-  // without the one-step rule of GPDP.
-  it('a frame-1 arrival through one gate reaches the sink only in the tick end', () => {
-    const engine = prePassLane(1);
+  // The first tick has no frame phase due: the arrival reaches the wires in its own pre-pass settle (GPDP), as before wave 19.
+  it('a frame-0 arrival of the first tick reaches the sink in its own pre-pass settle, before the decisions', () => {
+    const engine = prePassLane(0);
+    expect(world(engine).cc2WireFrameNext).toBeUndefined();
     engine.tick();
     expect(poweredAt(engine, SINK_X)).toBe(true);
-    expect(risingInTickEnd()).toBe(true);
+    expect(risingInFrame2()).toBe(false);
+  });
+
+  // Lexy lane wor1: a frame-1 arrival through one gate reaches the sink in the frame-2 phase of its tic (one gate step), so the end of the
+  // tick shows it, and the decisions of the next tick do too; the decisions of its own tick do not (a frame-1 arrival has one phase
+  // before them, f1, for the plate, and the gate output only comes with the next).
+  it('a frame-1 arrival through one gate reaches the sink in the tick end, and the decisions of the next tick', () => {
+    const engine = prePassLane(1);
+    const seen: { decision: boolean | undefined; after: boolean }[] = [];
+    let rose = false;
+    for (let i = 0; i < FRAME_ONE_ARRIVAL_TICKS; i++) {
+      seen.push(readAtDecisionAndAfter(() => engine.tick(), () => poweredAt(engine, SINK_X)));
+      if (i === 0) rose = risingInFrame2();
+    }
+    expect(seen[0].after).toBe(true);
+    expect(rose).toBe(true);
+    expect(seen.map((s) => s.decision)).toEqual([false, true]);
   });
 
   // Lexy lane (a purple wall fed by a pink plate held by a block at load through k diode gates, the player one step west into it at
@@ -493,5 +579,34 @@ describe('the hidden state key and the capture of a gate-delay network (HK)', ()
       engine.tick();
       expect(fingerprint(engine), `tick ${i}`).toBe(straight);
     }
+  });
+
+  // The frame wire phase still due crosses the tick boundary (cc2WireFrameNext, hidden key part W): a player carried into water dies in the
+  // pre-pass of a tick before the frame-0 phase ran, so the phase is still due when the tick ends. An undo to the state before that tick
+  // must give the same key and the same death with the same phase still due.
+  it('restores the frame wire phase still due across a death in the pre-pass, and replays the same death', () => {
+    const forces = DEATH_FORCE_XS.map((x): [string, string] => at(x, 'force_e'));
+    const tiles: [string, string][] = [...forces, at(DEATH_WATER_X, 'water'), at(DEATH_PLATE_X, PLATE), at(DEATH_DOOR_X, DOOR)];
+    const engine = load(build('cc2', tiles, [link(DEATH_PLATE_X, DEATH_DOOR_X)]));
+    let snapshot = engine.captureState();
+    let key = cc2HiddenStateKey(world(engine));
+    let deathTick = -1;
+    for (let i = 0; i < DEATH_LANE_TICKS && engine.getPlayer().alive; i++) {
+      snapshot = engine.captureState();
+      key = cc2HiddenStateKey(world(engine));
+      engine.tick();
+      if (!engine.getPlayer().alive) deathTick = engine.getTick();
+    }
+    expect(deathTick).toBeGreaterThan(0);
+    const dueAfterDeath = world(engine).cc2WireFrameNext;
+    expect(dueAfterDeath).toBeDefined();
+    // The phase still due is part of the hidden state key (part W), so two states that differ in it never share a key.
+    expect(cc2HiddenStateKey(world(engine)).split(HIDDEN_KEY_PART_SEPARATOR)).toContain(`W${dueAfterDeath}`);
+    engine.restoreState(snapshot);
+    expect(cc2HiddenStateKey(world(engine))).toBe(key);
+    expect(engine.getPlayer().alive).toBe(true);
+    engine.tick();
+    expect(engine.getPlayer().alive).toBe(false);
+    expect(world(engine).cc2WireFrameNext).toBe(dueAfterDeath);
   });
 });

@@ -28,6 +28,9 @@ import {
   fireSinksBeforePass,
   GATE_SETTLE_PRE_PASS0,
   GATE_SETTLE_PRE_PASS1,
+  GATE_SETTLE_FRAME0,
+  GATE_SETTLE_FRAME1,
+  sampleFrameStart,
   settleWorldSignals,
   SIGNAL_PHASE_TICK
 } from './epoxySignals';
@@ -182,6 +185,9 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
   let arrivalFrame: 0 | 1 | undefined;
   const pendingArrivals = w.entities.filter((e) => e.kind === 'block' && e.cc2ArrivalWait !== undefined);
   for (const block of pendingArrivals) block.cc2ArrivalWait = (block.cc2ArrivalWait ?? 0) - 1;
+  // The sources before frame 0 moves anything: the frame-0 wire phase lets in what that frame changed.
+  const frameStart = w.cc2WireFrameNext === 0 ? sampleFrameStart(w) : undefined;
+  let afterFrame0: ReadonlyMap<number, boolean> | undefined;
   for (const frame of PRE_PASS_FRAMES) {
     // The player is an actor of the list (Lexy reading order): in the reverse loop he moves just before the first actor listed
     // ahead of him, after the loop when none is.
@@ -252,6 +258,10 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
       }
     }
     if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;
+    if (w.levelCompleted) return arrivalFrame;
+    // The frame-1 phase reads the sources as frame 0 left them for the toggle switches that frame flipped.
+    if (frame === 0 && w.cc2WireFrameNext === 0) afterFrame0 = sampleFrameStart(w);
+    if (!runFrameWirePhase(ctx, frame, frame === 0 ? frameStart : afterFrame0)) return arrivalFrame;
     if (w.levelCompleted) return arrivalFrame;
   }
   // The retry of a refused forced step lasts the frames of this pre-pass only.
@@ -476,6 +486,7 @@ function runPrePassAndWires(ctx: EpoxyContext): boolean {
     delete w.cc2PrePassArrived;
   }
   if (!w.player.alive) return false;
+  // An arrival no frame wire phase read (none was due: the first tick, or a network outside the frame model) reaches the wires here.
   if (arrived && w.signals !== undefined) {
     // A frame-0 arrival reaches two wire phases before the decisions (f0, f1), a frame-1 arrival one: the gates step that often.
     const edges = settleWorldSignals(w, false, SIGNAL_PHASE_TICK, arrivalFrame === 0 ? GATE_SETTLE_PRE_PASS0 : GATE_SETTLE_PRE_PASS1);
@@ -506,8 +517,55 @@ export function runFramePrePass(ctx: EpoxyContext, betweenTicks = false): boolea
   return runPrePassAndWires(ctx);
 }
 
+/**
+ * The Lexy wire phase of pre-pass frame `frame` (game.js:872-889), when it is the one due (cc2WireFrameNext): the frame-0 phase lets
+ * in what that frame changed against `frameStart`, the frame-1 phase every source. What rises fires as at the tick end; on actor order
+ * the directly wired clone machines and launchers fire too, before the decisions, as frame releases. An arrival of the pre-pass is
+ * read here (its own settle is not needed). False when the player died.
+ */
+function runFrameWirePhase(ctx: EpoxyContext, frame: 0 | 1, frameStart: ReadonlyMap<number, boolean> | undefined): boolean {
+  const w = ctx.world;
+  if (w.signals === undefined || w.cc2WireFrameNext !== frame) return w.player.alive;
+  if (frame === 0) w.cc2WireFrameNext = 1;
+  else delete w.cc2WireFrameNext;
+  const arrived = w.cc2PrePassArrived === true;
+  delete w.cc2PrePassArrived;
+  const edges = settleWorldSignals(w, false, SIGNAL_PHASE_TICK, frame === 0 ? GATE_SETTLE_FRAME0 : GATE_SETTLE_FRAME1, undefined, frameStart);
+  setPoweredCells(ctx);
+  setHoldDoors(ctx);
+  // A frame phase comes before the frame-2 pass of its tic: what it releases reads the pass as a before-pass release does (the pass
+  // view closed: the monster clock of the pass to come, no turn of this pass spent).
+  const passOpen = w.ccPassOpen;
+  w.ccPassOpen = false;
+  try {
+    fireSignalSinks(ctx, edges, SIGNAL_PHASE_TICK, undefined, frame);
+    if (!w.player.alive || w.levelCompleted) return w.player.alive;
+    if (arrived || w.cc2ActorOrder === true) fireSinksBeforePass(ctx, arrived ? frame : undefined, true);
+  } finally {
+    w.ccPassOpen = passOpen;
+  }
+  return w.player.alive;
+}
+
+/**
+ * The frame wire phases still due when the pre-pass did not run them (it had nothing to move, or it was cut short). Nothing moved in
+ * frame 0, so the pure sample taken now is the frame-start one: the frame-0 phase lets in a frame-0 arrival and a pulse source's press
+ * (the pure sample reads a pulse at its last level, so the pending press counts as a change).
+ */
+export function finishFrameWirePhases(ctx: EpoxyContext): void {
+  const w = ctx.world;
+  if (w.cc2WireFrameNext === undefined) return;
+  if (!w.player.alive || w.levelCompleted || w.signals === undefined) {
+    delete w.cc2WireFrameNext;
+    return;
+  }
+  if (w.cc2WireFrameNext === 0 && !runFrameWirePhase(ctx, 0, sampleFrameStart(w))) return;
+  if (w.cc2WireFrameNext === 1) runFrameWirePhase(ctx, 1, undefined);
+}
+
 /** A new level, or a restored state: no pre-pass is running or done. */
 export function resetFrameWorld(w: EpoxyWorld): void {
+  delete w.cc2WireFrameNext;
   delete w.cc2PrePassDone;
   delete w.cc2PrePassArrived;
   delete w.cc2PrePassStepping;

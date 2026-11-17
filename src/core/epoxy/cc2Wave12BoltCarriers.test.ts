@@ -20,8 +20,12 @@
  * movement_cooldown 0 and the charged trait from its toolbelt; tiletypes.js:341 and 2173 give the trait to the bolt).
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// The decision point of a tick has no hook in the engine: the real epoxyFrames, followed by the sampler of readAtDecisionAndAfter.
+vi.mock('./epoxyFrames', async (importOriginal) => (await import('../../test/cc2DecisionProbe')).decisionSamplingFrames(await importOriginal<typeof import('./epoxyFrames')>()));
+
+import { readAtDecisionAndAfter } from '../../test/cc2DecisionProbe';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { LIGHTNING_BOLT_ITEM_ID } from '../coreConstants';
 import { GameEngine } from '../GameEngine';
@@ -44,6 +48,12 @@ const CARRIER_TYPES = ['rolling_ball', 'rover', 'ghost'];
 const BOXED_TYPE = 'rover';
 const BUSY_COOLDOWN_TICKS = 200;
 const BOXED_SETTLE_TICKS = 4;
+/** The carriers that walk onto the wire: the sink is open at the decisions of the tick after the one that brings them to rest, never at a tick end. */
+const MOVING_CARRIER_TYPES = ['rolling_ball', 'ghost'];
+/** Ticks the walk of a moving carrier is watched for: onto the wire, at rest, off it and on. */
+const WALK_TICKS = 14;
+/** The tick whose decisions see the sink open (Lexy lanes carrier_ball, carrier_ghost: open at the frame-2 decisions of tic t4 only). */
+const REST_DECISION_TICK = 5;
 
 /** An open row with a wired floor and a purple wall as the sink; the carrier starts one cell west of the wire, heading east. */
 function room(type: string, cc2: boolean): CompiledLevel {
@@ -106,9 +116,37 @@ beforeEach(() => {
   loadTestConfigs();
 });
 
+/** The sink after each tick of a moving carrier's walk, and at the decisions inside it. */
+function walk(type: string): { after: string[]; decision: (string | undefined)[] } {
+  const engine = new GameEngine();
+  engine.loadLevel(room(type, true));
+  const first = carrierOf(engine);
+  if (first === undefined) throw new Error('the carrier is missing');
+  first.heldTools = [LIGHTNING_BOLT_ITEM_ID];
+  const after: string[] = [];
+  const decision: (string | undefined)[] = [];
+  for (let i = 0; i < WALK_TICKS; i++) {
+    const seen = readAtDecisionAndAfter(() => engine.tick(), () => sinkTile(engine));
+    after.push(seen.after);
+    decision.push(seen.decision);
+  }
+  return { after, decision };
+}
+
 describe('CC2 wave 12: an actor at rest holding the bolt powers the wire under it', () => {
-  it.each(CARRIER_TYPES)('%s at rest opens the sink (game.js:2632-2643)', (type) => {
-    expect(sinkTile(stepOntoWire(type, true, true))).toBe(WALL_OPEN);
+  // Lexy lanes carrier_ball, carrier_ghost: the carrier comes to rest on the wire at the end of tic t3, the sink is open at the frame-2
+  // decisions of t4 only (tick 5) and shut at the end of every tic.
+  it.each(MOVING_CARRIER_TYPES)('%s at rest opens the sink at the decisions of the next tick only (game.js:2632-2643)', (type) => {
+    const rest = stepOntoWire(type, true, true);
+    expect(sinkTile(rest)).toBe(WALL_CLOSED);
+    const { after, decision } = walk(type);
+    expect(after.every((tile) => tile === WALL_CLOSED)).toBe(true);
+    expect(decision.map((tile, i) => (tile === WALL_OPEN ? i + 1 : 0)).filter((tick) => tick > 0)).toEqual([REST_DECISION_TICK]);
+  });
+
+  // A carrier at rest from the start of a tick (held on the wire) powers it at the end of that tick too.
+  it(`${BOXED_TYPE} at rest opens the sink (game.js:2632-2643)`, () => {
+    expect(sinkTile(stepOntoWire(BOXED_TYPE, true, true))).toBe(WALL_OPEN);
   });
 
   it.each(CARRIER_TYPES)('%s mid step powers nothing (movement_cooldown not 0, game.js:2632-2643)', (type) => {
