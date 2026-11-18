@@ -22,7 +22,7 @@
  *
  * PKS: a parked player's step end acts at the start of the tick after his wait ran out, as the controlled player's does (Lexy step_on_cell
  * at the end of the 12-frame step for every player actor, game.js 2310-2367), before the time-out check, and a parked player's step
- * onto a brown button works it when that step ends (button_brown on_arrive, tiletypes.js 2446-2451, from the same step_on_cell).
+ * onto a brown button works it when that step ends (button_brown, tiletypes.js 2269, on_arrive 2283-2290, from the same step_on_cell).
  * BMB: a bomb lying on water or fire goes off first (step_on_cell walks the layers top down, the item before the terrain, game.js 2315-2366).
  * FDS: real fire never burns a player at a lighting (fire has no on_stand, tiletypes.js 941-972; flame_jet_off.activate kills nothing, 2146-2152).
  * JSD: a jet lit under the still player before his turn is judged at the end of his turn (flame_jet_on on_stand from do_actor_idle, after
@@ -43,7 +43,9 @@ import { decodeC2m } from '../../formats/C2mCodec';
 import { cc2ReplaySections } from '../../formats/cc2Model';
 import { CC2_FRAMES_PER_TICK, CC2_REPLAY_ACTION_BITS, CC2_REPLAY_KEY_BITS, decodeCc2Replay } from '../../formats/cc2Replay';
 import { GameEngine } from '../GameEngine';
-import type { EpoxyWorld } from './epoxyWorld';
+import { PULSE_WIRED_ACTION } from '../coreConstants';
+import { triggerButton } from './epoxyDevices';
+import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -88,6 +90,13 @@ const ROOM_TICKS = 20;
 const ROOM_EXIT_X = 3;
 const CHARGE_TICKS = 4;
 const LEVEL_TICKS = 8;
+/** The CC2 jet of the post-turn test, off, and the tile it is lit to. */
+const CC2_JET_OFF = 'flame_jet_cc2_off';
+const CC2_JET_ON = 'flame_jet_cc2_on';
+/** The room tests: the orange button lies two rows under the jet's row, a lit charge one cell beside the jet, and fuses for one tick. */
+const ROOM_PLATE_ROW_OFFSET = 2;
+const ROOM_CHARGE_X_OFFSET = 1;
+const CHARGE_FUSE_TICKS = 1;
 
 type Run = { deathT: number | undefined; reason: string; deadAt: string; swaps: Swap[]; e: GameEngine; w: EpoxyWorld };
 type Swap = { t: number; ok: boolean; before: string; after: string };
@@ -241,7 +250,7 @@ describe('CC2 wave 22: real fire at a lighting (FDS)', () => {
 
   it.each<[RoomMode]>([['cc2'], ['cc'], ['native']])('a jet of the room (orange button pressed by a glider) burns the still player at its lighting, mode %s; mutant: FDS sparing every non-CC2 jet', (mode) => {
     const e = new GameEngine();
-    const plateRow = ROOM_ROW + 2;
+    const plateRow = ROOM_ROW + ROOM_PLATE_ROW_OFFSET;
     e.loadLevel({
       ...room({ mode, terrain: { [`${ROOM_JET_X},${ROOM_ROW}`]: 'flame_jet_off', [`${ROOM_PLATE_X},${plateRow}`]: 'button_orange' } }),
       entities: [{ type: 'glider', x: ROOM_GLIDER_X, y: plateRow, dir: 'W' }]
@@ -276,17 +285,40 @@ describe('CC2 wave 22: a jet lit before his move (JSD)', () => {
     });
   });
 
-  it('the markers are gone after a charge-death tick, a stale jet marker included; mutant: clearActorTick not deleting them', () => {
+  it('cc2TurnAhead is gone after a charge-death tick and a stale cc2JetAtTurn is dropped when the tick opens; mutant: clearActorTick / openActorTick not deleting them', () => {
     const e = new GameEngine();
     e.loadLevel(room({ mode: 'cc2' }), 0);
     e.tick();
     const w = worldOf(e);
-    w.litCharges.push({ x: ROOM_JET_X + 1, y: ROOM_ROW, detonateTick: e.getTick() + 1, dynamite: true });
+    w.litCharges.push({ x: ROOM_JET_X + ROOM_CHARGE_X_OFFSET, y: ROOM_ROW, detonateTick: e.getTick() + CHARGE_FUSE_TICKS, dynamite: true });
     w.cc2JetAtTurn = { x: ROOM_JET_X, y: ROOM_ROW };
     for (let t = 0; t < CHARGE_TICKS && e.getPlayer().alive; t++) e.tick();
     expect(e.getPlayer().alive).toBe(false);
     expect(w.cc2TurnAhead).toBeUndefined();
     expect(w.cc2JetAtTurn).toBeUndefined();
+  });
+
+  it('a jet lit under the still player after his turn of the same pass burns him in that tick; mutant: playActorTurn keeping cc2TurnAhead', () => {
+    // A press that lands in the pass after his turn (the hook plays his turn, then lights the jets as a monster listed before him would):
+    // the jet is no longer ahead of his turn, so it burns him at once (Lexy flame_jet_on on_stand, game.js 1345-1356, runs in his idle turn).
+    const e = new GameEngine();
+    e.loadLevel(room({ mode: 'cc2', terrain: { [`${ROOM_JET_X},${ROOM_ROW}`]: CC2_JET_OFF } }), 0);
+    const ctx = (e as unknown as { ctx: EpoxyContext }).ctx;
+    const playTurn = ctx.cc2PlayerActs;
+    expect(playTurn).toBeTypeOf('function');
+    let lit = false;
+    ctx.cc2PlayerActs = () => {
+      playTurn?.();
+      if (!lit) {
+        lit = true;
+        triggerButton(ctx, ROOM_PLATE_X, ROOM_ROW, PULSE_WIRED_ACTION);
+      }
+    };
+    e.tick();
+    expect(lit).toBe(true);
+    expect(worldOf(e).terrain[ROOM_ROW][ROOM_JET_X]).toBe(CC2_JET_ON);
+    expect(e.getPlayer().alive).toBe(false);
+    expect(e.getPlayer().deathReasonKey).toBe(DEATH_FIRE);
   });
 
   it('the markers are gone after a level-complete tick', () => {
@@ -297,5 +329,36 @@ describe('CC2 wave 22: a jet lit before his move (JSD)', () => {
     expect(e.isLevelCompleted()).toBe(true);
     expect(worldOf(e).cc2TurnAhead).toBeUndefined();
     expect(worldOf(e).cc2JetAtTurn).toBeUndefined();
+  });
+});
+
+const PARKED_START_X = 2;
+const CHIP_X = 3;
+const CONTROLLED_START_X = 8;
+const SOCKET_X = 9;
+const WAIT_GUARD_TICKS = 40;
+
+/** Two players: the first steps onto the last chip then is swapped out, the second stands before a socket. */
+function parkedChipRoom(mode: RoomMode): { e: GameEngine; w: EpoxyWorld } {
+  const e = new GameEngine();
+  const base = room({ mode, startX: PARKED_START_X, chipsRequired: 1, terrain: { [`${SOCKET_X},${ROOM_ROW}`]: 'socket' }, items: { [`${CHIP_X},${ROOM_ROW}`]: 'chip' } });
+  e.loadLevel({ ...base, extraPlayers: [{ x: CONTROLLED_START_X, y: ROOM_ROW, dir: 'E', character: 'chip' }] }, 0);
+  return { e, w: worldOf(e) };
+}
+
+describe('CC2 wave 22: the parked step end acts before the next decision (PKS, multi-player)', () => {
+  it.each<RoomMode>(['cc2', 'cc', 'native'])('a parked player taking the last chip lets the controlled one into the socket at the next decision, mode %s; mutant: no parked flush at the input', (mode) => {
+    const { e, w } = parkedChipRoom(mode);
+    expect(e.attemptPlayerMove('E')).toBe(true);
+    e.tick();
+    expect(e.swapPlayer()).toBe(true);
+    expect(w.player.x).toBe(CONTROLLED_START_X);
+    // Lexy: every step end of tic t (the parked player's chip, step_on_cell, game.js 1256-1264) runs before the decisions of tic t+1.
+    const parked = w.parked[0];
+    let guard = 0;
+    while (parked.moveCooldown > 0 && guard++ < WAIT_GUARD_TICKS) e.tick();
+    expect(parked.moveCooldown).toBe(0);
+    expect(e.attemptPlayerMove('E')).toBe(true);
+    expect(w.chipsRemaining).toBe(0);
   });
 });

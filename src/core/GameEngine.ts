@@ -1183,13 +1183,17 @@ export class GameEngine {
    */
   public flushPendingStepEnd(): void {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return;
-    this.flushCc2StepEnd();
+    if (!this.flushCc2StepEnd()) return;
+    flushParkedStepEnds(this.ctx);
   }
 
   /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
   private beginInput(): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     if (!this.flushCc2StepEnd()) return false;
+    // CC2 engine: the parked players' step ends of the previous tick act before this decision, as Lexy runs every step end of a tic
+    // before the decisions of the next (idempotent: an applied effect is gone).
+    if (!flushParkedStepEnds(this.ctx)) return false;
     // CC2 engine, no actor order: the player steps at the input, so a monster that water, slime or fire kills in the pass about to run
     // is gone for him as it is for the pass (a level with actor order plays his turn inside the pass, after the removals).
     if (this.w.cc2ActorOrder !== true) applyDueHazardRemovals(this.ctx);
