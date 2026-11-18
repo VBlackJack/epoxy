@@ -550,6 +550,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.cc2MovingAtDecision = undefined;
   w.cc2PushedLate = undefined;
   w.cc2SkipTurn = undefined;
+  delete w.cc2TurnAhead;
+  delete w.cc2JetAtTurn;
   w.trapLatch = null;
   w.shotStepTicks = 0;
   w.shots = [];
