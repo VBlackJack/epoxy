@@ -466,13 +466,22 @@ function deferJetBurnToStepEnd(w: EpoxyWorld, p: PlayerState): boolean {
   return true;
 }
 
+/**
+ * CC2 engine: whether `tile` is real fire (no jet of any kind), which never burns a player at a lighting: fire has no on_stand in Lexy
+ * (tiletypes.js 941-972) and flame_jet_off.activate kills nothing (2146-2152). A native jet toggles by flameTogglesTo, a wired one by
+ * wireTogglesTo, the CC2 one burns its occupants: none of them is spared.
+ */
+function realFireSpares(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return judgesHazardsAtStepEnd(w) && tile.burnsOccupants !== true && tile.flameTogglesTo === undefined && tile.wireTogglesTo === undefined;
+}
+
 /** A flame jet lit under the player (a monster or block pressed the button) burns them. */
 function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   const w = ctx.world;
   if (!w.player.alive) return;
   if (w.parked.length === 0) {
     const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
-    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem)) && !deferJetBurnToStepEnd(w, w.player)) {
+    if (tile.hazard === 'fire' && !realFireSpares(w, tile) && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem)) && !deferJetBurnToStepEnd(w, w.player)) {
       ctx.emitVisual('explosion', w.player.x, w.player.y);
       killPlayer(ctx, 'hud.messages.death_fire', 'burn');
     }
@@ -481,7 +490,7 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   // A parked player that burns takes the controlled slot, so the loop reads a copy.
   for (const p of [...playersOf(w)]) {
     const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
-    if (p.alive && tile.hazard === 'fire' && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
+    if (p.alive && tile.hazard === 'fire' && !realFireSpares(w, tile) && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
       if (deferJetBurnToStepEnd(w, p)) continue;
       ctx.emitVisual('explosion', p.x, p.y);
       killPlayerAt(ctx, p, 'hud.messages.death_fire', 'burn');
