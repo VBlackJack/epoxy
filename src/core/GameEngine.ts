@@ -88,6 +88,7 @@ import {
   syncToolBelt,
   takeExtraBootCopy,
   dropWouldUnguardPendingHazard,
+  flushParkedStepEnds,
   toolBeltOf,
   usesToolBelt,
   resumeForceCarry,
@@ -1199,6 +1200,8 @@ export class GameEngine {
       return;
     }
     if (!this.flushCc2StepEnd()) return;
+    // CC2 engine: the parked players' step ends act right after his, before the time-out check (Lexy runs every player's step end alike).
+    if (!flushParkedStepEnds(this.ctx)) return;
 
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;

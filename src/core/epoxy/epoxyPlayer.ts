@@ -1270,6 +1270,28 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
 }
 
 /**
+ * CC2 engine: the step ends of the parked players, in swap order, at the start of the tick right after the controlled player's flush
+ * (GameEngine.flushCc2StepEnd) and before the time-out check, as a pass-closing phase (cc2BeforePass). Lexy runs every player's
+ * step_on_cell at the end of his 12-frame step, the tick after the wait ran out (game.js 2310-2367), not in the tick it runs out.
+ * Returns false when one of them ended the level or killed the controlled player.
+ */
+export function flushParkedStepEnds(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  if (!judgesHazardsAtStepEnd(w) || w.parked.length === 0) return w.player.alive && !w.levelCompleted;
+  w.cc2BeforePass = true;
+  try {
+    for (const parked of [...w.parked]) {
+      if (!w.player.alive || w.levelCompleted) break;
+      if (parked.cc3dArrival === undefined || !w.parked.includes(parked)) continue;
+      withPlayer(w, parked, () => applyCc3dStepEnd(ctx));
+    }
+  } finally {
+    w.cc2BeforePass = undefined;
+  }
+  return w.player.alive && !w.levelCompleted;
+}
+
+/**
  * One tick of every parked player, in swap order: the cooldowns run down and a forced move (ice, force floor) goes
  * on, through the controlled player's own code with the parked player standing in for it. A parked player takes
  * no voluntary move. Stops when a player died or the level was won.
@@ -1279,12 +1301,14 @@ export function tickParkedPlayers(ctx: EpoxyContext): void {
   for (const parked of [...w.parked]) {
     if (!w.player.alive || w.levelCompleted) return;
     withPlayer(w, parked, () => {
+      // CC2 engine: the step ends of the parked players run at the start of the next tick (flushParkedStepEnds), not here.
+      const stepEndsAtTickStart = judgesHazardsAtStepEnd(w);
       if (w.player.moveCooldown > 0) w.player.moveCooldown--;
-      if (defersStepEffects(w)) applyCc3dStepEnd(ctx);
+      if (defersStepEffects(w) && !stepEndsAtTickStart) applyCc3dStepEnd(ctx);
       if (w.player.isSliding) {
         if (w.player.slideCooldown > 0) {
           w.player.slideCooldown--;
-          if (defersStepEffects(w) && w.player.slideCooldown === 0) applyCc3dStepEnd(ctx);
+          if (defersStepEffects(w) && !stepEndsAtTickStart && w.player.slideCooldown === 0) applyCc3dStepEnd(ctx);
         } else {
           processPlayerSlideStep(ctx);
         }
