@@ -3,6 +3,12 @@
 All notable changes to Epoxy are listed here. The format follows Keep a Changelog, and
 versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- CC2 imports follow CC2 in more edge cases. On levels with several players, a player you switched away from in the middle of a step finishes that step (water, fire, a chip, a bomb, a button, a teleporter) at the same moment as the player you control, before your next move and before the clock is checked, and a parked player who slides onto a brown button opens its trap only when that step ends. A bomb lying on water or fire goes off when you step onto it instead of drowning or burning you. Standing on real fire without fire boots, you are no longer burned when a flame jet or an orange button lights elsewhere. A flame jet that lights under you while you stand still can be escaped by starting a step in that same tick. A monster cloned onto a gray button now works the button's area when its step ends. CC1 .DAT imports, native levels and CC3D levels are unchanged; CC1 Steam .c2m levels follow the same CC2 rules. Official replays won on Epoxy stay at 200 of 200 for CC2 and 147 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
+
 ## [2.37.0] - 2026-11-18
 
 ### Changed
