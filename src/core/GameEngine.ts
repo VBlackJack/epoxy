@@ -88,6 +88,8 @@ import {
   syncToolBelt,
   takeExtraBootCopy,
   dropWouldUnguardPendingHazard,
+  stepStillRuns,
+  flushParkedStepEnds,
   toolBeltOf,
   usesToolBelt,
   resumeForceCarry,
@@ -1181,13 +1183,17 @@ export class GameEngine {
    */
   public flushPendingStepEnd(): void {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return;
-    this.flushCc2StepEnd();
+    if (!this.flushCc2StepEnd()) return;
+    flushParkedStepEnds(this.ctx);
   }
 
   /** Start of an input-consuming entry point: false while paused, dead or once the level ended; otherwise the pending step-end effects act first. */
   private beginInput(): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     if (!this.flushCc2StepEnd()) return false;
+    // CC2 engine: the parked players' step ends of the previous tick act before this decision, as Lexy runs every step end of a tic
+    // before the decisions of the next (idempotent: an applied effect is gone).
+    if (!flushParkedStepEnds(this.ctx)) return false;
     // CC2 engine, no actor order: the player steps at the input, so a monster that water, slime or fire kills in the pass about to run
     // is gone for him as it is for the pass (a level with actor order plays his turn inside the pass, after the removals).
     if (this.w.cc2ActorOrder !== true) applyDueHazardRemovals(this.ctx);
@@ -1199,6 +1205,8 @@ export class GameEngine {
       return;
     }
     if (!this.flushCc2StepEnd()) return;
+    // CC2 engine: the parked players' step ends act right after his, before the time-out check (Lexy runs every player's step end alike).
+    if (!flushParkedStepEnds(this.ctx)) return;
 
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;
@@ -1461,6 +1469,9 @@ export class GameEngine {
   /** Start of a tick on a level that plays in actor order: the tick's own state, and the sets the entity pass fills. */
   private openActorTick(): void {
     this.actorTick = { clockAtStart: this.w.ccMonsterClock, decided: false, turned: false, decisionMovedBlock: false };
+    // His turn of this tick is still ahead; a jet marker a tick that stopped before his turn left never reaches this one.
+    this.w.cc2TurnAhead = true;
+    delete this.w.cc2JetAtTurn;
     this.lastPlayerTurn = undefined;
     this.w.cc2MovingAtDecision = undefined;
     this.w.cc2PushedLate = undefined;
@@ -1476,6 +1487,8 @@ export class GameEngine {
 
   private clearActorTick(): void {
     this.actorTick = undefined;
+    delete this.w.cc2TurnAhead;
+    delete this.w.cc2JetAtTurn;
     this.w.cc2TurnSeen = undefined;
     this.w.cc2MovingAtDecision = undefined;
     this.w.cc2PushedLate = undefined;
@@ -1528,6 +1541,7 @@ export class GameEngine {
     if (tick === undefined || tick.turned) return;
     tick.turned = true;
     const w = this.w;
+    delete w.cc2TurnAhead;
     if (!w.player.alive || w.levelCompleted) return;
     const clock = w.ccMonsterClock;
     const passOpen = w.ccPassOpen;
@@ -1540,6 +1554,8 @@ export class GameEngine {
       w.ccMonsterClock = clock;
       w.ccPassOpen = passOpen;
     }
+    // A jet lit under him before his turn burns him now if he did not start a step off it.
+    if (this.judgeJetLitBeforeTurn()) return;
     w.cc2PushedLate = late;
     for (const uid of late) {
       if (!w.player.alive || w.levelCompleted) break;
@@ -1547,6 +1563,22 @@ export class GameEngine {
       if (block !== undefined) stepSlidingBlock(this.ctx, block);
     }
     w.cc2PushedLate = undefined;
+  }
+
+  /**
+   * CC2 engine, actor order: judges the jet that lit under the still player before his turn (w.cc2JetAtTurn), now that his turn is played:
+   * he burns when he stands on it still, with no step started and no boots against it. Returns true when he burned.
+   */
+  private judgeJetLitBeforeTurn(): boolean {
+    const w = this.w;
+    const jet = w.cc2JetAtTurn;
+    delete w.cc2JetAtTurn;
+    if (jet === undefined || !w.player.alive || stepStillRuns(w.player) || w.player.x !== jet.x || w.player.y !== jet.y) return false;
+    const tile = ConfigRegistry.getTile(w.terrain[jet.y][jet.x]);
+    if (tile.burnsOccupants !== true || (tile.protectedByItem !== undefined && w.player.boots.has(tile.protectedByItem))) return false;
+    this.ctx.emitVisual('explosion', jet.x, jet.y);
+    killPlayer(this.ctx, 'hud.messages.death_fire', 'burn');
+    return true;
   }
 
   /** What the state of a block says about its turn in the pass: where it is, whether it arrives, its cooldown, whether it slides. */

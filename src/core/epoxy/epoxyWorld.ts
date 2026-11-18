@@ -269,6 +269,16 @@ export interface EpoxyWorld {
   cc2MovingAtDecision?: Set<number>;
   /** CC2 engine, actor order: the uids of the blocks the player's turn pushed after their own turn in the pass. Transient, never saved. */
   cc2PushedLate?: number[];
+  /**
+   * CC2 engine, actor order: the controlled player's turn of the running tick is still ahead. Set when the actor tick opens, deleted when
+   * his turn is played and when the tick is cleared. Transient: it lives inside one tick, never in a snapshot or the hidden key.
+   */
+  cc2TurnAhead?: true;
+  /**
+   * CC2 engine, actor order: the cell of a jet lit under the still controlled player before his turn, judged at the end of that turn (he
+   * may start a step off it first). Deleted when his turn is played and when the tick is opened or cleared. Transient, never saved.
+   */
+  cc2JetAtTurn?: { x: number; y: number };
   /** CC2 engine, actor order: the uids of the entities that skip the rest of the running pass (a cloner template that went out). Transient, never saved. */
   cc2SkipTurn?: Set<number>;
   /**
@@ -540,6 +550,8 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.cc2MovingAtDecision = undefined;
   w.cc2PushedLate = undefined;
   w.cc2SkipTurn = undefined;
+  delete w.cc2TurnAhead;
+  delete w.cc2JetAtTurn;
   w.trapLatch = null;
   w.shotStepTicks = 0;
   w.shots = [];
@@ -1353,7 +1365,9 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
   // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
   const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;
   if (w.player.x === bx && w.player.y === by && !stepOntoPending && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
-  if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
+  // CC2 engine: a parked player works it when his step onto it ends too, as the controlled one does (stepOntoPending).
+  const parkedWorks = (p: PlayerState): boolean => !(usesCc2Engine(w.level) && !w.cc3dPace && p.cc3dArrival?.brown?.x === bx && p.cc3dArrival.brown.y === by);
+  if (w.parked.some((p) => p.x === bx && p.y === by && parkedWorks(p))) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.
   return w.entities.some((e) => e.x === bx && e.y === by && restsOnButton(w, e) && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));

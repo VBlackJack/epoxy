@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 18;
+export const CC2_RULES_VERSION = 19;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -541,6 +541,9 @@ export const CC2_RULES_VERSION = 18;
 // clone at its step end, a lit jet judged when the step into it ends, data latches and counters timed by the gate delay). Wave 19 is live as 16.
 // Version 18: the wave 21 rules (a step onto fire, water or slime is judged when the step ends, a flame jet lit while the step runs burns
 // at the step end, a drop of the boots that guard the cell of a running step refused). Wave 20 is live as 17.
+// Version 19: the wave 22 rules (a parked player's step end acts right after the controlled player's, a parked player's step onto a brown
+// button works it when the step ends, a bomb goes off before the water or fire under it, real fire spares a lighting, a jet lit under
+// a still player before his turn is judged at his turn). Wave 21 is live as 18.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

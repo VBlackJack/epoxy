@@ -260,7 +260,23 @@ function flipGrayCellAt(w: EpoxyWorld, x: number, y: number): void {
  * a shot or a clone killed the player.
  */
 function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
+  // The frame of the clone's release that pressed this button is dropped by the first cloner the area fires (spawnFromCloner): every
+  // cloner of the area is released at that frame, so it is put back before each one and gone when the pulse ends.
+  const releaseFrame = ctx.world.cc2ReleaseFrame;
+  try {
+    return pulseAreaDevices(ctx, bx, by, releaseFrame);
+  } finally {
+    delete ctx.world.cc2ReleaseFrame;
+  }
+}
+
+/** The pulse of pulseWiredDevices; `releaseFrame` is set again on the world before each clone machine fires. */
+function pulseAreaDevices(ctx: EpoxyContext, bx: number, by: number, releaseFrame: EpoxyWorld['cc2ReleaseFrame']): boolean {
   const w = ctx.world;
+  const fireCloner = (x: number, y: number): boolean => {
+    if (releaseFrame !== undefined) w.cc2ReleaseFrame = releaseFrame;
+    return fireClonerAt(ctx, x, y);
+  };
   const runtime = w.signals;
   const width = mapWidth(w);
   const handled = new Set<number>();
@@ -277,7 +293,7 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       else if (fires === 'launcher') {
         if (!fireLauncherAt(ctx, x, y)) return false;
       } else if (fires === 'cloner') {
-        if (!fireClonerAt(ctx, x, y)) return false;
+        if (!fireCloner(x, y)) return false;
       } else runtime.areaPending.add(cell);
       if (!w.player.alive) return false;
     }
@@ -298,7 +314,7 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       else if (tile.shotLauncher !== undefined) {
         if (!fireLauncherAt(ctx, x, y)) return false;
       } else if (tile.isCloneMachine === true) {
-        if (!fireClonerAt(ctx, x, y)) return false;
+        if (!fireCloner(x, y)) return false;
       }
       if (!w.player.alive) return false;
     }
@@ -461,9 +477,24 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
  * 2163-2168, game.js 2365-2366). Marks the cell as his pending hazard and returns true then.
  */
 function deferJetBurnToStepEnd(w: EpoxyWorld, p: PlayerState): boolean {
+  // A still controlled player whose turn of this tick is still ahead decides first (Lexy flame_jet_on on_stand runs from the idle phase,
+  // after the decisions, game.js 1345-1356): the jet is judged at the end of his turn (GameEngine.playActorTurn).
+  if (judgesHazardsAtStepEnd(w) && p === w.player && !stepStillRuns(p) && w.cc2TurnAhead === true && ConfigRegistry.getTile(w.terrain[p.y][p.x]).burnsOccupants === true) {
+    w.cc2JetAtTurn = { x: p.x, y: p.y };
+    return true;
+  }
   if (!judgesHazardsAtStepEnd(w) || !stepStillRuns(p)) return false;
   deferHazardToStepEnd(p, p.x, p.y);
   return true;
+}
+
+/**
+ * CC2 engine: whether `tile` is real fire (no jet of any kind), which never burns a player at a lighting: fire has no on_stand in Lexy
+ * (tiletypes.js 941-972) and flame_jet_off.activate kills nothing (2146-2152). A native jet toggles by flameTogglesTo, a wired one by
+ * wireTogglesTo, the CC2 one burns its occupants: none of them is spared.
+ */
+function realFireSpares(w: EpoxyWorld, tile: TileDefinition): boolean {
+  return judgesHazardsAtStepEnd(w) && tile.burnsOccupants !== true && tile.flameTogglesTo === undefined && tile.wireTogglesTo === undefined;
 }
 
 /** A flame jet lit under the player (a monster or block pressed the button) burns them. */
@@ -472,7 +503,7 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   if (!w.player.alive) return;
   if (w.parked.length === 0) {
     const tile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
-    if (tile.hazard === 'fire' && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem)) && !deferJetBurnToStepEnd(w, w.player)) {
+    if (tile.hazard === 'fire' && !realFireSpares(w, tile) && (!tile.protectedByItem || !w.player.boots.has(tile.protectedByItem)) && !deferJetBurnToStepEnd(w, w.player)) {
       ctx.emitVisual('explosion', w.player.x, w.player.y);
       killPlayer(ctx, 'hud.messages.death_fire', 'burn');
     }
@@ -481,7 +512,7 @@ function burnPlayerIfFlamesLit(ctx: EpoxyContext): void {
   // A parked player that burns takes the controlled slot, so the loop reads a copy.
   for (const p of [...playersOf(w)]) {
     const tile = ConfigRegistry.getTile(w.terrain[p.y][p.x]);
-    if (p.alive && tile.hazard === 'fire' && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
+    if (p.alive && tile.hazard === 'fire' && !realFireSpares(w, tile) && (!tile.protectedByItem || !p.boots.has(tile.protectedByItem))) {
       if (deferJetBurnToStepEnd(w, p)) continue;
       ctx.emitVisual('explosion', p.x, p.y);
       killPlayerAt(ctx, p, 'hud.messages.death_fire', 'burn');

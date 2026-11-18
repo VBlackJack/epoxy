@@ -45,6 +45,7 @@ import {
   MONSTER_PICKUP_COLLECTIBLES,
   OPPOSITE_DIRECTION,
   PHASE_LINE_PATTERN,
+  PULSE_WIRED_ACTION,
   RANDOM_DRAW_PATTERN,
   STATIONARY_PATTERN,
   STONE_DEATH_REASON_KEY,
@@ -1047,8 +1048,9 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // A monster that presses nothing (the CC3D blinky and screamer) works no button either.
   // CC2 engine: a clone's out-of-turn step onto the red button presses it when that step ends (Lexy step_on_cell on_arrive, game.js:2316-2366),
   // whatever the phase that released it (a tick-end release is outside the tick): the press waits for the first pass start where its step
-  // has ended. Other buttons keep their own timing.
-  const cloneStepEnd = cloneRelease && usesCc2Engine(w.level) && !w.cc3dPace && entity.kind === 'monster' && destTile.buttonAction === CC2_CLONER_BUTTON_ACTION;
+  // has ended. The gray area button works the same way (Lexy button_gray on_arrive from step_on_cell, tiletypes.js 2446-2451): a clone
+  // released onto it pulses its area when its step ends. Other buttons keep their own timing.
+  const cloneStepEnd = cloneRelease && usesCc2Engine(w.level) && !w.cc3dPace && entity.kind === 'monster' && CC2_CLONE_STEP_END_ACTIONS.has(destTile.buttonAction);
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (cloneStepEnd) {
       const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
@@ -1106,6 +1108,9 @@ const CC2_GREEN_TOGGLE_ACTION: ButtonAction = 'toggle_walls';
 
 /** The red button action: a clone released onto it presses it when its step ends (Lexy button_red on_arrive). */
 const CC2_CLONER_BUTTON_ACTION: ButtonAction = 'trigger_cloner';
+
+/** The buttons whose press by a clone's out-of-turn step lands when that step ends: the red button and the gray area button (PULSE_WIRED_ACTION). */
+const CC2_CLONE_STEP_END_ACTIONS: ReadonlySet<ButtonAction | undefined> = new Set<ButtonAction>([CC2_CLONER_BUTTON_ACTION, PULSE_WIRED_ACTION]);
 
 /** The blue button action: a CC2 monster press of it is applied at the next decision (Lexy pending_reverse). */
 const CC2_BLUE_REVERSE_ACTION: ButtonAction = 'reverse_tanks';
