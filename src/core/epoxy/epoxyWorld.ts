@@ -269,6 +269,16 @@ export interface EpoxyWorld {
   cc2MovingAtDecision?: Set<number>;
   /** CC2 engine, actor order: the uids of the blocks the player's turn pushed after their own turn in the pass. Transient, never saved. */
   cc2PushedLate?: number[];
+  /**
+   * CC2 engine, actor order: the controlled player's turn of the running tick is still ahead. Set when the actor tick opens, deleted when
+   * his turn is played and when the tick is cleared. Transient: it lives inside one tick, never in a snapshot or the hidden key.
+   */
+  cc2TurnAhead?: true;
+  /**
+   * CC2 engine, actor order: the cell of a jet lit under the still controlled player before his turn, judged at the end of that turn (he
+   * may start a step off it first). Deleted when his turn is played and when the tick is opened or cleared. Transient, never saved.
+   */
+  cc2JetAtTurn?: { x: number; y: number };
   /** CC2 engine, actor order: the uids of the entities that skip the rest of the running pass (a cloner template that went out). Transient, never saved. */
   cc2SkipTurn?: Set<number>;
   /**

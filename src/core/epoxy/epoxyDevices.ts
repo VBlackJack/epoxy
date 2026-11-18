@@ -461,6 +461,12 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
  * 2163-2168, game.js 2365-2366). Marks the cell as his pending hazard and returns true then.
  */
 function deferJetBurnToStepEnd(w: EpoxyWorld, p: PlayerState): boolean {
+  // A still controlled player whose turn of this tick is still ahead decides first (Lexy flame_jet_on on_stand runs from the idle phase,
+  // after the decisions, game.js 1345-1356): the jet is judged at the end of his turn (GameEngine.playActorTurn).
+  if (judgesHazardsAtStepEnd(w) && p === w.player && !stepStillRuns(p) && w.cc2TurnAhead === true && ConfigRegistry.getTile(w.terrain[p.y][p.x]).burnsOccupants === true) {
+    w.cc2JetAtTurn = { x: p.x, y: p.y };
+    return true;
+  }
   if (!judgesHazardsAtStepEnd(w) || !stepStillRuns(p)) return false;
   deferHazardToStepEnd(p, p.x, p.y);
   return true;
