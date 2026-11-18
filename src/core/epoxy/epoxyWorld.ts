@@ -1353,7 +1353,9 @@ export function isButtonPressed(w: EpoxyWorld, bx: number, by: number): boolean 
   // On the CC2 engine he works it when his step onto it ends (see applyCc3dStepEnd), not while that step is under way.
   const stepOntoPending = w.player.cc3dArrival?.brown?.x === bx && w.player.cc3dArrival.brown.y === by;
   if (w.player.x === bx && w.player.y === by && !stepOntoPending && !(w.cc3dPace && (w.player.moveCooldown > 0 || w.player.isSliding))) return true;
-  if (w.parked.some((p) => p.x === bx && p.y === by)) return true;
+  // CC2 engine: a parked player works it when his step onto it ends too, as the controlled one does (stepOntoPending).
+  const parkedWorks = (p: PlayerState): boolean => !(usesCc2Engine(w.level) && !w.cc3dPace && p.cc3dArrival?.brown?.x === bx && p.cc3dArrival.brown.y === by);
+  if (w.parked.some((p) => p.x === bx && p.y === by && parkedWorks(p))) return true;
   // A phasing monster (pressesPlates false in its definition) passes over a held button without working it.
   // On a converted CC3D level a monster works a brown button only at rest (its step ended), as it does a plate.
   return w.entities.some((e) => e.x === bx && e.y === by && restsOnButton(w, e) && !(e.kind === 'monster' && ConfigRegistry.getEntityDef(e.type)?.pressesPlates === false));
