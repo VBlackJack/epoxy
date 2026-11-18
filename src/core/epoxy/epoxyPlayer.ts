@@ -851,6 +851,12 @@ function chipTurnedBombKills(w: EpoxyWorld): boolean {
   return bombWaitsForStepEnd(w);
 }
 
+/** Whether a bomb lies on (x, y). */
+function bombUnder(w: EpoxyWorld, x: number, y: number): boolean {
+  const id = w.items[y]?.[x];
+  return id ? ConfigRegistry.getTile(id).hazard === 'bomb' : false;
+}
+
 /** The bomb under the player goes off and kills him. */
 function explodePlayerBomb(ctx: EpoxyContext, x: number, y: number): void {
   ctx.world.items[y][x] = null;
@@ -1132,6 +1138,12 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
     if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
+  }
+  // CC2 engine: the bomb is the item and the water or fire the terrain; Lexy step_on_cell walks the layers top down, the item first
+  // (game.js 2315-2366), so a bomb lying on a hazard goes off before the hazard is judged.
+  if (judgesHazardsAtStepEnd(w) && pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y && bombUnder(w, p.x, p.y)) {
+    explodePlayerBomb(ctx, p.x, p.y);
+    return true;
   }
   if (pending.hazard !== undefined && !judgeHazardAtStepEnd(ctx, pending.hazard)) return true;
   if (pending.bomb !== undefined && p.x === pending.bomb.x && p.y === pending.bomb.y) {
