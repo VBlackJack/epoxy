@@ -36,8 +36,10 @@ import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
+import { PULSE_WIRED_ACTION } from '../coreConstants';
 import type { Direction } from '../types';
-import type { EpoxyWorld } from './epoxyWorld';
+import { triggerButton } from './epoxyDevices';
+import type { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -127,5 +129,33 @@ describe('RBG: a clone released onto a gray button pulses its area when its step
   // Control: a block clone released onto the gray button was already pulsing it (a block is not a monster step end): the rule leaves it.
   it('a block clone on a gray button lights the jet at the same tick as before the rule', () => {
     expect(cloneOntoGray(BLOCK)).toBe(ROOM_LIT_TICK);
+  });
+});
+
+/** Two cloners in the area of a gray button (radius 2), each facing east with a glider on it; the button lies on the player's row. */
+const AREA_CLONER_XS = [7, 7];
+const AREA_CLONER_ROWS = [ROOM_ROW, ROOM_ROW + 2];
+const AREA_BUTTON_X = 5;
+const CLONE_X = 8;
+const MONSTER = 'glider';
+/** Lexy: a clone released at press frame 0 carries frame (0 + 2) mod 3 for its own press (game.js 2218-2242). */
+const RELEASE_FRAME = 0;
+const CARRIED_FRAME = 2;
+
+describe('RBG: every cloner of a gray area is released at the press frame', () => {
+  it('both clones carry the frame of the press and the frame is gone after the pulse; mutant: the frame read by the first cloner only', () => {
+    const engine = new GameEngine();
+    const terrain: Record<string, string> = { [`${AREA_BUTTON_X},${ROOM_ROW}`]: GRAY_BUTTON };
+    AREA_CLONER_XS.forEach((x, i) => { terrain[`${x},${AREA_CLONER_ROWS[i]}`] = CLONER; });
+    engine.loadLevel({
+      ...room({ mode: 'cc2', terrain }),
+      entities: AREA_CLONER_XS.map((x, i) => ({ type: MONSTER, x, y: AREA_CLONER_ROWS[i], dir: 'E' as const }))
+    }, SEED);
+    const w = worldOf(engine);
+    w.cc2ReleaseFrame = RELEASE_FRAME;
+    expect(triggerButton((engine as unknown as { ctx: EpoxyContext }).ctx, AREA_BUTTON_X, ROOM_ROW, PULSE_WIRED_ACTION)).toBe(true);
+    const clones = AREA_CLONER_ROWS.map((y) => engine.getEntities().find((e) => e.type === MONSTER && e.x === CLONE_X && e.y === y));
+    expect(clones.map((c) => c?.cc2Frame)).toEqual([CARRIED_FRAME, CARRIED_FRAME]);
+    expect(w.cc2ReleaseFrame).toBeUndefined();
   });
 });

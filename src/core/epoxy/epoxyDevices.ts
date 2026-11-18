@@ -260,7 +260,23 @@ function flipGrayCellAt(w: EpoxyWorld, x: number, y: number): void {
  * a shot or a clone killed the player.
  */
 function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
+  // The frame of the clone's release that pressed this button is dropped by the first cloner the area fires (spawnFromCloner): every
+  // cloner of the area is released at that frame, so it is put back before each one and gone when the pulse ends.
+  const releaseFrame = ctx.world.cc2ReleaseFrame;
+  try {
+    return pulseAreaDevices(ctx, bx, by, releaseFrame);
+  } finally {
+    delete ctx.world.cc2ReleaseFrame;
+  }
+}
+
+/** The pulse of pulseWiredDevices; `releaseFrame` is set again on the world before each clone machine fires. */
+function pulseAreaDevices(ctx: EpoxyContext, bx: number, by: number, releaseFrame: EpoxyWorld['cc2ReleaseFrame']): boolean {
   const w = ctx.world;
+  const fireCloner = (x: number, y: number): boolean => {
+    if (releaseFrame !== undefined) w.cc2ReleaseFrame = releaseFrame;
+    return fireClonerAt(ctx, x, y);
+  };
   const runtime = w.signals;
   const width = mapWidth(w);
   const handled = new Set<number>();
@@ -277,7 +293,7 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       else if (fires === 'launcher') {
         if (!fireLauncherAt(ctx, x, y)) return false;
       } else if (fires === 'cloner') {
-        if (!fireClonerAt(ctx, x, y)) return false;
+        if (!fireCloner(x, y)) return false;
       } else runtime.areaPending.add(cell);
       if (!w.player.alive) return false;
     }
@@ -298,7 +314,7 @@ function pulseWiredDevices(ctx: EpoxyContext, bx: number, by: number): boolean {
       else if (tile.shotLauncher !== undefined) {
         if (!fireLauncherAt(ctx, x, y)) return false;
       } else if (tile.isCloneMachine === true) {
-        if (!fireClonerAt(ctx, x, y)) return false;
+        if (!fireCloner(x, y)) return false;
       }
       if (!w.player.alive) return false;
     }
