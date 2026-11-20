@@ -177,6 +177,8 @@ describe('CC2 wave 23: the swap key acts at a decision only (SWG)', () => {
     expect(e.swapPlayer()).toBe(true);
   });
 
+  // The cc3dPace clause of the gate is defensive (a CC2 level never has cc3dPace): this test documents the intent, it is not shown
+  // to fail without the clause.
   it('leaves a converted CC3D level alone: a mid-step swap still acts', () => {
     const level = buildTestLevel(['##########', '#........#', '#.@......#', '#........#', '##########']);
     const e = new GameEngine();
