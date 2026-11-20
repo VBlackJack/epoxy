@@ -316,6 +316,9 @@ describe('two players: the step end of a player who is not controlled', () => {
     expect(engine.isDecisionOpen()).toBe(false);
     const historyLength = engine.getTimedMoveHistory().length;
     expect(engine.swapPlayer()).toBe(false);
+    expect([world(engine).player, ...world(engine).parked].every((p) => p.alive)).toBe(true);
+    // The parked player's drowning is covered by the Lexy lane test cc2Wave22.test.ts ~174 (park_slide_water). At a decision tick, the
+    // beginInput flush inside the swapPlayer() call is what drowns him; here the swap is refused, so nothing is flushed.
     expect(engine.swapWaitsForDecision()).toBe(true);
     expect(engine.getTimedMoveHistory().length).toBe(historyLength);
     expect(world(engine).player.x).toBe(HAZARD_X);
