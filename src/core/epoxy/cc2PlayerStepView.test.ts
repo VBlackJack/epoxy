@@ -197,6 +197,11 @@ describe('CC2 engine: the apparent position across a teleport', () => {
   });
 });
 
+/** Ticks played waiting for a decision, a guard against a loop that never ends. */
+function waitForDecision(engine: GameEngine): void {
+  for (let i = 0; i < MAX_TICKS && !engine.isDecisionOpen(); i++) engine.tick();
+}
+
 describe('CC2 engine: the apparent position on a hand-off', () => {
   it('moves to the cell of the player who takes control, at rest', () => {
     const engine = load({ ...room({ mode: 'cc2' }), extraPlayers: [{ x: 9, y: ROOM_ROW, dir: 'W', character: 'chip' }] });
@@ -204,7 +209,37 @@ describe('CC2 engine: the apparent position on a hand-off', () => {
     engine.attemptPlayerMove('E');
     engine.tick();
     expect(viewOf(engine)).toMatchObject({ x: START_X + 1, cooldown: expect.any(Number) });
+    expect(viewOf(engine)?.cooldown).toBeGreaterThan(0);
+    // A swap in the step is refused (Lexy acts on the switch key at a decision only): the view is left as it was.
+    const midStep = viewOf(engine);
+    expect(engine.swapPlayer()).toBe(false);
+    expect(viewOf(engine)).toEqual(midStep);
+    waitForDecision(engine);
+    expect(engine.isDecisionOpen()).toBe(true);
     expect(engine.swapPlayer()).toBe(true);
     expect(viewOf(engine)).toEqual({ x: 9, y: ROOM_ROW, dir: 'W', cooldown: 0, stepLength: 1 });
+  });
+
+  // Epoxy pin (Lexy's visual position of a player handed back mid-slide is not measured): a player who takes control while still sliding keeps
+  // the wait he has left, and the step length is the least that wait allows.
+  it('an incoming player who is still mid-slide keeps his wait in the view', () => {
+    const slideCells = Object.fromEntries([0, 1, 2].map((i) => [`${START_X + 1 + i},${ROOM_ROW}`, 'force_e']));
+    const engine = load({ ...room({ mode: 'cc2', terrain: slideCells }), extraPlayers: [{ x: 9, y: ROOM_ROW, dir: 'W', character: 'chip' }] });
+    engine.tick();
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    waitForDecision(engine);
+    expect(engine.getPlayer().isSliding).toBe(true);
+    // Swap to B (at rest), let one tick pass, then swap back to A, who is still carried along the force floors.
+    expect(engine.swapPlayer()).toBe(true);
+    engine.tick();
+    expect(world(engine).player.x).toBe(9);
+    expect(engine.swapPlayer()).toBe(true);
+    const back = world(engine).player;
+    expect(back.x).toBeGreaterThan(START_X);
+    const expected = Math.max(back.moveCooldown, back.isSliding ? back.slideCooldown : 0);
+    expect(expected).toBeGreaterThan(0);
+    const view = viewOf(engine);
+    expect(view?.cooldown).toBe(expected);
+    expect(view?.stepLength).toBe(Math.max(1, expected));
   });
 });

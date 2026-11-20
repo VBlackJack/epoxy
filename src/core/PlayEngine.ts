@@ -81,6 +81,8 @@ export interface PlayEngine {
    * map. An engine without several players omits it.
    */
   swapPlayer?(): boolean;
+  /** Optional. Whether a swap refused now waits for the next decision of the controlled player (CC2 engine, a step under way). */
+  swapWaitsForDecision?(): boolean;
   /** Optional. The cycle key: the oldest pair of boots held goes to the end of the list; false when refused (not a CC2-engine level, fewer than two pairs). An engine without it omits it. */
   cycleInventory?(): boolean;
   /**
