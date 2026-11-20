@@ -89,6 +89,7 @@ import {
   takeExtraBootCopy,
   dropWouldUnguardPendingHazard,
   stepStillRuns,
+  cc2DecisionOpen,
   flushParkedStepEnds,
   toolBeltOf,
   usesToolBelt,
@@ -1974,6 +1975,14 @@ export class GameEngine {
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
     return true;
+  }
+
+  /**
+   * Whether the controlled player is at a decision now: no wait is left on his step (cc2DecisionOpen). The replay harness reads it for
+   * every action key of a CC2-engine level; the swap key acts only then.
+   */
+  public isDecisionOpen(): boolean {
+    return cc2DecisionOpen(this.w.player);
   }
 
   /**

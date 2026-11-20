@@ -782,9 +782,21 @@ function hazardWaitsForStepEnd(w: EpoxyWorld, tile: TileDefinition): boolean {
   return tile.burnsOccupants === true || STEP_END_HAZARDS.has(tile.hazard);
 }
 
-/** Whether the step of `p` still runs: his move wait, or his slide wait while he slides. */
+/**
+ * Whether the step of `p` still runs: his move wait, or his slide wait while he slides. It answers one question, whether the step-end
+ * hazard judge may act yet; cc2DecisionOpen answers whether the player may choose again, and stepCooldownOf how far behind to draw him.
+ */
 export function stepStillRuns(p: PlayerState): boolean {
   return p.isSliding ? p.slideCooldown > 0 : p.moveCooldown > 0;
+}
+
+/**
+ * CC2 engine: whether the controlled player `p` is at a decision now, between two ticks: no wait is left on his step (Lexy makes a
+ * player decision only at movement cooldown 0, game.js 989-990; a slide gives one at every cell). The swap key and the action keys
+ * of a replay act only then. One predicate for the engine and the replay harness.
+ */
+export function cc2DecisionOpen(p: PlayerState): boolean {
+  return stepCooldownOf(p) === 0;
 }
 
 /**
@@ -1477,7 +1489,7 @@ export function processPlayerSlideStep(ctx: EpoxyContext): void {
   ctx.checkTargetsWin();
 }
 
-/** Ticks left on the controlled player's step: the move wait, or the slide wait while he slides. */
+/** Ticks left on the controlled player's step: the move wait, or the slide wait while he slides (how far behind to draw him). */
 function stepCooldownOf(p: PlayerState): number {
   return Math.max(p.moveCooldown, p.isSliding ? p.slideCooldown : 0);
 }
