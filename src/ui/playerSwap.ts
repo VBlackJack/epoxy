@@ -102,6 +102,8 @@ export class PendingSwap {
 
   /** The swap key. Acts at once when the engine allows it, otherwise keeps the press when the refusal is a wait. */
   public press(engine: PlayEngine): SwapPressResult {
+    // A second press while paused keeps the swap already kept: the pause holds it, a repeated key must not drop it.
+    if (this.waitingFor !== null && engine.isPaused()) return { kind: 'blocked' };
     this.waitingFor = null;
     if (hasSeveralPlayers(engine) && engine.swapWaitsForDecision?.() === true) {
       this.waitingFor = engine.getPlayer();

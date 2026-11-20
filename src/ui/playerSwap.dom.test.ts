@@ -381,6 +381,19 @@ describe('PendingSwap on a CC2 level', () => {
     expect(swapsInHistory(engine)).toBe(1);
   });
 
+  it('keeps the kept swap when the key is pressed again while paused', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    engine.setPaused(true);
+    expect(pending.press(engine)).toEqual({ kind: 'blocked' });
+    expect(pending.isPending).toBe(true);
+    engine.setPaused(false);
+    expect(tickUntilActs(engine, pending)).not.toBeNull();
+    expect(swapsInHistory(engine)).toBe(1);
+  });
+
   it('is cancelled by an undo', () => {
     const engine = start(cc2Room(TWO_PLAYERS));
     const pending = new PendingSwap();
@@ -467,7 +480,7 @@ describe('main.ts swap wiring', () => {
   });
 
   it('ignores the auto-repeat of a held swap key and cancels the kept swap on undo, restart, load and replay', () => {
-    expect(/kb\.swapPlayer\?\.includes\(e\.code\)\) \{[^}]*if \(e\.repeat\)/.test(source)).toBe(true);
+    expect(/kb\.swapPlayer\?\.includes\(e\.code\)\) \{[^}]*if \(!e\.repeat\) this\.swapActivePlayer\(\)/.test(source)).toBe(true);
     expect(/private stopAutoMoveAndReplay\(\): void \{\s*this\.clearAutoMove\(\);\s*this\.pendingSwap\.cancel\(\);/.test(source)).toBe(true);
     expect(/private loadPlayLevel\(level: CompiledLevel\): void \{\s*this\.pendingSwap\.cancel\(\);/.test(source)).toBe(true);
   });
