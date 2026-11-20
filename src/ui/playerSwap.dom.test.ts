@@ -37,9 +37,11 @@ import {
   renderPlayersHud,
   SWAP_DONE_KEY,
   SWAP_REFUSED_KEY,
+  PendingSwap,
   swapPlayers,
   type PlayersHudElements
 } from './playerSwap';
+import { CC2_TEST_RECORD } from '../test/cc2Room';
 import { applyTimedMove, collectDueMoves } from './replaySchedule';
 
 const ROOM_WIDTH = 12;
@@ -48,6 +50,8 @@ const COOLDOWN_TICKS = 20;
 const REPLAY_TICK_CAP = 4000;
 const INDEX_PATH = resolve(__dirname, '../../index.html');
 const SWAP_KEY_CODE = 'KeyV';
+/** Lexy sw_rest_tap4: a step east from rest gives its next decision at tic 4. */
+const REST_DECISION_TICK = 4;
 
 type Messages = Record<string, unknown>;
 
@@ -270,5 +274,201 @@ describe('replay across a swap', () => {
     }
     expect(replay.getPlayer()).toMatchObject({ x: recorded.getPlayer().x, y: recorded.getPlayer().y });
     expect(replay.getParkedPlayers()?.map((p) => [p.x, p.y])).toEqual(recorded.getParkedPlayers()?.map((p) => [p.x, p.y]));
+  });
+});
+
+/** A CC2-engine copy of the room: the swap then acts at the controlled player's decisions only. */
+function cc2Room(others: Array<{ x: number; y: number; character: PlayerCharacter }>): CompiledLevel {
+  return { ...room(others), cc2: CC2_TEST_RECORD };
+}
+
+const THREE_PLAYERS = [
+  { x: 8, y: 3, character: 'melinda' as PlayerCharacter },
+  { x: 8, y: 4, character: 'chip' as PlayerCharacter }
+];
+const SETTLE_TICKS = 40;
+
+const swapsInHistory = (engine: GameEngine): number => engine.getTimedMoveHistory().filter((m) => m.swap === true).length;
+
+/** Starts a step east, one tick in: the controlled player is mid-step and no decision is open (Lexy sw_rest_tap1..3). */
+function startStep(engine: GameEngine): void {
+  expect(engine.attemptPlayerMove('E')).toBe(true);
+  engine.tick();
+  expect(engine.swapWaitsForDecision()).toBe(true);
+}
+
+/** Ticks as runGameTick does and calls retry after each one; returns the tick at which the kept swap acted, or null. */
+function tickUntilActs(engine: GameEngine, pending: PendingSwap): number | null {
+  for (let i = 0; i < SETTLE_TICKS; i++) {
+    engine.tick();
+    engine.flushPendingStepEnd();
+    if (pending.retry(engine)?.kind === 'swapped') return engine.getTick();
+  }
+  return null;
+}
+
+describe('PendingSwap on a CC2 level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  // Lexy sw_rest_tap1..3 (nothing during a step) and sw_rest_tap4 (acts at tic 4): the kept press acts at the decision. Fails without the wait.
+  it('keeps a press made mid-step, shows nothing, and acts at the decision', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    const before = engine.getPlayer();
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    expect(pending.isPending).toBe(true);
+    expect(engine.getPlayer()).toBe(before);
+    expect(swapsInHistory(engine)).toBe(0);
+    expect(tickUntilActs(engine, pending)).toBe(REST_DECISION_TICK);
+    expect(pending.isPending).toBe(false);
+    expect(engine.getPlayer()).toMatchObject({ x: 8, y: 3 });
+    expect(swapsInHistory(engine)).toBe(1);
+  });
+
+  it('acts at once when a decision is open', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    expect(engine.isDecisionOpen()).toBe(true);
+    expect(pending.press(engine).kind).toBe('swapped');
+    expect(pending.isPending).toBe(false);
+  });
+
+  // Control changing hands without the UI cancelling (an undo restores other player objects): the press was for another player.
+  it('is cancelled silently when the controlled player is no longer the one it was pressed for', () => {
+    const engine = start(cc2Room(THREE_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    expect(engine.undo()).toBe(true);
+    expect(pending.retry(engine)).toBeNull();
+    expect(pending.isPending).toBe(false);
+    expect(tickUntilActs(engine, pending)).toBeNull();
+    expect(swapsInHistory(engine)).toBe(0);
+  });
+
+  // Lexy semantics: the exit acts at the start of the tick after the step ends, so the swap still acts at the decision (tic 4) and
+  // control goes to the next player once; the leaving player's hand-off never swaps a second time.
+  it('acts once at the decision in a room of three with an exit under the step, and never swaps again', () => {
+    const level = cc2Room(THREE_PLAYERS);
+    level.terrain[2][3] = 'exit';
+    const engine = start(level);
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    expect(tickUntilActs(engine, pending)).toBe(REST_DECISION_TICK);
+    for (let i = 0; i < SETTLE_TICKS; i++) {
+      engine.tick();
+      engine.flushPendingStepEnd();
+      expect(pending.retry(engine)).toBeNull();
+    }
+    expect(swapsInHistory(engine)).toBe(1);
+  });
+
+  it('is kept by a pause and acts once the game runs again', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    engine.setPaused(true);
+    for (let i = 0; i < SETTLE_TICKS; i++) expect(pending.retry(engine)).toBeNull();
+    expect(pending.isPending).toBe(true);
+    expect(swapsInHistory(engine)).toBe(0);
+    engine.setPaused(false);
+    expect(tickUntilActs(engine, pending)).not.toBeNull();
+    expect(swapsInHistory(engine)).toBe(1);
+  });
+
+  it('is cancelled by an undo', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    // main.ts undoMove goes through stopAutoMoveAndReplay, which cancels.
+    pending.cancel();
+    engine.undo();
+    expect(tickUntilActs(engine, pending)).toBeNull();
+    expect(swapsInHistory(engine)).toBe(0);
+  });
+
+  it('is cancelled by a restart or another level', () => {
+    const level = cc2Room(TWO_PLAYERS);
+    const engine = start(level);
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    pending.cancel();
+    engine.loadLevel(level);
+    expect(pending.isPending).toBe(false);
+    expect(tickUntilActs(engine, pending)).toBeNull();
+    expect(swapsInHistory(engine)).toBe(0);
+  });
+
+  it('is dropped without a trace when the controlled player dies', () => {
+    const level = cc2Room(TWO_PLAYERS);
+    level.terrain[2][3] = 'water';
+    const engine = start(level);
+    const pending = new PendingSwap();
+    startStep(engine);
+    expect(pending.press(engine)).toEqual({ kind: 'waiting' });
+    expect(tickUntilActs(engine, pending)).toBeNull();
+    expect(pending.isPending).toBe(false);
+    expect(swapsInHistory(engine)).toBe(0);
+  });
+
+  it('forgets an older press when the key is pressed again at a decision', () => {
+    const engine = start(cc2Room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    startStep(engine);
+    pending.press(engine);
+    for (let i = 0; i < SETTLE_TICKS && !engine.isDecisionOpen(); i++) engine.tick();
+    expect(pending.press(engine).kind).toBe('swapped');
+    expect(pending.isPending).toBe(false);
+    expect(swapsInHistory(engine)).toBe(1);
+  });
+});
+
+describe('PendingSwap on a native level', () => {
+  beforeEach(() => {
+    loadTestConfigs();
+  });
+
+  it('swaps at once, even mid-step, and never keeps a press', () => {
+    const engine = start(room(TWO_PLAYERS));
+    const pending = new PendingSwap();
+    expect(engine.attemptPlayerMove('E')).toBe(true);
+    engine.tick();
+    expect(engine.swapWaitsForDecision()).toBe(false);
+    expect(pending.press(engine).kind).toBe('swapped');
+    expect(pending.isPending).toBe(false);
+    expect(pending.retry(engine)).toBeNull();
+  });
+});
+
+describe('main.ts swap wiring', () => {
+  const source = readFileSync(resolve(__dirname, '../main.ts'), 'utf8');
+
+  it('retries the kept swap right after the tick and the step-end flush, before the HUD', () => {
+    const tick = source.indexOf('this.engine.tick();');
+    const flush = source.indexOf('this.epoxyEngine()?.flushPendingStepEnd();', tick);
+    const retry = source.indexOf('this.pendingSwap.retry(this.engine)', flush);
+    const hud = source.indexOf('this.updateHUD();', retry);
+    expect(tick).toBeGreaterThan(-1);
+    expect(flush).toBeGreaterThan(tick);
+    expect(retry).toBeGreaterThan(flush);
+    expect(hud).toBeGreaterThan(retry);
+  });
+
+  it('clears the click-to-move queue when a kept swap acts and shows no waiting message', () => {
+    expect(/pendingSwap\.retry\(this\.engine\);\s*if \(keptSwap !== null\) \{\s*this\.clearAutoMove\(\);/.test(source)).toBe(true);
+    expect(source).toContain("if (outcome.kind === 'waiting') return;");
+  });
+
+  it('ignores the auto-repeat of a held swap key and cancels the kept swap on undo, restart, load and replay', () => {
+    expect(/kb\.swapPlayer\?\.includes\(e\.code\)\) \{[^}]*if \(e\.repeat\)/.test(source)).toBe(true);
+    expect(/private stopAutoMoveAndReplay\(\): void \{\s*this\.clearAutoMove\(\);\s*this\.pendingSwap\.cancel\(\);/.test(source)).toBe(true);
+    expect(/private loadPlayLevel\(level: CompiledLevel\): void \{\s*this\.pendingSwap\.cancel\(\);/.test(source)).toBe(true);
   });
 });

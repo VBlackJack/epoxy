@@ -94,7 +94,7 @@ import { applyLevelTextInputLimits } from './ui/levelTextInputs';
 import { ShareLinkFlow } from './ui/shareLinkFlow';
 import { showFatalErrorScreen } from './ui/fatalErrorScreen';
 import { InventorySlotView } from './ui/inventorySlots';
-import { playersState, renderPlayersHud, SWAP_DONE_KEY, SWAP_REFUSED_KEY, swapPlayers } from './ui/playerSwap';
+import { PendingSwap, playersState, renderPlayersHud, SWAP_DONE_KEY, SWAP_REFUSED_KEY, type SwapOutcome } from './ui/playerSwap';
 import { getMedalTier, medalIconKey, medalLabelKey, MedalTier } from './ui/medals';
 import { preferredScrollBehavior, prefersReducedMotion, replayAnimation, watchReducedMotion } from './ui/motion';
 import { getEditorChordAction, hasCommandModifier, isUndoChord } from './ui/inputGuards';
@@ -335,6 +335,8 @@ class EpoxyApplication {
   private customStatusMessage: string | null = null;
   private customStatusTimeout: number | null = null;
   private autoMoveQueue: Direction[] = [];
+  /** A swap pressed during a step of the controlled player, kept for his next decision (CC2 levels). */
+  private readonly pendingSwap = new PendingSwap();
   private autoMovePoints: GridPoint[] = [];
   private replayMoves: TimedMove[] = [];
   private replayIndex: number = 0;
@@ -834,6 +836,12 @@ class EpoxyApplication {
     }
     // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
     this.epoxyEngine()?.flushPendingStepEnd();
+    // A swap kept at the press acts at the controlled player's decision, which this tick may have opened.
+    const keptSwap = this.pendingSwap.retry(this.engine);
+    if (keptSwap !== null) {
+      this.clearAutoMove();
+      this.reportSwap(keptSwap);
+    }
     this.renderer.incrementFrame();
     this.updateHUD();
     this.watchBlockPuzzles();
@@ -2131,6 +2139,7 @@ class EpoxyApplication {
 
   private stopAutoMoveAndReplay(): void {
     this.clearAutoMove();
+    this.pendingSwap.cancel();
     this.isReplaying = false;
     this.replayMoves = [];
     this.replayIndex = 0;
@@ -2138,6 +2147,7 @@ class EpoxyApplication {
 
   /** Loads a level into the engine its ruleset asks for. */
   private loadPlayLevel(level: CompiledLevel): void {
+    this.pendingSwap.cancel();
     this.engineSelector.forLevel(level).loadLevel(level);
     this.aimMode.set(false);
     this.clearHeldKeys();
@@ -3579,6 +3589,11 @@ class EpoxyApplication {
     } else if (kb.cycleItem?.includes(e.code)) {
       run(() => this.cycleSelectedItem());
     } else if (kb.swapPlayer?.includes(e.code)) {
+      // A held key does not repeat: one press, one swap.
+      if (e.repeat) {
+        e.preventDefault();
+        return;
+      }
       run(() => this.swapActivePlayer());
     } else if (kb.restart.includes(e.code)) {
       run(() => this.restartLevel());
@@ -4183,13 +4198,20 @@ class EpoxyApplication {
       this.updateHUD();
       return;
     }
+    const outcome = this.pendingSwap.press(this.engine);
+    // A swap kept for the next decision shows nothing: the wait is one step at most.
+    if (outcome.kind === 'waiting') return;
     this.clearAutoMove();
-    const outcome = swapPlayers(this.engine);
-    if (outcome.kind === 'unavailable' || outcome.kind === 'blocked') return;
+    this.reportSwap(outcome);
+  }
+
+  /** Says the result of a swap that acted or was refused; nothing for the other outcomes. */
+  private reportSwap(outcome: SwapOutcome): void {
     if (outcome.kind === 'refused') {
       this.showTransientStatus(t(SWAP_REFUSED_KEY));
       return;
     }
+    if (outcome.kind !== 'swapped') return;
     this.showTransientStatus(t(SWAP_DONE_KEY, { name: t(outcome.state.nameKey), remaining: outcome.state.remaining }));
   }
 
