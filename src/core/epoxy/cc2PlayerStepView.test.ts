@@ -197,6 +197,9 @@ describe('CC2 engine: the apparent position across a teleport', () => {
   });
 });
 
+/** The wait a player handed back mid-slide has left in the force floor geometry of the test below (measured). */
+const MID_SLIDE_COOLDOWN = 1;
+
 /** Ticks played waiting for a decision, a guard against a loop that never ends. */
 function waitForDecision(engine: GameEngine): void {
   for (let i = 0; i < MAX_TICKS && !engine.isDecisionOpen(); i++) engine.tick();
@@ -236,10 +239,10 @@ describe('CC2 engine: the apparent position on a hand-off', () => {
     expect(engine.swapPlayer()).toBe(true);
     const back = world(engine).player;
     expect(back.x).toBeGreaterThan(START_X);
-    const expected = Math.max(back.moveCooldown, back.isSliding ? back.slideCooldown : 0);
-    expect(expected).toBeGreaterThan(0);
+    // Measured in this geometry (one tick after the swap, A on the second force floor): one tick of wait is left.
+    expect(Math.max(back.moveCooldown, back.isSliding ? back.slideCooldown : 0)).toBe(MID_SLIDE_COOLDOWN);
     const view = viewOf(engine);
-    expect(view?.cooldown).toBe(expected);
-    expect(view?.stepLength).toBe(Math.max(1, expected));
+    expect(view?.cooldown).toBe(MID_SLIDE_COOLDOWN);
+    expect(view?.stepLength).toBe(MID_SLIDE_COOLDOWN);
   });
 });
