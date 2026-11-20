@@ -358,8 +358,9 @@ function hardPadExitPending(engine: PlayEngine): boolean {
  */
 function playActionKeys(engine: PlayEngine, fresh: number, consume: (bits: number) => void, belt: ToolBelt | null, cc2Engine: boolean): boolean {
   const player = engine.getPlayer();
-  // CC2 engine: the engine's own decision predicate (the one its swap key obeys), so a switch bit is consumed only when the engine
-  // acts on it. Any other ruleset keeps the move wait.
+  // CC2 engine: the engine's own decision predicate (the one its swap key obeys). The replay harness reads the action keys (switch,
+  // drop, cycle) only at a decision, the slide wait included, so a bit is consumed only when the engine acts on it. Any other ruleset
+  // keeps the move wait.
   const decisionOpen = cc2Engine && engine instanceof GameEngine ? engine.isDecisionOpen() : player.moveCooldown === 0;
   if (fresh === 0 || !decisionOpen) return false;
   if (fresh & CC2_REPLAY_ACTION_BITS.cycleInventory) {

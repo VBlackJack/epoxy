@@ -545,7 +545,7 @@ export const CC2_RULES_VERSION = 20;
 // button works it when the step ends, a bomb goes off before the water or fire under it, real fire spares a lighting, a jet lit under
 // a still player before his turn is judged at his turn). Wave 21 is live as 18.
 // Version 20: the wave 23 rules (the swap key acts only at a decision of the controlled player: a swap pressed during his step is refused
-// and a replay harness consumes the switch bit only at a decision). A stored solution with a mid-step swap is refused at that tick.
+// and the replay harness reads the action keys (switch, drop, cycle) only at a decision, the slide wait included). A stored solution with a mid-step swap is refused at that tick.
 // Wave 22 is live as 19.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
