@@ -2431,6 +2431,8 @@ class EpoxyApplication {
 
   private switchMode(mode: 'play' | 'editor'): void {
     this.activeMode = mode;
+    // A swap kept in play must not act on return from the editor.
+    if (mode === 'editor') this.pendingSwap.cancel();
     this.clearHeldKeys();
     const isPlay = mode === 'play';
     byId('play-view')?.classList.toggle('hidden', !isPlay);
@@ -3590,11 +3592,9 @@ class EpoxyApplication {
       run(() => this.cycleSelectedItem());
     } else if (kb.swapPlayer?.includes(e.code)) {
       // A held key does not repeat: one press, one swap.
-      if (e.repeat) {
-        e.preventDefault();
-        return;
-      }
-      run(() => this.swapActivePlayer());
+      run(() => {
+        if (!e.repeat) this.swapActivePlayer();
+      });
     } else if (kb.restart.includes(e.code)) {
       run(() => this.restartLevel());
     } else if (kb.pause.includes(e.code)) {
