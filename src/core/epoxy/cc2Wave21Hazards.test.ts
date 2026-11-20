@@ -306,33 +306,41 @@ describe('two players: the step end of a player who is not controlled', () => {
     ...extra
   });
 
-  // A swap in the middle of a step has no Lexy counterpart (the player switch is a decision-time input, game.js 989-990, 1602), so this
-  // pins the Epoxy rule: the parked player's pending hazard is judged when his own step ends.
-  it('a player swapped out in his step into water drowns when that step ends, not before and not never', () => {
+  // Lexy runs the player switch only from a decision (make_player_decision, game.js 989-990, 1600-1608), so a swap pressed in his step is
+  // refused (lanes sw_rest_tap1..3 of wave 23: nothing happens). Nobody can be swapped out of a step, so he drowns at his own step end.
+  it('a player in his step into water cannot be swapped out: the swap waits and he drowns at his own step end', () => {
     const engine = new GameEngine();
     engine.loadLevel(twoPlayerRoom({ [`${HAZARD_X},${ROOM_ROW}`]: WATER }), SEED);
     expect(engine.attemptPlayerMove('E')).toBe(true);
     engine.tick();
-    expect(engine.swapPlayer()).toBe(true);
-    const players = (): { alive: boolean; x: number }[] => [world(engine).player, ...world(engine).parked].map((p) => ({ alive: p.alive, x: p.x }));
-    // Both live while his step runs, and he has not drowned in the tick of the swap.
-    expect(players().every((p) => p.alive)).toBe(true);
+    expect(engine.isDecisionOpen()).toBe(false);
+    const historyLength = engine.getTimedMoveHistory().length;
+    expect(engine.swapPlayer()).toBe(false);
+    expect([world(engine).player, ...world(engine).parked].every((p) => p.alive)).toBe(true);
+    // The parked player's drowning is covered by the Lexy lane test cc2Wave22.test.ts ~174 (park_slide_water). At a decision tick, the
+    // beginInput flush inside the swapPlayer() call is what drowns him; here the swap is refused, so nothing is flushed.
+    expect(engine.swapWaitsForDecision()).toBe(true);
+    expect(engine.getTimedMoveHistory().length).toBe(historyLength);
+    expect(world(engine).player.x).toBe(HAZARD_X);
+    expect(world(engine).parked.map((p) => p.x)).toEqual([PARKED_X]);
+    // He stays in control while his step runs, however often the swap is tried, and he drowns when the step ends.
     let died: number | undefined;
     for (let tick = 1; tick <= SETTLE_TICKS && died === undefined; tick++) {
+      expect(engine.swapPlayer()).toBe(false);
       engine.tick();
-      if (players().some((p) => !p.alive)) died = tick;
+      if ([world(engine).player, ...world(engine).parked].some((p) => !p.alive)) died = tick;
     }
     expect(died).toBeDefined();
-    expect(died).toBeLessThanOrEqual(STEP_TICKS);
     expect(died).toBeGreaterThan(0);
-    // The dead one is the parked player (the one in the water, x 3), by water; the controlled player is alive where he was parked. A parked
-    // player who dies takes the controlled slot, so the players are told apart by their cells.
+    expect(died).toBeLessThanOrEqual(STEP_TICKS);
+    // A player who dies leaves the controlled slot to the other, so the players are told apart by their cells.
     const all = [world(engine).player, ...world(engine).parked];
     const drowned = all.find((p) => p.x === HAZARD_X);
     const survivor = all.find((p) => p.x === PARKED_X);
     expect(drowned?.alive).toBe(false);
     expect(drowned?.deathReasonKey).toBe(DEATH_WATER);
     expect(survivor?.alive).toBe(true);
+    expect(engine.getTimedMoveHistory().some((m) => m.swap === true)).toBe(false);
   });
 
   // The several-players branch of the lighting: each player is judged on his own step. A jet lit under the player who still steps burns

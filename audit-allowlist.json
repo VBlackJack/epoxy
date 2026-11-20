@@ -1,8 +1,1 @@
-[
-  {
-    "id": "GHSA-fc5q-39xc-vjpf",
-    "package": "picomatch",
-    "reason": "ReDoS in picomatch <= 4.0.7 with no patched version published. Reached only through dev tooling (vite, fdir, tinyglobby, vitest), never shipped to players.",
-    "reviewBy": "2026-12-17"
-  }
-]
+[]

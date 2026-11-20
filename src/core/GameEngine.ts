@@ -89,6 +89,7 @@ import {
   takeExtraBootCopy,
   dropWouldUnguardPendingHazard,
   stepStillRuns,
+  cc2DecisionOpen,
   flushParkedStepEnds,
   toolBeltOf,
   usesToolBelt,
@@ -1964,9 +1965,13 @@ export class GameEngine {
   /**
    * The swap key (Lexy's Labyrinth `swap_players`): control passes to the next player of the level. Refused when nobody
    * else is on the map, while paused or once the level ended. The swap is one undo step and is recorded so that a
-   * recorded solution replays it.
+   * recorded solution replays it. On a CC2-engine level (CC3D pace excluded) it acts only at a decision of the controlled player,
+   * as Lexy runs swap_players from make_player_decision (game.js 1600-1608): while his step runs it is refused, nothing is recorded,
+   * and swapWaitsForDecision tells the caller the refusal is a wait.
    */
   public swapPlayer(): boolean {
+    // Checked before beginInput, so a refused swap flushes no step end and the engine state stays what a replay of its history yields.
+    if (this.swapWaitsForDecision()) return false;
     if (!this.beginInput() || this.w.parked.length === 0) return false;
     this.saveUndoSnapshot();
     rotatePlayers(this.w);
@@ -1974,6 +1979,24 @@ export class GameEngine {
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
     return true;
+  }
+
+  /**
+   * Whether the controlled player is at a decision now: no wait is left on his step (cc2DecisionOpen). The replay harness reads it for
+   * every action key of a CC2-engine level; the swap key acts only then.
+   */
+  public isDecisionOpen(): boolean {
+    return cc2DecisionOpen(this.w.player);
+  }
+
+  /**
+   * Whether a swap pressed now is refused only because the step of the controlled player still runs: a CC2-engine level (CC3D pace
+   * excluded), several players, alive, playing, no decision open. The caller may keep the swap for the next decision.
+   */
+  public swapWaitsForDecision(): boolean {
+    if (!usesCc2Engine(this.w.level) || this.w.cc3dPace) return false;
+    if (this.paused || !this.w.player.alive || this.w.levelCompleted || this.w.parked.length === 0) return false;
+    return !this.isDecisionOpen();
   }
 
   /**

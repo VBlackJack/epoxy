@@ -339,15 +339,25 @@ const SOCKET_X = 9;
 const WAIT_GUARD_TICKS = 40;
 
 /** Two players: the first steps onto the last chip then is swapped out, the second stands before a socket. */
-function parkedChipRoom(mode: RoomMode): { e: GameEngine; w: EpoxyWorld } {
+function parkedChipRoom(mode: RoomMode, chipX: number = CHIP_X, extraTerrain: Record<string, string> = {}): { e: GameEngine; w: EpoxyWorld } {
   const e = new GameEngine();
-  const base = room({ mode, startX: PARKED_START_X, chipsRequired: 1, terrain: { [`${SOCKET_X},${ROOM_ROW}`]: 'socket' }, items: { [`${CHIP_X},${ROOM_ROW}`]: 'chip' } });
+  const base = room({
+    mode,
+    startX: PARKED_START_X,
+    chipsRequired: 1,
+    terrain: { [`${SOCKET_X},${ROOM_ROW}`]: 'socket', ...extraTerrain },
+    items: { [`${chipX},${ROOM_ROW}`]: 'chip' }
+  });
   e.loadLevel({ ...base, extraPlayers: [{ x: CONTROLLED_START_X, y: ROOM_ROW, dir: 'E', character: 'chip' }] }, 0);
   return { e, w: worldOf(e) };
 }
 
+/** The chip of the cc2 test lies on plain floor behind one east force floor: the parked player's step onto it ends after his slide. */
+const SLIDE_CHIP_X = 4;
+const FORCE_EAST_X = 3;
+
 describe('CC2 wave 22: the parked step end acts before the next decision (PKS, multi-player)', () => {
-  it.each<RoomMode>(['cc2', 'cc', 'native'])('a parked player taking the last chip lets the controlled one into the socket at the next decision, mode %s; mutant: no parked flush at the input', (mode) => {
+  it.each<RoomMode>(['cc', 'native'])('a parked player taking the last chip lets the controlled one into the socket at the next decision, mode %s; mutant: no parked flush at the input', (mode) => {
     const { e, w } = parkedChipRoom(mode);
     expect(e.attemptPlayerMove('E')).toBe(true);
     e.tick();
@@ -358,6 +368,33 @@ describe('CC2 wave 22: the parked step end acts before the next decision (PKS, m
     let guard = 0;
     while (parked.moveCooldown > 0 && guard++ < WAIT_GUARD_TICKS) e.tick();
     expect(parked.moveCooldown).toBe(0);
+    expect(e.attemptPlayerMove('E')).toBe(true);
+    expect(w.chipsRemaining).toBe(0);
+  });
+
+  // On the CC2 engine the swap acts at a decision only (Lexy swap_players runs from make_player_decision, game.js 1600-1608, lanes
+  // sw_rest_tap1..3 and sl_ff_tap2 of wave 23), so the parked step end is staged on a slide: the swap acts at the slide decision, the
+  // step onto the chip goes on as a parked step. Mutant: no parked flush at the input (beginInput without flushParkedStepEnds) leaves the
+  // chip untaken at the move, so the socket stays shut.
+  it('a parked player taking the last chip lets the controlled one into the socket at the next decision, mode cc2; mutant: no parked flush at the input', () => {
+    const { e, w } = parkedChipRoom('cc2', SLIDE_CHIP_X, { [`${FORCE_EAST_X},${ROOM_ROW}`]: 'force_e' });
+    expect(e.attemptPlayerMove('E')).toBe(true);
+    e.tick();
+    expect(e.swapPlayer()).toBe(false);
+    expect(e.swapWaitsForDecision()).toBe(true);
+    let guard = 0;
+    while (!e.isDecisionOpen() && guard++ < WAIT_GUARD_TICKS) e.tick();
+    expect(e.isDecisionOpen()).toBe(true);
+    expect(w.player.isSliding).toBe(true);
+    expect(e.swapPlayer()).toBe(true);
+    expect(w.player.x).toBe(CONTROLLED_START_X);
+    // Lexy: every step end of tic t (the parked player's chip, step_on_cell, game.js 1256-1264) runs before the decisions of tic t+1.
+    const parked = w.parked[0];
+    guard = 0;
+    while (!(parked.x === SLIDE_CHIP_X && parked.moveCooldown === 0) && guard++ < WAIT_GUARD_TICKS) e.tick();
+    expect(parked.x).toBe(SLIDE_CHIP_X);
+    expect(parked.moveCooldown).toBe(0);
+    expect(w.chipsRemaining).toBe(1);
     expect(e.attemptPlayerMove('E')).toBe(true);
     expect(w.chipsRemaining).toBe(0);
   });

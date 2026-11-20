@@ -15,7 +15,7 @@
  */
 
 import type { PlayEngine } from '../core/PlayEngine';
-import type { PlayerCharacter } from '../core/types';
+import type { PlayerCharacter, PlayerState } from '../core/types';
 
 /** The character a level is played with when it names none. */
 const FALLBACK_CHARACTER: PlayerCharacter = 'chip';
@@ -70,9 +70,12 @@ export type SwapOutcome =
   | { kind: 'blocked' }
   | { kind: 'swapped'; state: PlayersState };
 
+/** What pressing the swap key gives: an outcome, or 'waiting' when the swap is kept for the controlled player's next decision. */
+export type SwapPressResult = SwapOutcome | { kind: 'waiting' };
+
 /**
  * Presses the swap key on the engine. A level with one player ignores it ('unavailable': nothing is shown);
- * a level with several refuses it: 'refused' when nobody else is on the map, 'blocked' while paused or once the level ended.
+ * a level with several refuses it: 'refused' when nobody else is on the map, 'blocked' while paused, dead or once the level ended.
  */
 export function swapPlayers(engine: PlayEngine): SwapOutcome {
   if (!hasSeveralPlayers(engine) || engine.swapPlayer === undefined) return { kind: 'unavailable' };
@@ -82,6 +85,55 @@ export function swapPlayers(engine: PlayEngine): SwapOutcome {
   }
   const state = playersState(engine);
   return state === null ? { kind: 'unavailable' } : { kind: 'swapped', state };
+}
+
+/**
+ * A swap pressed while the controlled player's step still runs (CC2 engine). The press is kept here, in the UI, never in the
+ * engine: it acts at that player's next decision, one step late at most. Control changing hands, an undo, a restart, another
+ * level, a replay, a death or the end of the level cancel it; a pause only holds it.
+ */
+export class PendingSwap {
+  private waitingFor: PlayerState | null = null;
+
+  /** True while a swap is kept. */
+  public get isPending(): boolean {
+    return this.waitingFor !== null;
+  }
+
+  /** The swap key. Acts at once when the engine allows it, otherwise keeps the press when the refusal is a wait. */
+  public press(engine: PlayEngine): SwapPressResult {
+    // A second press while paused keeps the swap already kept: the pause holds it, a repeated key must not drop it.
+    if (this.waitingFor !== null && engine.isPaused()) return { kind: 'blocked' };
+    this.waitingFor = null;
+    if (hasSeveralPlayers(engine) && engine.swapWaitsForDecision?.() === true) {
+      this.waitingFor = engine.getPlayer();
+      return { kind: 'waiting' };
+    }
+    return swapPlayers(engine);
+  }
+
+  /**
+   * Called once per tick, after the engine ticked. Returns the outcome when the kept swap acted, and null when there is nothing
+   * to report (nothing kept, still waiting, paused, or cancelled).
+   */
+  public retry(engine: PlayEngine): SwapOutcome | null {
+    const kept = this.waitingFor;
+    if (kept === null) return null;
+    // Control changed hands (an exit hand-off, an undo, a reload), or the player died or the level ended: drop the press.
+    if (engine.getPlayer() !== kept || !kept.alive || engine.isLevelCompleted()) {
+      this.waitingFor = null;
+      return null;
+    }
+    if (engine.isPaused() || engine.swapWaitsForDecision?.() === true) return null;
+    this.waitingFor = null;
+    const outcome = swapPlayers(engine);
+    return outcome.kind === 'swapped' ? outcome : null;
+  }
+
+  /** Drops the kept swap: undo, restart, another level, a replay. */
+  public cancel(): void {
+    this.waitingFor = null;
+  }
 }
 
 /** The elements of the players HUD. */
