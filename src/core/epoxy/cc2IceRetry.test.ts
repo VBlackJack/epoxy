@@ -17,7 +17,7 @@
 /**
  * CC2 engine, wave 11 (IRT), reshaped in wave 24: a monster refused on ice at the decisions retries in frames 0 and 1 of the next
  * tic, so two balls jammed on ice follow one another once the front one has left; Lexy decides the forced slide and re-bonks every
- * frame of the tic (game.js:869-888, 1166-1200). Not for a monster the ice does not carry, nor off CC2.
+ * frame of the tic (game.js:869-888, 1164-1210). Not for a monster the ice does not carry, nor off CC2.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +29,8 @@ import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
 import type { RuntimeEntity } from '../types';
+import { cc2HiddenStateKey } from './epoxyWorld';
+import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -87,10 +89,18 @@ describe('two balls jammed on ice', () => {
     engine.tick();
     expect(front().x).toBe(FRONT_X + 1);
     expect(rear().x).toBe(REAR_X);
+    expect(rear().cc2IceRefused).toBeUndefined();
+    // The front ball is gone: the rear one follows in the main pass of the tick, as before the retry existed (no stamp, no pre-pass step).
+    engine.tick();
+    expect(rear().x).toBe(REAR_X + 1);
+    expect(rear().cc2IceRefused).toBeUndefined();
   });
 
   it('leaves the rear ball behind on a native level', () => {
     const { engine, rear } = jam('native');
+    engine.tick();
+    expect(rear().x).toBe(REAR_X);
+    expect(rear().cc2IceRefused).toBeUndefined();
     engine.tick();
     expect(rear().x).toBe(REAR_X);
   });
@@ -99,6 +109,11 @@ describe('two balls jammed on ice', () => {
     const { engine, rear } = jam('cc2', CLEATS);
     engine.tick();
     expect(rear().x).toBe(REAR_X);
+    // The refusal is stamped all the same, but the ice does not carry a ball on cleats, so the pre-pass does not retry it: it follows in the main pass.
+    expect(rear().cc2IceRefused).toBeDefined();
+    engine.tick();
+    expect(rear().x).toBe(REAR_X + 1);
+    expect(rear().cc2PrePassMoved).not.toBe(true);
   });
 
   // Lexy's ice has no on_ready, so a ball still on its load cell is not on the ice for the pass: no retry (game.js:869-888).
@@ -108,6 +123,7 @@ describe('two balls jammed on ice', () => {
     engine.tick();
     expect(rear().x).toBe(REAR_X);
     expect(rear().atLoadCell).toBe(true);
+    expect(rear().cc2IceRefused).toBeUndefined();
     // A retry would have decided and bounced the ball again.
     expect(rear().dir).toBe(FACING);
   });
@@ -123,5 +139,16 @@ describe('two balls jammed on ice', () => {
     engine.tick();
     expect(rear().x).toBe(REAR_X + 1);
     expect(rear().cc2Frame).toBeUndefined();
+  });
+
+  // The stamp is part of the search key for one tick: the pre-pass of the next tic reads it, then deletes it (hidden key part I).
+  it('keeps the refusal stamp in the hidden state key for one tick only (CC2 engine; lane w24_ice_pair_w)', () => {
+    const { engine, rear } = jam('cc2');
+    const w = (engine as unknown as { w: EpoxyWorld }).w;
+    const iceParts = (): string[] => cc2HiddenStateKey(w).split(';').filter((part) => part.startsWith('I'));
+    engine.tick();
+    expect(iceParts()).toEqual([`I${rear().uid}`]);
+    engine.tick();
+    expect(iceParts()).toEqual([]);
   });
 });

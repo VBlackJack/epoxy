@@ -16,7 +16,7 @@
 
 /**
  * CC2 wave 24: a monster whose ice slide a frame-2 decision refused retries it in frames 0 and 1 of the next tic (Lexy decides the
- * forced slide in every frame, game.js:869-888, and bonks each time, 1164-1214), instead of once after the pass. Played on the Lexy
+ * forced slide in every frame, game.js:869-888, and bonks each time, 1164-1210), instead of once after the pass. Played on the Lexy
  * lanes of src/core/epoxy/__fixtures__/cc2-lanes (prefix w24_), imported through the CC2 importer as a player would.
  *
  * tick() k plays the Lexy tic k - 1, so "after N ticks" is the end of Lexy tic N - 1. Every expected position is the end-of-tic
@@ -47,13 +47,14 @@ const BTN_TICK = 39;
 const BTN_FIRST_PRESS_TICK = 9;
 const BTN_PIN_TICK = 73;
 
-/** Plays a lane for `ticks` ticks more than `from` (an engine already advanced `from` ticks), returning the engine. */
+/** Loads the w24_ lane through the CC2 importer with SEED. */
 async function load(lane: string): Promise<GameEngine> {
   const engine = new GameEngine();
   engine.loadLevel(await loadCc2Lane(lane, LANE_PREFIX), SEED);
   return engine;
 }
 
+/** Plays ticks `from + 1` to `to` on an engine already advanced `from` ticks. */
 function advance(engine: GameEngine, from: number, to: number): void {
   for (let i = from; i < to; i++) engine.tick();
 }
