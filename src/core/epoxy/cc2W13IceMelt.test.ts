@@ -70,8 +70,8 @@ describe('fireball forced on an ice block', () => {
   });
 
   // The melt turns the fireball round at the decision (game.js:1192-1207) and its step takes no second bounce at the move. The way behind it
-  // walled, the fireball re-decides in the same tic (game.js:869-888, the ice retry after the pass) and bounces once more into the melted
-  // cell, as Lexy does in the next frame of that tic. No test of this line alone can tell the two routes apart: both end in the cell.
+  // walled, the second bounce is instant within the frame (game.js:1192-1207, bonking_isnt_instant false), so the fireball steps into the
+  // melted cell in the same frame, which the same-tic retry after the pass models (lane w24_fire_iceblk_wall, t0f2: west blocked, east ok).
   it('with the way behind it walled, bounces once more in the same tic into the melted cell', () => {
     const engine = slide('cc2', 'wall');
     for (let i = 0; i < ICE_TICKS && world(engine).entities.some((e) => e.type === ICE_BLOCK); i++) engine.tick();

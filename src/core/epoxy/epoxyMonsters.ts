@@ -558,8 +558,16 @@ function runEntityPass(ctx: EpoxyContext): void {
     ctx.cc2PlayerActs?.();
     if (!w.player.alive || w.levelCompleted) return;
   }
-  // CC2 engine: a monster refused on ice tries again once after the pass, when the one ahead of it has left (see retryRefusedOnIce).
+  // CC2 engine: the refusal is stamped with the pass clock (already incremented): the next pre-pass retries the slide in frames 0 and
+  // 1 (monsterIceRetry). The refusal is a new decision, so the slide frame an earlier pre-pass step left no longer applies.
   for (const entity of refusedOnIce) {
+    entity.cc2IceRefused = w.ccMonsterClock;
+    delete entity.cc2SlideFrame;
+  }
+  // A monster whose bump melts an ice block still retries after the pass: Lexy's bonk is instant (game.js:1192-1207), so it steps
+  // into the melted cell in the same frame (a melting one still refused also does). Every other monster waits for the next pre-pass.
+  for (const entity of refusedOnIce) {
+    if (ConfigRegistry.getEntityDef(entity.type)?.meltsIceOnBumpCc2 !== true) continue;
     if (!retryRefusedOnIce(ctx, entity, clock)) return;
   }
   // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
@@ -597,10 +605,9 @@ function refusedOnIcePass(w: EpoxyWorld, entity: RuntimeEntity, fromX: number, f
 }
 
 /**
- * CC2 engine: a monster whose slide was refused on ice tries once more after the pass. Lexy decides the forced slide again in
- * every frame of the tic (do_decision_phase(true) in frames 0 and 1, game.js:869-888) and re-bonks every frame
- * (_possibly_bonk, game.js:1166-1200), so two balls jammed on ice follow one another in the same tic once the front one has left.
- * This is a partial approximation: one retry after the pass, where Lexy tries in each frame. A monster the ice does not carry
+ * CC2 engine: a monster whose bump melted an ice block tries once more after the pass. Lexy's bonk is instant (game.js:1192-1207,
+ * bonking_isnt_instant false), so the monster steps into the melted cell in the same frame (lane w24_fire_iceblk_wall). Any other
+ * refused monster retries in frames 0 and 1 of the next tic instead (monsterIceRetry). A monster the ice does not carry
  * (slideImmune, a ghost, a blinky) is skipped; a monster that moved, died or was removed in the meantime is skipped as well.
  * Returns false when the player was killed.
  */
@@ -799,7 +806,7 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     if (plan !== null && canStep(w, entity, plan)) {
       chosenDir = plan;
     } else if (bounce !== null && canStep(w, entity, bounce)) {
-      // Lexy game.js:1164-1214: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
+      // Lexy game.js:1164-1210: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
       chosenDir = bounce;
     } else if (plan !== null && usesCc2Engine(w.level) && !w.cc3dPace && turnsBlockedOnForce(w, entity, def)) {
       // Refused on a turning force floor at the move: the monster steps on the cell again, which turns the floor, and tries the new

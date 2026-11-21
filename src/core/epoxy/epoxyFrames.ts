@@ -208,6 +208,10 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         if (!retryRffMonster(ctx, block, frame)) return arrivalFrame;
         continue;
       }
+      if (block.kind === 'monster' && monsterIceRetry(w, block)) {
+        if (!stepMonsterInFrame(ctx, block, frame)) return arrivalFrame;
+        continue;
+      }
       if (block.kind === 'monster' && monsterForcedRetry(w, block)) {
         if (!retryForcedMonster(ctx, block, frame)) return arrivalFrame;
         continue;
@@ -264,6 +268,8 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
     if (!runFrameWirePhase(ctx, frame, frame === 0 ? frameStart : afterFrame0)) return arrivalFrame;
     if (w.levelCompleted) return arrivalFrame;
   }
+  // The retry of a refused ice slide lasts the frames of this pre-pass only: the stamp is deleted with it.
+  dropIceRefusals(w);
   // The retry of a refused forced step lasts the frames of this pre-pass only.
   delete w.player.cc2FrameRetry;
   // A plain step that ends in frame 2 ends in the main pass: its turn settles it.
@@ -279,7 +285,28 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
 /** Whether the world holds anything the pre-pass acts on. */
 function prePassHasWork(w: EpoxyWorld): boolean {
   if (frameModelOn(w) && (w.player.cc2FrameRetry === true || w.player.cc2SlideFrame !== undefined)) return true;
-  return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && (monsterForcedRetry(w, e) || monsterRffRetry(w, e))));
+  return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && (monsterForcedRetry(w, e) || monsterRffRetry(w, e) || monsterIceRetry(w, e))));
+}
+
+/**
+ * A monster at rest on ice whose slide the last main pass (frame 2) refused retries in frames 0 and 1 of the next tic: Lexy decides
+ * the forced slide again in every frame (game.js:869-888) and bonks each time (1164-1210), so a ball jammed behind another leaves in
+ * the frame after the one ahead of it has gone. Only a monster the pass stamped (cc2IceRefused is the pass clock of its refusal), so
+ * one that has just arrived or never tried is not retried; a monster the ice does not carry (monsterSlideHere: cleats, ghosts) is
+ * not either. Lane w24_ice_pair_w; the lane w24_ice_btn_retry pins the known press-frame gap of such a step.
+ */
+function monsterIceRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  if (e.cc2SlideFrame !== undefined) return false;
+  if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
+  if (e.cc2PrePassMoved === true) return false;
+  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  if (monsterSlideHere(w, e) !== 'ice') return false;
+  return e.cc2IceRefused === w.ccMonsterClock;
+}
+
+/** The refusal stamps live until the pre-pass that reads them, which deletes them at its end. */
+function dropIceRefusals(w: EpoxyWorld): void {
+  for (const e of w.entities) delete e.cc2IceRefused;
 }
 
 /**
