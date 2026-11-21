@@ -978,6 +978,8 @@ export class GameEngine {
       ...(ghostBarEdited(this.w) ? { ghostBar: [...(this.w.ghostBar as Set<number>)] } : {}),
       // Only a CC2-engine level with a button toggled by a rolling ball has cells to put back.
       ...(this.w.cc2ToggledButtonCells.length > 0 ? { cc2ToggledButtonCells: [...this.w.cc2ToggledButtonCells] } : {}),
+      // Only a CC2-engine level with light switches has their forms of the last tick end to put back.
+      ...(this.lightSwitchBase.size > 0 ? { lightSwitchBase: [...this.lightSwitchBase] } : {}),
       // Only a CC2-engine level whose coming tick's frame pre-pass already ran has it to put back.
       ...(this.w.cc2PrePassDone === true ? { cc2PrePassDone: true as const } : {}),
       ...(this.w.cc2WireFrameNext !== undefined ? { cc2WireFrameNext: this.w.cc2WireFrameNext } : {}),
@@ -1152,7 +1154,9 @@ export class GameEngine {
     // The state put back is one between ticks: no turn was played in it, and the snapshot kept for the stored input is gone with it.
     this.deferredUndo = undefined;
     this.lastPlayerTurn = undefined;
-    this.rebaseLightSwitches();
+    // The light switches read as they were when the snapshot's last tick ended, not as the terrain put back shows them.
+    if (snap.lightSwitchBase !== undefined) this.lightSwitchBase = new Map(snap.lightSwitchBase);
+    else this.rebaseLightSwitches();
   }
 
   /**
