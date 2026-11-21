@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.39.0] - 2026-11-21
+
 ### Changed
 
 - On CC2 levels with several players, switching players now works as in CC2: the swap key and the touch or HUD swap button act only when the player you control can choose his next move, at rest, at the end of a step, or at each cell of a slide. A swap pressed during a step is kept and acts as soon as the step ends, at most one step later, with no message while it waits; CC2 itself drops a tap released before that moment. A kept swap is dropped by an undo, a restart, another level, a replay, a death, the end of the level or a change of the controlled player, and a pause keeps it. If a direction is held when the kept swap acts, the newly controlled player takes it. On every level, holding the swap key no longer switches back and forth: one press, one swap. CC1 .DAT imports, native levels and CC3D levels keep their immediate swap; CC1 Steam .c2m levels follow the same CC2 rules. Official replays won on Epoxy stay at 200 of 200 for CC2 and 147 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
