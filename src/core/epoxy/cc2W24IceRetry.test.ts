@@ -42,10 +42,11 @@ const BALL = 'pink_ball';
 const TANK = 'tank';
 const LANE_ROW = 4;
 const TANK_ROW = 6;
-/** Lane ice_btn_retry: the tick of the Lexy t38 end, the tick of the first press, the tick the known gap shows in. */
+/** Lane ice_btn_retry: the tick of the Lexy t38 end, the tick of the first press, the ticks of the press of the frame-0 retry step (Lexy t72 and t76). */
 const BTN_TICK = 39;
 const BTN_FIRST_PRESS_TICK = 9;
 const BTN_PIN_TICK = 73;
+const BTN_TURN_TICK = 77;
 
 /** Loads the w24_ lane through the CC2 importer with SEED. */
 async function load(lane: string): Promise<GameEngine> {
@@ -126,14 +127,15 @@ describe('a ball refused on ice retries in the frames of the next tic (CC2 engin
     expect(tankOf(engine)).toEqual([10, TANK_ROW, 'W']);
   });
 
-  // KNOWN GAP (C11, wave 24 leftover), pinned so a later fix shows up as a failing test to update. The press of a frame-0 out-of-turn
-  // monster step that ends in frame 2 lands after the frame-2 decisions in Lexy, before them in Epoxy. Lane ice_btn_retry, the rear
-  // ball's retry t69f0 ends at t72f2: Lexy's tank is still east at t72 and turns at t76; Epoxy applies that press before the t72
-  // decisions, so its tank is already west.
-  //   Lexy after tic 72 (73 ticks): tank (12, 6) facing E.   Epoxy now: tank (10, 6) facing W.
-  it('lane ice_btn_retry: pins the known press-frame gap of a frame-0 retry step ending in frame 2', async () => {
+  // The press of a frame-0 out-of-turn monster step that ends in frame 2 lands after the frame-2 decisions (wave 25, was the wave 24
+  // known gap C11). Lane ice_btn_retry, the rear ball's retry t69f0 ends at t72f2: Lexy's tank still goes east at t72 (it decided before
+  // the press) and turns at t76. Before wave 25 the press came before the t72 decisions and the tank was already west.
+  //   Lexy after tic 72 (73 ticks): tank (12, 6) facing E.   After tic 76 (77 ticks): tank (11, 6) facing W.
+  it('lane ice_btn_retry: the press of a frame-0 retry step lands after the frame-2 decisions (Lexy t72f2: the tank still goes east, turns at t76)', async () => {
     const engine = await load('ice_btn_retry');
     advance(engine, 0, BTN_PIN_TICK);
-    expect(tankOf(engine)).toEqual([10, TANK_ROW, 'W']);
+    expect(tankOf(engine)).toEqual([12, TANK_ROW, 'E']);
+    advance(engine, BTN_PIN_TICK, BTN_TURN_TICK);
+    expect(tankOf(engine)).toEqual([11, TANK_ROW, 'W']);
   });
 });
