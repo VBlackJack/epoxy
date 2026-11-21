@@ -209,8 +209,10 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     (stepEndDue(a) ?? hazardStepEnded(a) ?? a.due <= pass) &&
     (ownerUid === undefined || a.uid === ownerUid) &&
     (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
-    (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls') === endOfPass);
-  const due = w.ccArrivals.filter(isDue);
+    (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls' || a.afterPass === true) === endOfPass);
+  let due = w.ccArrivals.filter(isDue);
+  // After the pass, the presses of the action phase (afterPass) come before the green toggle (Lexy do_post_actor_phase). Stable partition.
+  if (endOfPass) due = [...due.filter((a) => a.afterPass === true), ...due.filter((a) => a.afterPass !== true)];
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
   w.ccArrivalsRunning = true;
@@ -822,6 +824,8 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     } else {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
+      // Refused both ways on ice: Lexy's bonk has turned the monster to the bounce way (game.js:1192-1207, _possibly_bonk).
+      if (bounce !== null && usesCc2Engine(w.level) && !w.cc3dPace) entity.dir = bounce;
       // A rolling ball whose step is refused when it is tried blows up as at its decision (what moved in is killed).
       if (plan !== null && isRollingBallDef(def)) {
         if (!checkBallWay(ctx, entity, plan)) return false;
@@ -1071,7 +1075,14 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
       const delay = w.cc3dPace ? entity.cooldownTicks - 1 : cc2StepEnd ? entity.cooldownTicks : entity.type === CC_BLOB_TYPE ? CC_BLOB_BUTTON_DELAY_PASSES : CC_MONSTER_BUTTON_DELAY_PASSES;
       // The clock counts the pass of the current tick only once it has started (as markTanksToTurn reads it).
       const passesCounted = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
-      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay });
+      // A pre-pass monster step of frame f ends in frame (f + 2) mod 3 (Lexy). The pre-pass runs before the pass clock counts, so its
+      // press is one pass early next to a main-pass step of the same tic. A frame-1 step ends where a main-pass step of the tic does
+      // (due + 1). A frame-0 step ends one tic earlier, after that tic's decisions: an immediate press is applied after the entity pass
+      // (afterPass, same due); the green and blue buttons (Lexy's pending flags) land on the main-pass boundary (due + 1).
+      const preFrame = usesCc2Engine(w.level) && !w.cc3dPace ? w.cc2PrePassMonsterFrame : undefined;
+      const afterPass = preFrame === 0 && cc2StepEnd;
+      const extra = preFrame !== undefined && !afterPass ? 1 : 0;
+      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay + extra, ...(afterPass ? { afterPass: true as const } : {}) });
     } else if (!ctx.triggerButton(nx, ny, destTile.buttonAction)) {
       return false;
     }
