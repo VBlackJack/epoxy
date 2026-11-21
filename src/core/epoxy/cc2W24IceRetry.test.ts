@@ -42,7 +42,7 @@ const BALL = 'pink_ball';
 const TANK = 'tank';
 const LANE_ROW = 4;
 const TANK_ROW = 6;
-/** Lane ice_btn_retry: the tick of the Lexy t38 end, the tick of the first press, the ticks of the press of the frame-0 retry step (Lexy t72 and t76). */
+/** Lane ice_btn_retry: the tick of the Lexy t38 end, the tick of the first press, the tick of the press of the frame-0 retry step (Lexy t72f2) and the tick the tank turns (Lexy t76). */
 const BTN_TICK = 39;
 const BTN_FIRST_PRESS_TICK = 9;
 const BTN_PIN_TICK = 73;

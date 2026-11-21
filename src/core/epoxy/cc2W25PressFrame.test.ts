@@ -133,7 +133,7 @@ describe('the press of a frame-0 pre-pass monster step (PSF, CC2 engine)', () =>
     const engine = await load('f0_red', 'w25_');
     play(engine, RED_PENDING_TICK);
     const key = cc2HiddenStateKey(world(engine));
-    expect(key).toContain(`p${RED_CLONER_UID}@0a`);
+    expect(key.split(';').find((part) => part.startsWith('p'))).toBe(`p${RED_CLONER_UID}@0a`);
     const arrival = world(engine).ccArrivals.find((a) => a.afterPass === true);
     expect(arrival).toBeDefined();
     delete (arrival as { afterPass?: true }).afterPass;
@@ -176,7 +176,7 @@ describe('a monster refused both ways on ice in its own turn faces the bounce wa
     expect(rowCells(engine, BALL_ROW)).toEqual([[12, BALL_ROW, 'W'], [14, BALL_ROW, 'W']]);
   });
 
-  // Lane w24_ice_btn_retry, Lexy t31 and t33: the rear ball, refused again, faces west; without the rule it faces east.
+  // Lane w24_ice_btn_retry, Lexy t31 and t33: the rear ball, refused again, faces west. Without the rule the refused rear ball (14, 4) keeps facing east.
   it('lane ice_btn_retry: the refused rear ball faces west at the Lexy tics', async () => {
     const engine = await load('ice_btn_retry', 'w24_');
     play(engine, 32);
