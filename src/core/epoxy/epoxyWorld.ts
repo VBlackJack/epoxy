@@ -964,6 +964,9 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
     .filter((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined)
     .map((e) => `${e.uid}:${e.cc2SlideFrame ?? ''}/${e.cc2SlideDue ?? ''}/${e.cc2ArrivalWait ?? ''}.${e.cc2ArrivalFrame ?? ''}`);
   if (slideFrames.length > 0) parts.push(`R${slideFrames.join(',')}`);
+  // A monster whose ice slide the last pass refused retries in the next pre-pass (cc2IceRefused, stamped with the pass clock).
+  const iceRefused = w.entities.filter((e) => e.cc2IceRefused === w.ccMonsterClock).map((e) => e.uid);
+  if (iceRefused.length > 0) parts.push(`I${iceRefused.join(',')}`);
   const playerMark = (pl: PlayerState): string =>
     pl.cc2SlideFrame !== undefined || pl.cc2FrameRetry === true || pl.cc2PrePassMoved === true
       ? `${pl.cc2SlideFrame ?? ''}${pl.cc2FrameRetry === true ? 'r' : ''}${pl.cc2PrePassMoved === true ? 'm' : ''}`

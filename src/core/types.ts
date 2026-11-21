@@ -2452,6 +2452,9 @@ export interface RuntimeEntity {
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */
   stepEndedCell?: number;
+  /** CC2 engine: the pass clock (ccMonsterClock) of the frame-2 decision that refused this monster's ice slide; the next frame pre-pass
+   * retries the slide in frames 0 and 1 and deletes the stamp at its end. Only for a monster the ice carries; never on cc3dPace. */
+  cc2IceRefused?: number;
   /** CC2 engine, a mirror: held by a shut trap, to be ejected forward when it opens. Absent otherwise. */
   trapHeld?: true;
   /**
