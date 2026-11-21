@@ -565,7 +565,7 @@ function runEntityPass(ctx: EpoxyContext): void {
     delete entity.cc2SlideFrame;
   }
   // A monster whose bump melts an ice block still retries after the pass: Lexy's bonk is instant (game.js:1192-1207), so it steps
-  // into the melted cell in the same frame. Every other monster waits for the next pre-pass.
+  // into the melted cell in the same frame (a melting one still refused also does). Every other monster waits for the next pre-pass.
   for (const entity of refusedOnIce) {
     if (ConfigRegistry.getEntityDef(entity.type)?.meltsIceOnBumpCc2 !== true) continue;
     if (!retryRefusedOnIce(ctx, entity, clock)) return;
@@ -806,7 +806,7 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     if (plan !== null && canStep(w, entity, plan)) {
       chosenDir = plan;
     } else if (bounce !== null && canStep(w, entity, bounce)) {
-      // Lexy game.js:1164-1214: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
+      // Lexy game.js:1164-1210: refused on ice, the monster turns round, the ice corner deflects it, and it tries again at once.
       chosenDir = bounce;
     } else if (plan !== null && usesCc2Engine(w.level) && !w.cc3dPace && turnsBlockedOnForce(w, entity, def)) {
       // Refused on a turning force floor at the move: the monster steps on the cell again, which turns the floor, and tries the new

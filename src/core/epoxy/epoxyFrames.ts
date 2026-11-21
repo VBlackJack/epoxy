@@ -290,7 +290,7 @@ function prePassHasWork(w: EpoxyWorld): boolean {
 
 /**
  * A monster at rest on ice whose slide the last main pass (frame 2) refused retries in frames 0 and 1 of the next tic: Lexy decides
- * the forced slide again in every frame (game.js:869-888) and bonks each time (1164-1214), so a ball jammed behind another leaves in
+ * the forced slide again in every frame (game.js:869-888) and bonks each time (1164-1210), so a ball jammed behind another leaves in
  * the frame after the one ahead of it has gone. Only a monster the pass stamped (cc2IceRefused is the pass clock of its refusal), so
  * one that has just arrived or never tried is not retried; a monster the ice does not carry (monsterSlideHere: cleats, ghosts) is
  * not either. Lane w24_ice_pair_w; the lane w24_ice_btn_retry pins the known press-frame gap of such a step.
