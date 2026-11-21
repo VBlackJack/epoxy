@@ -250,6 +250,11 @@ export interface EpoxyWorld {
   /** CC2 engine, frame pre-pass: the frame (0 or 1) of the slide step taken now. Transient, set with `cc2PrePassStepping`. */
   cc2PrePassFrame?: 0 | 1;
   /**
+   * CC2 engine, wave 25: the frame (0 or 1) of the out-of-turn monster step taken now in the pre-pass inside an open entity pass of a
+   * tick. Read by the press of that step to time it as CC2 does. Transient, deleted in a finally.
+   */
+  cc2PrePassMonsterFrame?: 0 | 1;
+  /**
    * CC2 engine, wave 9: true when the player takes his turn at his place in the actor list (CC2 engine, not cc3dPace, classic
    * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
    */
@@ -942,7 +947,8 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
   // A clone's press waiting for its step end decides what fires next. Ordinary queued monster presses stay out of the key.
-  const presses = w.ccArrivals.filter((a) => a.stepEnd === true).map((a) => `${a.uid}@${a.due - pass}s`);
+  // An afterPass press (the press of a frame-0 pre-pass monster step) applies at another moment than a plain one, so it is told apart.
+  const presses = w.ccArrivals.filter((a) => a.stepEnd === true || a.afterPass === true).map((a) => `${a.uid}@${a.due - pass}${a.stepEnd === true ? 's' : 'a'}`);
   if (presses.length > 0) parts.push(`p${presses.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);

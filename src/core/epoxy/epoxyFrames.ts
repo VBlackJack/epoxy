@@ -202,6 +202,8 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
       }
       if (block.kind === 'monster' && monsterFrameStep(w, block, frame)) {
         if (!stepMonsterInFrame(ctx, block, frame)) return arrivalFrame;
+        // A slide step on ice refused in frame 0 is decided again in frame 1 (Lexy forces a decision in every frame, game.js:869-888).
+        if (frame === 0 && monsterSlideHere(w, block) === 'ice' && block.cc2PrePassMoved !== true && block.cc2SlideFrame === 0 && w.entities.includes(block)) block.cc2SlideFrame = 1;
         continue;
       }
       if (block.kind === 'monster' && monsterRffRetry(w, block)) {
@@ -293,7 +295,8 @@ function prePassHasWork(w: EpoxyWorld): boolean {
  * the forced slide again in every frame (game.js:869-888) and bonks each time (1164-1210), so a ball jammed behind another leaves in
  * the frame after the one ahead of it has gone. Only a monster the pass stamped (cc2IceRefused is the pass clock of its refusal), so
  * one that has just arrived or never tried is not retried; a monster the ice does not carry (monsterSlideHere: cleats, ghosts) is
- * not either. Lane w24_ice_pair_w; the lane w24_ice_btn_retry pins the known press-frame gap of such a step.
+ * not either. Lane w24_ice_pair_w; the lane w24_ice_btn_retry pins the press of such a step (see resolveMonsterArrival: a frame-0
+ * step ends in frame 2 of the tic before, after its decisions).
  */
 function monsterIceRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
   if (e.cc2SlideFrame !== undefined) return false;
@@ -424,10 +427,14 @@ function stepMonsterAlong(ctx: EpoxyContext, e: RuntimeEntity, dir: Direction, f
   const x = e.x;
   const y = e.y;
   w.ccPlans.set(e.uid, dir);
+  // Only the pre-pass inside an open entity pass of a tick times the press by the frame: the tick-start pre-pass of a parked level and the
+  // parked end-of-tick one keep their press timing.
+  if (w.ccPassOpen && w.inTick) w.cc2PrePassMonsterFrame = frame;
   try {
     if (!stepClassicMonsterOutOfTurn(ctx, e)) return false;
   } finally {
     w.ccPlans.delete(e.uid);
+    delete w.cc2PrePassMonsterFrame;
   }
   if (w.entities.includes(e) && (e.x !== x || e.y !== y)) {
     e.cc2PrePassMoved = true;
@@ -597,6 +604,7 @@ export function resetFrameWorld(w: EpoxyWorld): void {
   delete w.cc2PrePassArrived;
   delete w.cc2PrePassStepping;
   delete w.cc2PrePassFrame;
+  delete w.cc2PrePassMonsterFrame;
   delete w.cc2PrePassPlayer;
 }
 

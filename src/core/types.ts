@@ -2274,6 +2274,11 @@ export interface CcArrival {
   pulse?: true;
   /** CC2 engine: a clone's press of a button (a red button), due at the first pass start where its step has ended. Absent otherwise. */
   stepEnd?: true;
+  /**
+   * CC2 engine: the press of a frame-0 pre-pass monster step, which ends in frame 2 of the tic before, after its decisions: applied after
+   * the entity pass, before the green toggles. Absent otherwise.
+   */
+  afterPass?: true;
 }
 
 /** The start of a player beyond the first on a level with several. */
