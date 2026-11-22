@@ -93,7 +93,7 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { CC2_DEFAULT_FRAME, turnMarkedTanks } from './epoxyDevices';
-import { closeFramePass, finishFrameWirePhases, fixedForceFloor, frameModelOn, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
+import { closeFramePass, finishFrameWirePhases, fixedForceFloor, frameModelOn, holdMainPassArrival, runFramePrePass, tagBoxedMainPassSlider } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -535,10 +535,12 @@ function runEntityPass(ctx: EpoxyContext): void {
       // CC2 engine: a slide step of the main pass (frame 2) off the slide onto a plain cell is a 12-frame step that ends at frame 1 of
       // the fourth tick after: its arrival waits for that pre-pass, before the decisions (Lexy game.js:2218-2242).
       const slidFrom = entity.isSliding && entity.arrivalTicks === undefined && entity.cc2ArrivalWait === undefined ? { x: entity.x, y: entity.y } : undefined;
+      const wasDue = slidFrom !== undefined && entity.cooldownTicks === 0 && entity.cc2SlideFrame === undefined && entity.cc2PrePassMoved !== true;
       const refusal = stepSlidingBlock(ctx, entity);
       if (slidFrom !== undefined && w.entities.includes(entity) && entity.arrivalTicks !== undefined && (entity.x !== slidFrom.x || entity.y !== slidFrom.y)) {
         holdMainPassArrival(w, entity);
       }
+      if (wasDue && slidFrom !== undefined) tagBoxedMainPassSlider(w, entity, slidFrom.x, slidFrom.y);
       if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) {
         if (frameModelOn(w) && w.entities.includes(entity) && !entity.isSliding && fixedForceFloor(w, entity)) {
           // Refused on a fixed force floor in frame 2 by an actor or a block: it tries again in frame 0 of the next tic.

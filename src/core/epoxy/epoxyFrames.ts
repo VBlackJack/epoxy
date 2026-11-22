@@ -19,7 +19,7 @@ import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
 import { canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import { forceCycleArrival } from './epoxyForceCycle';
-import { isCarriedByForceFloor, processPlayerSlideStep, resumeForceCarry } from './epoxyPlayer';
+import { applyCc3dStepEnd, isCarriedByForceFloor, processPlayerSlideStep, recordCc2PlayerView, resumeForceCarry, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';
@@ -188,6 +188,8 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
   // The sources before frame 0 moves anything: the frame-0 wire phase lets in what that frame changed.
   const frameStart = w.cc2WireFrameNext === 0 ? sampleFrameStart(w) : undefined;
   let afterFrame0: ReadonlyMap<number, boolean> | undefined;
+  // The templates a press of the player released in this pre-pass (their release is their move of the frame).
+  const firedNow = new Set<number>();
   for (const frame of PRE_PASS_FRAMES) {
     // The player is an actor of the list (Lexy reading order): in the reverse loop he moves just before the first actor listed
     // ahead of him, after the loop when none is.
@@ -197,9 +199,11 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
       if (w.levelCompleted) return arrivalFrame;
       if (!playerStepped && playerOrdinal !== undefined && block.listOrdinal !== undefined && block.listOrdinal < playerOrdinal) {
         playerStepped = true;
+        if (!firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
         if (!playerFrameStep(ctx, frame)) return arrivalFrame;
         if (w.levelCompleted) return arrivalFrame;
       }
+      if (firedNow.has(block.uid)) continue;
       if (block.kind === 'monster' && monsterFrameStep(w, block, frame)) {
         if (!stepMonsterInFrame(ctx, block, frame)) return arrivalFrame;
         // A slide step on ice refused in frame 0 is decided again in frame 1 (Lexy forces a decision in every frame, game.js:869-888).
@@ -265,6 +269,12 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         block.cc2SlideDue = 1;
         delete block.cc2PrePassMoved;
         block.cooldownTicks = 0;
+      } else if (frame === 0 && block.isSliding && block.x === x && block.y === y && boxedOnIce(w, block)) {
+        // Boxed in on ice in frame 0, it tries again in frame 1 of this pre-pass.
+        block.cc2SlideFrame = 1;
+        block.cc2SlideDue = 1;
+        delete block.cc2PrePassMoved;
+        block.cooldownTicks = 0;
       } else {
         // Boxed in or stopped: it tries again in the main pass, at the base timing.
         clearSlideFrame(block);
@@ -272,6 +282,7 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         block.cooldownTicks = 0;
       }
     }
+    if (!playerStepped && !firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
     if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;
     if (w.levelCompleted) return arrivalFrame;
     // The frame-1 phase reads the sources as frame 0 left them for the toggle switches that frame flipped.
@@ -293,8 +304,59 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
   return arrivalFrame;
 }
 
+/**
+ * The controlled player's pending red-button press (a decision step that ends in frame 1) acts at his slot in frame 1, after
+ * the actors listed after him have moved in that frame (Lexy step_on_cell in his own action). It keeps the release timing of the
+ * tick-start press (cc2BeforePass, pass view as before: no skipped turn); what it released does not act again in this pre-pass.
+ */
+function firePlayerPress(ctx: EpoxyContext, frame: 0 | 1, firedNow: Set<number>): boolean {
+  const w = ctx.world;
+  if (frame !== 1 || !pendingPlayerPress(w)) return w.player.alive;
+  const skipBefore = new Set(w.cc2SkipTurn ?? []);
+  const before = new Map(w.entities.map((e) => [e.uid, e.x * 100000 + e.y]));
+  w.cc2PrePassFire = true;
+  w.cc2PressOrdinal = w.player.listOrdinal;
+  w.cc2BeforePass = true;
+  const passOpen = w.ccPassOpen;
+  w.ccPassOpen = false;
+  const inTick = w.inTick;
+  w.inTick = false;
+  let ok = true;
+  try {
+    ok = applyCc3dStepEnd(ctx);
+  } finally {
+    delete w.cc2PrePassFire;
+    delete w.cc2PressOrdinal;
+    w.cc2BeforePass = undefined;
+    w.ccPassOpen = passOpen;
+    w.inTick = inTick;
+  }
+  for (const uid of w.cc2SkipTurn ?? []) if (!skipBefore.has(uid)) w.cc2SkipTurn?.delete(uid);
+  for (const e of w.entities) if (before.get(e.uid) !== e.x * 100000 + e.y) firedNow.add(e.uid);
+  if (w.player.cc3dArrival === undefined) recordCc2PlayerView(w);
+  return ok && w.player.alive && !w.levelCompleted;
+}
+
+/** Whether the controlled player holds a deferred red-button press. */
+function pendingPlayerPress(w: EpoxyWorld): boolean {
+  if (!frameModelOn(w) || w.cc2ActorOrder !== true || w.parked.length > 0) return false;
+  const p = w.player;
+  const press = p.cc3dArrival?.press;
+  if (press === undefined || p.x !== press.x || p.y !== press.y) return false;
+  // The level gate, a press, the player on its cell; the step must have ended (else the press is not due at all).
+  return !stepStillRuns(p);
+}
+
+/** The fallback - a press still waiting when the player's main-pass turn opens acts there. False when it ended the play. */
+export function fireDeferredPlayerPress(ctx: EpoxyContext): boolean {
+  const w = ctx.world;
+  if (!pendingPlayerPress(w)) return w.player.alive;
+  return firePlayerPress(ctx, 1, new Set<number>());
+}
+
 /** Whether the world holds anything the pre-pass acts on. */
 function prePassHasWork(w: EpoxyWorld): boolean {
+  if (pendingPlayerPress(w)) return true;
   if (frameModelOn(w) && (w.player.cc2FrameRetry === true || w.player.cc2SlideFrame !== undefined)) return true;
   return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && (monsterForcedRetry(w, e) || monsterRffRetry(w, e) || monsterIceRetry(w, e))));
 }
@@ -633,6 +695,24 @@ export function closeFramePass(w: EpoxyWorld): void {
 export function steppingFrame(w: EpoxyWorld, slider: RuntimeEntity | undefined): 0 | 1 | 2 | undefined {
   if (slider === undefined) return undefined;
   return w.cc2PrePassStepping === true ? w.cc2PrePassFrame : DECISION_FRAME;
+}
+
+/** Whether the block stands on ice (a boxed-in slide there retries in the next frame). */
+function boxedOnIce(w: EpoxyWorld, block: RuntimeEntity): boolean {
+  return ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).slideType === 'ice';
+}
+
+/**
+ * A sliding block boxed in on ice in the main pass (frame 2) tries again in frame 0 of the next tick (Lexy retries a refused
+ * forced step in every frame, game.js:869-888), then frame 1, then the main pass.
+ */
+export function tagBoxedMainPassSlider(w: EpoxyWorld, block: RuntimeEntity, fromX: number, fromY: number): boolean {
+  if (!frameModelOn(w) || !w.entities.includes(block)) return false;
+  if (block.x !== fromX || block.y !== fromY || !block.isSliding || block.arrivalTicks !== undefined || block.cooldownTicks !== 0) return false;
+  if (!boxedOnIce(w, block)) return false;
+  block.cc2SlideFrame = 0;
+  block.cc2SlideDue = 1;
+  return true;
 }
 
 /** Whether the block stands on a fixed force floor (not a turning or random one, which keep the after-pass retry). */

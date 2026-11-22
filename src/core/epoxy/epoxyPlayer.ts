@@ -21,7 +21,7 @@ import { stepTerrainOf } from '../../audio/stepTerrain';
 import { BLOCK_TARGET_TILE_ID, BRIBE_ITEM_ID, CC2_TOOL_BELT_CAPACITY, CC3D_SLIDE_END_WAIT_TICKS, CC3D_TELEPORT_LANDING_WAIT_TICKS, CC3D_SLIDE_ENTRY_COOLDOWN_TICKS, CC3D_SLIDE_STEP_COOLDOWN_TICKS, CC_FORCE_SLIDE_COOLDOWN_TICKS, CC_ICE_SLIDE_COOLDOWN_TICKS, CC_TELEPORT_SLIDE_WAIT_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, OPPOSITE_DIRECTION, STONE_DEATH_REASON_KEY, TOKEN_ITEM_ID, transmogrifiedCharacter } from '../coreConstants';
 import { usesCc2Engine } from './ccRules';
 import { bootsPullBlocks } from '../RulesetFeatures';
-import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, TileDefinition } from '../types';
+import { Cc2PlayerView, Cc3dPlayerArrival, Direction, PlayerState, RuntimeEntity, TileDefinition } from '../types';
 import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
@@ -238,10 +238,13 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
  * Pending push (wave 10): Lexy does not drop the push of a block that cannot be pushed directly, it writes a pending push that
  * turns the block's next move that way (must_pending_push, game.js:1980-1996; taken at 1703-1710). Only the jammed case is
  * ported: a block at rest on a force floor whose last move landed it on a slide cell (cc2SlideArrived) takes cc2PendingPush, is
- * listed as moving at the decision so the step does not push it, and the player walks in when the block already left. Known gaps,
- * pinned by tests: the push of a block that slides or arrives (ice or force) is still skipped, not queued (the full pending push,
+ * listed as moving at the decision so the step does not push it, and the player walks in when the block already left. Wave 27 adds the
+ * block sliding on ice that moves in this frame-2 pass (cooldown 0, no frame tag, no held arrival), only when it is listed after him
+ * (its own decision has set its slide mode, game.js:1715-1718, 1985-1986). Known gaps,
+ * pinned by tests: the push of a block that slides with a cooldown above 0 or arrives (ice or force) is still skipped, not queued (the full pending push,
  * the AODP prototype flag, lost chaoslnd and map116 and broke memories, a block pushed N on ice at t139 kills the player where the
- * solution lives); and the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either.
+ * solution lives); the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either; and the push of a
+ * cooldown-0 block listed before him whose slide was refused this tic (Lexy 1266) is not queued (no case found, unverified).
  * A player carried by a force floor who may override it decides too (Lexy may_move, game.js:1576-1579).
  *
  * The slaps are timed as the input was (pass closed, outside a tick), as the clock adapter of the turn expects.
@@ -250,6 +253,8 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
   const w = ctx.world;
   const p = w.player;
   if (!usesCc2Engine(w.level) || w.cc3dPace) return;
+  // The decision push is an actor-order rule.
+  if (w.cc2ActorOrder !== true) return;
   // A player carried by a force floor who may override it decides (and pushes) too (Lexy may_move, game.js:1576-1579).
   const overridesForce = p.isSliding && p.forcePermission === true && ConfigRegistry.getTile(w.terrain[p.y][p.x]).slideType === 'force';
   if (!p.alive || w.levelCompleted || p.moveCooldown > 0 || (p.isSliding && !overridesForce) || isCellClosedTrap(w, p.x, p.y)) return;
@@ -273,7 +278,10 @@ export function decisionPush(ctx: EpoxyContext, dirs: readonly Direction[], movi
         // on a slide cell) becomes a pending push. The block goes that way at its own move of the tick; the step does not push it
         // (it is listed as moving at the decision), and he walks in when the block, listed before him, already left.
         const jammed = aheadTile.slideType === 'force' && !ahead.isSliding && ahead.arrivalTicks === undefined && ahead.cc2SlideArrived === true;
-        if (jammed) {
+        // A block sliding on ice that moves in this frame-2 pass (at rest between two slide steps, no frame tag, no held
+        // arrival) takes the push as a pending push too (Lexy must_pending_push: current_slide_mode on a slide terrain).
+        const onIceNow = aheadTile.slideType === 'ice' && ahead.isSliding && ahead.cooldownTicks === 0 && ahead.arrivalTicks === undefined && ahead.cc2SlideFrame === undefined && ahead.cc2ArrivalWait === undefined && ahead.cc2PrePassMoved !== true && listedAfterPlayer(w, ahead);
+        if (jammed || onIceNow) {
           ahead.cc2PendingPush = dir;
           movingAtDecision.add(ahead.uid);
           continue;
@@ -1092,6 +1100,27 @@ function defersButton(w: EpoxyWorld, action: string): boolean {
   return usesCc2Engine(w.level) || (w.cc3dPace && action === 'trigger_cloner');
 }
 
+/**
+ * Whether a block decides before the player in Lexy's reverse list loop (listed after him: a clone appended without an
+ * ordinal, or a higher ordinal), so its own decision has set its slide mode when he decides (game.js 1715-1718, 1985-1986).
+ */
+function listedAfterPlayer(w: EpoxyWorld, block: RuntimeEntity): boolean {
+  const p = w.player.listOrdinal;
+  return p !== undefined && (block.listOrdinal === undefined || block.listOrdinal > p);
+}
+
+/**
+ * Whether the controlled player's red-button press at the end of a decision step waits for his slot in frame 1 of the
+ * pre-pass (Lexy: the 12-frame or 6-frame step from frame 2 ends in frame 1, step_on_cell in his own action, after the actors listed
+ * after him). Not while the pre-pass fires it (cc2PrePassFire).
+ */
+export function deferPlayerClonePress(w: EpoxyWorld, p: PlayerState, action: string | undefined): boolean {
+  if (action !== 'trigger_cloner' || p !== w.player || w.cc2ActorOrder !== true || w.cc3dPace || !usesCc2Engine(w.level)) return false;
+  if (w.parked.length > 0) return false;
+  if (w.cc2PrePassFire === true) return false;
+  return p.cc2SlideFrame === undefined && p.cc2FrameRetry !== true;
+}
+
 /** The step-end effects waiting on `p`, created on first use. */
 function cc3dArrivalOf(p: PlayerState): Cc3dPlayerArrival {
   p.cc3dArrival ??= {};
@@ -1148,7 +1177,10 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
   if (pending.press !== undefined) {
     const { x, y } = pending.press;
     const tile = ConfigRegistry.getTile(w.terrain[y]?.[x]);
-    if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
+    if (p.x === x && p.y === y && deferPlayerClonePress(w, p, tile.buttonAction)) {
+      // The press stays pending for the player's slot in frame 1 of the pre-pass (runPrePass).
+      cc3dArrivalOf(p).press = { x, y };
+    } else if (p.x === x && p.y === y && tile.buttonAction !== undefined && defersButton(w, tile.buttonAction) && !triggerButton(ctx, x, y, tile.buttonAction, !w.cc3dPace)) return false;
     if (!p.alive) return true;
   }
   // CC2 engine: the bomb is the item and the water or fire the terrain; Lexy step_on_cell walks the layers top down, the item first

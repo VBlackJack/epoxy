@@ -823,12 +823,17 @@ function spawnFromClonerOneWay(
       tagCloneFrame(spawned, releaseFrame);
     }
     // A block cloned onto ice or a force floor by a press of frame p takes its out-of-turn 6-frame step then and slides in frame p
-    // two ticks later; onto a plain cell by a press of frame 0 or 1, its 12-frame step ends at p + 11 (game.js:2218-2242).
+    // two ticks later; onto a plain cell by a press of frame 0 or 1, its 12-frame step ends at p + 11 (p + 10, and a slide frame one sooner, for a template listed before the pressing player: below) (game.js:2218-2242).
     const pressFrame = releaseFrame ?? (w.cc2BeforePass === true ? CC2_DEFAULT_FRAME : CC2_LATE_RELEASE_FRAME);
+    // A template listed before the pressing player (later in the reverse loop) also takes its own cooldown in the press frame,
+    // one frame more than the out-of-turn step's extra cooldown (Lexy attempt_out_of_turn_step + do_actor_cooldown, steam-strict allows
+    // the double cooldown): its next step is one frame sooner.
+    const pressOrdinal = w.cc2PressOrdinal;
+    const later = pressFrame === CC2_DEFAULT_FRAME && pressOrdinal !== undefined && spawned.listOrdinal !== undefined && spawned.listOrdinal < pressOrdinal ? 1 : 0;
     if (cc2Clone && w.entities.includes(spawned) && spawned.arrivalTicks !== undefined && pressFrame !== CC2_LATE_RELEASE_FRAME) {
-      holdFrameArrival(w, spawned, pressFrame + PLAIN_CLONE_STEP_END_FRAMES);
+      holdFrameArrival(w, spawned, pressFrame + PLAIN_CLONE_STEP_END_FRAMES - later);
     } else if (cc2Clone && w.entities.includes(spawned) && spawned.isSliding) {
-      tagSlideFrame(w, spawned, pressFrame as 0 | 1 | 2, CLONE_SLIDE_TICKS);
+      tagSlideFrame(w, spawned, (pressFrame - later) as 0 | 1 | 2, CLONE_SLIDE_TICKS);
     }
   } else {
     // The same out-of-turn rule for a monster clone, before it resolves its arrival.

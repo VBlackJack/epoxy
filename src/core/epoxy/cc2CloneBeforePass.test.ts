@@ -15,9 +15,12 @@
  */
 
 /**
- * CC2 engine: a creature or block cloned by the step end of the player (a clone button he stepped onto), which acts at the
- * start of the tick, is counted down by the entity pass of that tick at once, so its wait is one tick longer than that of
- * a clone made during a pass. Other levels, and a clone made outside that moment, keep the wait they always had.
+ * CC2 engine: a creature or block cloned by the step end of the player (a clone button he stepped onto) is let out in frame 1 of the
+ * pre-pass of the next tick (wave 27: the press waits for his slot there, after the actors listed after him), and the entity pass of
+ * that tick counts it down at once, so its wait is one tick longer than that of a clone made during a pass. Other levels, and a clone
+ * made outside that moment, keep the wait they always had. The room is the Lexy lanes w27_clone_room_bouncer (a ball: Lexy has no
+ * bouncer, same 12-frame step) and w27_clone_room_block: press t4f1, the clone steps out at once, arrives t8f0; the ball steps again
+ * at t8f2. Tick 1 after the flush is Lexy tic 4 and tick 5 is tic 8.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +45,8 @@ const SPAWN_X = CLONER_X + 1;
 const MAX_TICKS = 40;
 /** The extra wait of a creature or block cloned before the entity pass. */
 const BEFORE_PASS_TICKS = 1;
+/** The held arrival wait of a block clone after the tick that let it out (its 12-frame step, counted from frame 1). */
+const BLOCK_ARRIVAL_WAIT = 4;
 
 interface Template {
   type: string;
@@ -75,7 +80,7 @@ function directWait(mode: RoomMode, template: Template): number {
   return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
 }
 
-/** The player steps onto the button, waits the step out, and the next input is the one that lets the clone out. */
+/** The player steps onto the button, waits the step out, and on CC2 the next tick lets the clone out (the press waits for his frame-1 slot), elsewhere the press acts at the step start. */
 function waitOfStepEndClone(mode: RoomMode, template: Template): number {
   const engine = load(mode, template);
   // Any other level presses at the start of the step: the clone is out already.
@@ -83,26 +88,59 @@ function waitOfStepEndClone(mode: RoomMode, template: Template): number {
     expect(engine.attemptPlayerMove('E')).toBe(true);
     return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
   }
+  const afterFlush = flushedStepEnd(template);
+  // The press waits for the player's slot in frame 1 of the pre-pass: no clone is out yet between the flush and the tick.
+  expect(clonedOf(afterFlush, template)).toBeUndefined();
+  afterFlush.tick();
+  return clonedOf(afterFlush, template)?.cooldownTicks ?? Number.NaN;
+}
+
+/** The player steps onto the button and waits the step out, then the next input and its flush: the state Lexy tic 4 starts from. */
+function flushedStepEnd(template: Template): GameEngine {
+  const engine = load('cc2', template);
   expect(playMove(engine, 'E').accepted).toBe(true);
   let guard = 0;
   while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
-  // CC2: nothing yet, the step-end effects act at the start of the next tick or input.
+  // CC2: nothing yet, the step-end effects act at the start of the next tick or input (a red-button press waits for the frame-1 slot of the next tick).
   expect(clonedOf(engine, template)).toBeUndefined();
-  // The step end acts when the next input begins: read the wait between that flush and the entity pass of the tick.
   engine.attemptPlayerMove('N');
   engine.flushPendingStepEnd();
-  return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
+  return engine;
 }
 
 describe('CC2 engine: a clone let out by the step end of the player', () => {
-  it('has a monster wait one tick longer than a clone made outside the pass', () => {
-    const expected = directWait('cc2', MONSTER) + BEFORE_PASS_TICKS;
+  it('has a monster clone let out by the player\'s step end wait one tick longer than a clone made outside the pass (Lexy lane w27_clone_room_bouncer)', () => {
+    // The +1 of the pass of its own tick: counted down once, so one less than the wait at its birth.
+    const expected = directWait('cc2', MONSTER) + BEFORE_PASS_TICKS - 1;
     expect(waitOfStepEndClone('cc2', MONSTER)).toBe(expected);
+    // The tick 2 countdown pins the +1: a clone made outside the pass with no extra tick would be at one.
+    const engine = flushedStepEnd(MONSTER);
+    engine.tick();
+    engine.tick();
+    expect(clonedOf(engine, MONSTER)?.cooldownTicks).toBe(directWait('cc2', MONSTER) + BEFORE_PASS_TICKS - 2);
   });
 
-  it('has a block wait one tick longer than a clone made outside the pass', () => {
+  it('has a block clone let out by the player\'s step end wait one tick longer than a clone made outside the pass (Lexy lane w27_clone_room_block)', () => {
     const expected = directWait('cc2', BLOCK) + BEFORE_PASS_TICKS;
     expect(waitOfStepEndClone('cc2', BLOCK)).toBe(expected);
+    // Its arrival is held: the pass does not count the wait down, the arrival wait counts.
+    const engine = flushedStepEnd(BLOCK);
+    engine.tick();
+    expect(clonedOf(engine, BLOCK)?.cc2ArrivalWait).toBe(BLOCK_ARRIVAL_WAIT);
+    expect(clonedOf(engine, BLOCK)?.cc2ArrivalFrame).toBe(0);
+    engine.tick();
+    expect(clonedOf(engine, BLOCK)?.cc2ArrivalWait).toBe(BLOCK_ARRIVAL_WAIT - 1);
+  });
+
+  it('steps the monster clone at tick 5 and settles the block arrival at tick 5 (Lexy lanes, tic 8: f2 and f0)', () => {
+    const monster = flushedStepEnd(MONSTER);
+    for (let i = 0; i < 4; i++) monster.tick();
+    expect(clonedOf(monster, MONSTER)?.cooldownTicks).toBe(0);
+    monster.tick();
+    expect(monster.getEntities().some((e) => e.kind === 'monster' && e.type === MONSTER.type && e.x === SPAWN_X + 1 && e.y === CLONER_Y)).toBe(true);
+    const block = flushedStepEnd(BLOCK);
+    for (let i = 0; i < 5; i++) block.tick();
+    expect(clonedOf(block, BLOCK)?.arrivalTicks).toBeUndefined();
   });
 
   it('leaves no transient flag behind', () => {
@@ -112,8 +150,28 @@ describe('CC2 engine: a clone let out by the step end of the player', () => {
     while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
     engine.attemptPlayerMove('N');
     engine.flushPendingStepEnd();
+    expect(world(engine).cc2PrePassFire).toBeUndefined();
+    expect(world(engine).cc2PressOrdinal).toBeUndefined();
     engine.tick();
     expect(world(engine).cc2BeforePass).toBeUndefined();
+    expect(world(engine).cc2PrePassFire).toBeUndefined();
+    expect(world(engine).cc2PressOrdinal).toBeUndefined();
+  });
+
+  it.each(['parked', 'no actor order'])('keeps the press at the start of the tick when the guard fails (%s)', (guard) => {
+    const engine = load('cc2', MONSTER);
+    if (guard === 'parked') {
+      world(engine).parked = [{ ...world(engine).player, x: PLAYER_X, y: ROOM_ROW + 2, boots: new Set(), keys: {} }];
+    } else {
+      delete world(engine).cc2ActorOrder;
+    }
+    playMove(engine, 'E');
+    let ticks = 0;
+    while (engine.getPlayer().moveCooldown > 0 && ticks++ < MAX_TICKS) engine.tick();
+    engine.attemptPlayerMove('N');
+    engine.flushPendingStepEnd();
+    // The press is not deferred: the clone is out at the tick-start wait, not the one of the pre-pass slot.
+    expect(clonedOf(engine, MONSTER)?.cooldownTicks).toBe(directWait('cc2', MONSTER) + BEFORE_PASS_TICKS);
   });
 });
 

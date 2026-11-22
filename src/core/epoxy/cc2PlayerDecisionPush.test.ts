@@ -104,10 +104,46 @@ describe('decision push', () => {
     const before = JSON.stringify(block);
     decisionPush(contextOf(engine), ['E'], new Set<number>());
     expect(block.x).toBe(BLOCK_X);
-    // Known gap: Lexy (game.js no_directly_pushing_sliding_blocks, steam rulesets) writes a pending push here that turns the
-    // block's next slide. Porting it lost chaoslnd and map116 and broke memories, so a block that slides on ice is neither pushed
-    // nor queued. Only a block jammed at rest on a force floor is queued (wave 10, see cc2PlayerPendingPush.test.ts).
+    // Known gap, narrowed to a block in the middle of a slide step (cooldown above 0): Lexy (game.js no_directly_pushing_sliding_blocks,
+    // steam rulesets) writes a pending push here that turns the block's next slide. Porting it lost chaoslnd and map116 and broke
+    // memories, so such a block is neither pushed nor queued. A block jammed at rest on a force floor is queued (wave 10, see
+    // cc2PlayerPendingPush.test.ts), and so is one on ice that moves in this pass (cooldown 0, listed after him: wave 27, below).
     expect(JSON.stringify(block)).toBe(before);
+  });
+
+  it('queues the push of a block at rest on ice that moves in this pass when it is listed after the player (wave 27, PPI)', () => {
+    const engine = load('cc2', ICE);
+    const block = blockOf(engine);
+    block.isSliding = true;
+    block.cooldownTicks = 0;
+    block.listOrdinal = undefined;
+    const moving = new Set<number>();
+    decisionPush(contextOf(engine), ['E'], moving);
+    expect(block.cc2PendingPush).toBe('E');
+    expect(moving.has(block.uid)).toBe(true);
+    expect(block.x).toBe(BLOCK_X);
+  });
+
+  it('does not queue it for a block listed before the player: Lexy pushes that one directly (wave 27, PPI order gate)', () => {
+    const engine = load('cc2', ICE);
+    const block = blockOf(engine);
+    block.isSliding = true;
+    block.cooldownTicks = 0;
+    block.listOrdinal = -1;
+    const moving = new Set<number>();
+    decisionPush(contextOf(engine), ['E'], moving);
+    expect(block.cc2PendingPush).toBeUndefined();
+    expect(moving.has(block.uid)).toBe(false);
+  });
+
+  it('does not queue it off actor order (wave 27, PPI)', () => {
+    const engine = load('cc2', ICE);
+    const block = blockOf(engine);
+    block.isSliding = true;
+    block.cooldownTicks = 0;
+    delete world(engine).cc2ActorOrder;
+    decisionPush(contextOf(engine), ['E'], new Set<number>());
+    expect(block.cc2PendingPush).toBeUndefined();
   });
 
   it('does not push a block still arriving on ice', () => {
