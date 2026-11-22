@@ -93,7 +93,7 @@ import {
   killPlayerAt
 } from './epoxyWorld';
 import { CC2_DEFAULT_FRAME, turnMarkedTanks } from './epoxyDevices';
-import { closeFramePass, finishFrameWirePhases, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
+import { closeFramePass, finishFrameWirePhases, fixedForceFloor, frameModelOn, holdMainPassArrival, runFramePrePass } from './epoxyFrames';
 
 export function updateEntities(ctx: EpoxyContext): void {
   const w = ctx.world;
@@ -492,7 +492,7 @@ function runEntityPass(ctx: EpoxyContext): void {
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
-  // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
+  // CC2 engine: the blocks whose slide was refused on a turning or random force floor, or off the frame model, in this pass (see the retry after the loop; a fixed floor on the frame model is tagged in the block loop).
   const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
   // CC2 engine: the monsters whose step was refused on ice in this pass (see the retry after the loop).
   const refusedOnIce: RuntimeEntity[] = [];
@@ -539,7 +539,16 @@ function runEntityPass(ctx: EpoxyContext): void {
       if (slidFrom !== undefined && w.entities.includes(entity) && entity.arrivalTicks !== undefined && (entity.x !== slidFrom.x || entity.y !== slidFrom.y)) {
         holdMainPassArrival(w, entity);
       }
-      if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) refusedOnForce.push({ block: entity, dir: refusal.retryDir });
+      if (refusal.refusedOnForce === true && refusal.retryDir !== undefined) {
+        if (frameModelOn(w) && w.entities.includes(entity) && !entity.isSliding && fixedForceFloor(w, entity)) {
+          // Refused on a fixed force floor in frame 2 by an actor or a block: it tries again in frame 0 of the next tic.
+          entity.isSliding = true;
+          entity.dir = refusal.retryDir;
+          entity.cooldownTicks = 0;
+          entity.cc2SlideFrame = 0;
+          entity.cc2SlideDue = 1;
+        } else refusedOnForce.push({ block: entity, dir: refusal.retryDir });
+      }
       continue;
     }
 
@@ -572,8 +581,9 @@ function runEntityPass(ctx: EpoxyContext): void {
     if (ConfigRegistry.getEntityDef(entity.type)?.meltsIceOnBumpCc2 !== true) continue;
     if (!retryRefusedOnIce(ctx, entity, clock)) return;
   }
-  // CC2 runs its actors in frames of a tic: a block refused on a force floor behind another block tries once more in the next
-  // frame, when the block ahead has left. The list is local to the pass; a block that moved, melted or was removed is skipped.
+  // A block refused on a turning or random force floor, or on any force floor off the frame model, tries once more after the pass
+  // (a fixed floor on the frame model retries in the next frame: the tag set in the block loop). The list is local to the pass; a
+  // block that moved, melted or was removed is skipped.
   if (usesCc2Engine(w.level)) {
     for (const { block, dir } of refusedOnForce) {
       if (w.removedUids.has(block.uid) || !w.entities.includes(block) || block.isSliding) continue;

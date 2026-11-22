@@ -239,8 +239,9 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
       block.cooldownTicks = 0;
       w.cc2PrePassStepping = true;
       w.cc2PrePassFrame = frame;
+      let res: ReturnType<typeof stepSlidingBlock> | undefined;
       try {
-        stepSlidingBlock(ctx, block);
+        res = stepSlidingBlock(ctx, block);
       } finally {
         delete w.cc2PrePassStepping;
         delete w.cc2PrePassFrame;
@@ -256,6 +257,14 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
       } else if (block.isSliding && (block.x !== x || block.y !== y)) {
         block.cc2SlideFrame = frame;
         block.cc2SlideDue = SLIDE_STEP_PRE_PASSES;
+      } else if (frame === 0 && frameModelOn(w) && res?.refusedOnForce === true && res.retryDir !== undefined && block.x === x && block.y === y && fixedForceFloor(w, block)) {
+        // Refused on a fixed force floor in frame 0 by an actor or a block: it tries again in frame 1 (refused there, the main pass takes it).
+        block.isSliding = true;
+        block.dir = res.retryDir;
+        block.cc2SlideFrame = 1;
+        block.cc2SlideDue = 1;
+        delete block.cc2PrePassMoved;
+        block.cooldownTicks = 0;
       } else {
         // Boxed in or stopped: it tries again in the main pass, at the base timing.
         clearSlideFrame(block);
@@ -412,7 +421,11 @@ function stepMonsterInFrame(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): 
   const plan = (tile.slideType === 'ice' ? tile.deflectionMap?.[e.dir] || e.dir : tile.forceDirection) as Direction;
   if (tile.slideType === 'ice') {
     const bounce = (tile.deflectionMap?.[OPPOSITE_DIRECTION[plan]] || OPPOSITE_DIRECTION[plan]) as Direction;
-    if (!canMonsterEnter(w, e, plan) && !canMonsterEnter(w, e, bounce)) return w.player.alive;
+    if (!canMonsterEnter(w, e, plan) && !canMonsterEnter(w, e, bounce)) {
+      // The refused retry bonks: the monster faces the bounce way (Lexy game.js:1192-1207).
+      e.dir = bounce;
+      return w.player.alive;
+    }
   } else if (!canMonsterEnter(w, e, plan)) return w.player.alive;
   return stepMonsterAlong(ctx, e, plan, frame);
 }
@@ -547,6 +560,7 @@ export function runFramePrePass(ctx: EpoxyContext, betweenTicks = false): boolea
   if (!frameModelOn(w) || w.cc2PrePassDone === true) return w.player.alive;
   if (betweenTicks && !prePassHasWork(w)) return w.player.alive;
   w.cc2PrePassDone = true;
+  if (!betweenTicks && w.ccMonsterClock === 0) tagLoadedForceBlocks(w);
   if (!prePassHasWork(w)) return w.player.alive;
   return runPrePassAndWires(ctx);
 }
@@ -619,4 +633,30 @@ export function closeFramePass(w: EpoxyWorld): void {
 export function steppingFrame(w: EpoxyWorld, slider: RuntimeEntity | undefined): 0 | 1 | 2 | undefined {
   if (slider === undefined) return undefined;
   return w.cc2PrePassStepping === true ? w.cc2PrePassFrame : DECISION_FRAME;
+}
+
+/** Whether the block stands on a fixed force floor (not a turning or random one, which keep the after-pass retry). */
+export function fixedForceFloor(w: EpoxyWorld, block: RuntimeEntity): boolean {
+  const tile = ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]);
+  return tile.slideType === 'force' && tile.forceCycle !== true && tile.forceDirection !== undefined && tile.forceDirection !== 'RANDOM';
+}
+
+/**
+ * A block loaded on a fixed force floor first slides in frame 1 of tic 0 (Lexy lanes w24_ff_pair_w, w26_ff_fireball, w26_ff_off: t0f1),
+ * so the tic-0 pre-pass tags it for frame 1; it keeps that frame. Run at the pre-pass of tic 0 (clock 0, inside the tick).
+ */
+function tagLoadedForceBlocks(w: EpoxyWorld): void {
+  if (!frameModelOn(w)) return;
+  for (const e of w.entities) {
+    // A block marked as landed by a move (cc2SlideArrived) is not a block at its load state.
+    if (e.kind !== 'block' || e.cc2SlideArrived === true || e.arrivalTicks !== undefined || e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined) continue;
+    const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
+    if (!fixedForceFloor(w, e) || tile.isCloneMachine === true) continue;
+    if (ConfigRegistry.getEntityDef(e.type)?.slidesOnForce !== true) continue;
+    e.isSliding = true;
+    e.dir = tile.forceDirection as Direction;
+    e.cooldownTicks = 0;
+    e.cc2SlideFrame = 1;
+    e.cc2SlideDue = 1;
+  }
 }
