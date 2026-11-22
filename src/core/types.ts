@@ -1341,7 +1341,10 @@ export interface TileDefinition {
    */
   flipsOnPower?: boolean;
   isTeleporter?: boolean;
-  /** CC2 only: a teleporter whose jump happens at the start of the step of a monster that stands on it (the green pad: its destination is drawn then); the others jump when the step ends. */
+  /**
+   * CC2 only: a teleporter whose jump happens at the start of the step of a block that stands on it (the green pad: its destination is drawn then);
+   * a monster or a bowling ball on it goes through when its step ends, at the Lexy frame that step ends in (CcArrival.greenPad), and the others jump when the step ends.
+   */
   teleportJumpsAtStepStartCc2?: boolean;
   /** CC2 engine only: a teleporter whose exit the player may decide himself at his next decision (the red and yellow pads); the plain pads force the exit. */
   teleportSoftCc2?: boolean;
@@ -2268,7 +2271,7 @@ export interface CcArrival {
   afterRemoval?: true;
   /** A converted CC3D level: the monster's step ended on a teleporter; when the step ends it lands on the destination pad and leaves by a forced fast step one tick later. */
   teleport?: boolean;
-  /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied. */
+  /** The entity pass (counted by ccMonsterClock) at the start of which the press is applied; with cc2EndFrame, the pass of the tic whose frame point applies it. */
   due: number;
   /** CC2 engine: the entity worked a light switch or pulse source when its step ended; the next settle reads it. Absent otherwise. */
   pulse?: true;
@@ -2279,6 +2282,13 @@ export interface CcArrival {
    * the entity pass, before the green toggles. Absent otherwise.
    */
   afterPass?: true;
+  /**
+   * CC2 engine: the Lexy frame (0, 1 or 2) a green button press or a green pad teleport of a monster ends its step in; the arrival is
+   * applied at that frame's point of the pass of its due tic, not in the entity pass. Absent for any other arrival.
+   */
+  cc2EndFrame?: 0 | 1 | 2;
+  /** CC2 engine: a teleport onto the green pad, applied at the frame point of cc2EndFrame instead of in the monster's own turn. Set only when true. */
+  greenPad?: true;
 }
 
 /** The start of a player beyond the first on a level with several. */
