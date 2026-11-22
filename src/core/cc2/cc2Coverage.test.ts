@@ -191,11 +191,11 @@ describe('wave 6 known differences', () => {
     expect(reason).not.toMatch(/range and what it breaks differ/);
   });
 
-  it('says the green pad is modelled, keeps its step-start jump, and that blocks keep theirs', () => {
+  it('says the green pad is modelled, a monster goes through when its step ends, and blocks keep the step-start jump', () => {
     const reason = CC2_COVERAGE.teleport_green.reason;
     expect(reason).toMatch(/green_teleports_can_fail/);
     expect(reason).toMatch(/generator and that failure are modelled/);
-    expect(reason).toMatch(/start of its step/);
+    expect(reason).toMatch(/goes through when its step ends/);
     expect(reason).toMatch(/block keeps that step-start jump/);
     expect(reason).not.toMatch(/is not modelled/);
   });

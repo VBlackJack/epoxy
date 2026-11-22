@@ -116,15 +116,26 @@ describe('CC2 monster teleport at the end of its step', () => {
     expect([ball()?.x, ball()?.y]).toEqual([9, 6]);
   });
 
-  it('reads the tile flag: a monster waits for its step end on both pads, a block pushed onto either one jumps at once', () => {
+  it('reads the tile flag: the flagged pad queues a green jump for a monster, the unflagged one only once it carries the flag', () => {
     const flagged = ConfigRegistry.getTile(GREEN_PAD).teleportJumpsAtStepStartCc2 === true;
     const unflagged = ConfigRegistry.getTile(UNFLAGGED_PAD).teleportJumpsAtStepStartCc2 === true;
     expect([flagged, unflagged]).toEqual([true, false]);
-    for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
-      const holds = load({}, pad);
-      tick(holds, 1);
-      expect(walker(holds)?.x).toBe(ENTRY_X);
-    }
+    const queued = (engine: GameEngine) => world(engine).ccArrivals.find((a) => a.teleport === true);
+    const holds = load({}, GREEN_PAD);
+    tick(holds, 1);
+    expect(queued(holds)).toMatchObject({ greenPad: true, cc2EndFrame: 1 });
+    const plain = load({}, UNFLAGGED_PAD);
+    tick(plain, 1);
+    expect(queued(plain)).toBeDefined();
+    expect(queued(plain)?.greenPad).toBeUndefined();
+    // Giving the unflagged pad the flag is enough to make it queue the green jump.
+    ConfigRegistry.getTile(UNFLAGGED_PAD).teleportJumpsAtStepStartCc2 = true;
+    const nowFlagged = load({}, UNFLAGGED_PAD);
+    tick(nowFlagged, 1);
+    expect(queued(nowFlagged)).toMatchObject({ greenPad: true, cc2EndFrame: 1 });
+  });
+
+  it('keeps the step-start jump for a block pushed onto either pad', () => {
     // A block pushed onto either pad keeps the step-start jump: it has left the pad in the tick it is pushed.
     for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
       const pushed = new GameEngine();

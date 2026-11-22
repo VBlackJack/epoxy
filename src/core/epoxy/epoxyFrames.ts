@@ -284,6 +284,7 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
     }
     // CC2 engine: the green pad teleports whose step ends in this frame come before the player's frame step (the player acts last in
     // Lexy's actor list); the green toggles of the frame come after it (Lexy do_post_actor_phase).
+    // When the player already stepped, the full call below runs the jumps and then the toggles.
     if (!playerStepped && !applyGreenFrameToggles(ctx, frame, 'tp')) return arrivalFrame;
     if (!playerStepped && !firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
     if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;

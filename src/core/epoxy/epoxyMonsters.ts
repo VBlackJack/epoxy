@@ -325,7 +325,7 @@ function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival:
 /**
  * CC2 engine: a monster whose step ended on a teleporter (not the green one) goes through in its own turn of that pass: it
  * stands on the destination pad, and its next decision is the forced exit (see stepMonsterCore). The countdown is left as it
- * is: it reaches 0 in this very pass. Returns false when the arrival killed the player.
+ * is: it reaches 0 in this very pass. It also runs the green pad jump at the frame point its step ends in. Returns false when the arrival killed the player.
  */
 function applyStepEndTeleport(ctx: EpoxyContext, monster: RuntimeEntity): boolean {
   if (!ctx.teleportEntity(monster, monster.x, monster.y, monster.dir, true)) {

@@ -1342,8 +1342,8 @@ export interface TileDefinition {
   flipsOnPower?: boolean;
   isTeleporter?: boolean;
   /**
-   * CC2 only: a teleporter whose jump happens at the start of the step of a block that stands on it (the green pad: its destination is drawn then);
-   * a monster or a bowling ball on it goes through when its step ends, at the Lexy frame that step ends in (CcArrival.greenPad), and the others jump when the step ends.
+   * CC2 only: the green pad: a monster or bowling ball on it goes through at the Lexy frame its step ends in (CcArrival.greenPad), and a failed
+   * jump spends its next decision; blocks jump at the step start on every pad.
    */
   teleportJumpsAtStepStartCc2?: boolean;
   /** CC2 engine only: a teleporter whose exit the player may decide himself at his next decision (the red and yellow pads); the plain pads force the exit. */

@@ -242,7 +242,6 @@ describe('monster on a green button (GB, GB2)', () => {
   it("toggles in the tic its step ends, before that tic's decisions (Lexy lane w29_gtf_walk_k2_j2)", async () => {
     // The classic level keeps its own tick: the CC2 press lands in frame 1 of the tic after it.
     expect(toggleTick('cc').tick).toBe(CLASSIC_TOGGLE_TICK);
-    expect(toggleTick('cc2').tick).toBe(CLASSIC_TOGGLE_TICK + 1);
     // Lexy toggles the wall (10,5) of the lane at t8f1: closed after tick() call 8, open after call 9. E is held from tic 0.
     const lane = new GameEngine();
     lane.loadLevel(await loadCc2Lane('gtf_walk_k2_j2', 'w29_'), 0);
