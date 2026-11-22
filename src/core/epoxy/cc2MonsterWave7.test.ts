@@ -26,6 +26,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode, RoomOptions } from '../../test/cc2Room';
@@ -207,6 +208,8 @@ describe('monster on a green button (GB, GB2)', () => {
   const BALL_X = 5;
   const WALL_CELL = { x: 3, y: 3 };
   const WATCH_TICKS = 30;
+  /** The tick the classic room toggles at (the press is queued behind the step). */
+  const CLASSIC_TOGGLE_TICK = 4;
   const options = {
     terrain: {
       [`${BALL_X + 1},${ROOM_ROW}`]: BUTTON,
@@ -236,8 +239,20 @@ describe('monster on a green button (GB, GB2)', () => {
     expect(tick).toBeGreaterThan(ballArrival);
   });
 
-  it('toggles at the same tick as a classic level, which always queued the press', () => {
-    expect(toggleTick('cc2').tick).toBe(toggleTick('cc').tick);
+  it("toggles in the tic its step ends, before that tic's decisions (Lexy lane w29_gtf_walk_k2_j2)", async () => {
+    // The classic level keeps its own tick: the CC2 press lands in frame 1 of the tic after it.
+    expect(toggleTick('cc').tick).toBe(CLASSIC_TOGGLE_TICK);
+    expect(toggleTick('cc2').tick).toBe(CLASSIC_TOGGLE_TICK + 1);
+    // Lexy toggles the wall (10,5) of the lane at t8f1: closed after tick() call 8, open after call 9. E is held from tic 0.
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('gtf_walk_k2_j2', 'w29_'), 0);
+    const seen: string[] = [];
+    for (let call = 1; call <= 9; call++) {
+      lane.attemptPlayerMoveHeld(['E']);
+      lane.tick();
+      if (call === 8 || call === 9) seen.push(lane.getTerrain()[5][10]);
+    }
+    expect(seen).toEqual([WALL_CLOSED, WALL_OPEN]);
   });
 
   it('still toggles at once on a native level', () => {

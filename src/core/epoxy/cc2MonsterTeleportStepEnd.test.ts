@@ -16,7 +16,8 @@
 
 /**
  * CC2 engine: a monster that steps onto a teleporter goes through in its own turn of the pass where its step ends, lands on the
- * destination pad and leaves by the forced exit as its next decision, with no draw. The green pad keeps its step-start jump.
+ * destination pad and leaves by the forced exit as its next decision, with no draw. The green pad holds a monster the same way
+ * (wave 29: it goes through at the frame its step ends in); a block keeps the step-start jump on every pad.
  * Lexy's Labyrinth game.js attempt_teleport.
  */
 
@@ -24,6 +25,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room, ROOM_ROW } from '../../test/cc2Room';
 import type { RoomOptions } from '../../test/cc2Room';
@@ -39,6 +41,8 @@ const ENTRY_X = 3;
 const EXIT_PAD_X = 9;
 const FAR_X = 11;
 const MONSTER_START_X = 2;
+/** The prefix of the wave 29 Lexy lanes. */
+const LANE_PREFIX = 'w29_';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -94,22 +98,48 @@ describe('CC2 monster teleport at the end of its step', () => {
     expect(generators(engine)).not.toBe(before);
   });
 
-  it('keeps the step-start jump of the green pad', () => {
+  it('the green pad holds a monster until its step ends', async () => {
     const engine = load({}, GREEN_PAD);
     tick(engine, 1);
-    expect(walker(engine)?.x).not.toBe(ENTRY_X);
+    expect(walker(engine)?.x).toBe(ENTRY_X);
+    // Lexy lane w29_grt_walk_p2_k2: the walker stands on the entry pad (4,2) through tick 8 and is on its exit cell (9,6) at tick 9.
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('grt_walk_p2_k2', LANE_PREFIX), 0);
+    const ball = () => lane.getEntities().find((e) => e.type === 'pink_ball');
+    tick(lane, 5);
+    expect([ball()?.x, ball()?.y]).toEqual([4, 2]);
+    tick(lane, 3);
+    expect([ball()?.x, ball()?.y]).toEqual([4, 2]);
+    tick(lane, 1);
+    expect([ball()?.x, ball()?.y, ball()?.dir]).toEqual([9, 6, 'W']);
+    tick(lane, 3);
+    expect([ball()?.x, ball()?.y]).toEqual([9, 6]);
   });
 
-  it('reads the tile flag: a flagged pad jumps at the start of the step, an unflagged one waits for its end', () => {
+  it('reads the tile flag: a monster waits for its step end on both pads, a block pushed onto either one jumps at once', () => {
     const flagged = ConfigRegistry.getTile(GREEN_PAD).teleportJumpsAtStepStartCc2 === true;
     const unflagged = ConfigRegistry.getTile(UNFLAGGED_PAD).teleportJumpsAtStepStartCc2 === true;
     expect([flagged, unflagged]).toEqual([true, false]);
-    const stays = load({}, UNFLAGGED_PAD);
-    tick(stays, 1);
-    expect(walker(stays)?.x).toBe(ENTRY_X);
-    const jumps = load({}, GREEN_PAD);
-    tick(jumps, 1);
-    expect(walker(jumps)?.x).not.toBe(ENTRY_X);
+    for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
+      const holds = load({}, pad);
+      tick(holds, 1);
+      expect(walker(holds)?.x).toBe(ENTRY_X);
+    }
+    // A block pushed onto either pad keeps the step-start jump: it has left the pad in the tick it is pushed.
+    for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
+      const pushed = new GameEngine();
+      pushed.loadLevel(
+        room({
+          mode: 'cc2',
+          startX: MONSTER_START_X - 1,
+          terrain: { [`${ENTRY_X},${ROOM_ROW}`]: pad, [`${EXIT_PAD_X},${ROOM_ROW}`]: pad },
+          entities: [{ type: 'dirt_block', x: MONSTER_START_X, y: ROOM_ROW, dir: 'E' }]
+        })
+      );
+      expect(pushed.attemptPlayerMove('E')).toBe(true);
+      tick(pushed, 1);
+      expect(pushed.getEntities().find((e) => e.type === 'dirt_block')?.x).not.toBe(ENTRY_X);
+    }
   });
 
   it('keeps the step-start jump on a classic level that is not CC2', () => {
