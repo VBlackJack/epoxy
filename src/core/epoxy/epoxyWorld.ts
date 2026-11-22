@@ -239,6 +239,18 @@ export interface EpoxyWorld {
    */
   cc2PrePassDone?: true;
   /**
+   * CC2 engine, frame model: true while the frame pre-pass fires the controlled player's deferred red-button press (wave 27), so the
+   * press is not deferred again. Transient: set and deleted inside one call (firePlayerPress), never saved in a snapshot nor read by
+   * the hidden key.
+   */
+  cc2PrePassFire?: boolean;
+  /**
+   * CC2 engine, frame model: the list ordinal of the player whose deferred press is being fired, read by the clone machine to tell a
+   * template listed before him (wave 27). Transient: set and deleted inside one call (firePlayerPress), never saved in a snapshot nor
+   * read by the hidden key.
+   */
+  cc2PressOrdinal?: number;
+  /**
    * CC2 engine, frame model, gate-delay network: the Lexy frame wire phase (0 or 1) still to run after the frame-2 one of the tick end;
    * absent once the frame-1 phase ran. Saved in an undo snapshot while set (actor order: it crosses the tick boundary).
    */

@@ -64,7 +64,7 @@ import {
 } from './epoxy/epoxySignals';
 import { cloneSignalState, createSignalState, type SignalEdge } from './epoxy/signalNetwork';
 import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
-import { finishFrameWirePhases, frameModelOn, resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
+import { finishFrameWirePhases, fireDeferredPlayerPress, frameModelOn, resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
 import { usesCc2Engine } from './epoxy/ccRules';
 import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
@@ -1172,6 +1172,7 @@ export class GameEngine {
       w.cc2BeforePass = undefined;
     }
     // The pending effects may have moved him (a teleporter jump): where he appears to be as the next tick starts changes with it.
+    // Skipped while a deferred red-button press waits (cc3dArrival still set): the press acts later, in the pre-pass.
     if (w.player.cc3dArrival === undefined) recordCc2PlayerView(w);
     return w.player.alive && !w.levelCompleted;
   }
@@ -1179,7 +1180,9 @@ export class GameEngine {
   /**
    * CC2 engine: lets the step-end effects the player's finished step left pending act now instead of at the start of the
    * next tick or input, so that what is drawn and read between ticks (HUD, renderer, click-to-move safety) is the state
-   * after them. Idempotent and equivalent to the flush the next entry point does anyway, so a replay is unchanged.
+   * after them. Idempotent and equivalent to the flush the next entry point does anyway, so a replay is unchanged. A red-button
+   * press that ends a decision step is the exception: it stays pending for the player's slot in frame 1 of the pre-pass (wave 27), so
+   * the clone it releases is not visible between ticks.
    * A no-op on any other level, while paused, dead or once the level ended.
    */
   public flushPendingStepEnd(): void {
@@ -1544,6 +1547,8 @@ export class GameEngine {
     const w = this.w;
     delete w.cc2TurnAhead;
     if (!w.player.alive || w.levelCompleted) return;
+    // A red-button press the frame pre-pass did not fire acts as his turn opens.
+    if (!fireDeferredPlayerPress(this.ctx) || !w.player.alive || w.levelCompleted) return;
     const clock = w.ccMonsterClock;
     const passOpen = w.ccPassOpen;
     w.ccMonsterClock = tick.clockAtStart;
