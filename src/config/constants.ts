@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 24;
+export const CC2_RULES_VERSION = 25;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -561,6 +561,11 @@ export const CC2_RULES_VERSION = 24;
 // pre-pass, after the actors listed after him; a block that press releases from a template listed before him slides, or ends its plain-cell step (p + 10), one frame sooner; a press the pre-pass missed acts as his main-pass turn opens;
 // his push of a block sliding on ice that moves in the main pass is a pending push, only for a block listed after him). A stored
 // solution whose ice-block or clone-button timing changed replays differently.
+// Version 25: the wave 28 rules (a bowling ball set down that rolls onto a teleporter goes through when its first step ends; on a level
+// without actor order the ball is counted down from the frame-2 decision it was set down in; teeth leave a teleporter pad at once
+// whatever their window; a block or a monster other than a ghost standing on a plain bomb when the level starts is blown up before the
+// first tick). A stored solution that has teeth on a teleporter, sets a bowling ball down onto a teleporter or starts with an actor on a
+// bomb replays differently.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

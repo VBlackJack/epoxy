@@ -161,7 +161,7 @@ export function bumpRollingBall(w: EpoxyWorld, monster: RuntimeEntity, wanted: D
  * there is killed and the ball blows up. `itemId` is the item set down (the actor is the one its tile names). Returns true when
  * the ball was set down (it may be spent at once), false when this level does not play the item as an actor.
  */
-export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: Direction, itemId: string): boolean {
+export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: Direction, itemId: string, fromDrop = false): boolean {
   const w = ctx.world;
   const actorId = droppedActorId(itemId);
   if (!usesCc2Engine(w.level) || actorId === undefined) return false;
@@ -182,10 +182,23 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   }
   // The first step is taken out of turn, toward the way faced whatever the floor of the cell says.
   w.ccPlans.set(ball.uid, dir);
-  stepClassicMonsterOutOfTurn(ctx, ball);
+  // A ball set down by a drop that rolls onto a teleporter goes through when its first step ends (Lexy step_on_cell at the step end),
+  // although the drop is played outside the tick flag.
+  if (fromDrop) w.cc2BallLaunchUid = ball.uid;
+  try {
+    stepClassicMonsterOutOfTurn(ctx, ball);
+  } finally {
+    delete w.cc2BallLaunchUid;
+  }
   w.ccPlans.delete(ball.uid);
+  // A drop played before the tick on a level without actor order is counted down by that tick's pass, one count more than Lexy's
+  // frame-2 drop: the ball and its queued arrivals wait one more tick.
+  if (fromDrop && w.cc2ActorOrder !== true && !w.inTick && ball.cooldownTicks > 0 && w.entities.includes(ball)) {
+    ball.cooldownTicks += 1;
+    for (const a of w.ccArrivals) if (a.uid === ball.uid) a.due += 1;
+  }
   // No extra cooldown tick, unlike a monster ejected from a trap (which keeps its +1): the ball is dropped inside the player's
-  // frame-2 action, after the pass that counts the actors already down, so it ends its first step 4 ticks after the drop, not 5
+  // frame-2 action, after the pass that counts the actors already down, so on actor order it ends its first step 4 ticks after the drop, not 5
   // (Lexy game.js:1594-1598 drop at the frame-2 decision, 2519-2580 the out-of-turn step, 2218-2242 the frame count). The oldest tool
   // pushed off a full belt by a pickup lands here too (setDownPushedOutTool): attempt_take places it in the player's own turn through the
   // same _place_dropped_item (game.js:3221-3280), so it keeps no +1 either.
