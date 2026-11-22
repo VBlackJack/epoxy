@@ -136,7 +136,7 @@ describe('CC2 engine: what the main-pass hold does not touch', () => {
     expect(slider.cc2ArrivalFrame).toBe(prePassEnd % FRAMES_PER_TICK);
   });
 
-  it('does not hold the after-pass retry of a block refused on a force floor behind a monster that then leaves', () => {
+  it('holds the arrival of a block refused on a force floor at frame 2 of tic 0 behind a monster that then leaves: it goes in frame 0 of tic 1 (Lexy lane w26_ff_fireball)', () => {
     const level = room({
       mode: 'cc2',
       startX: PLAYER_START_X,
@@ -153,12 +153,20 @@ describe('CC2 engine: what the main-pass hold does not touch', () => {
     block.isSliding = true;
     block.cooldownTicks = 0;
     block.dir = 'E';
+    // Lexy lane w26_ff_fireball: the block is refused in frames 1 and 2 of tic 0 (the fireball leaves in frame 2, after the block),
+    // goes in frame 0 of tic 1 (cd 12) and arrives in frame 2 of tic 4. The old value (block at LAND_X after tick 1, no hold) pinned
+    // the step one frame early.
     engine.tick();
-    expect(blockOf(engine, FIREBALL).x).toBeGreaterThan(LAND_X);
+    expect(blockOf(engine, FIREBALL).x).toBe(LAND_X + 1);
+    expect(block.x).toBe(SLIDE_X);
+    expect(block.cc2SlideFrame).toBe(0);
+    engine.tick();
     expect(block.x).toBe(LAND_X);
     expect(block.arrivalTicks).toBeDefined();
-    expect(block.cc2ArrivalWait).toBeUndefined();
-    expect(block.cc2ArrivalFrame).toBeUndefined();
+    expect(block.cc2ArrivalWait).toBe(3);
+    expect(block.cc2ArrivalFrame).toBe(2);
+    for (let i = 0; i < 3; i++) engine.tick();
+    expect(block.arrivalTicks).toBeUndefined();
   });
 
   it('does not hold a monster stepping off ice onto a plain cell in the main pass: it keeps its tick timing', () => {
