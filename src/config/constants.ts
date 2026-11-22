@@ -558,7 +558,7 @@ export const CC2_RULES_VERSION = 24;
 // whose force-floor block timing changed replays differently.
 // Version 24: the wave 27 rules (a block boxed in on ice tries again in the next frame - frame 1 after frame 0, frame 0 of the next tic
 // after the main pass; the controlled player's red-button press at the end of a decision step acts at his place in frame 1 of the
-// pre-pass, after the actors listed after him; a block that press releases from a template listed before him slides one frame sooner;
+// pre-pass, after the actors listed after him; a block that press releases from a template listed before him slides, or ends its plain-cell step (p + 10), one frame sooner; a press the pre-pass missed acts as his main-pass turn opens;
 // his push of a block sliding on ice that moves in the main pass is a pending push, only for a block listed after him). A stored
 // solution whose ice-block or clone-button timing changed replays differently.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a

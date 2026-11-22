@@ -19,7 +19,7 @@ import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
 import { canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import { forceCycleArrival } from './epoxyForceCycle';
-import { applyCc3dStepEnd, stepStillRuns, isCarriedByForceFloor, processPlayerSlideStep, recordCc2PlayerView, resumeForceCarry } from './epoxyPlayer';
+import { applyCc3dStepEnd, isCarriedByForceFloor, processPlayerSlideStep, recordCc2PlayerView, resumeForceCarry, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
 import { setHoldDoors, setPoweredCells } from './epoxyDevices';

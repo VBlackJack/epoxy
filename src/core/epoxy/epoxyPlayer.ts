@@ -243,7 +243,8 @@ function bumpRevealedCell(w: EpoxyWorld, x: number, y: number): boolean {
  * (its own decision has set its slide mode, game.js:1715-1718, 1985-1986). Known gaps,
  * pinned by tests: the push of a block that slides with a cooldown above 0 or arrives (ice or force) is still skipped, not queued (the full pending push,
  * the AODP prototype flag, lost chaoslnd and map116 and broke memories, a block pushed N on ice at t139 kills the player where the
- * solution lives); and the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either.
+ * solution lives); the slap of a jammed block (slapBlockAhead, two keys held) does not queue it either; and the push of a
+ * cooldown-0 block listed before him whose slide was refused this tic (Lexy 1266) is not queued (no case found, unverified).
  * A player carried by a force floor who may override it decides too (Lexy may_move, game.js:1576-1579).
  *
  * The slaps are timed as the input was (pass closed, outside a tick), as the clock adapter of the turn expects.

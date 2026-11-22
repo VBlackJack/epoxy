@@ -823,7 +823,7 @@ function spawnFromClonerOneWay(
       tagCloneFrame(spawned, releaseFrame);
     }
     // A block cloned onto ice or a force floor by a press of frame p takes its out-of-turn 6-frame step then and slides in frame p
-    // two ticks later; onto a plain cell by a press of frame 0 or 1, its 12-frame step ends at p + 11 (game.js:2218-2242).
+    // two ticks later; onto a plain cell by a press of frame 0 or 1, its 12-frame step ends at p + 11 (p + 10, and a slide frame one sooner, for a template listed before the pressing player: below) (game.js:2218-2242).
     const pressFrame = releaseFrame ?? (w.cc2BeforePass === true ? CC2_DEFAULT_FRAME : CC2_LATE_RELEASE_FRAME);
     // A template listed before the pressing player (later in the reverse loop) also takes its own cooldown in the press frame,
     // one frame more than the out-of-turn step's extra cooldown (Lexy attempt_out_of_turn_step + do_actor_cooldown, steam-strict allows

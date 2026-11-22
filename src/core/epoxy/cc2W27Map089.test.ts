@@ -19,7 +19,7 @@
  * next tic after the main pass); the controlled player's red-button press at the end of a decision step acts at his place in frame 1
  * of the pre-pass, after the actors listed after him, and a press the pre-pass missed acts as his main-pass turn opens; a block that
  * press releases from a template listed before him slides one frame sooner and a clone arriving on a plain cell does so one frame
- * sooner; his push of a block sliding on ice that moves in the main pass is a pending push, only for a block listed after him.
+ * sooner (from a template listed before the pressing player); his push of a block sliding on ice that moves in the main pass is a pending push, only for a block listed after him.
  * Played on the Lexy lanes of src/core/epoxy/__fixtures__/cc2-lanes (prefixes w24_ and w27_).
  *
  * tick() k plays the Lexy tic k - 1, so "after N ticks" is the end of Lexy tic N - 1; an input of Lexy tic t is
@@ -135,7 +135,7 @@ describe('CC2 wave 27 (8c): a block released from a template listed before the p
   });
 });
 
-describe('CC2 wave 27 (8d): a clone arriving on a plain cell does so one frame sooner than the press frame plus eleven', () => {
+describe('CC2 wave 27 (8d): a clone arriving on a plain cell, from a template listed before the pressing player, does so one frame sooner than the press frame plus eleven', () => {
   it('releases the second machine at p + 10, the first clone arrival (Lexy lane w27_cltp_chain)', async () => {
     const engine = await load('cltp_chain');
     const inputs: Inputs = { 1: 'E' };

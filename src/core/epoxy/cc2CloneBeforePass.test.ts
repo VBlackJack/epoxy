@@ -80,7 +80,7 @@ function directWait(mode: RoomMode, template: Template): number {
   return clonedOf(engine, template)?.cooldownTicks ?? Number.NaN;
 }
 
-/** The player steps onto the button, waits the step out, and the next input is the one that lets the clone out. */
+/** The player steps onto the button, waits the step out, and on CC2 the next tick lets the clone out (the press waits for his frame-1 slot), elsewhere the press acts at the step start. */
 function waitOfStepEndClone(mode: RoomMode, template: Template): number {
   const engine = load(mode, template);
   // Any other level presses at the start of the step: the clone is out already.
@@ -101,7 +101,7 @@ function flushedStepEnd(template: Template): GameEngine {
   expect(playMove(engine, 'E').accepted).toBe(true);
   let guard = 0;
   while (engine.getPlayer().moveCooldown > 0 && guard++ < MAX_TICKS) engine.tick();
-  // CC2: nothing yet, the step-end effects act at the start of the next tick or input.
+  // CC2: nothing yet, the step-end effects act at the start of the next tick or input (a red-button press waits for the frame-1 slot of the next tick).
   expect(clonedOf(engine, template)).toBeUndefined();
   engine.attemptPlayerMove('N');
   engine.flushPendingStepEnd();
@@ -156,6 +156,22 @@ describe('CC2 engine: a clone let out by the step end of the player', () => {
     expect(world(engine).cc2BeforePass).toBeUndefined();
     expect(world(engine).cc2PrePassFire).toBeUndefined();
     expect(world(engine).cc2PressOrdinal).toBeUndefined();
+  });
+
+  it.each(['parked', 'no actor order'])('keeps the press at the start of the tick when the guard fails (%s)', (guard) => {
+    const engine = load('cc2', MONSTER);
+    if (guard === 'parked') {
+      world(engine).parked = [{ ...world(engine).player, x: PLAYER_X, y: ROOM_ROW + 2, boots: new Set(), keys: {} }];
+    } else {
+      delete world(engine).cc2ActorOrder;
+    }
+    playMove(engine, 'E');
+    let ticks = 0;
+    while (engine.getPlayer().moveCooldown > 0 && ticks++ < MAX_TICKS) engine.tick();
+    engine.attemptPlayerMove('N');
+    engine.flushPendingStepEnd();
+    // The press is not deferred: the clone is out at the tick-start wait, not the one of the pre-pass slot.
+    expect(clonedOf(engine, MONSTER)?.cooldownTicks).toBe(directWait('cc2', MONSTER) + BEFORE_PASS_TICKS);
   });
 });
 
