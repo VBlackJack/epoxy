@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 22;
+export const CC2_RULES_VERSION = 23;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -551,6 +551,11 @@ export const CC2_RULES_VERSION = 22;
 // Version 22: the wave 25 rules (the press of an out-of-turn monster step taken in frame 0 or 1 inside the entity pass lands at the frame CC2 ends
 // that step in; a slide step on ice refused in frame 0 retries in frame 1; a monster refused both ways on ice in its own turn faces the
 // bounce way (the pre-pass retry keeps its facing)). A stored solution whose press or ice jam timing changed replays differently.
+// Version 23: the wave 26 rules (a block refused on a fixed force floor by another actor or block retries in the next frame (frame 0
+// of the next tic after a main-pass refusal, frame 1 after a frame-0 one) and keeps that frame; turning and random force floors keep
+// the after-pass retry; a block loaded on a fixed force floor first slides in frame 1 of tic 0; a monster refused both ways on ice in a
+// pre-pass frame faces the bounce way, which replaces the version 22 note "the pre-pass retry keeps its facing"). A stored solution
+// whose force-floor block timing changed replays differently.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 
