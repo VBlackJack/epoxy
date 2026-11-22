@@ -195,7 +195,8 @@ export function launchRollingBall(ctx: EpoxyContext, x: number, y: number, dir: 
   // frame-2 drop: the ball and its queued arrivals wait one more tick.
   if (fromDrop && w.cc2ActorOrder !== true && !w.inTick && ball.cooldownTicks > 0 && w.entities.includes(ball)) {
     ball.cooldownTicks += 1;
-    for (const a of w.ccArrivals) if (a.uid === ball.uid) a.due += 1;
+    // A green pad teleport keeps its due: it is timed from the step end, not from the countdown.
+    for (const a of w.ccArrivals) if (a.uid === ball.uid && a.greenPad !== true) a.due += 1;
   }
   // No extra cooldown tick, unlike a monster ejected from a trap (which keeps its +1): the ball is dropped inside the player's
   // frame-2 action, after the pass that counts the actors already down, so on actor order it ends its first step 4 ticks after the drop, not 5

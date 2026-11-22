@@ -962,11 +962,15 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.
-  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}`);
+  // A green pad jump applies at the frame point its step ends in, not in its monster's turn: told apart with that frame.
+  const jumps = w.ccArrivals.filter((a) => a.teleport === true).map((a) => `${a.uid}@${a.due - pass}${a.greenPad === true ? `g${a.cc2EndFrame ?? 1}` : ''}`);
   if (jumps.length > 0) parts.push(`j${jumps.join(',')}`);
   // A clone's press waiting for its step end decides what fires next. Ordinary queued monster presses stay out of the key.
   // An afterPass press (the press of a frame-0 pre-pass monster step) applies at another moment than a plain one, so it is told apart.
-  const presses = w.ccArrivals.filter((a) => a.stepEnd === true || a.afterPass === true).map((a) => `${a.uid}@${a.due - pass}${a.stepEnd === true ? 's' : 'a'}`);
+  // A green press tagged with its end frame applies at that frame's point: it is told apart with the frame.
+  const presses = w.ccArrivals
+    .filter((a) => a.stepEnd === true || a.afterPass === true || (a.cc2EndFrame !== undefined && a.greenPad !== true))
+    .map((a) => `${a.uid}@${a.due - pass}${a.stepEnd === true ? 's' : a.afterPass === true ? 'a' : `t${a.cc2EndFrame}`}`);
   if (presses.length > 0) parts.push(`p${presses.join(',')}`);
   const tools = w.entities.filter((e) => e.heldTools !== undefined && e.heldTools.length > 0).map((e) => `${e.uid}:${(e.heldTools as string[]).join('+')}`);
   if (tools.length > 0) parts.push(`t${tools.join(',')}`);
