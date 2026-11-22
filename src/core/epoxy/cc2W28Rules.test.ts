@@ -341,3 +341,27 @@ describe('CC2 wave 28 (G5): an undo or a restart to tick 0 plays the load blast 
     expect(cc2HiddenStateKey(world(engine))).toBe(first);
   });
 });
+
+describe('CC2 wave 28 (G6): a ball pushed off a full belt keeps the old timing', () => {
+  it('goes through the pad at its step end with no extra count, on a level without actor order', () => {
+    const engine = new GameEngine();
+    engine.loadLevel(
+      room({ mode: 'cc2', startX: 2, items: { [`3,${ROOM_ROW}`]: 'pocket_gate' }, terrain: { [`5,${ROOM_ROW}`]: 'teleport_forward', '9,8': 'teleport_forward' } })
+    );
+    const w = world(engine);
+    w.cc2ActorOrder = undefined;
+    // A full belt, the bowling ball the oldest tool: picking up a fifth tool puts the ball down on the player's cell.
+    w.player.belt = ['hurl_stone', 'boots_fire', 'boots_pull', 'ward'];
+    w.player.keys.hurl_stone = 1;
+    w.player.keys.ward = 1;
+    w.player.boots.add('boots_fire');
+    w.player.boots.add('boots_pull');
+    expect(sample(engine, { 1: 'E' }, [4, 6, 7, 8], (e) => cellOf(e, BALL_TYPE))).toEqual([
+      [5, ROOM_ROW],
+      [5, ROOM_ROW],
+      [9, 8],
+      [10, 8]
+    ]);
+    expect(player(engine)).toEqual([3, ROOM_ROW]);
+  });
+});
