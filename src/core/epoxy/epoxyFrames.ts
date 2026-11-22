@@ -258,7 +258,7 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         block.cc2SlideFrame = frame;
         block.cc2SlideDue = SLIDE_STEP_PRE_PASSES;
       } else if (frame === 0 && frameModelOn(w) && res?.refusedOnForce === true && res.retryDir !== undefined && block.x === x && block.y === y && fixedForceFloor(w, block)) {
-        // Refused on a fixed force floor in frame 0 by an actor: it tries again in frame 1 (refused there, the main pass takes it).
+        // Refused on a fixed force floor in frame 0 by an actor or a block: it tries again in frame 1 (refused there, the main pass takes it).
         block.isSliding = true;
         block.dir = res.retryDir;
         block.cc2SlideFrame = 1;
@@ -643,7 +643,7 @@ export function fixedForceFloor(w: EpoxyWorld, block: RuntimeEntity): boolean {
 
 /**
  * A block loaded on a fixed force floor first slides in frame 1 of tic 0 (Lexy lanes w24_ff_pair_w, w26_ff_fireball, w26_ff_off: t0f1),
- * so the tic-0 pre-pass tags it for frame 1; it keeps that frame. Run once, at the first pre-pass of the level.
+ * so the tic-0 pre-pass tags it for frame 1; it keeps that frame. Run at the pre-pass of tic 0 (clock 0, inside the tick).
  */
 function tagLoadedForceBlocks(w: EpoxyWorld): void {
   if (!frameModelOn(w)) return;

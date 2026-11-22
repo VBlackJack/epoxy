@@ -40,7 +40,7 @@ beforeEach(() => {
   loadTestConfigs();
 });
 
-const SEED = 3;
+const SEED = 0;
 const BALL = 'pink_ball';
 const FORCE_CYCLE = 'force_cycle';
 const WALL = 'wall';
@@ -215,7 +215,10 @@ describe('CC2 wave 26: a turning force floor keeps the after-pass retry', () => 
     const engine = new GameEngine();
     engine.loadLevel(level, SEED);
     const turnBefore = world(engine).forceCycleTurn;
-    play(engine, TURN_TICKS);
+    for (let i = 0; i < TURN_TICKS; i++) {
+      engine.tick();
+      expect(world(engine).forceCycleTurn - turnBefore).toBe(i + 1);
+    }
     expect(world(engine).forceCycleTurn - turnBefore).toBe(TURN_TICKS);
     const onFloor = engine.getEntities().find((e) => e.x === TURN_X && e.y === ROOM_ROW) as RuntimeEntity;
     const east = engine.getEntities().find((e) => e.x === TURN_BLOCK_EAST_X && e.y === ROOM_ROW) as RuntimeEntity;

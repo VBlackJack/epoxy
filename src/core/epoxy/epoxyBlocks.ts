@@ -647,8 +647,9 @@ function settleAheadEarly(ctx: EpoxyContext, x: number, y: number): void {
 
 /**
  * What one block step reports to the entity loop. `refusedOnForce` is set when the block stood on a force floor and its
- * slide was refused: the caller may collect such blocks in a local list and try them once more after the pass (a block
- * behind another one on a force floor follows it in the same tic). It is never stored on the world.
+ * slide was refused: on a fixed force floor under the frame model the caller tags it to retry in the next frame (frame 0 of the next tic,
+ * or frame 1 after a frame-0 refusal); on a turning or random floor, or off the frame model, it collects it in a local list and tries it once
+ * more after the pass. It is never stored on the world.
  */
 export interface BlockStepResult {
   refusedOnForce?: true;

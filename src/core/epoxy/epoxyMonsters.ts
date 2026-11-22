@@ -492,7 +492,7 @@ function runEntityPass(ctx: EpoxyContext): void {
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
-  // CC2 engine: the blocks whose slide was refused on a force floor in this pass (see the retry after the loop).
+  // CC2 engine: the blocks whose slide was refused on a turning or random force floor, or off the frame model, in this pass (see the retry after the loop; a fixed floor on the frame model is tagged in the block loop).
   const refusedOnForce: { block: RuntimeEntity; dir: Direction }[] = [];
   // CC2 engine: the monsters whose step was refused on ice in this pass (see the retry after the loop).
   const refusedOnIce: RuntimeEntity[] = [];
