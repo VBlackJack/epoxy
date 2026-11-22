@@ -66,6 +66,7 @@ import { cloneSignalState, createSignalState, type SignalEdge } from './epoxy/si
 import { applyDueHazardRemovals, updateEntities } from './epoxy/epoxyMonsters';
 import { finishFrameWirePhases, fireDeferredPlayerPress, frameModelOn, resetFrameWorld, runFramePrePass } from './epoxy/epoxyFrames';
 import { usesCc2Engine } from './epoxy/ccRules';
+import { blowUpLoadBombs } from './epoxy/epoxyLoadBombs';
 import { CC2_HORIZONTAL_DIRECTIONS, CC2_MAX_HELD_KEYS, hasOpposingPair, resolveCc2HeldOrder } from './epoxy/cc2HeldInput';
 import {
   CC2_FORCE_ENTRY_MOVE_COOLDOWN_TICKS,
@@ -298,6 +299,7 @@ export class GameEngine {
     }
 
     startLevelWorld(this.ctx, level, seed);
+    blowUpLoadBombs(this.ctx);
     this.ticksElapsed = 0;
     this.stepsCount = 0;
     this.lastLevelScore = 0;
@@ -786,7 +788,7 @@ export class GameEngine {
     } else {
       delete this.w.player.keys[itemId];
     }
-    launchRollingBall(this.ctx, x, y, dir, itemId);
+    launchRollingBall(this.ctx, x, y, dir, itemId, true);
     this.w.beamDirty = true;
     this.w.statusBannerKey = null;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir, drop: itemId });

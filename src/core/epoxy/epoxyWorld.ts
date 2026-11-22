@@ -321,6 +321,12 @@ export interface EpoxyWorld {
   launcherLinks: LauncherLink[];
   /** True while GameEngine.tick() runs: a shot fired then is still to be advanced by the same tick. */
   inTick: boolean;
+  /**
+   * CC2 engine: the uid of the bowling ball whose launch step (set down by a drop) is being played; lets its teleporter jump wait for
+   * the step end although the drop is played outside the tick. Set and cleared inside launchRollingBall; transient, not snapshotted,
+   * not in the hidden key.
+   */
+  cc2BallLaunchUid?: number;
   /** The launchers (by cell key) that already fired in this tick; a launcher fires at most once per tick. Transient. */
   firedLaunchers: Set<string>;
   /** Tick of the player's first step (NO_PLAY_START_TICK until then); only turret levels read it. */

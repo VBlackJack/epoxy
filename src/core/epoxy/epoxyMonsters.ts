@@ -645,7 +645,7 @@ function retryRefusedOnIce(ctx: EpoxyContext, entity: RuntimeEntity, clock: numb
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity)) return true;
+  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity) && !teethLeaveTeleporter(ctx.world, entity)) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -1100,7 +1100,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     }
   }
 
-  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && w.inTick && entity.kind === 'monster' && !destTile.teleportJumpsAtStepStartCc2) {
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && (w.inTick || w.cc2BallLaunchUid === entity.uid) && entity.kind === 'monster' && !destTile.teleportJumpsAtStepStartCc2) {
     // CC2 engine: the monster goes through in its own turn of the pass where its step ends, not when it starts. The green pad
     // (which draws its destination) keeps the jump at the start of the step, as do blocks.
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
@@ -1179,6 +1179,15 @@ function heldToolProtects(entity: RuntimeEntity, tile: TileDefinition): boolean 
  */
 export function slideImmune(w: EpoxyWorld, entity: RuntimeEntity, tile: TileDefinition): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace && tile.slideType !== undefined && heldToolProtects(entity, tile);
+}
+
+/**
+ * CC2 engine (never CC3D pace): teeth that just went through a teleporter take the forced exit step whatever their window: the
+ * teleport schedules a slide (Lexy schedule_actor_slide game.js:2451-2455) that make_actor_decision takes before decide_movement
+ * (game.js:1713-1718), whose pursue_player holds the teeth window.
+ */
+function teethLeaveTeleporter(w: EpoxyWorld, entity: RuntimeEntity): boolean {
+  return usesCc2Engine(w.level) && !w.cc3dPace && entity.teleportExit !== undefined;
 }
 
 /**
