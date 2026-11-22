@@ -30,7 +30,7 @@ const BOMB_SFX = 'bomb';
  * CC2 engine (never CC3D pace): a block or a monster (not a ghost, not a player) standing on a plain bomb when the level starts is
  * blown up before anything moves (Lexy do_actor_idle -> bomb.on_stand at t0f0; the green bomb has no on_stand). A block leaves its
  * blast like a block destroyed by a bomb on arrival; a monster takes the effects of a bomb removal (item cleared, removed, bomb sound).
- * Called right after the level world is built, so a replay or an undo to tick 0 plays it again.
+ * Called right after the level world is built, so a restart or a replay plays it again and every undo snapshot already holds its result.
  */
 export function blowUpLoadBombs(ctx: EpoxyContext): void {
   const w = ctx.world;

@@ -252,11 +252,11 @@ describe('CC2 wave 28 (h6): off the CC2 engine and for the player, nothing chang
 });
 
 describe('CC2 wave 28 (G1): a CC1 level keeps the old teeth gate', () => {
-  it('holds teeth that wait on a destination pad until their window opens', () => {
+  it.each(['cc', 'native'] as const)('holds teeth that wait on a destination pad until their window opens (%s level)', (mode) => {
     const engine = new GameEngine();
-    engine.loadLevel(room({ mode: 'cc', startX: 2, entities: [{ type: TEETH_TYPE, x: 6, y: ROOM_ROW, dir: 'W' }] }));
+    engine.loadLevel(room({ mode, startX: 2, entities: [{ type: TEETH_TYPE, x: 6, y: ROOM_ROW, dir: 'W' }] }));
     play(engine, {}, 5);
-    // A teleporter put the teeth on its pad: they leave east, but the window of the teeth is closed from tick 5 to 8.
+    // The hand-set teleportExit stands in for a real pad: a teleporter put the teeth on its pad, they leave east, but the window of the teeth is closed from tick 5 to 8.
     const teeth = engine.getEntities().find((e) => e.type === TEETH_TYPE) as RuntimeEntity;
     teeth.teleportExit = 'E';
     const x = teeth.x;
@@ -276,7 +276,7 @@ describe('CC2 wave 28 (G2): a ball dropped toward a green pad still jumps when i
 
   function dropOnto(pad: string): GameEngine {
     const engine = new GameEngine();
-    engine.loadLevel(room({ mode: 'cc2', startX: 2, terrain: { [`4,${ROOM_ROW}`]: pad, [`9,${ROOM_ROW}`]: pad, [`6,${ROOM_ROW + 3}`]: pad } }));
+    engine.loadLevel(room({ mode: 'cc2', startX: 2, terrain: { [`3,${ROOM_ROW}`]: pad, [`9,${ROOM_ROW}`]: pad, [`6,${ROOM_ROW + 3}`]: pad } }));
     // No actor order: the drop is played before the tick, outside the tick flag.
     world(engine).cc2ActorOrder = undefined;
     world(engine).player.keys.hurl_stone = 1;
@@ -285,12 +285,15 @@ describe('CC2 wave 28 (G2): a ball dropped toward a green pad still jumps when i
   }
 
   it('lands off the green pad at the arrival, while a blue pad holds the ball until its step ends', () => {
+    // The launch step of the dropped ball enters the pad at (3, ROOM_ROW), so the pad is reached by the launch step itself.
     const green = dropOnto(GREEN_PAD);
-    play(green, {}, 5);
+    play(green, {}, 1);
     expect(cellOf(green, BALL_TYPE)).toEqual([5, 8]);
     const blue = dropOnto(BLUE_PAD);
-    play(blue, {}, 7);
-    expect(cellOf(blue, BALL_TYPE)).toEqual([4, ROOM_ROW]);
+    play(blue, {}, 4);
+    expect(cellOf(blue, BALL_TYPE)).toEqual([3, ROOM_ROW]);
+    play(blue, {}, 5, 4);
+    expect(cellOf(blue, BALL_TYPE)).toEqual([7, 8]);
   });
 });
 
@@ -299,6 +302,7 @@ describe('CC2 wave 28 (G3): the launch flag does not outlive the drop', () => {
     const engine = await load('rbt_yellow_g0_p2_d6');
     expect(world(engine).cc2BallLaunchUid).toBeUndefined();
     play(engine, DROP_AT_6, 7);
+    // The uid scope itself is not observable here: CC2 monster button presses are queued in ccArrivals and fire after the finally.
     expect(world(engine).cc2BallLaunchUid).toBeUndefined();
     expect(cellOf(engine, BALL_TYPE)).toEqual([4, 4]);
   });
@@ -319,10 +323,11 @@ describe('CC2 wave 28 (G4): a blocked forced exit spends the decision, the next 
     ]);
     play(engine, {}, 28, 27);
     expect(cellOf(engine, TEETH_TYPE)).not.toEqual([4, 7]);
+    expect(cellOf(engine, TEETH_TYPE)).toEqual([4, 6]);
   });
 });
 
-describe('CC2 wave 28 (G5): an undo or a restart to tick 0 plays the load blast again', () => {
+describe('CC2 wave 28 (G5): an undo to tick 0 or a restart gives the post-blast world', () => {
   it('gives the same world and hidden state as the first load', async () => {
     const level = await loadCc2Lane('lbo_dirt_block', LANE_PREFIX);
     const engine = new GameEngine();
@@ -343,10 +348,10 @@ describe('CC2 wave 28 (G5): an undo or a restart to tick 0 plays the load blast 
 });
 
 describe('CC2 wave 28 (G6): a ball pushed off a full belt keeps the old timing', () => {
-  it('goes through the pad at its step end with no extra count, on a level without actor order', () => {
+  it('goes through the pad at once from its launch step with no extra count, on a level without actor order', () => {
     const engine = new GameEngine();
     engine.loadLevel(
-      room({ mode: 'cc2', startX: 2, items: { [`3,${ROOM_ROW}`]: 'pocket_gate' }, terrain: { [`5,${ROOM_ROW}`]: 'teleport_forward', '9,8': 'teleport_forward' } })
+      room({ mode: 'cc2', startX: 2, items: { [`3,${ROOM_ROW}`]: 'pocket_gate' }, terrain: { [`4,${ROOM_ROW}`]: 'teleport_forward', '9,8': 'teleport_forward' } })
     );
     const w = world(engine);
     w.cc2ActorOrder = undefined;
@@ -356,11 +361,13 @@ describe('CC2 wave 28 (G6): a ball pushed off a full belt keeps the old timing',
     w.player.keys.ward = 1;
     w.player.boots.add('boots_fire');
     w.player.boots.add('boots_pull');
-    expect(sample(engine, { 1: 'E' }, [4, 6, 7, 8], (e) => cellOf(e, BALL_TYPE))).toEqual([
-      [5, ROOM_ROW],
-      [5, ROOM_ROW],
-      [9, 8],
-      [10, 8]
+    // The pickup is played before the tick, outside the tick flag, and the launch step enters the pad at (4, ROOM_ROW): the ball goes through
+    // at once, with no deferral to the step end (that is for a ball set down by a drop) and no extra count (it leaves (10, 8) at tick 4).
+    expect(sample(engine, { 1: 'E' }, [1, 3, 4, 7], (e) => cellOf(e, BALL_TYPE))).toEqual([
+      [10, 8],
+      [10, 8],
+      [11, 8],
+      [11, 8]
     ]);
     expect(player(engine)).toEqual([3, ROOM_ROW]);
   });
