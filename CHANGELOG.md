@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.40.0] - 2026-11-23
+
 ### Changed
 
 - On CC2 imports, a monster whose slide on ice is refused (a wall, a block or another monster in the way) now tries again at the start of the next tick, as in CC2, instead of once more right after the other monsters have moved. A line of balls jammed on ice now follows the front one a tick later, at CC2's moment. A fireball that melts an ice block in its way still bounces off at once, as in CC2. CC1 .DAT imports, native levels and CC3D levels are unchanged; CC1 Steam .c2m levels follow the same CC2 rules. Official replays won on Epoxy stay at 200 of 200 for CC2 and 147 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
