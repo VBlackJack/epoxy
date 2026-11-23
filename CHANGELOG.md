@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.41.0] - 2026-11-24
+
 ### Changed
 
 - On CC2 imports, a flame jet that lights no longer burns what stands on real fire, as in CC2. A block pushed onto a teleporter now stays on it until its step ends and then goes through, as in CC2, instead of jumping at once; an unpowered red teleporter is unchanged. A monster that starts the level on ice now decides its way as CC2 does, turning first on an ice corner. A yellow button pressed by a fireball and then by the player now keeps CC2's order for the yellow tanks, a yellow tank entering ice keeps CC2's speed, and a monster let out of a trap presses buttons at CC2's moment. CC1 .DAT imports, native levels and CC3D levels are unchanged. Official replays won stay at 200 of 200 for CC2 and 149 of 149 for CC1 Steam .c2m, and 5 more official replays now play move for move as in CC2. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept).
