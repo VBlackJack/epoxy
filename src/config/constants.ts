@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 27;
+export const CC2_RULES_VERSION = 28;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -577,6 +577,12 @@ export const CC2_RULES_VERSION = 27;
 // its step ends, after a press made in between; a monster released from a trap presses when its step ends). A stored solution that
 // pushes a block onto a teleporter, lights a flame jet beside real fire, steers a yellow tank onto ice or starts with a monster on
 // ice replays differently.
+// Version 28: the wave 31 rules (a player holding two keys does not take a way an actor held when he decided; a mirror does not copy
+// the release of the player from a trap; a block presses a brown button when its step ends and the trap ejects what it holds at once,
+// the player and a teeth out of their phase included; a bomb under a brown button keeps the press; a fireball retries after the pass
+// only when its bump melted ice). A stored solution that holds two keys beside a monster, has a mirror beside a trap or pushes a block
+// onto a brown button replays differently. CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for
+// every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../config/ConfigRegistry';
 import { cellEdgeMask } from './EdgeRules';
 import { AudioManager } from '../audio/AudioManager';
-import { FORCE_CYCLE_ORDER } from '../config/constants';
+import { DIRECTION_VECTORS, FORCE_CYCLE_ORDER } from '../config/constants';
 import {
   BLOCK_TARGET_TILE_ID,
   BRIBE_ITEM_ID,
@@ -253,7 +253,12 @@ export class GameEngine {
       teleportEntity: (entity, fromX, fromY, dir, landOnPad) => teleportEntity(this.ctx, entity, fromX, fromY, dir, landOnPad),
       // Wave 9 hooks of the actor order: the entity pass calls them at the player's place in the actor list.
       cc2PlayerDecides: () => this.playActorDecision(),
-      cc2PlayerActs: () => this.playActorTurn()
+      cc2PlayerActs: () => this.playActorTurn(),
+      // Wave 31: a trap that opens under the controlled player ejects him through his forced out-of-turn step, facing as he does.
+      cc2ReleaseTrappedPlayer: () => {
+        delete this.w.player.trapShutAtTurn;
+        this.playForcedStep(this.w.player.dir);
+      }
     };
   }
 
@@ -1532,6 +1537,46 @@ export class GameEngine {
     const before = this.blockLayout();
     decisionPush(this.ctx, keys.length === 1 ? keys : resolveCc2HeldOrder(keys, this.w.player.dir), moving);
     if (this.blockLayout() !== before) tick.decisionMovedBlock = true;
+    this.recordKeysBlockedAtDecision(stored, keys);
+  }
+
+  /**
+   * CC2 engine, actor order, wave 31: a held pair whose key cell an actor holds at the player's decision (after his early push) has that
+   * key blocked for the decision. Lexy decides every actor before any moves (game.js:960-1030, make_player_decision:1630-1660), so a
+   * monster, a block or a parked player in the cell blocks the key even if it has left by the time the player's turn comes. The blocked
+   * keys ride on the stored decision for the turn of this tick; a player who cannot decide (waiting out a step, sliding, leaving a
+   * teleporter, in a closed trap) records none.
+   */
+  private recordKeysBlockedAtDecision(stored: Cc2PendingDecision, keys: readonly Direction[]): void {
+    const w = this.w;
+    if (keys.length !== 2 || !usesCc2Engine(w.level) || w.cc3dPace) return;
+    const p = w.player;
+    const free = p.alive && p.moveCooldown === 0 && !p.isSliding && p.teleportExit === undefined && !isCellClosedTrap(w, p.x, p.y);
+    if (!free) return;
+    const blocked = keys.filter((d) => {
+      const v = DIRECTION_VECTORS[d];
+      const x = p.x + v.dx;
+      const y = p.y + v.dy;
+      return w.entities.some((e) => e.x === x && e.y === y) || w.parked.some((o) => o.x === x && o.y === y);
+    });
+    stored.blockedAtDecision = blocked;
+  }
+
+  /**
+   * CC2 engine, wave 31: the order a held pair is tried in once an actor blocked a key at the decision. One key blocked: the free key,
+   * then the horizontal key when the blocked one is it. A both-blocked pair keeps the order: no lane tells Lexy's
+   * horizontal-only choice apart from it.
+   */
+  private orderWithBlockedKeys(order: Direction[], keys: readonly Direction[], blocked: readonly Direction[] | undefined): Direction[] {
+    if (blocked === undefined || blocked.length === 0 || this.bothKeysBlocked(keys, blocked)) return order;
+    const horizontal = keys.find((d) => CC2_HORIZONTAL_DIRECTIONS.includes(d)) ?? order[0];
+    const free = keys.filter((d) => !blocked.includes(d));
+    return free[0] === horizontal ? [free[0]] : [free[0], horizontal];
+  }
+
+  /** Whether every key of the held pair was blocked by an actor at the decision. */
+  private bothKeysBlocked(keys: readonly Direction[], blocked: readonly Direction[]): boolean {
+    return keys.every((d) => blocked.includes(d));
   }
 
   /**
@@ -1653,7 +1698,7 @@ export class GameEngine {
         else acted = this.cycleInventory() || acted;
       }
       if (stored.dirs.length > 0) {
-        moved = stored.held ? this.attemptPlayerMoveHeld(stored.dirs) : this.attemptPlayerMove(stored.dirs[0]);
+        moved = stored.held ? this.attemptPlayerMoveHeld(stored.dirs, stored.blockedAtDecision) : this.attemptPlayerMove(stored.dirs[0]);
         this.lastPlayerTurn = { dir: w.player.dir, moved };
       }
     } finally {
@@ -1700,9 +1745,12 @@ export class GameEngine {
     const inTick = w.inTick;
     this.playingStored = true;
     w.inTick = false;
+    // CC2 engine, wave 31: the forced step is no decision, so a mirror does not copy it (read by steerMirrorsOnce).
+    w.cc2ForcedStep = true;
     try {
       this.attemptPlayerMove(dir);
     } finally {
+      delete w.cc2ForcedStep;
       this.playingStored = false;
       w.inTick = inTick;
       this.stepsCount = steps;
@@ -1780,9 +1828,10 @@ export class GameEngine {
    * one key) this is attemptPlayerMove(dirs[0]). On a CC2-engine level, an opposing pair or more than two keys are
    * ignored; with two orthogonal keys the player first slaps (pushes) the blocks beside him toward both, then steps
    * toward the key matching his facing (else the horizontal one) and falls back to the other when that is blocked. The
-   * mirror players follow the decision once. The two keys are one undo step and one recorded move ({dir, alt}).
+   * mirror players follow the decision once. The two keys are one undo step and one recorded move ({dir, alt}). `blockedAtDecision`
+   * (CC2 engine, actor order: the keys an actor held when the player decided, from his stored decision) changes the order of the pair.
    */
-  public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
+  public attemptPlayerMoveHeld(dirs: readonly Direction[], blockedAtDecision?: readonly Direction[]): boolean {
     if (dirs.length === 0) return false;
     if (this.defersInput()) return this.deferMove(dirs, true);
     if (!this.beginInput()) return false;
@@ -1801,7 +1850,7 @@ export class GameEngine {
     if (this.w.ccRules && player.forcePermission !== true && isCarriedByForceFloor(this.w, ConfigRegistry.getTile(this.w.terrain[player.y][player.x]))) {
       return false;
     }
-    const order = resolveCc2HeldOrder(keys, player.dir);
+    const order = this.orderWithBlockedKeys(resolveCc2HeldOrder(keys, player.dir), keys, blockedAtDecision);
     // A player in a closed trap only turns: the first key of the order decides, as one key would.
     if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
 

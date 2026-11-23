@@ -2252,6 +2252,12 @@ export interface Cc2PendingDecision {
   held: boolean;
   tick: number;
   actions?: Cc2PendingAction[];
+  /**
+   * CC2 engine, wave 31: the keys of a held pair whose cell an actor held when the player decided (after his early push), set at the
+   * player's decision and read once by his turn of the same tick. Not expected to reach a snapshot (cleared at the player's turn);
+   * copied defensively.
+   */
+  blockedAtDecision?: Direction[];
 }
 
 /** A monster's button press waiting to take effect on a classic-rules level (see ccArrivals in the world). */

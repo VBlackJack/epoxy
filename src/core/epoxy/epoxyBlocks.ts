@@ -29,11 +29,13 @@ import { enterSwivel, leaveSwivel } from './epoxySwivels';
 import { getTurretDef, turnsOnPush } from './epoxyTurrets';
 import { shieldedFromContact, shieldedPlayerAt } from './epoxyWard';
 import { frameModelOn, steppingFrame, tagPushedBlock } from './epoxyFrames';
+import { ejectFromTrap } from './epoxyPlayer';
 import {
   EpoxyContext,
   EpoxyWorld,
   consumeFishGate,
   getEntityAt,
+  isButtonPressed,
   isCellClosedTrap,
   isEdgeBlocked,
   isInBounds,
@@ -519,6 +521,13 @@ export function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir:
     if (usesCc2Engine(w.level) && !w.cc3dPace && tile.buttonAction && tile.buttonWorkedBy !== 'player') {
       ctx.triggerButton(destX, destY, tile.buttonAction);
     }
+    // Wave 31: a brown button keeps the press of the destroyed block for good (no departure) and the traps it opens eject (Lexy
+    // button_brown on_arrive still runs after the bomb killed the block).
+    if (tile.buttonAction === 'hold_trap' && usesCc2Engine(w.level) && !w.cc3dPace) {
+      const cell = destY * mapWidth(w) + destX;
+      if (!(w.cc2ToggledButtonCells ?? []).includes(cell)) w.cc2ToggledButtonCells = [...(w.cc2ToggledButtonCells ?? []), cell];
+      ejectTrapsOfButton(ctx, destX, destY);
+    }
     return;
   }
 
@@ -593,6 +602,11 @@ export function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir:
   // A button worked by the player alone (a steering pad) does nothing when a block slides onto it.
   if (tile.buttonAction && tile.buttonWorkedBy !== 'player') {
     ctx.triggerButton(destX, destY, tile.buttonAction);
+    if (!w.player.alive) return;
+  }
+  // Wave 31: the brown press of the arrival ejects what the traps it opens hold, out of turn (Lexy trap add_press, tiletypes.js:1764-1779).
+  if (tile.buttonAction === 'hold_trap' && usesCc2Engine(w.level) && !w.cc3dPace) {
+    ejectTrapsOfButton(ctx, destX, destY);
     if (!w.player.alive) return;
   }
 
@@ -792,4 +806,20 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
   // Only a cell held by another actor or block can free up in the next frame; a wall never does.
   const heldByActor = ahead !== undefined || playerAtCell(w, nx, ny) !== undefined;
   return heldByActor ? { refusedOnForce: true, retryDir: slideDir } : BLOCK_STEP_REFUSED_ON_FORCE;
+}
+
+/**
+ * CC2 engine, wave 31: the traps a brown press at (buttonX, buttonY) opens eject what they hold, out of turn. A trap another linked
+ * button still holds, or one that reads closed, ejects nothing. The extra cooldown tick of an ejected monster applies inside the tick
+ * only when the arrival settled in the frame pre-pass.
+ */
+function ejectTrapsOfButton(ctx: EpoxyContext, buttonX: number, buttonY: number): void {
+  const w = ctx.world;
+  const extraTick = w.cc2SettleFrame !== undefined || w.cc2PrePassStepping === true;
+  for (const l of w.trapLinks) {
+    if (l.buttonX !== buttonX || l.buttonY !== buttonY) continue;
+    if (w.trapLinks.some((o) => o.trapX === l.trapX && o.trapY === l.trapY && (o.buttonX !== buttonX || o.buttonY !== buttonY) && isButtonPressed(w, o.buttonX, o.buttonY))) continue;
+    if (isCellClosedTrap(w, l.trapX, l.trapY)) continue;
+    ejectFromTrap(ctx, l.trapX, l.trapY, { extraTick });
+  }
 }
