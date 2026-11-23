@@ -197,6 +197,7 @@ export function copyEntity(e: RuntimeEntity): RuntimeEntity {
   const copy = { ...e };
   if (e.heldTools !== undefined) copy.heldTools = [...e.heldTools];
   if (e.heldKeys !== undefined) copy.heldKeys = [...e.heldKeys];
+  if (e.cc2SteerQueue !== undefined) copy.cc2SteerQueue = e.cc2SteerQueue.map((press) => ({ ...press }));
   return copy;
 }
 

@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 26;
+export const CC2_RULES_VERSION = 27;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -571,6 +571,12 @@ export const CC2_RULES_VERSION = 26;
 // order and before the player's frame step, and a failed jump spends the next decision; a ghost is barred by a no-sign over a tool it
 // holds and bonks round at once on ice unless it holds cleats; a clone released by a pass-start press ends its step in frame 0). A
 // stored solution with monsters on green buttons or green teleporters, or ghosts on ice, replays differently.
+// Version 27: the wave 30 rules (a flame jet that lights spares what stands on real fire; a block entering a teleporter goes through
+// when its step ends and takes its exit step; a yellow tank steps onto ice or a force floor at the sliding pace; a monster loaded on
+// ice decides with its whole preference list and, boxed in, bonks and slides; a yellow press made by a monster or a block lands when
+// its step ends, after a press made in between; a monster released from a trap presses when its step ends). A stored solution that
+// pushes a block onto a teleporter, lights a flame jet beside real fire, steers a yellow tank onto ice or starts with a monster on
+// ice replays differently.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.
 

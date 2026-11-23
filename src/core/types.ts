@@ -1343,7 +1343,8 @@ export interface TileDefinition {
   isTeleporter?: boolean;
   /**
    * CC2 only: the green pad: a monster or bowling ball on it goes through at the Lexy frame its step ends in (CcArrival.greenPad), and a failed
-   * jump spends its next decision; blocks jump at the step start on every pad.
+   * jump spends its next decision. Blocks have no user of this flag on the CC2 engine any more (they go through when their step ends on
+   * every pad); it is still read by the CC3D pace.
    */
   teleportJumpsAtStepStartCc2?: boolean;
   /** CC2 engine only: a teleporter whose exit the player may decide himself at his next decision (the red and yellow pads); the plain pads force the exit. */
@@ -2425,6 +2426,12 @@ export interface RuntimeEntity {
   pendingSteer?: Direction;
   /** A steered tank of a CC2-engine level: the first entity pass at which `pendingSteer` may be taken; absent with no pending steer or when it may be taken at once. */
   pendingSteerDue?: number;
+  /**
+   * A steered tank of a CC2-engine level: the yellow-button presses made by a monster or a block whose step ends at a later entity
+   * pass, in due order (`due` is the entity pass the press lands at). A press whose due is reached becomes `pendingSteer`; a press with
+   * no due (the player's) sets `pendingSteer` at once and does not touch the queue. Absent when none waits.
+   */
+  cc2SteerQueue?: { dir: Direction; due: number }[];
   /** CC2-engine level only: the entity still stands on the cell it was loaded on and has made no decision elsewhere; set at load, cleared on its first decision away from that cell. Absent otherwise. */
   atLoadCell?: true;
   /**

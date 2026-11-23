@@ -146,9 +146,10 @@ const CC2_PUSH_STEP_TICKS = 4;
 const CC2_BLOCK_YELLOW_BUTTON_EARLY_PASSES = 1;
 
 /** Whether a block may take part in a push toward a direction (its own rules, not the cell ahead). */
-function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction): boolean {
-  // A CC3D block still finishing its step is refused (Cc3dSimulation planPush: a block in motion cannot be pushed).
-  if (block.arrivalTicks !== undefined) return false;
+function canBeShoved(w: EpoxyWorld, block: RuntimeEntity, dir: Direction, arrivalEndsFirst = false): boolean {
+  // A CC3D block still finishing its step is refused (Cc3dSimulation planPush: a block in motion cannot be pushed), unless its
+  // arrival ends before the push is judged (`arrivalEndsFirst`, the caller's compensation: see exitHeldByPushableBlock).
+  if (block.arrivalTicks !== undefined && !arrivalEndsFirst) return false;
   // CC2 engine: a clone machine holds the actor on it, only its release lets it out (Lexy cloner traps; tiletypes.js:1700-1702).
   if (usesCc2Engine(w.level) && !w.cc3dPace && ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).isCloneMachine === true) return false;
   return !isCellClosedTrap(w, block.x, block.y) && isPushAllowed(block, dir);
@@ -224,10 +225,11 @@ export function canPushBlock(
   block: RuntimeEntity,
   requestedDir: Direction,
   allowChain = true,
-  guardPlayerCell = false
+  guardPlayerCell = false,
+  arrivalEndsFirst = false
 ): boolean {
   const dir = railRedirect(w, block.x, block.y, requestedDir, 'block');
-  return canBeShoved(w, block, shoveJudgedDir(w, requestedDir, dir)) && planPushLine(w, block, dir, allowChain, guardPlayerCell) !== undefined;
+  return canBeShoved(w, block, shoveJudgedDir(w, requestedDir, dir), arrivalEndsFirst) && planPushLine(w, block, dir, allowChain, guardPlayerCell) !== undefined;
 }
 
 export function attemptPushBlock(
@@ -328,17 +330,22 @@ function turnFacingWithTrack(facing: Direction, from: Direction, to: Direction):
 
 /**
  * Whether the step of a block the player pushes ends later than the push: a CC3D block (Cc3dSimulation.startStep gives it
- * the player's four ticks) or a block of a CC2-engine level onto a cell that is not ice, a force floor or a teleporter,
- * which it enters at the fast pace and which act on it at once here.
+ * the player's four ticks) or a block of a CC2-engine level onto a cell that is not ice or a force floor (a teleporter
+ * included: the block goes through when its step ends), which are the cells it enters at the fast pace.
  */
 function defersArrival(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number): boolean {
   if (!usesCc2Engine(w.level) && ConfigRegistry.getEntityDef(block.type)?.stopsAtWall !== true) return false;
   return arrivesAtStepEnd(w, destX, destY);
 }
 
-/** Whether a block that reaches this cell takes a whole step to do so: not onto ice, a force floor or a teleporter, which act at once. */
-function arrivesAtStepEnd(w: EpoxyWorld, x: number, y: number): boolean {
+/**
+ * Whether a block that reaches this cell takes a whole step to do so: not onto ice or a force floor, which act at once. On the CC2
+ * engine a teleporter is a step-end cell too (Lexy on_arrive, game.js 2177-2194: only ice and force floors shorten a step): the block
+ * teleports when the step ends. The unpowered red pad (teleportsToSelf) keeps the old timing, and so does every other engine.
+ */
+export function arrivesAtStepEnd(w: EpoxyWorld, x: number, y: number): boolean {
   const tile = ConfigRegistry.getTile(w.terrain[y][x]);
+  if (usesCc2Engine(w.level) && !w.cc3dPace) return tile.slideType === undefined && tile.teleportsToSelf !== true;
   return tile.slideType === undefined && tile.isTeleporter !== true && tile.teleportsToSelf !== true;
 }
 

@@ -453,6 +453,9 @@ function burnEntitiesOnFire(ctx: EpoxyContext): void {
   for (const entity of [...w.entities]) {
     const tile = ConfigRegistry.getTile(w.terrain[entity.y][entity.x]);
     if (tile.hazard !== 'fire') continue;
+    // CC2 engine: a jet that lights kills nothing standing on real fire (Lexy flame_jet_off.activate, tiletypes.js 2146-2150); real
+    // fire acts on the entity when its step ends, as it does for the player (realFireSpares).
+    if (realFireSpares(w, tile)) continue;
     const def = ConfigRegistry.getEntityDef(entity.type);
     if (entity.kind === 'block') {
       if (!def?.destroyedByFire) continue;

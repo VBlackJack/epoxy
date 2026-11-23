@@ -93,7 +93,13 @@ function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
   w.ccPlans.set(e.uid, e.dir);
   const fromX = e.x;
   const fromY = e.y;
-  stepClassicMonsterOutOfTurn(ctx, e);
+  // The step's button press is queued to its step end (queuesButtonPress reads the flag), as for any monster step.
+  w.cc2TrapEject = true;
+  try {
+    stepClassicMonsterOutOfTurn(ctx, e);
+  } finally {
+    delete w.cc2TrapEject;
+  }
   w.ccPlans.delete(e.uid);
   if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks += TRAP_EJECT_EXTRA_COOLDOWN_TICKS;
 }

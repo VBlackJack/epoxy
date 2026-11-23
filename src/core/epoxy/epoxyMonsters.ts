@@ -373,6 +373,7 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
     if (removedDuringPass(entity)) continue;
     if (isCc2YellowTank(w, entity)) {
+      promoteSteerQueue(entity, clock);
       if (!planYellowTankCarried(w, entity)) planYellowTank(w, entity, clock);
       continue;
     }
@@ -422,6 +423,25 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
             if (bounce !== null) entity.dir = bounce;
             plan = null;
           }
+        }
+      } else if (iceHere.slideType === 'ice' && entity.atLoadCell === true && !w.cc3dPace) {
+        // A monster loaded on ice decides normally (Lexy ice has no on_ready). The ice corner has already turned its facing in the
+        // frames before the decision (corner on_stand), blocked or not; then its whole preference list is tried in order and, every way
+        // refused, the last preference is tried anyway (make_actor_decision, game.js 1752-1772). A refused try bonks at the move and the
+        // monster slides from then on.
+        const order = def?.turnOrder;
+        if (order !== undefined && order.length > 1 && LOAD_CELL_ICE_PATTERNS.has(def?.movementPattern ?? '')) {
+          const turned = iceHere.deflectionMap?.[entity.dir];
+          if (turned !== undefined) entity.dir = turned as Direction;
+          let chosen: Direction | null = null;
+          for (const turn of order) {
+            const way = applyRelativeTurn(entity.dir, turn);
+            if (canStep(w, entity, way)) {
+              chosen = way;
+              break;
+            }
+          }
+          plan = chosen ?? applyRelativeTurn(entity.dir, order[order.length - 1]);
         }
       }
     }
@@ -477,6 +497,23 @@ const YELLOW_BUTTON_EARLY_PASSES = 1;
 const HAZARD_REMOVAL_MARGIN_PASSES = 2;
 
 /**
+ * CC2 engine: the queued yellow presses of a tank whose step has ended (due reached) become its pending steer, in step-end order. The
+ * only reader of `cc2SteerQueue`: a press made in between (the player's) sets the pending steer at once and is overridden by a later
+ * queued press when that one lands (Lexy button_yellow on_arrive at the step end, tiletypes.js 2241-2250).
+ */
+function promoteSteerQueue(tank: RuntimeEntity, clock: number): void {
+  const queue = tank.cc2SteerQueue;
+  if (queue === undefined) return;
+  while (queue.length > 0 && queue[0].due <= clock) {
+    const press = queue.shift();
+    if (press === undefined) break;
+    tank.pendingSteer = press.dir;
+    delete tank.pendingSteerDue;
+  }
+  if (queue.length === 0) delete tank.cc2SteerQueue;
+}
+
+/**
  * CC2 engine, a yellow tank at its decision: it takes the pending way a button arrival set, once that arrival's step has
  * ended. The way is judged now, so a tank blocked then only turns (Lexy tank_yellow decides [way, null]).
  */
@@ -496,6 +533,9 @@ function planYellowTank(w: EpoxyWorld, tank: RuntimeEntity, clock: number): void
   tank.dir = pending;
   w.ccPlans.set(tank.uid, canStep(w, tank, pending) ? pending : null);
 }
+
+/** The turning patterns whose decision a monster loaded on ice takes with its whole preference list (CC2 engine). */
+const LOAD_CELL_ICE_PATTERNS: ReadonlySet<string> = new Set(['left_wall', 'right_wall', 'left_skew', 'right_skew', 'bounce']);
 
 /** CC2 engine: the way a monster on ice goes when its planned step `plan` is refused (turned round, then deflected by the ice corner); null elsewhere. */
 function iceBounceDirection(w: EpoxyWorld, entity: RuntimeEntity, def: EntityDefinition | undefined, plan: Direction): Direction | null {
@@ -601,6 +641,16 @@ function runEntityPass(ctx: EpoxyContext): void {
     const classic = w.ccRules && followsCcCadence(entity.type, usesCc2Engine(w.level));
     if (!(classic ? stepClassicMonster(ctx, entity, clock) : stepMonster(ctx, entity))) return;
     if (wasReady && classic && refusedOnIcePass(w, entity, fromX, fromY)) refusedOnIce.push(entity);
+    // A yellow tank takes its step time from the destination, as every CC2 actor (Lexy attempt_step, game.js 2177-2194): onto ice or a
+    // force floor it is not immune to, the step is the sliding one.
+    if (
+      !classic && wasReady && usesCc2Engine(w.level) && !w.cc3dPace
+      && ConfigRegistry.getEntityDef(entity.type)?.steeredBy === STEER_MONSTERS_ACTION
+      && (entity.x !== fromX || entity.y !== fromY) && w.entities.includes(entity) && entity.cooldownTicks > 0
+      && entersSlide(w, entity, entity.x, entity.y)
+    ) {
+      entity.cooldownTicks = cc2EntryStepTicks(w, entity, entity.x, entity.y) - 1;
+    }
     // CC2 engine: a move of the main pass ends the frame a monster's slide kept in the pre-pass.
     if (entity.cc2SlideFrame !== undefined && (entity.x !== fromX || entity.y !== fromY)) delete entity.cc2SlideFrame;
     // The first step away from the load cell forgets it on every step path (a yellow tank steps through stepMonster).
@@ -876,7 +926,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
       chosenDir = null;
       if (plan !== null) entity.dir = plan;
       // Refused both ways on ice: Lexy's bonk has turned the monster to the bounce way (game.js:1192-1207, _possibly_bonk).
-      if (bounce !== null && usesCc2Engine(w.level) && !w.cc3dPace) entity.dir = bounce;
+      if (bounce !== null && usesCc2Engine(w.level) && !w.cc3dPace) {
+        entity.dir = bounce;
+        // The bonk ran the ice corner's on_arrive: the monster slides from now on (its load cell is an ordinary slide).
+        delete entity.atLoadCell;
+      }
       // A rolling ball whose step is refused when it is tried blows up as at its decision (what moved in is killed).
       if (plan !== null && isRollingBallDef(def)) {
         if (!checkBallWay(ctx, entity, plan)) return false;
@@ -1378,6 +1432,9 @@ function queuesButtonPress(w: EpoxyWorld, entity: RuntimeEntity, action: ButtonA
   if (w.cc3dPace) return w.inTick && action !== 'hold_trap' && action !== 'reverse_tanks';
   // CC2 engine: a mirror player has its own cadence and presses when its step ends, like the monsters.
   if (usesCc2Engine(w.level) && w.inTick && ConfigRegistry.getEntityDef(entity.type)?.mirrorsCharacter !== undefined) return true;
+  // CC2 engine: a monster a trap ejects out of turn presses when its step ends, whatever the phase that opened the trap (Lexy
+  // attempt_out_of_turn_step then on_arrive at the step end; map070 t941 / t945).
+  if (usesCc2Engine(w.level) && w.cc2TrapEject === true && followsCcCadence(entity.type, true)) return true;
   return w.ccRules && w.inTick && followsCcCadence(entity.type, usesCc2Engine(w.level));
 }
 

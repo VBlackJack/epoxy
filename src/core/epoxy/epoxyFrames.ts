@@ -51,7 +51,7 @@ import { EpoxyContext, EpoxyWorld } from './epoxyWorld';
 /** Lexy frames per tic. */
 const FRAMES_PER_TICK = 3;
 /** Frames of a step onto a cell that is not a slide (Lexy walk cooldown, game.js:2218-2242). */
-const PLAIN_STEP_FRAMES = 12;
+export const PLAIN_STEP_FRAMES = 12;
 /** Frames of a step onto ice or a force floor. */
 const SLIDE_STEP_FRAMES = 6;
 /** The frame of the decisions: the main pass. */
@@ -161,10 +161,13 @@ function settleFrameArrival(ctx: EpoxyContext, block: RuntimeEntity, frame: 0 | 
   delete block.arrivalTicks;
   // The press frame reaches a clone it releases; this is not a press before a pass that counts the clone down at once.
   w.cc2ReleaseFrame = frame;
+  // The frame the arrival ends in, for a teleport it runs (the exit step is timed from it; never read from cc2ReleaseFrame).
+  w.cc2SettleFrame = frame;
   try {
     settleBlockArrival(ctx, block, block.dir, true);
   } finally {
     delete w.cc2ReleaseFrame;
+    delete w.cc2SettleFrame;
   }
   if (w.entities.includes(block)) block.cc2PrePassMoved = true;
   w.cc2PrePassArrived = true;

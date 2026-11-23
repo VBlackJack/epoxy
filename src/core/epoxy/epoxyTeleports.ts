@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { arrivesAtStepEnd } from './epoxyBlocks';
+import { holdFrameArrival, PLAIN_STEP_FRAMES } from './epoxyFrames';
 import { playerRailActor } from './epoxyRailsCc2';
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
@@ -257,6 +259,15 @@ function teleportersLinkedTo(w: EpoxyWorld, x: number, y: number): GridPoint[] {
 function exitHeldByPushableBlock(w: EpoxyWorld, exitX: number, exitY: number, dir: Direction, landOnPad: boolean): boolean {
   if (!landOnPad || !usesCc2Engine(w.level)) return false;
   const held = getEntityAt(w, exitX, exitY);
+  // A compensation for Epoxy's early frame-1 landing: Epoxy plays the player's frame-1 step end at the end of the previous tick, before
+  // the coming pre-pass, while Lexy plays it after the frame-0 arrivals (and, in frame 1, after the blocks listed after the player). A
+  // block whose held arrival ends in frame 0 of that pre-pass, or in frame 1 listed after the player, has therefore ended its step in
+  // Lexy before the landing (map095: the block arrives at t132f0, the player lands at t132f1 and pushes it), so it is judged as at rest.
+  const endsBeforeLanding = (frame: 0 | 1 | 2 | undefined, ordinal: number | undefined): boolean =>
+    frame === 0 || (frame === 1 && (w.player.listOrdinal === undefined || (ordinal ?? Number.MAX_SAFE_INTEGER) > w.player.listOrdinal));
+  if (held?.kind === 'block' && held.cc2ArrivalWait === 1 && endsBeforeLanding(held.cc2ArrivalFrame, held.listOrdinal) && !w.cc3dPace) {
+    return canPushBlock(w, held, dir, true, false, true);
+  }
   return held?.kind === 'block' && canPushBlock(w, held, dir);
 }
 
@@ -395,8 +406,17 @@ export function teleportEntity(
       entity.y = exitY;
       entity.dir = exitDir;
       if (entity.kind === 'block') {
-        // Already standing on the exit cell: resolves the arrival without another jump.
-        moveBlockTo(ctx, entity, exitX, exitY, exitDir, false);
+        // Already standing on the exit cell: resolves the arrival without another jump. On the CC2 engine the exit is a step of its
+        // own out of the pad: the exit cell acts on the block when that step ends.
+        const exitStep = usesCc2Engine(w.level) && !w.cc3dPace;
+        moveBlockTo(ctx, entity, exitX, exitY, exitDir, false, exitStep && arrivesAtStepEnd(w, exitX, exitY));
+        // The exit step starts in the frame after the teleport and lasts 12 frames (Lexy: teleport t128f0, arrival t132f0). The frame
+        // comes from the pre-pass state: the frame a held arrival settled in, the frame of a pre-pass slide step, else the main pass
+        // (frame 2). Inside the pre-pass the wait is not counted again.
+        if (exitStep && entity.arrivalTicks !== undefined) {
+          const frame = w.cc2SettleFrame ?? (w.cc2PrePassStepping === true ? w.cc2PrePassFrame : undefined);
+          holdFrameArrival(w, entity, (frame ?? 2) + PLAIN_STEP_FRAMES, frame === undefined);
+        }
       }
       return true;
     }
