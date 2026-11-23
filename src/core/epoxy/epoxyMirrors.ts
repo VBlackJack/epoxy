@@ -162,6 +162,11 @@ export function rememberExitStep(w: EpoxyWorld, dir: Direction, leaver: PlayerSt
   move.exitStep = { character: leaver.character ?? w.level.character ?? DEFAULT_PLAYER_CHARACTER, ...(leaver.listOrdinal !== undefined ? { ordinal: leaver.listOrdinal } : {}), ticks };
 }
 
+/** A swap whose new controller is free to decide and is listed before the leaver, so he decides after the leaver in Lexy's reverse pass. */
+function newControllerDecidesAfterLeaver(swap: NonNullable<EpoxyWorld['mirrorMove']>['swap'] | undefined): boolean {
+  return swap?.newFree === true && swap.newOrdinal !== undefined && swap.ordinal !== undefined && swap.newOrdinal < swap.ordinal;
+}
+
 /**
  * CC2 engine, end of a tick: a player at rest who decided nothing, or whose step just ended, leaves no move to copy; what is
  * left is what a mirror reads in the next tick.
@@ -173,7 +178,7 @@ export function endCc2MirrorTick(w: EpoxyWorld): void {
   if (!move.attempted && playerIsFreeToDecide(w) && move.exitStep === undefined) move.remembered = null;
   // A new controller listed before the leaver decides after him in Lexy's pass: his null decision wipes the leaver's slide.
   const swap = move.swap;
-  if (swap?.newFree === true && swap.newOrdinal !== undefined && swap.ordinal !== undefined && swap.newOrdinal < swap.ordinal) move.remembered = null;
+  if (newControllerDecidesAfterLeaver(swap)) move.remembered = null;
   move.snapshot = move.remembered;
   move.attempted = false;
   delete move.swap;
@@ -437,7 +442,7 @@ function decidedMoveFor(w: EpoxyWorld, entity: RuntimeEntity): Direction | null 
   const listedBeforePlayer = entity.listOrdinal !== undefined && playerOrdinal !== undefined && entity.listOrdinal < playerOrdinal;
   // Listed before a new controller who is himself listed before the leaver: read after his (null) decision.
   const swap = move.swap;
-  if (swap?.newFree === true && swap.newOrdinal !== undefined && swap.ordinal !== undefined && swap.newOrdinal < swap.ordinal && entity.listOrdinal !== undefined && entity.listOrdinal < swap.newOrdinal) return null;
+  if (newControllerDecidesAfterLeaver(swap) && entity.listOrdinal !== undefined && entity.listOrdinal < swap!.newOrdinal!) return null;
   return listedBeforePlayer ? move.remembered : move.snapshot;
 }
 

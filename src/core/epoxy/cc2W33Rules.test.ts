@@ -17,7 +17,7 @@
 /**
  * CC2 wave 33, on a level with several players (no actor order): a press that opens the trap of the controlled player (rows a, b) or
  * of a parked one (row c) steps him out the way he faces; not when the press comes in the tick his step onto the trap ended, from an
- * actor listed after him (d, d2); the ejection comes before the tick's input and before the swap (e), and the input at the end of the
+ * actor listed after him (d, d2); the ejection comes before the tick's input (e), and the input at the end of the
  * ejected step is played one tic sooner (e2). A trapped player's refused move is copied by the mirrors (f), and with two keys held
  * the horizontal one decides (g). A swap clears the mirrors' memory and remembers the leaver's same-tick slide for the new
  * controller (h); mirrors listed after the leaver read the old memory, the one listed before a new controller who is himself listed
@@ -304,10 +304,13 @@ describe('CC2 wave 32 round 2 (MXC): the exit step the mirrors copy', () => {
 
   it('f2: three players, the second leaves, then control goes round again (Lexy lane w32r2_m2_three_after)', async () => {
     const engine = await load('m2_three_after', PREFIX_W32R2);
-    const seen = sample(engine, plan([[0, N], [16, N], [20, W], [24, N], [32, N]], [28]), [2, 6, 22], mirrors);
-    expect(seen[0]).toEqual({ chip: [[9, 9]], melinda: [[11, 10]] });
-    expect(seen[1]).toEqual({ chip: [[9, 9]], melinda: [[11, 10]] });
-    expect(seen[2]).toEqual({ chip: [[8, 8]], melinda: [[11, 10]] });
+    const seen = sample(engine, plan([[0, N], [16, N], [20, W], [24, N], [32, N]], [28]), [2, 6, 22], (e) => ({ ...mirrors(e), parked: parkedCells(e) }));
+    // The parked Melinda (player 2) has not moved at calls 2 and 6; the other parked player is not compared.
+    expect(seen[0].parked).toContainEqual([8, 12]);
+    expect(seen[1].parked).toContainEqual([8, 12]);
+    expect(seen[0]).toMatchObject({ chip: [[9, 9]], melinda: [[11, 10]] });
+    expect(seen[1]).toMatchObject({ chip: [[9, 9]], melinda: [[11, 10]] });
+    expect(seen[2]).toMatchObject({ chip: [[8, 8]], melinda: [[11, 10]] });
   });
 
   it('f3: a force floor carries Chip onto the exit (Lexy lane w32r2_m3a_ff_c_before)', async () => {

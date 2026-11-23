@@ -2117,10 +2117,11 @@ export class GameEngine {
    * and swapWaitsForDecision tells the caller the refusal is a wait.
    */
   public swapPlayer(): boolean {
-    // Checked before beginInput, so a refused swap flushes no step end and the engine state stays what a replay of its history yields.
+    // Checked before beginInput first, so a refusal that needs no release flushes no step end and the engine state stays what a replay of its history yields.
     if (this.swapWaitsForDecision()) return false;
     if (!this.beginInput() || this.w.parked.length === 0) return false;
-    // An ejection played by beginInput started his step: no decision now, the swap waits.
+    // An ejection played by beginInput started his step: no decision now, the swap waits. This refusal comes after a release
+    // (flush and ejection) that the tick start would play anyway.
     if (this.swapWaitsForDecision()) return false;
     this.saveUndoSnapshot();
     const swapLeaver = this.w.player;
