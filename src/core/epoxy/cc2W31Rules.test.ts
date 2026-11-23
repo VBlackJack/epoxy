@@ -155,9 +155,9 @@ describe('CC2 wave 31 (a): a held pair does not take the key an actor held at th
   it('falls back to the horizontal key when the vertical way is walled (Lexy lane w31r2_pdh_hfb_s_h0_t16)', async () => {
     const engine = await load('pdh_hfb_s_h0_t16', PREFIX_W31R2);
     const inputs = { ...pressed(['E'], 0), ...heldTics(['N', 'E'], 16, 25) };
-    const seen = sample(engine, inputs, [17, 20], playerPlaced);
+    const seen = sample(engine, inputs, [16, 17], playerPlaced);
     expect(seen).toEqual([
-      [6, 6, 'E'],
+      [5, 6, 'E'],
       [6, 6, 'E']
     ]);
   });
@@ -165,9 +165,9 @@ describe('CC2 wave 31 (a): a held pair does not take the key an actor held at th
   it('keeps the old order when both keys were held by monsters listed after the player (Lexy lane w31r2_pdh_boths_a2_o0_t3)', async () => {
     const engine = await load('pdh_boths_a2_o0_t3', PREFIX_W31R2);
     const inputs = { ...pressed(['S'], 0), ...heldTics(['S', 'E'], 3, 12) };
-    const seen = sample(engine, inputs, [13, 16], (e) => ({ player: playerPlaced(e), balls: cellsOfType(BALL)(e) }));
-    expect(seen[0]).toEqual({ player: [6, 6, 'E'], balls: [[4, 7], [6, 8]] });
-    expect(seen[1]).toEqual({ player: [6, 6, 'E'], balls: [[3, 7], [6, 8]] });
+    const seen = sample(engine, inputs, [13, 16], (e) => ({ player: playerPlaced(e), balls: placedOfType(BALL)(e) }));
+    expect(seen[0]).toEqual({ player: [6, 6, 'E'], balls: [[4, 7, 'W'], [6, 8, 'S']] });
+    expect(seen[1]).toEqual({ player: [6, 6, 'E'], balls: [[3, 7, 'W'], [6, 8, 'S']] });
   });
 });
 
@@ -304,7 +304,7 @@ describe('CC2 wave 31 (f, f2, f3): a fireball retries after the pass only when i
   });
 });
 
-describe('CC2 wave 31 (g1): a block pushed onto a brown button in a CC1 or native room, or a CC2 room, opens the trap as before', () => {
+describe("CC2 wave 31 (g1): a block pushed onto a brown button opens the trap as before in a CC1 or native room, and at the block's arrival in a CC2 room", () => {
   const BUTTON = { x: 4, y: ROOM_ROW };
   const TRAP = { x: 6, y: 8 };
   const WALLS: Cell[] = [[5, 7], [5, 8], [5, 9], [6, 7], [6, 9]];

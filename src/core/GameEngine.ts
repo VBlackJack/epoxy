@@ -1564,14 +1564,13 @@ export class GameEngine {
 
   /**
    * CC2 engine, wave 31: the order a held pair is tried in once an actor blocked a key at the decision. One key blocked: the free key,
-   * then the horizontal key when the blocked one is it. Both keys blocked: the order is unchanged (the horizontal-only branch of the
-   * prototype was not told apart from it by any lane, so it does not ship).
+   * then the horizontal key when the blocked one is it. A both-blocked pair keeps the order: no lane tells Lexy's
+   * horizontal-only choice apart from it.
    */
   private orderWithBlockedKeys(order: Direction[], keys: readonly Direction[], blocked: readonly Direction[] | undefined): Direction[] {
     if (blocked === undefined || blocked.length === 0 || this.bothKeysBlocked(keys, blocked)) return order;
     const horizontal = keys.find((d) => CC2_HORIZONTAL_DIRECTIONS.includes(d)) ?? order[0];
     const free = keys.filter((d) => !blocked.includes(d));
-    if (free.length !== 1) return order;
     return free[0] === horizontal ? [free[0]] : [free[0], horizontal];
   }
 

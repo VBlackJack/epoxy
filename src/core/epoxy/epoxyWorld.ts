@@ -315,11 +315,11 @@ export interface EpoxyWorld {
    */
   cc2ForcedStep?: true;
   /**
-   * CC2 engine, wave 31: set while a brown button's press ejects what its traps hold (a block settling onto the button). `extraTick` is
-   * true when the ejected monster's out-of-turn step gets the extra cooldown tick inside the tick (an arrival settled in the frame
-   * pre-pass, once per tic per monster), and a teeth so ejected steps out whatever its phase. Deleted in a finally. Transient, never saved.
+   * CC2 engine, wave 31: set while a brown button's press, a block settling onto the button, ejects what its traps hold. It only marks the
+   * ejection: a teeth so ejected steps out whatever its phase. (The extra cooldown tick of a frame pre-pass arrival is the `extraTick`
+   * field of the ejectFromTrap parameter, not this field.) Deleted in a finally. Transient, never saved.
    */
-  cc2TrapEjection?: { extraTick: boolean };
+  cc2TrapEjection?: true;
   /**
    * CC2 engine, wave 31: the uids of the monsters whose bump melted an ice block in the running pass (its decisions and moves), cleared
    * before the decisions of each pass and read by the after-pass ice retry. Transient, never saved or hashed.
@@ -605,6 +605,7 @@ export function buildLevelLookups(w: EpoxyWorld): void {
   w.cc2MovingAtDecision = undefined;
   w.cc2PushedLate = undefined;
   w.cc2SkipTurn = undefined;
+  delete w.cc2IceMelters;
   delete w.cc2TurnAhead;
   delete w.cc2JetAtTurn;
   w.trapLatch = null;

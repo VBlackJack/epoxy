@@ -2254,8 +2254,8 @@ export interface Cc2PendingDecision {
   actions?: Cc2PendingAction[];
   /**
    * CC2 engine, wave 31: the keys of a held pair whose cell an actor held when the player decided (after his early push), set at the
-   * player's decision and read once by his turn of the same tick. One tick only: the stored decision is cleared at the tick end, so it
-   * never reaches a snapshot, a search key or a replay.
+   * player's decision and read once by his turn of the same tick. Not expected to reach a snapshot (cleared at the player's turn);
+   * copied defensively.
    */
   blockedAtDecision?: Direction[];
 }

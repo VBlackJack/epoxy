@@ -132,6 +132,7 @@ export function updateEntities(ctx: EpoxyContext): void {
     // CC2 engine, actor order: the per-pass sets live for one pass only.
     w.cc2TurnSeen = undefined;
     w.cc2SkipTurn = undefined;
+    delete w.cc2IceMelters;
     w.ccPlans.clear();
     w.entityPassSeen.clear();
     w.turnSpent.clear();

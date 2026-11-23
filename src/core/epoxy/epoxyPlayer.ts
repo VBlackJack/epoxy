@@ -105,7 +105,7 @@ export function ejectFromTrap(ctx: EpoxyContext, x: number, y: number, blockPres
   const fromY = e.y;
   // The step's button press is queued to its step end (queuesButtonPress reads the flag), as for any monster step.
   w.cc2TrapEject = true;
-  if (blockPress !== undefined) w.cc2TrapEjection = blockPress;
+  if (blockPress !== undefined) w.cc2TrapEjection = true;
   try {
     stepClassicMonsterOutOfTurn(ctx, e);
   } finally {
