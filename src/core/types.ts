@@ -2593,7 +2593,7 @@ export interface PlayerState {
   softPadDue?: true;
   /** CC2-engine level: the position of this player in the actor order of the source (see RuntimeEntity.listOrdinal). Absent on every other level. */
   listOrdinal?: number;
-  /** CC2-engine level, actor order: the player's trap was shut at his last turn; when it is open at the start of a pass he steps out of it. Set only while true. */
+  /** CC2-engine level: the player's trap was shut at his last turn (actor order) or pass start (several players, parked players too); when it is open he steps out of it. Set only while true. */
   trapShutAtTurn?: true;
   /** CC2 engine, no actor order: trapShutAtTurn was set at the last pass start for the first time (his step onto the trap ended in that tick). Set only while true. */
   trapShutFresh?: true;

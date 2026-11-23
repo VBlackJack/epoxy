@@ -97,7 +97,7 @@ import {
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
-import { beginCc2MirrorTick, endCc2MirrorTick } from './epoxy/epoxyMirrors';
+import { beginCc2MirrorTick, copiesControllerMove, copyMirrorMove, endCc2MirrorTick, hasCc2MirrorCadence, noteCc2Swap, rememberPlayerMove } from './epoxy/epoxyMirrors';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
 import { refreshBeams, resolveLasers } from './epoxy/epoxyLasers';
@@ -125,17 +125,21 @@ import {
   ghostBarEdited,
   getEntityAt,
   holdsItem,
+  isButtonPressed,
   isCellClosedTrap,
   isTrapOpenedByWireOnly,
   isCovered,
   killPlayer,
   mapHeight,
   mapWidth,
+  playersOf,
   rebuildDeviceLookups,
-  refreshTrapLatch
+  refreshTrapLatch,
+  withPlayer
 } from './epoxy/epoxyWorld';
 import {
   BeamCell,
+  Cc2MirrorMove,
   Cc2PendingAction,
   Cc2PendingDecision,
   CloneLink,
@@ -979,7 +983,7 @@ export class GameEngine {
       ...(this.w.cc2DeferredSinkEdges.length > 0 ? { cc2DeferredSinkEdges: this.w.cc2DeferredSinkEdges.map((edge) => ({ ...edge })) } : {}),
       ...(this.w.cc2BrownHeld !== undefined ? { cc2BrownHeld: [...this.w.cc2BrownHeld] } : {}),
       // Only a CC2-engine level with a decision for the mirror players to copy, a blasted wall or a blasted ghost bar cell has them to put back.
-      ...(this.w.mirrorMove !== undefined ? { mirrorMove: { ...this.w.mirrorMove } } : {}),
+      ...(this.w.mirrorMove !== undefined ? { mirrorMove: copyMirrorMove(this.w.mirrorMove) } : {}),
       // Only a CC2-engine level with an input stored for the player's turn has one to put back.
       ...(this.w.cc2PendingDecision !== undefined ? { cc2PendingDecision: copyPendingDecision(this.w.cc2PendingDecision) } : {}),
       ...(this.w.blastedEdgeMask !== undefined ? { blastedEdgeMask: Array.from(this.w.blastedEdgeMask) } : {}),
@@ -1027,6 +1031,7 @@ export class GameEngine {
       ...(p.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(p.listOrdinal !== undefined ? { listOrdinal: p.listOrdinal } : {}),
       ...(p.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(p.trapShutFresh === true ? { trapShutFresh: true as const } : {}),
       ...(p.cc2SlideFrame !== undefined ? { cc2SlideFrame: p.cc2SlideFrame } : {}),
       ...(p.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
       ...(p.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
@@ -1056,6 +1061,7 @@ export class GameEngine {
       ...(snap.softPadDue === true ? { softPadDue: true as const } : {}),
       ...(snap.listOrdinal !== undefined ? { listOrdinal: snap.listOrdinal } : {}),
       ...(snap.trapShutAtTurn === true ? { trapShutAtTurn: true as const } : {}),
+      ...(snap.trapShutFresh === true ? { trapShutFresh: true as const } : {}),
       ...(snap.cc2SlideFrame !== undefined ? { cc2SlideFrame: snap.cc2SlideFrame } : {}),
       ...(snap.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
       ...(snap.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
@@ -1123,7 +1129,7 @@ export class GameEngine {
     this.w.cc2DeferredSinkEdges = (snap.cc2DeferredSinkEdges ?? []).map((edge) => ({ ...edge }));
     this.w.cc2BrownHeld = snap.cc2BrownHeld !== undefined ? [...snap.cc2BrownHeld] : undefined;
     this.w.cc2ToggledButtonCells = snap.cc2ToggledButtonCells !== undefined ? [...snap.cc2ToggledButtonCells] : [];
-    this.w.mirrorMove = snap.mirrorMove !== undefined ? { ...snap.mirrorMove } : undefined;
+    this.w.mirrorMove = snap.mirrorMove !== undefined ? copyMirrorMove(snap.mirrorMove) : undefined;
     this.w.cc2PendingDecision = snap.cc2PendingDecision !== undefined ? copyPendingDecision(snap.cc2PendingDecision) : undefined;
     // The walls a blast removed come back as an array of their own; with none removed the level's memoized mask is the live one again.
     if (snap.blastedEdgeMask !== undefined) {
@@ -1209,7 +1215,9 @@ export class GameEngine {
     // CC2 engine, no actor order: the player steps at the input, so a monster that water, slime or fire kills in the pass about to run
     // is gone for him as it is for the pass (a level with actor order plays his turn inside the pass, after the removals).
     if (this.w.cc2ActorOrder !== true) applyDueHazardRemovals(this.ctx);
-    return true;
+    // CC2 engine, no actor order: a trap a press opened ejects the player before this input, as Lexy's press precedes the decision of its tic.
+    this.releaseTrappedNoOrder();
+    return this.w.player.alive && !this.w.levelCompleted;
   }
 
   public tick(): void {
@@ -1219,6 +1227,7 @@ export class GameEngine {
     if (!this.flushCc2StepEnd()) return;
     // CC2 engine: the parked players' step ends act right after his, before the time-out check (Lexy runs every player's step end alike).
     if (!flushParkedStepEnds(this.ctx)) return;
+    this.releaseTrappedNoOrder();
 
     // Entities and terrain may change during the tick, so the cached beams cannot be trusted past it.
     this.w.beamDirty = true;
@@ -1299,6 +1308,21 @@ export class GameEngine {
     if (actorOrder) {
       this.settleBeforeActorPass();
       this.releaseTrappedPlayer();
+    } else if (usesCc2Engine(this.w.level) && !this.w.cc3dPace) {
+      // No actor order (several players): the players at rest on a closed trap are marked, the release of the next input or tick start
+      // ejects the ones whose trap a press opened. A trap shut for the first time at this pass start (his step onto it ended in this
+      // tick) is marked fresh.
+      for (const p of playersOf(this.w)) {
+        const wasShut = p.trapShutAtTurn === true;
+        if (p.alive && !this.w.levelCompleted && p.moveCooldown === 0 && !p.isSliding && isCellClosedTrap(this.w, p.x, p.y)) {
+          p.trapShutAtTurn = true;
+          if (!wasShut) p.trapShutFresh = true;
+          else delete p.trapShutFresh;
+        } else {
+          delete p.trapShutAtTurn;
+          delete p.trapShutFresh;
+        }
+      }
     }
     updateEntities(this.ctx);
     // A pass that never reached the player's place (nothing listed after him, or no pass at all) plays his turn now.
@@ -1727,8 +1751,71 @@ export class GameEngine {
     const player = w.player;
     if (player.trapShutAtTurn !== true || !player.alive || w.levelCompleted || isCellClosedTrap(w, player.x, player.y)) return;
     delete player.trapShutAtTurn;
+    delete player.trapShutFresh;
     if (isTrapOpenedByWireOnly(w, player.x, player.y)) return;
     this.playForcedStep(player.dir);
+  }
+
+  /** Guards releaseTrappedNoOrder against re-entry (the forced step it plays runs the engine's own move path). */
+  private releasingNoOrder = false;
+
+  /**
+   * CC2 engine, no actor order (several players), off the CC3D pace: the controlled player and the parked ones whose trap was shut at
+   * the last pass start and is open now step out the way they face, out of turn, before the tick's input and at the tick start (Lexy
+   * trap add_press, attempt_out_of_turn_step, tiletypes.js:1764-1779). A player whose step onto the trap ended in the same tick as the
+   * opening press is still moving for Lexy when a presser listed after him arrives: no ejection then (releaseAllowed).
+   */
+  private releaseTrappedNoOrder(): void {
+    const w = this.w;
+    if (this.releasingNoOrder || !usesCc2Engine(w.level) || w.cc3dPace || w.cc2ActorOrder === true) return;
+    this.releasingNoOrder = true;
+    try {
+      if (this.releaseAllowed(w.player)) this.releaseTrappedPlayer();
+      else this.dropOpenTrapMark(w.player);
+      this.releaseTrappedParked();
+    } finally {
+      this.releasingNoOrder = false;
+    }
+  }
+
+  /** False when the player's trap opened in the tick his step onto it ended, by presses of actors listed after him only. */
+  private releaseAllowed(p: PlayerState): boolean {
+    const w = this.w;
+    if (p.trapShutFresh !== true || p.trapShutAtTurn !== true || isCellClosedTrap(w, p.x, p.y)) return true;
+    const own = p.listOrdinal;
+    if (own === undefined) return true;
+    const ordinals: number[] = [];
+    for (const l of w.trapLinks) {
+      if (l.trapX !== p.x || l.trapY !== p.y || !isButtonPressed(w, l.buttonX, l.buttonY)) continue;
+      for (const e of w.entities) if (e.x === l.buttonX && e.y === l.buttonY && e.listOrdinal !== undefined) ordinals.push(e.listOrdinal);
+      for (const q of playersOf(w)) if (q !== p && q.x === l.buttonX && q.y === l.buttonY && q.listOrdinal !== undefined) ordinals.push(q.listOrdinal);
+    }
+    return ordinals.length === 0 || ordinals.some((o) => o < own);
+  }
+
+  /** A refused release drops the marks once the trap reads open (Lexy tries the ejection once, at the press). */
+  private dropOpenTrapMark(p: PlayerState): void {
+    if (p.trapShutAtTurn === true && !isCellClosedTrap(this.w, p.x, p.y)) {
+      delete p.trapShutAtTurn;
+      delete p.trapShutFresh;
+    }
+  }
+
+  /** A parked player whose trap was shut at the last pass start and is open now steps out the way he faces (not by a wire alone). */
+  private releaseTrappedParked(): void {
+    const w = this.w;
+    for (const p of [...w.parked]) {
+      if (!w.player.alive || w.levelCompleted) return;
+      if (p.trapShutAtTurn !== true || !p.alive || !w.parked.includes(p) || isCellClosedTrap(w, p.x, p.y)) continue;
+      if (!this.releaseAllowed(p)) {
+        this.dropOpenTrapMark(p);
+        continue;
+      }
+      delete p.trapShutAtTurn;
+      delete p.trapShutFresh;
+      if (isTrapOpenedByWireOnly(w, p.x, p.y)) continue;
+      withPlayer(w, p, () => this.playForcedStep(p.dir));
+    }
   }
 
   /**
@@ -1852,7 +1939,8 @@ export class GameEngine {
     }
     const order = this.orderWithBlockedKeys(resolveCc2HeldOrder(keys, player.dir), keys, blockedAtDecision);
     // A player in a closed trap only turns: the first key of the order decides, as one key would.
-    if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(order[0]);
+    // Both keys are blocked by the trap, so Lexy takes the horizontal one (make_player_decision), whatever he faces.
+    if (isCellClosedTrap(this.w, player.x, player.y)) return this.attemptPlayerMove(keys.find((d) => CC2_HORIZONTAL_DIRECTIONS.includes(d)) ?? order[0]);
 
     const undoBefore = this.undoState();
     const tickAtMove = this.ticksElapsed;
@@ -1944,6 +2032,8 @@ export class GameEngine {
 
     if (isCellClosedTrap(this.w, this.w.player.x, this.w.player.y)) {
       this.w.player.dir = dir;
+      // A trapped player still decides (Lexy make_player_decision): the mirrors copy his refused move.
+      if (hasCc2MirrorCadence(this.w) && copiesControllerMove(this.w)) rememberPlayerMove(this.w, dir);
       AudioManager.playSfx('blocked');
       if (dir !== dirBefore) {
         this.timedMoveHistory.push({ tick: tickAtMove, dir });
@@ -2030,8 +2120,12 @@ export class GameEngine {
     // Checked before beginInput, so a refused swap flushes no step end and the engine state stays what a replay of its history yields.
     if (this.swapWaitsForDecision()) return false;
     if (!this.beginInput() || this.w.parked.length === 0) return false;
+    // An ejection played by beginInput started his step: no decision now, the swap waits.
+    if (this.swapWaitsForDecision()) return false;
     this.saveUndoSnapshot();
+    const swapLeaver = this.w.player;
     rotatePlayers(this.w);
+    noteCc2Swap(this.w, swapLeaver);
     resetCc2PlayerView(this.w);
     this.w.beamDirty = true;
     this.timedMoveHistory.push({ tick: this.ticksElapsed, dir: this.w.player.dir, swap: true });
@@ -2105,7 +2199,7 @@ export class GameEngine {
    * The CC2 wave 3 state that has no other getter, for the simulation hash: the blob modifier, the deferred wire-fired
    * sink edges, the mirror players' remembered decision, the blasted walls and the edited ghost bar. Undefined while none is set, so a level that uses none hashes as before.
    */
-  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean; straight?: true }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: { remembered: Direction | null; snapshot: Direction | null; attempted: boolean }; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
+  public getCc2WaveState(): { blobModifier?: number; deferredSinkEdges?: { cell: number; rising: boolean; straight?: true }[]; brownHeld?: number[]; toggledButtons?: number[]; mirrorMove?: Cc2MirrorMove; blastedEdges?: string[]; ghostBar?: number[] } | undefined {
     const blobModifier = this.w.ccGenerators?.blobModifier;
     const edges = this.w.cc2DeferredSinkEdges;
     const brownHeld = this.w.cc2BrownHeld;
@@ -2119,7 +2213,7 @@ export class GameEngine {
       ...(brownHeld !== undefined ? { brownHeld: [...brownHeld] } : {}),
       ...(toggled.length > 0 ? { toggledButtons: [...toggled] } : {}),
       ...(edges.length > 0 ? { deferredSinkEdges: edges.map((edge) => ({ ...edge })) } : {}),
-      ...(mirrorMove !== undefined ? { mirrorMove: { ...mirrorMove } } : {}),
+      ...(mirrorMove !== undefined ? { mirrorMove: copyMirrorMove(mirrorMove) } : {}),
       ...(blasted.length > 0 ? { blastedEdges: blasted } : {}),
       ...(barEdited ? { ghostBar: [...(this.w.ghostBar as Set<number>)].sort((a, b) => a - b) } : {})
     };
