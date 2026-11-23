@@ -132,6 +132,14 @@ describe('CC2 wave 30 (a): a flame jet that lights spares an entity standing on 
     expect(seen[1]).toEqual({ player: [3, 3], blocks: [] });
     expect(seen[2]).toEqual({ player: [3, 3], blocks: [] });
   });
+
+  // No-regression guard: the jet flip still burns an entity that stands on the lit jet (flame_jet_off.activate is not changed by the
+  // wave: only what stands on real fire is spared). Lexy lane w30_rfs_jet_k1: the ice block on the jet at (3,9) is there at tics 0-3 and
+  // gone at tic 4, when the ball's press on the orange button lights the jet.
+  it('still burns the ice block standing on the jet the ball lights (Lexy lane w30_rfs_jet_k1)', async () => {
+    const engine = await load('rfs_jet_k1');
+    expect(sample(engine, {}, [4, 5], cellsOfType(ICE_BLOCK))).toEqual([[[3, 9]], []]);
+  });
 });
 
 describe('CC2 wave 30 (b, c, d, d2): a block entering a teleporter goes through when its step ends', () => {
@@ -268,6 +276,7 @@ describe('CC2 wave 30 (k1): other engines and the unpowered red pad keep the ste
   const EXIT_X = 9;
   const UNPOWERED_RED_PAD = 'teleport_red_cc2_off';
 
+  /** Pushes a dirt block onto `pad`; 'teleport_random' is a powered pad (the green one). */
   function pushOnto(mode: 'cc' | 'native' | 'cc2', pad: string): GameEngine {
     const engine = new GameEngine();
     engine.loadLevel(
@@ -336,6 +345,9 @@ describe('CC2 wave 30 (k2, k3): a queued yellow press survives a snapshot and is
     expect(cc2HiddenStateKey(world(engine))).toBe(key);
     expect(queueOf(engine)?.length).toBeGreaterThan(0);
     expect(run()).toEqual(reads);
+    // The press is spent by the end of the run, on the run and on the replay alike, and the tank faces east.
+    expect(queueOf(engine) ?? []).toEqual([]);
+    expect(reads[reads.length - 1][2]).toBe('E');
   });
 
   it('does not share the queue array between the live tank and its snapshot', async () => {

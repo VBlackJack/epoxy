@@ -124,17 +124,17 @@ describe('yellow tank on a CC2-engine level', () => {
       })
     );
     // The bug's press lands when its step ends: the tank holds it queued with its due pass, then decides it there.
-    let queued: { dir: Direction; due: number } | undefined;
+    let queued: { dir: Direction; due: number; margin: number } | undefined;
     let decided: { dir: Direction; x: number; y: number } | undefined;
     for (let i = 0; i < SETTLE_TICKS && decided === undefined; i++) {
       engine.tick();
       const tank = tankOf(engine);
       const press = tank.cc2SteerQueue?.[0];
-      if (queued === undefined && press !== undefined) queued = { ...press };
+      if (queued === undefined && press !== undefined) queued = { ...press, margin: press.due - world(engine).ccMonsterClock };
       if (tank.dir !== TANK_FACING) decided = { dir: tank.dir, x: tank.x, y: tank.y };
     }
     expect(queued?.dir).toBe('W');
-    expect(queued?.due).toBeGreaterThan(0);
+    expect(queued?.margin).toBe(QUEUED_DUE_PASSES);
     expect(decided?.dir).toBe('W');
     expect([decided?.x, decided?.y]).toEqual([TANK_CELL.x - 1, TANK_CELL.y]);
   });

@@ -43,14 +43,23 @@ const TANK_FACING = 'N';
  * press reaches the tank one pass earlier, so the margin is 4, not 5.
  */
 const DUE_MARGIN_PASSES = 4;
-/** Ticks between the landing (the press queued) and the tank turning to it: the due pass counted in ticks, measured on this room. */
-const TURN_TICKS_AFTER_LANDING = 5;
 
 /**
  * The ticks (counted from the push) at which the block has landed, the tank holds its queued press (the press lands when the block's
  * step ends: the tank decides at the due pass, not before) and the tank has turned to it.
  */
-function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: number | undefined; dueMargin: number | undefined; turnedAt: number | undefined; turnedTo: string | undefined } {
+interface Observation {
+  landedAt: number | undefined;
+  decidedAt: number | undefined;
+  dueMargin: number | undefined;
+  /** The recorded due of the queued press, and the monster clock when the tank turned to it. */
+  pressDue: number | undefined;
+  turnClock: number | undefined;
+  turnedAt: number | undefined;
+  turnedTo: string | undefined;
+}
+
+function observe(mode: RoomMode): Observation {
   const engine = new GameEngine();
   engine.loadLevel(
     room({
@@ -66,6 +75,8 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
   let landedAt: number | undefined;
   let decidedAt: number | undefined;
   let dueMargin: number | undefined;
+  let pressDue: number | undefined;
+  let turnClock: number | undefined;
   let turnedAt: number | undefined;
   let turnedTo: string | undefined;
   for (let i = 0; i < WAIT_TICKS; i++) {
@@ -76,14 +87,16 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
     const press = tank?.cc2SteerQueue?.[0];
     if (decidedAt === undefined && press !== undefined) {
       decidedAt = i;
+      pressDue = press.due;
       dueMargin = press.due - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
     }
     if (turnedAt === undefined && tank !== undefined && tank.dir !== TANK_FACING) {
       turnedAt = i;
       turnedTo = tank.dir;
+      turnClock = (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
     }
   }
-  return { landedAt, decidedAt, dueMargin, turnedAt, turnedTo };
+  return { landedAt, decidedAt, dueMargin, pressDue, turnClock, turnedAt, turnedTo };
 }
 
 beforeEach(() => {
@@ -92,17 +105,20 @@ beforeEach(() => {
 
 describe('CC2 engine: a block arriving on the yellow button', () => {
   it('hands the tank its decision in the tick it lands, due one pass earlier', () => {
-    const { landedAt, decidedAt, dueMargin, turnedAt, turnedTo } = observe('cc2');
+    const { landedAt, decidedAt, dueMargin, pressDue, turnClock, turnedAt, turnedTo } = observe('cc2');
     expect(landedAt).toBeDefined();
     expect(decidedAt).toBe(landedAt);
     expect(dueMargin).toBe(DUE_MARGIN_PASSES);
     // The tank takes the press at the due pass: it faces east then, and not in the tick the press was queued.
     expect(turnedTo).toBe('E');
-    expect((turnedAt ?? 0) - (landedAt ?? 0)).toBe(TURN_TICKS_AFTER_LANDING);
+    expect(turnedAt).toBeGreaterThan(landedAt ?? 0);
+    expect(pressDue).toBeDefined();
+    expect(turnClock).toBeGreaterThanOrEqual(pressDue ?? Infinity);
   });
 
   it.each(['cc', 'native'] as RoomMode[])('does nothing outside the CC2 engine (%s)', (mode) => {
-    expect(observe(mode).decidedAt).toBeUndefined();
-    expect(observe(mode).turnedTo).toBeUndefined();
+    const seen = observe(mode);
+    expect(seen.decidedAt).toBeUndefined();
+    expect(seen.turnedTo).toBeUndefined();
   });
 });

@@ -46,7 +46,10 @@ const LANE_PREFIX = 'w29_';
 /** The prefix of the wave 30 Lexy lanes. */
 const WAVE_30_LANE_PREFIX = 'w30_';
 const BLOCK_STEP_WATCH_TICKS = 20;
-/** Ticks after the first one until a pushed block has gone through: its step end, measured on this room. */
+/**
+ * Ticks after the first one until a pushed block has gone through: Lexy row b (w30_btp_green_floor_d0 and w30_btp_blue_floor_d0), the
+ * block stands on the pad at calls 1-4 and is on the exit cell at call 5.
+ */
 const BLOCK_STEP_TICKS_AFTER_PUSH_TICK = 4;
 
 beforeEach(() => {
@@ -141,9 +144,9 @@ describe('CC2 monster teleport at the end of its step', () => {
   });
 
   it('a block pushed onto a pad stays on it until its step ends', () => {
-    // A block pushed onto either pad stays on it through its step and goes through when the step ends (wave 30; Lexy on_arrive).
-    // exitX: the cell the block stands on once through (each pad leaves by its own exit direction).
-    for (const [pad, exitX] of [[GREEN_PAD, EXIT_PAD_X - 1], [UNFLAGGED_PAD, EXIT_PAD_X + 1]] as const) {
+    // A block pushed onto either pad stays on it through its step and goes through when the step ends (wave 30; Lexy on_arrive). The
+    // timing is the one of the Lexy lanes (row b); the exit cells are asserted on the lanes below, not on this room.
+    for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
       const pushed = new GameEngine();
       pushed.loadLevel(
         room({
@@ -162,12 +165,30 @@ describe('CC2 monster teleport at the end of its step', () => {
         tick(pushed, 1);
         leftAt++;
       }
-      expect([leftAt, block()]).toEqual([BLOCK_STEP_TICKS_AFTER_PUSH_TICK, exitX]);
+      expect(leftAt).toBe(BLOCK_STEP_TICKS_AFTER_PUSH_TICK);
+      expect(block()).not.toBe(ENTRY_X);
     }
   });
 
-  // Lexy lanes w30_btp_{green,blue,red}_floor_d0 / w30_btp_red_fire_d0: the pushed ice block stands on the pad through its step and is
-  // on the exit cell after it (the exit fire melts it).
+  // Lexy lanes w30_btp_green_floor_d0 (exit (9,7) facing W) and w30_btp_blue_floor_d0 (exit (11,7) facing E): the pushed ice block stands
+  // on the entry pad (4,4) at calls 1-4 and is on the exit cell at call 5.
+  it.each([
+    ['btp_green_floor_d0', [9, 7]],
+    ['btp_blue_floor_d0', [11, 7]]
+  ] as const)('goes through to the exit cell at call 5 (Lexy lane w30_%s)', async (name, exit) => {
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane(name, WAVE_30_LANE_PREFIX), 0);
+    const block = () => lane.getEntities().find((e) => e.type === 'ice_block');
+    lane.attemptPlayerMoveHeld(['E']);
+    for (let call = 1; call <= BLOCK_STEP_TICKS_AFTER_PUSH_TICK; call++) {
+      tick(lane, 1);
+      expect([block()?.x, block()?.y]).toEqual([4, 4]);
+    }
+    tick(lane, 1);
+    expect([block()?.x, block()?.y]).toEqual(exit);
+  });
+
+  // Lexy lane w30_btp_red_fire_d0: the pushed ice block stands on the pad through its step and is on the exit cell after it.
   it('takes the exit step after the teleport (Lexy lane w30_btp_red_fire_d0)', async () => {
     const lane = new GameEngine();
     lane.loadLevel(await loadCc2Lane('btp_red_fire_d0', WAVE_30_LANE_PREFIX), 0);
