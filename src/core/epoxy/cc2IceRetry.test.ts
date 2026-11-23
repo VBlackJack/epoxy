@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
@@ -46,12 +47,19 @@ const WALL = 'wall';
 const LAST_ICE_X = 9;
 const TAG_FRAME = 0;
 const FACING = 'E';
+/** The wave 30 lane of the load-cell jam: the rear ball is entity 1 at (5, 4), the front one entity 2 at (6, 4). */
+const LANE_PREFIX = 'w30_';
+const LANE_REAR_UID = 1;
+const LANE_FRONT_UID = 2;
+const LANE_REAR_X = 5;
+const LANE_FRONT_X = 6;
+const LANE_ROW = 4;
 
 /**
  * Two balls facing east on an ice row with a wall behind the rear one: the front one is listed first, so the rear one acts first in
  * the pass and is refused with no way to bounce back.
  */
-function jam(mode: RoomMode, rearTool?: string, keepLoadCell = false): { front: () => RuntimeEntity; rear: () => RuntimeEntity; engine: GameEngine } {
+function jam(mode: RoomMode, rearTool?: string): { front: () => RuntimeEntity; rear: () => RuntimeEntity; engine: GameEngine } {
   const terrain: Record<string, string> = {};
   for (let x = FIRST_ICE_X; x <= LAST_ICE_X; x++) terrain[`${x},${ROOM_ROW}`] = ICE;
   terrain[`${FIRST_ICE_X - 1},${ROOM_ROW}`] = WALL;
@@ -67,7 +75,7 @@ function jam(mode: RoomMode, rearTool?: string, keepLoadCell = false): { front: 
       ]
     })
   );
-  if (!keepLoadCell) for (const loaded of engine.getEntities()) delete loaded.atLoadCell;
+  for (const loaded of engine.getEntities()) delete loaded.atLoadCell;
   const balls = engine.getEntities().filter((e) => e.type === BALL);
   if (rearTool !== undefined) balls[1].heldTools = [rearTool];
   return { engine, front: () => balls[0], rear: () => balls[1] };
@@ -116,16 +124,21 @@ describe('two balls jammed on ice', () => {
     expect(rear().cc2PrePassMoved).not.toBe(true);
   });
 
-  // Lexy's ice has no on_ready, so a ball still on its load cell is not on the ice for the pass: no retry (game.js:869-888).
-  it('does not retry for a ball still on its load cell, and keeps its facing', () => {
-    const { engine, rear } = jam('cc2', undefined, true);
-    rear().atLoadCell = true;
+  // Lexy's ice has no on_ready, so a ball still on its load cell decides normally: its whole preference list is refused (the wall
+  // behind it, the front ball ahead), it tries its last preference anyway, bonks and slides, and follows the front ball at once
+  // (wave 30; Lexy lane w30_lcm_jam_ee: make_actor_decision game.js 1752-1772, bonk 1192-1207).
+  it('a ball still on its load cell bonks and follows at once (Lexy lane w30_lcm_jam_ee)', async () => {
+    const engine = new GameEngine();
+    engine.loadLevel(await loadCc2Lane('lcm_jam_ee', LANE_PREFIX), 0);
+    const rear = (): RuntimeEntity | undefined => engine.getEntities().find((e) => e.uid === LANE_REAR_UID);
+    const front = (): RuntimeEntity | undefined => engine.getEntities().find((e) => e.uid === LANE_FRONT_UID);
     engine.tick();
-    expect(rear().x).toBe(REAR_X);
-    expect(rear().atLoadCell).toBe(true);
-    expect(rear().cc2IceRefused).toBeUndefined();
-    // A retry would have decided and bounced the ball again.
-    expect(rear().dir).toBe(FACING);
+    expect([rear()?.x, rear()?.y, rear()?.dir]).toEqual([LANE_REAR_X + 1, LANE_ROW, FACING]);
+    expect([front()?.x, front()?.y, front()?.dir]).toEqual([LANE_FRONT_X + 1, LANE_ROW, FACING]);
+    engine.tick();
+    engine.tick();
+    expect([rear()?.x, rear()?.y]).toEqual([LANE_REAR_X + 2, LANE_ROW]);
+    expect([front()?.x, front()?.y]).toEqual([LANE_FRONT_X + 2, LANE_ROW]);
   });
 
   // The frame tag a clone carries ends with its own step, also when that step is made in the retry (game.js:2218-2242); the retry is

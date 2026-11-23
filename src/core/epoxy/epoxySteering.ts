@@ -43,6 +43,15 @@ export function isCc2YellowTank(w: EpoxyWorld, entity: RuntimeEntity): boolean {
 export function markYellowButtonArrival(w: EpoxyWorld, dir: Direction, dueClock?: number): void {
   for (const entity of w.entities) {
     if (!isCc2YellowTank(w, entity)) continue;
+    // A press due at a later step end is queued: it overrides the pending steer when its step ends (Lexy button_yellow on_arrive at the
+    // step end, tiletypes.js 2241-2250), so a press made in between (the player's, with no due) does not erase it.
+    if (dueClock !== undefined && !w.cc3dPace && dueClock > w.ccMonsterClock) {
+      const queue = entity.cc2SteerQueue ?? [];
+      queue.push({ dir, due: dueClock });
+      queue.sort((a, b) => a.due - b.due);
+      entity.cc2SteerQueue = queue;
+      continue;
+    }
     entity.pendingSteer = dir;
     if (dueClock !== undefined) entity.pendingSteerDue = dueClock;
     else delete entity.pendingSteerDue;

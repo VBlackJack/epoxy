@@ -34,6 +34,7 @@ const BLOCK_X = 3;
 const BUTTON_X = 4;
 const TANK_CELL = { x: 6, y: 2 };
 const WAIT_TICKS = 20;
+const TANK_FACING = 'N';
 /**
  * Passes between the block's landing and the first pass at which the tank may take the decision: the block's cooldown and one
  * pass for its step end, one less than the other actors' arrival rule gave before (button_yellow on_arrive, tiletypes.js:2241-2250).
@@ -43,8 +44,22 @@ const WAIT_TICKS = 20;
  */
 const DUE_MARGIN_PASSES = 4;
 
-/** The ticks (counted from the push) at which the block has landed and the tank holds its pending decision. */
-function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: number | undefined; dueMargin: number | undefined } {
+/**
+ * The ticks (counted from the push) at which the block has landed, the tank holds its queued press (the press lands when the block's
+ * step ends: the tank decides at the due pass, not before) and the tank has turned to it.
+ */
+interface Observation {
+  landedAt: number | undefined;
+  decidedAt: number | undefined;
+  dueMargin: number | undefined;
+  /** The recorded due of the queued press, and the monster clock when the tank turned to it. */
+  pressDue: number | undefined;
+  turnClock: number | undefined;
+  turnedAt: number | undefined;
+  turnedTo: string | undefined;
+}
+
+function observe(mode: RoomMode): Observation {
   const engine = new GameEngine();
   engine.loadLevel(
     room({
@@ -52,7 +67,7 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
       terrain: { [`${BUTTON_X},${ROOM_ROW}`]: BUTTON },
       entities: [
         { type: BLOCK, x: BLOCK_X, y: ROOM_ROW, dir: 'E' },
-        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: 'N' }
+        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: TANK_FACING }
       ]
     })
   );
@@ -60,17 +75,28 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
   let landedAt: number | undefined;
   let decidedAt: number | undefined;
   let dueMargin: number | undefined;
+  let pressDue: number | undefined;
+  let turnClock: number | undefined;
+  let turnedAt: number | undefined;
+  let turnedTo: string | undefined;
   for (let i = 0; i < WAIT_TICKS; i++) {
     engine.tick();
     const block = engine.getEntities().find((e) => e.type === BLOCK);
     const tank = engine.getEntities().find((e) => e.type === TANK);
     if (landedAt === undefined && block?.x === BUTTON_X && block.arrivalTicks === undefined) landedAt = i;
-    if (decidedAt === undefined && tank?.pendingSteer !== undefined) {
+    const press = tank?.cc2SteerQueue?.[0];
+    if (decidedAt === undefined && press !== undefined) {
       decidedAt = i;
-      dueMargin = (tank.pendingSteerDue ?? Number.NaN) - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
+      pressDue = press.due;
+      dueMargin = press.due - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
+    }
+    if (turnedAt === undefined && tank !== undefined && tank.dir !== TANK_FACING) {
+      turnedAt = i;
+      turnedTo = tank.dir;
+      turnClock = (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
     }
   }
-  return { landedAt, decidedAt, dueMargin };
+  return { landedAt, decidedAt, dueMargin, pressDue, turnClock, turnedAt, turnedTo };
 }
 
 beforeEach(() => {
@@ -79,13 +105,20 @@ beforeEach(() => {
 
 describe('CC2 engine: a block arriving on the yellow button', () => {
   it('hands the tank its decision in the tick it lands, due one pass earlier', () => {
-    const { landedAt, decidedAt, dueMargin } = observe('cc2');
+    const { landedAt, decidedAt, dueMargin, pressDue, turnClock, turnedAt, turnedTo } = observe('cc2');
     expect(landedAt).toBeDefined();
     expect(decidedAt).toBe(landedAt);
     expect(dueMargin).toBe(DUE_MARGIN_PASSES);
+    // The tank takes the press at the due pass: it faces east then, and not in the tick the press was queued.
+    expect(turnedTo).toBe('E');
+    expect(turnedAt).toBeGreaterThan(landedAt ?? 0);
+    expect(pressDue).toBeDefined();
+    expect(turnClock).toBeGreaterThanOrEqual(pressDue ?? Infinity);
   });
 
   it.each(['cc', 'native'] as RoomMode[])('does nothing outside the CC2 engine (%s)', (mode) => {
-    expect(observe(mode).decidedAt).toBeUndefined();
+    const seen = observe(mode);
+    expect(seen.decidedAt).toBeUndefined();
+    expect(seen.turnedTo).toBeUndefined();
   });
 });

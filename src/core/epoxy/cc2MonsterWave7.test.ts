@@ -43,6 +43,8 @@ const FLOOR = 'floor';
 const BUG = 'bug';
 const START_X = 6;
 const SETTLE_TICKS = 3;
+/** The prefix of the wave 30 round 2 Lexy lanes. */
+const LANE_PREFIX_R2 = 'w30r2_';
 
 function load(mode: RoomMode, options: Omit<RoomOptions, 'mode'>): GameEngine {
   const engine = new GameEngine();
@@ -72,10 +74,38 @@ describe('monster loaded on ice (IL)', () => {
   const behindX = (engine: GameEngine): number =>
     Math.min(...engine.getEntities().filter((e) => e.type === BUG).map((e) => e.x));
 
-  it('judges the slide way at its decision: the bug behind another one turns back instead of following it', () => {
+  // Wave 30: Lexy decides a monster loaded on ice with its whole preference list (make_actor_decision, game.js 1752-1772), so in the
+  // open room both bugs take their left way (north), the one behind no longer turns back (lane w30r2_il_jam_open).
+  it('decides normally on its load cell: both bugs take their left way', () => {
     const engine = load('cc2', jam);
     engine.tick();
-    expect(behindX(engine)).toBe(START_X - 2);
+    expect(behindX(engine)).toBe(START_X - 1);
+    expect(engine.getEntities().filter((e) => e.type === BUG).map((e) => [e.x, e.y, e.dir])).toEqual([
+      [START_X - 1, ROOM_ROW - 1, 'N'],
+      [START_X, ROOM_ROW - 1, 'N']
+    ]);
+  });
+
+  it('takes the left way of the open room on the Lexy lane w30r2_il_jam_open', async () => {
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('il_jam_open', LANE_PREFIX_R2), 0);
+    const bugs = (): Array<[number, number, string]> => lane.getEntities().filter((e) => e.type === BUG).map((e) => [e.x, e.y, e.dir]);
+    lane.tick();
+    expect(bugs()).toEqual([[5, 4, 'N'], [6, 4, 'N']]);
+    for (let i = 1; i < 5; i++) lane.tick();
+    expect(bugs()).toEqual([[4, 4, 'W'], [6, 3, 'N']]);
+  });
+
+  // The old meaning of this case, now Lexy-backed: with walls north and south of the bug behind, it turns back (lane w30r2_il_jam_corr).
+  it('turns back in a corridor where the bug behind has no other way', async () => {
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('il_jam_corr', LANE_PREFIX_R2), 0);
+    const bugs = (): Array<[number, number, string]> => lane.getEntities().filter((e) => e.type === BUG).map((e) => [e.x, e.y, e.dir]);
+    lane.tick();
+    expect(bugs()).toEqual([[4, 5, 'W'], [6, 4, 'N']]);
+    lane.tick();
+    lane.tick();
+    expect(bugs()).toEqual([[4, 5, 'W'], [6, 4, 'N']]);
   });
 
   it('marks the monster at load and forgets the mark with its first step away', () => {

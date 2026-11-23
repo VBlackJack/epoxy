@@ -247,7 +247,7 @@ describe('CC2 wave 29 (i, i2, j): a ghost bonks round at once on ice unless it h
   });
 });
 
-describe('CC2 wave 29 (k1): a block on a green pad keeps the step-start jump', () => {
+describe('CC2 wave 29 (k1): a block on a pad stays on it until its step ends (wave 30)', () => {
   const PAD_X = 3;
   const GREEN_PAD = 'teleport_random';
   const UNFLAGGED_PAD = 'teleport_green';
@@ -266,11 +266,12 @@ describe('CC2 wave 29 (k1): a block on a green pad keeps the step-start jump', (
     return engine;
   }
 
-  it.each([GREEN_PAD, UNFLAGGED_PAD])('jumps in the tick it is pushed, queuing no teleport for its own turn (%s)', (pad) => {
+  it.each([GREEN_PAD, UNFLAGGED_PAD])('stays on the pad until its step ends, queuing no teleport for its own turn (%s)', (pad) => {
     const engine = pushOnto(pad);
     engine.tick();
     const block = engine.getEntities().find((e) => e.type === 'dirt_block');
-    expect(block?.x).not.toBe(PAD_X);
+    expect(block?.x).toBe(PAD_X);
+    // The block's teleport runs from its deferred arrival, never from a queued teleport.
     expect(world(engine).ccArrivals.filter((a) => a.teleport === true)).toEqual([]);
   });
 });

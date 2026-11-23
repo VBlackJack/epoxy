@@ -234,6 +234,17 @@ export interface EpoxyWorld {
    */
   cc2ReleaseFrame?: 0 | 1 | 2;
   /**
+   * CC2 engine, wave 30: the Lexy frame (0 or 1) a held block arrival is settled in, read by the teleport that arrival runs to time the
+   * exit step. Transient: set and deleted inside one call (settleFrameArrival), never saved in a snapshot nor read by the hidden key.
+   */
+  cc2SettleFrame?: 0 | 1;
+  /**
+   * CC2 engine, wave 30: true while a monster is ejected out of turn from a trap, so its button press is queued to its step end like a
+   * press inside the entity pass. Transient: set and deleted inside one call (ejectFromTrap), never saved in a snapshot nor read by
+   * the hidden key.
+   */
+  cc2TrapEject?: true;
+  /**
    * CC2 engine, frame pre-pass: true once the frames 0 and 1 of the coming tick have run (Lexy runs them right after the cleanup
    * of the tic before, game.js:872-889), deleted at the end of the tick's entity pass. Saved in an undo snapshot while set.
    */
@@ -959,6 +970,11 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   if (w.cc2DeferredSinkEdges.length > 0) parts.push(`d${w.cc2DeferredSinkEdges.map((e) => `${e.cell}${e.rising ? '+' : '-'}${e.straight === true ? 's' : ''}`).join(',')}`);
   const steers = w.entities.filter((e) => e.pendingSteer !== undefined).map((e) => `${e.uid}${e.pendingSteer}${e.pendingSteerDue !== undefined ? e.pendingSteerDue - pass : ''}`);
   if (steers.length > 0) parts.push(`s${steers.join(',')}`);
+  // The tanks with a queued press: each press as its direction and its pass-relative due.
+  const queued = w.entities
+    .filter((e) => (e.cc2SteerQueue?.length ?? 0) > 0)
+    .map((e) => `${e.uid}:${(e.cc2SteerQueue ?? []).map((press) => `${press.dir}${press.due - pass}`).join('/')}`);
+  if (queued.length > 0) parts.push(`y${queued.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.

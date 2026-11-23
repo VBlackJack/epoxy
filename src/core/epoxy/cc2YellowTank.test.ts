@@ -43,8 +43,10 @@ const BUTTON_X = 3;
 const TANK_CELL = { x: 6, y: 2 };
 const SETTLE_TICKS = 40;
 const FOREIGN_DUE = 99;
+const QUEUED_DUE_PASSES = 3;
 const CORRIDOR_BUTTON_X = 6;
 const CORRIDOR_BUG_X = 7;
+const TANK_FACING: Direction = 'N';
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const tankOf = (engine: GameEngine): RuntimeEntity => {
@@ -121,13 +123,20 @@ describe('yellow tank on a CC2-engine level', () => {
         ]
       })
     );
-    let sawPending: Direction | undefined;
-    for (let i = 0; i < SETTLE_TICKS && sawPending === undefined; i++) {
+    // The bug's press lands when its step ends: the tank holds it queued with its due pass, then decides it there.
+    let queued: { dir: Direction; due: number; margin: number } | undefined;
+    let decided: { dir: Direction; x: number; y: number } | undefined;
+    for (let i = 0; i < SETTLE_TICKS && decided === undefined; i++) {
       engine.tick();
-      sawPending = tankOf(engine).pendingSteer;
+      const tank = tankOf(engine);
+      const press = tank.cc2SteerQueue?.[0];
+      if (queued === undefined && press !== undefined) queued = { ...press, margin: press.due - world(engine).ccMonsterClock };
+      if (tank.dir !== TANK_FACING) decided = { dir: tank.dir, x: tank.x, y: tank.y };
     }
-    expect(sawPending).toBe('W');
-    expect(tankOf(engine).pendingSteerDue).toBeGreaterThan(0);
+    expect(queued?.dir).toBe('W');
+    expect(queued?.margin).toBe(QUEUED_DUE_PASSES);
+    expect(decided?.dir).toBe('W');
+    expect([decided?.x, decided?.y]).toEqual([TANK_CELL.x - 1, TANK_CELL.y]);
   });
 });
 
@@ -143,16 +152,36 @@ describe('markYellowButtonArrival', () => {
         ]
       })
     );
+    // A future due: the press is queued with its due pass, the pending steer waits for it.
     markYellowButtonArrival(world(engine), 'S', FOREIGN_DUE);
-    expect(tankOf(engine)).toMatchObject({ pendingSteer: 'S', pendingSteerDue: FOREIGN_DUE });
+    expect(tankOf(engine).cc2SteerQueue).toEqual([{ dir: 'S', due: FOREIGN_DUE }]);
+    expect(tankOf(engine).pendingSteer).toBeUndefined();
+    // No due (the player's press): the pending steer is set at once and the queue is left alone.
     markYellowButtonArrival(world(engine), 'W');
     expect(tankOf(engine).pendingSteer).toBe('W');
     expect(tankOf(engine).pendingSteerDue).toBeUndefined();
+    expect(tankOf(engine).cc2SteerQueue).toEqual([{ dir: 'S', due: FOREIGN_DUE }]);
     expect(engine.getEntities().find((e) => e.type === BUG)?.pendingSteer).toBeUndefined();
+    expect(engine.getEntities().find((e) => e.type === BUG)?.cc2SteerQueue).toBeUndefined();
 
     const native = start('native');
     markYellowButtonArrival(world(native), 'S');
     expect(tankOf(native).pendingSteer).toBeUndefined();
+    markYellowButtonArrival(world(native), 'S', FOREIGN_DUE);
+    expect(tankOf(native).cc2SteerQueue).toBeUndefined();
+  });
+
+  it('decides a queued press at its due pass and not before', () => {
+    const engine = start('cc2');
+    markYellowButtonArrival(world(engine), 'S', world(engine).ccMonsterClock + QUEUED_DUE_PASSES);
+    let turnedAt: number | undefined;
+    for (let tick = 1; tick <= SETTLE_TICKS && turnedAt === undefined; tick++) {
+      engine.tick();
+      if (tankOf(engine).dir !== 'N') turnedAt = tick;
+    }
+    expect(tankOf(engine).dir).toBe('S');
+    // The pass whose clock reaches the due takes it: the (due + 1)th tick from the pass the press was made at.
+    expect(turnedAt).toBe(QUEUED_DUE_PASSES + 1);
   });
 });
 

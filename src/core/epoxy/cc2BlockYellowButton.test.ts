@@ -24,7 +24,8 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
-import type { RuntimeEntity } from '../types';
+import type { Direction, RuntimeEntity } from '../types';
+import type { EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -37,6 +38,9 @@ const BLOCK_X = 3;
 const BUTTON_X = 4;
 const TANK_CELL = { x: 6, y: 2 };
 const WAIT_TICKS = 40;
+const TANK_FACING: Direction = 'N';
+/** Passes between the tick the press is queued in and its due pass, as in cc2W11DBlockYellowButton (the block lands one pass earlier). */
+const DUE_MARGIN_PASSES = 4;
 
 const tankOf = (engine: GameEngine): RuntimeEntity => {
   const tank = engine.getEntities().find((e) => e.type === TANK);
@@ -44,8 +48,16 @@ const tankOf = (engine: GameEngine): RuntimeEntity => {
   return tank;
 };
 
-/** Pushes a block east onto the yellow button and returns the pending decision of the tank seen while waiting. */
-function pushOntoButton(mode: RoomMode): string | undefined {
+/** What the tank of a push of a block onto the yellow button shows while waiting: the queued press, then its decision at the due pass. */
+interface ButtonPush {
+  /** The first queued press the tank held (the block's press lands when its step ends, not at the push). */
+  queued: { dir: Direction; due: number; margin: number } | undefined;
+  /** The tank's facing and cell at the first tick it left its start facing: the decision taken at the due pass. */
+  decided: { dir: Direction; x: number; y: number } | undefined;
+}
+
+/** Pushes a block east onto the yellow button and returns what the tank shows while waiting. */
+function pushOntoButton(mode: RoomMode): ButtonPush {
   const engine = new GameEngine();
   engine.loadLevel(
     room({
@@ -53,25 +65,33 @@ function pushOntoButton(mode: RoomMode): string | undefined {
       terrain: { [`${BUTTON_X},${ROOM_ROW}`]: BUTTON },
       entities: [
         { type: BLOCK, x: BLOCK_X, y: ROOM_ROW, dir: 'E' },
-        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: 'N' }
+        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: TANK_FACING }
       ]
     })
   );
   expect(engine.attemptPlayerMove('E')).toBe(true);
-  let pending: string | undefined;
-  for (let i = 0; i < WAIT_TICKS && pending === undefined; i++) {
+  let queued: ButtonPush['queued'];
+  let decided: ButtonPush['decided'];
+  for (let i = 0; i < WAIT_TICKS && decided === undefined; i++) {
     engine.tick();
-    pending = tankOf(engine).pendingSteer;
+    const tank = tankOf(engine);
+    const press = tank.cc2SteerQueue?.[0];
+    if (queued === undefined && press !== undefined) queued = { ...press, margin: press.due - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock };
+    if (tank.dir !== TANK_FACING) decided = { dir: tank.dir, x: tank.x, y: tank.y };
   }
-  return pending;
+  return { queued, decided };
 }
 
 describe('block on the yellow button', () => {
-  it('sets the pending decision of a yellow tank on a CC2-engine level', () => {
-    expect(pushOntoButton('cc2')).toBe('E');
+  it('queues the press of the block and turns a yellow tank on a CC2-engine level at the due pass', () => {
+    const { queued, decided } = pushOntoButton('cc2');
+    expect(queued?.dir).toBe('E');
+    expect(queued?.margin).toBe(DUE_MARGIN_PASSES);
+    expect(decided?.dir).toBe('E');
+    expect([decided?.x, decided?.y]).toEqual([TANK_CELL.x + 1, TANK_CELL.y]);
   });
 
   it('does nothing to the tank on a classic-rules level', () => {
-    expect(pushOntoButton('cc')).toBeUndefined();
+    expect(pushOntoButton('cc')).toEqual({ queued: undefined, decided: undefined });
   });
 });
