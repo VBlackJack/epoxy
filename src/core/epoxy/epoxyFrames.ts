@@ -17,7 +17,7 @@
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
-import { canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
+import { applyGreenFrameToggles, canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import { forceCycleArrival } from './epoxyForceCycle';
 import { applyCc3dStepEnd, isCarriedByForceFloor, processPlayerSlideStep, recordCc2PlayerView, resumeForceCarry, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
@@ -282,9 +282,14 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         block.cooldownTicks = 0;
       }
     }
+    // CC2 engine: the green pad teleports whose step ends in this frame come before the player's frame step (the player acts last in
+    // Lexy's actor list); the green toggles of the frame come after it (Lexy do_post_actor_phase).
+    // When the player already stepped, the full call below runs the jumps and then the toggles.
+    if (!playerStepped && !applyGreenFrameToggles(ctx, frame, 'tp')) return arrivalFrame;
     if (!playerStepped && !firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
     if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;
     if (w.levelCompleted) return arrivalFrame;
+    if (!applyGreenFrameToggles(ctx, frame)) return arrivalFrame;
     // The frame-1 phase reads the sources as frame 0 left them for the toggle switches that frame flipped.
     if (frame === 0 && w.cc2WireFrameNext === 0) afterFrame0 = sampleFrameStart(w);
     if (!runFrameWirePhase(ctx, frame, frame === 0 ? frameStart : afterFrame0)) return arrivalFrame;

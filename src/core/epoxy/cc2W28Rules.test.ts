@@ -270,8 +270,7 @@ describe('CC2 wave 28 (G1): a CC1 level keeps the old teeth gate', () => {
   });
 });
 
-describe('CC2 wave 28 (G2): a ball dropped toward a green pad still jumps when its step starts', () => {
-  const GREEN_PAD = 'teleport_random';
+describe('CC2 wave 28 (G2): a ball dropped toward a green pad teleports when its step ends, as the blue pad does', () => {
   const BLUE_PAD = 'teleport_forward';
 
   function dropOnto(pad: string): GameEngine {
@@ -284,11 +283,22 @@ describe('CC2 wave 28 (G2): a ball dropped toward a green pad still jumps when i
     return engine;
   }
 
-  it('lands off the green pad at the arrival, while a blue pad holds the ball until its step ends', () => {
-    // The launch step of the dropped ball enters the pad at (3, ROOM_ROW), so the pad is reached by the launch step itself.
-    const green = dropOnto(GREEN_PAD);
-    play(green, {}, 1);
-    expect(cellOf(green, BALL_TYPE)).toEqual([5, 8]);
+  it('holds the ball on the green pad until its step ends, then sends it out (Lexy lane w29_grt_drop_g0_p2_d6)', async () => {
+    // The ball set down at tic 6 enters the pad at (4,4) with its launch step; it stays there until the step ends, and is on its
+    // exit (5,7), facing west, one tic later. No actor order on this lane.
+    const green = new GameEngine();
+    green.loadLevel(await loadCc2Lane('grt_drop_g0_p2_d6', 'w29_'), SEED);
+    expect(world(green).cc2ActorOrder).not.toBe(true);
+    expect(sample(green, DROP_AT_6, [7, 10], (e) => cellOf(e, BALL_TYPE))).toEqual([
+      [4, 4],
+      [4, 4]
+    ]);
+    play(green, DROP_AT_6, 11, 10);
+    const afterStep = green.getEntities().find((e) => e.type === BALL_TYPE);
+    expect([afterStep?.x, afterStep?.y, afterStep?.dir]).toEqual([5, 7, 'W']);
+    play(green, DROP_AT_6, 12, 11);
+    const nextTic = green.getEntities().find((e) => e.type === BALL_TYPE);
+    expect([nextTic?.x, nextTic?.y]).toEqual([5, 7]);
     const blue = dropOnto(BLUE_PAD);
     play(blue, {}, 4);
     expect(cellOf(blue, BALL_TYPE)).toEqual([3, ROOM_ROW]);

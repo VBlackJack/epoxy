@@ -110,6 +110,9 @@ export function updateEntities(ctx: EpoxyContext): void {
     // that lands in frame 0 then reads the clock of this pass (map045: a fireball released t1541f0 steps at t1545; with the pass
     // closed its first wait is one pass short).
     if (w.ccRules && !runFramePrePass(ctx)) return;
+    // CC2 engine: the green points of frames 0 and 1 the pre-pass did not reach (a teleport or a toggle whose step ended in them) come
+    // before the frame wire phases it did not run.
+    if (w.ccRules && w.player.alive && !applyGreenFrameToggles(ctx, 1)) return;
     // Actor order: the frame wire phases the pre-pass did not run (nothing to move) run before the decisions.
     if (w.ccRules) {
       finishFrameWirePhases(ctx);
@@ -131,6 +134,17 @@ export function updateEntities(ctx: EpoxyContext): void {
     w.turnSpent.clear();
     pruneSplashes(w);
   }
+}
+
+/**
+ * CC2 engine: applies the green presses and the green pad teleports whose step ended in a frame up to `frame` (Lexy's do_post_actor_phase
+ * toggles after each frame's action phase; a teleport is an actor's turn of that frame). `kind` limits it to the teleports ('tp') or to
+ * the toggles ('toggle'). Returns false when an arrival killed the player.
+ */
+export function applyGreenFrameToggles(ctx: EpoxyContext, frame: 0 | 1, kind?: 'tp' | 'toggle'): boolean {
+  const w = ctx.world;
+  if (!w.ccRules || !usesCc2Engine(w.level) || w.cc3dPace || !w.ccArrivals.some((a) => a.cc2EndFrame !== undefined)) return true;
+  return applyQueuedArrivals(ctx, undefined, w.ccMonsterClock, true, false, { frame, kind });
 }
 
 /** The uids whose bomb removal was applied and whose queued button press (afterRemoval) has not run yet, per world (never serialized). */
@@ -170,7 +184,14 @@ function applyQueuedPassStartArrivals(ctx: EpoxyContext): boolean {
  * were queued. A press is void when its monster is gone or has left the button. Returns false when a press killed
  * the player (the pass then stops).
  */
-function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: number, endOfPass = false, onlyRemovals = false): boolean {
+function applyQueuedArrivals(
+  ctx: EpoxyContext,
+  ownerUid?: number,
+  passClock?: number,
+  endOfPass = false,
+  onlyRemovals = false,
+  greenPoint?: { frame: 0 | 1; kind?: 'tp' | 'toggle' }
+): boolean {
   const w = ctx.world;
   if (w.ccArrivals.length === 0) return true;
   const pass = passClock ?? w.ccMonsterClock;
@@ -205,14 +226,25 @@ function applyQueuedArrivals(ctx: EpoxyContext, ownerUid?: number, passClock?: n
     return monster.cooldownTicks === 0 || a.due + HAZARD_REMOVAL_MARGIN_PASSES <= pass;
   };
   const isDue = (a: CcArrival): boolean =>
-    (!onlyRemovals || a.removal !== undefined) &&
-    (stepEndDue(a) ?? hazardStepEnded(a) ?? a.due <= pass) &&
-    (ownerUid === undefined || a.uid === ownerUid) &&
-    (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
-    (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls' || a.afterPass === true) === endOfPass);
+    a.greenPad === true
+      // A green pad teleport runs at the frame point its step ended in, or after the pass when that frame is the last.
+      ? !onlyRemovals && ownerUid === undefined && a.due <= pass && greenPoint?.kind !== 'toggle' && (greenPoint !== undefined ? (a.cc2EndFrame ?? 1) <= greenPoint.frame : endOfPass)
+      : (!onlyRemovals || a.removal !== undefined) &&
+        (stepEndDue(a) ?? hazardStepEnded(a) ?? a.due <= pass) &&
+        (ownerUid === undefined || a.uid === ownerUid) &&
+        (!cc2 || (a.teleport === true) === (ownerUid !== undefined)) &&
+        (!(cc2 && ownerUid === undefined) || (a.action === 'toggle_walls' || a.afterPass === true) === endOfPass) &&
+        (greenPoint === undefined || (a.cc2EndFrame !== undefined && a.cc2EndFrame <= greenPoint.frame && greenPoint.kind !== 'tp'));
   let due = w.ccArrivals.filter(isDue);
   // After the pass, the presses of the action phase (afterPass) come before the green toggle (Lexy do_post_actor_phase). Stable partition.
   if (endOfPass) due = [...due.filter((a) => a.afterPass === true), ...due.filter((a) => a.afterPass !== true)];
+  // The green pad teleports of a frame come before its green toggles (an actor's turn, then do_post_actor_phase), in Lexy's actor order:
+  // the reverse of the entity list.
+  if (due.some((a) => a.greenPad === true)) {
+    const rank = (a: CcArrival): number => w.entities.findIndex((e) => e.uid === a.uid);
+    const jumps = due.filter((a) => a.greenPad === true).sort((a, b) => rank(b) - rank(a));
+    due = [...jumps, ...due.filter((a) => a.greenPad !== true)];
+  }
   if (due.length === 0) return true;
   w.ccArrivals = w.ccArrivals.filter((a) => !isDue(a));
   w.ccArrivalsRunning = true;
@@ -293,10 +325,17 @@ function applyQueuedTeleport(ctx: EpoxyContext, monster: RuntimeEntity, arrival:
 /**
  * CC2 engine: a monster whose step ended on a teleporter (not the green one) goes through in its own turn of that pass: it
  * stands on the destination pad, and its next decision is the forced exit (see stepMonsterCore). The countdown is left as it
- * is: it reaches 0 in this very pass. Returns false when the arrival killed the player.
+ * is: it reaches 0 in this very pass. It also runs the green pad jump at the frame point its step ends in. Returns false when the arrival killed the player.
  */
 function applyStepEndTeleport(ctx: EpoxyContext, monster: RuntimeEntity): boolean {
-  if (!ctx.teleportEntity(monster, monster.x, monster.y, monster.dir, true)) return true;
+  if (!ctx.teleportEntity(monster, monster.x, monster.y, monster.dir, true)) {
+    // A failed jump still schedules the forced slide (Lexy attempt_teleport schedule_actor_slide, whatever the result): the next
+    // decision is the step forward, which is blocked, so that decision is spent. Green pad only, on the CC2 engine.
+    const w = ctx.world;
+    const pad = ConfigRegistry.getTile(w.terrain[monster.y]?.[monster.x]);
+    if (usesCc2Engine(w.level) && !w.cc3dPace && pad.teleportJumpsAtStepStartCc2 === true) monster.teleportExit = monster.dir;
+    return true;
+  }
   return resolveMonsterArrival(ctx, monster, false);
 }
 
@@ -1094,15 +1133,40 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
       const preFrame = usesCc2Engine(w.level) && !w.cc3dPace ? w.cc2PrePassMonsterFrame : undefined;
       const afterPass = preFrame === 0 && cc2StepEnd;
       const extra = preFrame !== undefined && !afterPass ? 1 : 0;
-      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, action: destTile.buttonAction, due: passesCounted + delay + extra, ...(afterPass ? { afterPass: true as const } : {}) });
+      // CC2 engine: a monster's green press is tagged with the Lexy frame its step ends in (a main-pass step: frame 1; a pre-pass step of
+      // frame f: (f + 2) mod 3; a clone's release step: its cc2Frame tag, frame 0 when a pass-start press released it) and applies at that
+      // frame's point of the pass of that tic, one pass after the old after-pass due (a frame-0 pre-pass step keeps its due).
+      const tagged = usesCc2Engine(w.level) && !w.cc3dPace && destTile.buttonAction === CC2_GREEN_TOGGLE_ACTION && entity.kind === 'monster';
+      const endFrame = !tagged
+        ? undefined
+        : preFrame !== undefined
+          ? (((preFrame + 2) % 3) as 0 | 1 | 2)
+          : cloneRelease
+            ? ((w.cc2BeforePass === true && w.cc2ReleaseFrame === undefined ? 0 : (entity.cc2Frame ?? CC2_DEFAULT_FRAME)) as 0 | 1 | 2)
+            : 1;
+      w.ccArrivals.push({
+        uid: entity.uid,
+        x: nx,
+        y: ny,
+        action: destTile.buttonAction,
+        due: passesCounted + delay + extra + (tagged && preFrame !== 0 ? 1 : 0),
+        ...(afterPass ? { afterPass: true as const } : {}),
+        ...(endFrame !== undefined ? { cc2EndFrame: endFrame } : {})
+      });
     } else if (!ctx.triggerButton(nx, ny, destTile.buttonAction)) {
       return false;
     }
   }
 
-  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && (w.inTick || w.cc2BallLaunchUid === entity.uid) && entity.kind === 'monster' && !destTile.teleportJumpsAtStepStartCc2) {
+  if ((destTile.isTeleporter || destTile.teleportsToSelf) && allowTeleport && usesCc2Engine(w.level) && (w.inTick || w.cc2BallLaunchUid === entity.uid) && entity.kind === 'monster' && (!destTile.teleportJumpsAtStepStartCc2 || !w.cc3dPace)) {
     // CC2 engine: the monster goes through in its own turn of the pass where its step ends, not when it starts. The green pad
-    // (which draws its destination) keeps the jump at the start of the step, as do blocks.
+    // (which draws its destination) goes through at the frame point its step ends in; blocks keep the jump at the start of the step.
+    if (destTile.teleportJumpsAtStepStartCc2 === true) {
+      const pre = w.cc2PrePassMonsterFrame;
+      const endFrame = (pre !== undefined ? (pre + 2) % 3 : cloneRelease ? (entity.cc2Frame ?? CC2_DEFAULT_FRAME) : 1) as 0 | 1 | 2;
+      w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, greenPad: true, cc2EndFrame: endFrame, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks });
+      return true;
+    }
     w.ccArrivals.push({ uid: entity.uid, x: nx, y: ny, teleport: true, due: (w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1) + entity.cooldownTicks - 1 });
     return true;
   }
@@ -1354,6 +1418,14 @@ export function chooseMonsterDirection(w: EpoxyWorld, monster: RuntimeEntity, de
   if (floorFree) {
     if (currentTile.slideType === 'ice') {
       if (canStep(w, monster, monster.dir)) return monster.dir;
+      // CC2 engine (Lexy _possibly_bonk, game.js 1164-1207): a ghost without cleats bonks, turns round (an ice corner deflects it) and
+      // tries the new way at once; with cleats it stays, facing the wall.
+      if (usesCc2Engine(w.level) && !w.cc3dPace) {
+        if (monster.heldTools?.includes('boots_ice') === true) return null;
+        const back = (currentTile.deflectionMap?.[OPPOSITE_DIRECTION[monster.dir]] || OPPOSITE_DIRECTION[monster.dir]) as Direction;
+        monster.dir = back;
+        return canStep(w, monster, back) ? back : null;
+      }
       // Blocked on ice, a ghost turns round (it moves on the next step); it cannot choose another way.
       monster.dir = OPPOSITE_DIRECTION[monster.dir];
       return null;
@@ -1658,6 +1730,10 @@ export function canMonsterEnter(
   const forbidden = itemId !== null ? ConfigRegistry.getTile(itemId).forbiddenItem : undefined;
   if (forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace) {
     if (monster.heldKeys?.includes(forbidden) === true || monster.heldTools?.includes(forbidden) === true) return false;
+  }
+  // CC2 engine: a no-sign imported on the terrain layer (a forbidden item over a tool) bars a monster holding that tool as well (a ghost that took flippers).
+  if (destTile.forbiddenItem !== undefined && usesCc2Engine(w.level) && !w.cc3dPace) {
+    if (monster.heldKeys?.includes(destTile.forbiddenItem) === true || monster.heldTools?.includes(destTile.forbiddenItem) === true) return false;
   }
   const signPasses = forbidden !== undefined && usesCc2Engine(w.level) && !w.cc3dPace;
   if (!keyPasses && !signPasses && def?.passesItems !== true && itemId && ConfigRegistry.getTile(itemId).hazard !== 'bomb' && !isLitChargeItem(itemId)) {

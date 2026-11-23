@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import type { RoomMode } from '../../test/cc2Room';
@@ -56,6 +57,8 @@ const WATCH_TICKS = 14;
 const CLASSIC_PRESS_TICK = 4;
 /** The 1-based tick on which it lands on the CC2 engine: the pass after the step ended. */
 const CC2_STEP_END_PRESS_TICK = 5;
+/** The open state of the toggle wall. */
+const WALL_OPEN = 'toggle_wall_open';
 const PLAYER_ORDINAL = 1;
 
 /** The tick (1-based) on which the watched cell first differs from its start, after a pink ball walks east onto a button. */
@@ -85,8 +88,19 @@ describe('CC2 engine: a monster press lands when its step ends (MP)', () => {
     expect(pressTick('cc', ORANGE_BUTTON, CLASSIC_JET_OFF)).toBe(CLASSIC_PRESS_TICK);
   });
 
-  it('leaves the green button on its own timing (Lexy pending_green_toggle, after the actor pass)', () => {
-    expect(pressTick('cc2', GREEN_BUTTON, WALL_CLOSED)).toBe(pressTick('cc', GREEN_BUTTON, WALL_CLOSED));
+  it('toggles after the frame its step ends in (Lexy do_post_actor_phase per frame, lane w29_gtf_walk_k2_j2)', async () => {
+    // The classic level keeps its own press tick; the CC2 room presses one tick later.
+    expect(pressTick('cc', GREEN_BUTTON, WALL_CLOSED)).toBe(CLASSIC_PRESS_TICK);
+    // Lexy toggles the wall (10,5) of the lane at t8f1: closed after tick() call 8, open after call 9. E is held from tic 0.
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('gtf_walk_k2_j2', 'w29_'), 0);
+    const seen: string[] = [];
+    for (let call = 1; call <= 9; call++) {
+      lane.attemptPlayerMoveHeld(['E']);
+      lane.tick();
+      if (call === 8 || call === 9) seen.push(lane.getTerrain()[5][10]);
+    }
+    expect(seen).toEqual([WALL_CLOSED, WALL_OPEN]);
   });
 });
 
