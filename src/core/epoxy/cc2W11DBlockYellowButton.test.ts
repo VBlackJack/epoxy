@@ -34,6 +34,7 @@ const BLOCK_X = 3;
 const BUTTON_X = 4;
 const TANK_CELL = { x: 6, y: 2 };
 const WAIT_TICKS = 20;
+const TANK_FACING = 'N';
 /**
  * Passes between the block's landing and the first pass at which the tank may take the decision: the block's cooldown and one
  * pass for its step end, one less than the other actors' arrival rule gave before (button_yellow on_arrive, tiletypes.js:2241-2250).
@@ -42,9 +43,14 @@ const WAIT_TICKS = 20;
  * press reaches the tank one pass earlier, so the margin is 4, not 5.
  */
 const DUE_MARGIN_PASSES = 4;
+/** Ticks between the landing (the press queued) and the tank turning to it: the due pass counted in ticks, measured on this room. */
+const TURN_TICKS_AFTER_LANDING = 5;
 
-/** The ticks (counted from the push) at which the block has landed and the tank holds its pending decision. */
-function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: number | undefined; dueMargin: number | undefined } {
+/**
+ * The ticks (counted from the push) at which the block has landed, the tank holds its queued press (the press lands when the block's
+ * step ends: the tank decides at the due pass, not before) and the tank has turned to it.
+ */
+function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: number | undefined; dueMargin: number | undefined; turnedAt: number | undefined; turnedTo: string | undefined } {
   const engine = new GameEngine();
   engine.loadLevel(
     room({
@@ -52,7 +58,7 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
       terrain: { [`${BUTTON_X},${ROOM_ROW}`]: BUTTON },
       entities: [
         { type: BLOCK, x: BLOCK_X, y: ROOM_ROW, dir: 'E' },
-        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: 'N' }
+        { type: TANK, x: TANK_CELL.x, y: TANK_CELL.y, dir: TANK_FACING }
       ]
     })
   );
@@ -60,17 +66,24 @@ function observe(mode: RoomMode): { landedAt: number | undefined; decidedAt: num
   let landedAt: number | undefined;
   let decidedAt: number | undefined;
   let dueMargin: number | undefined;
+  let turnedAt: number | undefined;
+  let turnedTo: string | undefined;
   for (let i = 0; i < WAIT_TICKS; i++) {
     engine.tick();
     const block = engine.getEntities().find((e) => e.type === BLOCK);
     const tank = engine.getEntities().find((e) => e.type === TANK);
     if (landedAt === undefined && block?.x === BUTTON_X && block.arrivalTicks === undefined) landedAt = i;
-    if (decidedAt === undefined && tank?.pendingSteer !== undefined) {
+    const press = tank?.cc2SteerQueue?.[0];
+    if (decidedAt === undefined && press !== undefined) {
       decidedAt = i;
-      dueMargin = (tank.pendingSteerDue ?? Number.NaN) - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
+      dueMargin = press.due - (engine as unknown as { w: EpoxyWorld }).w.ccMonsterClock;
+    }
+    if (turnedAt === undefined && tank !== undefined && tank.dir !== TANK_FACING) {
+      turnedAt = i;
+      turnedTo = tank.dir;
     }
   }
-  return { landedAt, decidedAt, dueMargin };
+  return { landedAt, decidedAt, dueMargin, turnedAt, turnedTo };
 }
 
 beforeEach(() => {
@@ -79,13 +92,17 @@ beforeEach(() => {
 
 describe('CC2 engine: a block arriving on the yellow button', () => {
   it('hands the tank its decision in the tick it lands, due one pass earlier', () => {
-    const { landedAt, decidedAt, dueMargin } = observe('cc2');
+    const { landedAt, decidedAt, dueMargin, turnedAt, turnedTo } = observe('cc2');
     expect(landedAt).toBeDefined();
     expect(decidedAt).toBe(landedAt);
     expect(dueMargin).toBe(DUE_MARGIN_PASSES);
+    // The tank takes the press at the due pass: it faces east then, and not in the tick the press was queued.
+    expect(turnedTo).toBe('E');
+    expect((turnedAt ?? 0) - (landedAt ?? 0)).toBe(TURN_TICKS_AFTER_LANDING);
   });
 
   it.each(['cc', 'native'] as RoomMode[])('does nothing outside the CC2 engine (%s)', (mode) => {
     expect(observe(mode).decidedAt).toBeUndefined();
+    expect(observe(mode).turnedTo).toBeUndefined();
   });
 });

@@ -17,7 +17,7 @@
 /**
  * CC2 engine: a monster that steps onto a teleporter goes through in its own turn of the pass where its step ends, lands on the
  * destination pad and leaves by the forced exit as its next decision, with no draw. The green pad holds a monster the same way
- * (wave 29: it goes through at the frame its step ends in); a block keeps the step-start jump on every pad.
+ * (wave 29: it goes through at the frame its step ends in); a block does the same on every pad (wave 30).
  * Lexy's Labyrinth game.js attempt_teleport.
  */
 
@@ -43,6 +43,11 @@ const FAR_X = 11;
 const MONSTER_START_X = 2;
 /** The prefix of the wave 29 Lexy lanes. */
 const LANE_PREFIX = 'w29_';
+/** The prefix of the wave 30 Lexy lanes. */
+const WAVE_30_LANE_PREFIX = 'w30_';
+const BLOCK_STEP_WATCH_TICKS = 20;
+/** Ticks after the first one until a pushed block has gone through: its step end, measured on this room. */
+const BLOCK_STEP_TICKS_AFTER_PUSH_TICK = 4;
 
 beforeEach(() => {
   loadTestConfigs();
@@ -135,9 +140,10 @@ describe('CC2 monster teleport at the end of its step', () => {
     expect(queued(nowFlagged)).toMatchObject({ greenPad: true, cc2EndFrame: 1 });
   });
 
-  it('keeps the step-start jump for a block pushed onto either pad', () => {
-    // A block pushed onto either pad keeps the step-start jump: it has left the pad in the tick it is pushed.
-    for (const pad of [GREEN_PAD, UNFLAGGED_PAD]) {
+  it('a block pushed onto a pad stays on it until its step ends', () => {
+    // A block pushed onto either pad stays on it through its step and goes through when the step ends (wave 30; Lexy on_arrive).
+    // exitX: the cell the block stands on once through (each pad leaves by its own exit direction).
+    for (const [pad, exitX] of [[GREEN_PAD, EXIT_PAD_X - 1], [UNFLAGGED_PAD, EXIT_PAD_X + 1]] as const) {
       const pushed = new GameEngine();
       pushed.loadLevel(
         room({
@@ -149,8 +155,32 @@ describe('CC2 monster teleport at the end of its step', () => {
       );
       expect(pushed.attemptPlayerMove('E')).toBe(true);
       tick(pushed, 1);
-      expect(pushed.getEntities().find((e) => e.type === 'dirt_block')?.x).not.toBe(ENTRY_X);
+      const block = (): number | undefined => pushed.getEntities().find((e) => e.type === 'dirt_block')?.x;
+      expect(block()).toBe(ENTRY_X);
+      let leftAt = 0;
+      while (block() === ENTRY_X && leftAt < BLOCK_STEP_WATCH_TICKS) {
+        tick(pushed, 1);
+        leftAt++;
+      }
+      expect([leftAt, block()]).toEqual([BLOCK_STEP_TICKS_AFTER_PUSH_TICK, exitX]);
     }
+  });
+
+  // Lexy lanes w30_btp_{green,blue,red}_floor_d0 / w30_btp_red_fire_d0: the pushed ice block stands on the pad through its step and is
+  // on the exit cell after it (the exit fire melts it).
+  it('takes the exit step after the teleport (Lexy lane w30_btp_red_fire_d0)', async () => {
+    const lane = new GameEngine();
+    lane.loadLevel(await loadCc2Lane('btp_red_fire_d0', WAVE_30_LANE_PREFIX), 0);
+    const block = () => lane.getEntities().find((e) => e.type === 'ice_block');
+    lane.attemptPlayerMoveHeld(['E']);
+    tick(lane, 1);
+    expect([block()?.x, block()?.y]).toEqual([4, 4]);
+    tick(lane, 3);
+    expect([block()?.x, block()?.y]).toEqual([4, 4]);
+    tick(lane, 1);
+    expect([block()?.x, block()?.y]).toEqual([11, 7]);
+    tick(lane, 1);
+    expect([block()?.x, block()?.y]).toEqual([11, 7]);
   });
 
   it('keeps the step-start jump on a classic level that is not CC2', () => {
