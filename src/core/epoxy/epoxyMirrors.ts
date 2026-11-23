@@ -37,8 +37,8 @@
 
 import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { DIRECTION_VECTORS, ORDERED_DIRECTIONS } from '../../config/constants';
-import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION, RAILROAD_SIGN_ITEM_ID } from '../coreConstants';
-import { Cc2MirrorMove, Direction, EntityDefinition, RuntimeEntity, TileDefinition } from '../types';
+import { CC2_MIRROR_SLIDE_COOLDOWN_TICKS, CC2_MIRROR_WALK_COOLDOWN_TICKS, DEFAULT_PLAYER_CHARACTER, FLOOR_TILE_ID, MELINDA_CHARACTER, OPPOSITE_DIRECTION, RAILROAD_SIGN_ITEM_ID } from '../coreConstants';
+import { Cc2MirrorMove, Direction, EntityDefinition, PlayerState, RuntimeEntity, TileDefinition } from '../types';
 import { attemptPushBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { usesCc2Engine } from './ccRules';
@@ -85,9 +85,45 @@ function mirrorMoveOf(w: EpoxyWorld): Cc2MirrorMove {
 
 /** CC2 engine: the controlled player decided to move `dir` (a blocked try too): the mirrors read it from now on. */
 export function rememberPlayerMove(w: EpoxyWorld, dir: Direction): void {
+  // While a leaver's exit step runs, Lexy's controlled player is still the leaver: the next player's moves are not his.
+  if (w.mirrorMove?.exitStep !== undefined) return;
   const move = mirrorMoveOf(w);
   move.remembered = dir;
   move.attempted = true;
+}
+
+/** A copy of the mirrors' memory (its exit step and swap copied too). */
+export function copyMirrorMove(move: Cc2MirrorMove): Cc2MirrorMove {
+  return { ...move, ...(move.exitStep !== undefined ? { exitStep: { ...move.exitStep } } : {}), ...(move.swap !== undefined ? { swap: { ...move.swap } } : {}) };
+}
+
+/**
+ * A deliberate swap (Lexy swap_players at the leaver's decision) clears both remembered moves; for the rest of the tick the
+ * mirrors read the leaver's list place, the leaver's forced slide decided in that tick is remembered for the new controller, and the
+ * mirrors listed after the leaver (who decide before him in Lexy's pass) read the old memory, his character included.
+ */
+export function noteCc2Swap(w: EpoxyWorld, leaver: PlayerState): void {
+  if (!hasCc2MirrorCadence(w)) return;
+  const move = mirrorMoveOf(w);
+  const oldCharacter = leaver.character ?? w.level.character ?? DEFAULT_PLAYER_CHARACTER;
+  const oldSnapshot = move.snapshot;
+  move.remembered = null;
+  move.snapshot = null;
+  move.attempted = false;
+  delete move.exitStep;
+  move.swap = {
+    ...(leaver.listOrdinal !== undefined ? { ordinal: leaver.listOrdinal } : {}),
+    oldCharacter,
+    oldSnapshot,
+    ...(w.player.listOrdinal !== undefined ? { newOrdinal: w.player.listOrdinal } : {}),
+    newFree: playerIsFreeToDecide(w)
+  };
+}
+
+/** Whether the parked player stepping now is the one who swapped control away in this tick. */
+export function isSwapLeaverStep(w: EpoxyWorld): boolean {
+  const swap = w.mirrorMove?.swap;
+  return swap !== undefined && w.swappedIn !== null && w.cc2ForcedStep !== true && w.swappedIn.listOrdinal === swap.ordinal;
 }
 
 /** Whether the controlled player is free to decide: no step under way and no slide. */
@@ -105,7 +141,30 @@ export function beginCc2MirrorTick(w: EpoxyWorld, firstTick: boolean): void {
     for (const e of w.entities) if (mirrorDefOf(e) !== undefined) e.cooldownTicks = 0;
   }
   const move = w.mirrorMove;
+  if (move?.exitStep !== undefined) return;
   if (move !== undefined && !move.attempted && playerIsFreeToDecide(w)) move.remembered = null;
+}
+
+/** Whether the controlled player's move is a decision the mirrors copy: not a parked player's own step, not a forced out-of-turn step. */
+export function copiesControllerMove(w: EpoxyWorld): boolean {
+  return w.swappedIn === null && w.cc2ForcedStep !== true;
+}
+
+/**
+ * The controlled player `leaver` decided a step onto an exit and left: the mirrors of his character copy it, read by his list
+ * place, until the step ends `ticks` ticks later. A forced step (the release from a trap) is no decision and is not remembered.
+ */
+export function rememberExitStep(w: EpoxyWorld, dir: Direction, leaver: PlayerState, ticks: number): void {
+  if (!hasCc2MirrorCadence(w) || !copiesControllerMove(w)) return;
+  const move = mirrorMoveOf(w);
+  move.remembered = dir;
+  move.attempted = true;
+  move.exitStep = { character: leaver.character ?? w.level.character ?? DEFAULT_PLAYER_CHARACTER, ...(leaver.listOrdinal !== undefined ? { ordinal: leaver.listOrdinal } : {}), ticks };
+}
+
+/** A swap whose new controller is free to decide and is listed before the leaver, so he decides after the leaver in Lexy's reverse pass. */
+function newControllerDecidesAfterLeaver(swap: NonNullable<EpoxyWorld['mirrorMove']>['swap'] | undefined): boolean {
+  return swap?.newFree === true && swap.newOrdinal !== undefined && swap.ordinal !== undefined && swap.newOrdinal < swap.ordinal;
 }
 
 /**
@@ -116,9 +175,20 @@ export function endCc2MirrorTick(w: EpoxyWorld): void {
   if (!hasCc2MirrorCadence(w)) return;
   const move = w.mirrorMove;
   if (move === undefined) return;
-  if (!move.attempted && playerIsFreeToDecide(w)) move.remembered = null;
+  if (!move.attempted && playerIsFreeToDecide(w) && move.exitStep === undefined) move.remembered = null;
+  // A new controller listed before the leaver decides after him in Lexy's pass: his null decision wipes the leaver's slide.
+  const swap = move.swap;
+  if (newControllerDecidesAfterLeaver(swap)) move.remembered = null;
   move.snapshot = move.remembered;
   move.attempted = false;
+  delete move.swap;
+  // The leaver's step onto the exit ends before the next tick's moves (its arrival comes before that tick's decisions):
+  // remember_player_move(null) at the arrival, then swap_players clears both slots.
+  if (move.exitStep !== undefined && --move.exitStep.ticks <= 0) {
+    move.remembered = null;
+    move.snapshot = null;
+    delete move.exitStep;
+  }
 }
 
 /** Whether the entity is still on the grid: a step of a mirror earlier in the line may have removed it. */
@@ -368,8 +438,11 @@ function mirrorStepCooldown(w: EpoxyWorld, entity: RuntimeEntity): number {
 function decidedMoveFor(w: EpoxyWorld, entity: RuntimeEntity): Direction | null {
   const move = w.mirrorMove;
   if (move === undefined) return null;
-  const playerOrdinal = w.player.listOrdinal;
+  const playerOrdinal = move.exitStep !== undefined ? move.exitStep.ordinal : move.swap !== undefined ? move.swap.ordinal : w.player.listOrdinal;
   const listedBeforePlayer = entity.listOrdinal !== undefined && playerOrdinal !== undefined && entity.listOrdinal < playerOrdinal;
+  // Listed before a new controller who is himself listed before the leaver: read after his (null) decision.
+  const swap = move.swap;
+  if (newControllerDecidesAfterLeaver(swap) && entity.listOrdinal !== undefined && entity.listOrdinal < swap!.newOrdinal!) return null;
   return listedBeforePlayer ? move.remembered : move.snapshot;
 }
 
@@ -391,8 +464,12 @@ function decideMirrorStep(ctx: EpoxyContext, entity: RuntimeEntity, def: EntityD
   let want: Direction | null;
   if (ejected) want = entity.dir;
   else {
-    if (def.mirrorsCharacter !== playerCharacterOf(w) || !w.player.alive || w.levelCompleted) return true;
-    want = decidedMoveFor(w, entity);
+    // Listed after a leaver who just swapped, a mirror decides before him in Lexy's pass: it reads the old memory, his character.
+    const swap = w.mirrorMove?.swap;
+    const readsOld = swap?.oldCharacter !== undefined && swap.ordinal !== undefined && entity.listOrdinal !== undefined && entity.listOrdinal > swap.ordinal;
+    const copied = readsOld ? swap.oldCharacter : (w.mirrorMove?.exitStep?.character ?? playerCharacterOf(w));
+    if (def.mirrorsCharacter !== copied || !w.player.alive || w.levelCompleted) return true;
+    want = readsOld ? (swap.oldSnapshot ?? null) : decidedMoveFor(w, entity);
   }
   if (want === null) return true;
   // The step's own cooldown is set before the arrival, so a button press it queues lands when the step ends.
