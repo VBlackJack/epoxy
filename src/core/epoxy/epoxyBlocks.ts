@@ -331,7 +331,8 @@ function turnFacingWithTrack(facing: Direction, from: Direction, to: Direction):
 /**
  * Whether the step of a block the player pushes ends later than the push: a CC3D block (Cc3dSimulation.startStep gives it
  * the player's four ticks) or a block of a CC2-engine level onto a cell that is not ice or a force floor (a teleporter
- * included: the block goes through when its step ends), which are the cells it enters at the fast pace.
+ * included: the block goes through when its step ends), which are the cells it enters at the fast pace. The unpowered red pad is the
+ * exception (it keeps the step-start jump), and so is the CC3D pace case (a teleporter acts at once there; see arrivesAtStepEnd).
  */
 function defersArrival(w: EpoxyWorld, block: RuntimeEntity, destX: number, destY: number): boolean {
   if (!usesCc2Engine(w.level) && ConfigRegistry.getEntityDef(block.type)?.stopsAtWall !== true) return false;

@@ -974,7 +974,7 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   const queued = w.entities
     .filter((e) => (e.cc2SteerQueue?.length ?? 0) > 0)
     .map((e) => `${e.uid}:${(e.cc2SteerQueue ?? []).map((press) => `${press.dir}${press.due - pass}`).join('/')}`);
-  if (queued.length > 0) parts.push(`q${queued.join(',')}`);
+  if (queued.length > 0) parts.push(`y${queued.join(',')}`);
   if (w.cc2BrownHeld !== undefined) parts.push(`b${w.cc2BrownHeld.join(',')}`);
   if (w.cc2ToggledButtonCells.length > 0) parts.push(`x${w.cc2ToggledButtonCells.join(',')}`);
   // A teleport waiting for the turn of its monster decides where that monster stands next: part of the state.

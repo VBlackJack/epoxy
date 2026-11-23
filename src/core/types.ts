@@ -1343,8 +1343,7 @@ export interface TileDefinition {
   isTeleporter?: boolean;
   /**
    * CC2 only: the green pad: a monster or bowling ball on it goes through at the Lexy frame its step ends in (CcArrival.greenPad), and a failed
-   * jump spends its next decision. Blocks have no user of this flag on the CC2 engine any more (they go through when their step ends on
-   * every pad); it is still read by the CC3D pace.
+   * jump spends its next decision. Blocks go through every pad when their step ends; the flag is read for monsters and by the CC3D pace.
    */
   teleportJumpsAtStepStartCc2?: boolean;
   /** CC2 engine only: a teleporter whose exit the player may decide himself at his next decision (the red and yellow pads); the plain pads force the exit. */
