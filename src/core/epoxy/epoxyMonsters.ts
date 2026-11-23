@@ -118,6 +118,9 @@ export function updateEntities(ctx: EpoxyContext): void {
       finishFrameWirePhases(ctx);
       if (!w.player.alive || w.levelCompleted) return;
     }
+    // CC2 engine, wave 31: the monsters whose bump melts ice are those of this pass's decisions and moves (a frame pre-pass melt does not
+    // count); the after-pass ice retry reads the set.
+    delete w.cc2IceMelters;
     if (w.ccRules && !planClassicDecisions(ctx)) return;
     const passClock = w.ccMonsterClock;
     runEntityPass(ctx);
@@ -668,8 +671,14 @@ function runEntityPass(ctx: EpoxyContext): void {
   }
   // A monster whose bump melts an ice block still retries after the pass: Lexy's bonk is instant (game.js:1192-1207), so it steps
   // into the melted cell in the same frame (a melting one still refused also does). Every other monster waits for the next pre-pass.
+  // Wave 31: on the CC2 pace only a monster whose bump melted an ice block in this pass retries now (a fireball refused on ice that melted
+  // nothing waits for the next pre-pass, as Lexy's does).
+  const melters = w.cc2IceMelters;
+  delete w.cc2IceMelters;
+  const meltedOnly = usesCc2Engine(w.level) && !w.cc3dPace;
   for (const entity of refusedOnIce) {
     if (ConfigRegistry.getEntityDef(entity.type)?.meltsIceOnBumpCc2 !== true) continue;
+    if (meltedOnly && melters?.has(entity.uid) !== true) continue;
     if (!retryRefusedOnIce(ctx, entity, clock)) return;
   }
   // A block refused on a turning or random force floor, or on any force floor off the frame model, tries once more after the pass
@@ -734,7 +743,8 @@ function retryRefusedOnIce(ctx: EpoxyContext, entity: RuntimeEntity, clock: numb
  * the step after it.
  */
 function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: number): boolean {
-  if (entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity) && !teethLeaveTeleporter(ctx.world, entity)) return true;
+  // Wave 31: a teeth ejected from a trap by a block's press steps out whatever its phase (Lexy attempt_out_of_turn_step).
+  if (ctx.world.cc2TrapEjection === undefined && entity.cooldownTicks === 0 && followsTeethPhase(entity.type, usesCc2Engine(ctx.world.level)) && !teethMayDecide(clock, usesCc2Engine(ctx.world.level), teethCycleOf(entity.type, usesCc2Engine(ctx.world.level))) && !teethSlide(ctx.world, entity) && !teethLeaveTeleporter(ctx.world, entity)) return true;
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
@@ -1637,6 +1647,7 @@ function meltIceBlockAhead(w: EpoxyWorld, monster: RuntimeEntity, dir: Direction
   if (cc2 || terrainId === FLOOR_TILE_ID) w.terrain[ny][nx] = melted;
   removeEntity(w, block.uid);
   if (cc2) leaveSplash(w, nx, ny);
+  if (cc2 && !w.cc3dPace) (w.cc2IceMelters ??= new Set<number>()).add(monster.uid);
   AudioManager.playSfx('splash');
   return true;
 }

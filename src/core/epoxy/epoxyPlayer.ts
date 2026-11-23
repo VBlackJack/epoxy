@@ -80,9 +80,19 @@ const TRAP_EJECT_EXTRA_COOLDOWN_TICKS = 1;
  * the tick of its step a second time. An entity that ignores floor effects (a ghost) is not held by a trap.
  * Known gap: a parked player in the trap is not ejected, where Lexy ejects any actor (tiletypes.js:1771-1777); it concerns
  * multi-player CC2 levels only.
+ *
+ * Wave 31, `blockPress` (CC2 engine, off the CC3D pace): the opening press is a block's arrival on a brown button. The controlled
+ * player standing in the trap at rest is then ejected too, through the engine's forced step in his facing (the ejection hook), and
+ * the extra cooldown tick also applies inside the tick when `blockPress.extraTick` says the arrival settled in the frame pre-pass (a
+ * monster is ejected at most once per tic: its step leaves it a cooldown, which bars a second ejection). A teeth so ejected steps out
+ * whatever its phase (the world transient cc2TrapEjection, read by stepClassicMonster).
  */
-function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
+export function ejectFromTrap(ctx: EpoxyContext, x: number, y: number, blockPress?: { extraTick: boolean }): void {
   const w = ctx.world;
+  if (blockPress !== undefined && w.player.alive && w.player.x === x && w.player.y === y && w.player.moveCooldown === 0 && !w.player.isSliding) {
+    ctx.cc2ReleaseTrappedPlayer?.();
+    return;
+  }
   const e = getEntityAt(w, x, y);
   if (e === undefined || ConfigRegistry.getEntityDef(e.type)?.ignoresFloorEffects === true) return;
   if (e.kind === 'block') {
@@ -95,13 +105,16 @@ function ejectFromTrap(ctx: EpoxyContext, x: number, y: number): void {
   const fromY = e.y;
   // The step's button press is queued to its step end (queuesButtonPress reads the flag), as for any monster step.
   w.cc2TrapEject = true;
+  if (blockPress !== undefined) w.cc2TrapEjection = blockPress;
   try {
     stepClassicMonsterOutOfTurn(ctx, e);
   } finally {
     delete w.cc2TrapEject;
+    delete w.cc2TrapEjection;
   }
   w.ccPlans.delete(e.uid);
-  if (!w.inTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks += TRAP_EJECT_EXTRA_COOLDOWN_TICKS;
+  const extraTick = !w.inTick || blockPress?.extraTick === true;
+  if (extraTick && (e.x !== fromX || e.y !== fromY) && e.cooldownTicks > 0) e.cooldownTicks += TRAP_EJECT_EXTRA_COOLDOWN_TICKS;
 }
 
 /** Move cooldown after stepping onto a force floor, so the floor can carry the player. */
@@ -207,7 +220,9 @@ export function steerMirrorsOnce(ctx: EpoxyContext, dir: Direction): void {
   // CC2 engine: the mirrors are actors with their own cadence; they read the move the player decided (Lexy
   // remember_player_move), a blocked try included, at their own pace.
   if (hasCc2MirrorCadence(w)) {
-    if (w.swappedIn === null) rememberPlayerMove(w, dir);
+    // Wave 31: a forced out-of-turn step (the release from a trap) is no decision: the mirrors do not copy it (Lexy calls
+    // remember_player_move only for a decision).
+    if (w.swappedIn === null && w.cc2ForcedStep !== true) rememberPlayerMove(w, dir);
     return;
   }
   if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, dir);

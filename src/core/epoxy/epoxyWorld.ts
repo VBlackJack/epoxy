@@ -310,6 +310,22 @@ export interface EpoxyWorld {
   /** CC2 engine, actor order: the uids of the entities that skip the rest of the running pass (a cloner template that went out). Transient, never saved. */
   cc2SkipTurn?: Set<number>;
   /**
+   * CC2 engine, wave 31: true while the engine plays a forced out-of-turn step of the player (the release from a trap). That step is no
+   * decision, so a mirror does not copy it. Set around the step and deleted in a finally. Transient, never saved or hashed.
+   */
+  cc2ForcedStep?: true;
+  /**
+   * CC2 engine, wave 31: set while a brown button's press ejects what its traps hold (a block settling onto the button). `extraTick` is
+   * true when the ejected monster's out-of-turn step gets the extra cooldown tick inside the tick (an arrival settled in the frame
+   * pre-pass, once per tic per monster), and a teeth so ejected steps out whatever its phase. Deleted in a finally. Transient, never saved.
+   */
+  cc2TrapEjection?: { extraTick: boolean };
+  /**
+   * CC2 engine, wave 31: the uids of the monsters whose bump melted an ice block in the running pass (its decisions and moves), cleared
+   * before the decisions of each pass and read by the after-pass ice retry. Transient, never saved or hashed.
+   */
+  cc2IceMelters?: Set<number>;
+  /**
    * CC2 engine: the cell indices (ascending) of the brown buttons the players' steps ended on, held for the rest of the
    * tick even if they leave at once. Absent while none is held; saved with the undo snapshot and part of the search key.
    */
@@ -404,6 +420,11 @@ export interface EpoxyContext {
   cc2PlayerDecides?(): void;
   /** CC2 engine, actor order: the player's turn at his place among the actions of the pass. The engine sets a no-op; a context built by hand may leave it out. */
   cc2PlayerActs?(): void;
+  /**
+   * CC2 engine, wave 31: the trap's ejection of the controlled player standing in it: the engine plays his forced out-of-turn step in his
+   * facing. The engine sets it; a context built by hand may leave it out (the player then stays, as before).
+   */
+  cc2ReleaseTrappedPlayer?(): void;
 }
 
 /** The state of an engine before any level is loaded. */
@@ -929,7 +950,12 @@ export function copyCc2PlayerView(v: Cc2PlayerView): Cc2PlayerView {
 
 /** A copy of the input stored for the player's turn on a CC2-engine level. */
 export function copyPendingDecision(d: Cc2PendingDecision): Cc2PendingDecision {
-  return { ...d, dirs: [...d.dirs], ...(d.actions !== undefined ? { actions: d.actions.map((a) => ({ ...a })) } : {}) };
+  return {
+    ...d,
+    dirs: [...d.dirs],
+    ...(d.actions !== undefined ? { actions: d.actions.map((a) => ({ ...a })) } : {}),
+    ...(d.blockedAtDecision !== undefined ? { blockedAtDecision: [...d.blockedAtDecision] } : {})
+  };
 }
 
 /** The search key of the apparent player position: empty when there is none. */
@@ -1430,6 +1456,8 @@ function restsOnButton(w: EpoxyWorld, e: RuntimeEntity): boolean {
   // CC2 engine: a monster works a brown button when its step onto it ends (Lexy on_arrive), not while that step runs, and the pass
   // in which it ends still counts as under way: the press holds from the next pass (see isButtonPressed).
   if (e.kind === 'monster' && !w.cc3dPace && (e.cooldownTicks > 0 || e.stepEndedPass === currentEntityPass(w)) && usesCc2Engine(w.level)) return false;
+  // CC2 engine, wave 31: a block works a brown button when its step onto it ends (Lexy button_brown on_arrive), not while the step runs.
+  if (e.kind === 'block' && !w.cc3dPace && e.arrivalTicks !== undefined && usesCc2Engine(w.level)) return false;
   return isAtRest(w, e) && !(w.cc3dPace && e.kind === 'block' && (e.isSliding || e.arrivalTicks !== undefined));
 }
 
