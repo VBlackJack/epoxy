@@ -30,7 +30,7 @@ import { forceCycleArrival } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
-import { hasCc2MirrorCadence, rememberPlayerMove, steerMirrors } from './epoxyMirrors';
+import { copiesControllerMove, hasCc2MirrorCadence, isSwapLeaverStep, rememberExitStep, rememberPlayerMove, steerMirrors } from './epoxyMirrors';
 import { isHeldSignalButton } from './epoxySignals';
 import { playerRailActor, railRedirect } from './epoxyRailsCc2';
 import { droppedActorId, explodeRollingBall, isRollingBall, launchRollingBall } from './epoxyRollingBall';
@@ -78,8 +78,8 @@ const TRAP_EJECT_EXTRA_COOLDOWN_TICKS = 1;
  * tiletypes.js:1764-1779). A block is pushed out its facing; a monster steps once out of turn and carries one extra cooldown
  * tick, counted once per tic (Lexy do_extra_cooldown, game.js:2218-2242, last_extra_cooldown_tic) so the pass does not count
  * the tick of its step a second time. An entity that ignores floor effects (a ghost) is not held by a trap.
- * Known gap: a parked player in the trap is not ejected, where Lexy ejects any actor (tiletypes.js:1771-1777); it concerns
- * multi-player CC2 levels only.
+ * A parked player in the trap is not ejected here, where Lexy ejects any actor (tiletypes.js:1771-1777): on a multi-player CC2 level
+ * (no actor order, off the CC3D pace) the engine's release at the tick start and before the input steps him out (wave 33).
  *
  * Wave 31, `blockPress` (CC2 engine, off the CC3D pace): the opening press is a block's arrival on a brown button. The controlled
  * player standing in the trap at rest is then ejected too, through the engine's forced step in his facing (the ejection hook), and
@@ -191,9 +191,13 @@ export function resumeForceCarry(w: EpoxyWorld): void {
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
   if (w.ccRules) updateForcePermission(w, fromSlide);
+  const controller = w.player;
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
   // The step onto an exit lasts the leaver's walking step (read before control changes hands).
   const leaverWait = playerWalkCooldown(w);
+  // The mirrors copy the controlled player's decided step onto the exit until it ends (Lexy remember_player_move at the
+  // decision; remember_player_move(null) and swap_players at the arrival). A two-key decision's exit attempt is its decision.
+  if (w.player === controller && controller.exited === true) rememberExitStep(w, requestedDir, controller, leaverWait);
   // A controlled player that left through an exit is gone: the next one takes control and no mirror copies the exit step.
   if (dropExitedController(w)) {
     // CC2 engine: the exit acts when the step onto it ends, so the next player takes control one walking step later.
@@ -222,7 +226,9 @@ export function steerMirrorsOnce(ctx: EpoxyContext, dir: Direction): void {
   if (hasCc2MirrorCadence(w)) {
     // Wave 31: a forced out-of-turn step (the release from a trap) is no decision: the mirrors do not copy it (Lexy calls
     // remember_player_move only for a decision).
-    if (w.swappedIn === null && w.cc2ForcedStep !== true) rememberPlayerMove(w, dir);
+    if (copiesControllerMove(w)) rememberPlayerMove(w, dir);
+    // The leaver of a swap: his forced slide decided in the swap tick is remembered for the new controller.
+    else if (isSwapLeaverStep(w)) rememberPlayerMove(w, dir);
     return;
   }
   if (w.player.alive && !w.levelCompleted && w.player.exited !== true && w.swappedIn === null) steerMirrors(ctx, dir);

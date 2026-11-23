@@ -2236,6 +2236,24 @@ export interface Cc2MirrorMove {
   remembered: Direction | null;
   snapshot: Direction | null;
   attempted: boolean;
+  /**
+   * The remembered move is the decided step of a controlled player onto an exit: his character, his list ordinal and the ticks left
+   * until that step ends (the memory is cleared then). Written only while such a step runs.
+   */
+  exitStep?: Cc2MirrorExitStep;
+  /**
+   * Set from a deliberate swap to the end of that tick, written only then: the leaver's list ordinal, the new controller's list
+   * ordinal and whether he is free to decide, and the memory the swap cleared (the old snapshot and the leaver's character), which
+   * the mirrors listed after the leaver still read in that tick.
+   */
+  swap?: { ordinal?: number; newOrdinal?: number; oldCharacter?: PlayerCharacter; oldSnapshot?: Direction | null; newFree?: boolean };
+}
+
+/** The exit step the mirrors copy (see Cc2MirrorMove.exitStep). */
+export interface Cc2MirrorExitStep {
+  character: PlayerCharacter;
+  ordinal?: number;
+  ticks: number;
 }
 
 /** CC2 engine, actor order: a drop or an inventory cycle given before the tick, played at the player's turn before his move. */
@@ -2577,6 +2595,8 @@ export interface PlayerState {
   listOrdinal?: number;
   /** CC2-engine level, actor order: the player's trap was shut at his last turn; when it is open at the start of a pass he steps out of it. Set only while true. */
   trapShutAtTurn?: true;
+  /** CC2 engine, no actor order: trapShutAtTurn was set at the last pass start for the first time (his step onto the trap ended in that tick). Set only while true. */
+  trapShutFresh?: true;
   /** CC2 engine: the frame (0 or 1) a forced step of the controlled player is due in, after a slide step of the last tick (Lexy game.js:869-888). Scalar, deleted when unused. */
   cc2SlideFrame?: 0 | 1;
   /** CC2 engine: a forced step on a force floor stayed refused, so it retries in frames 0 and 1 of the next tick (Lexy game.js:1127-1162). Set only while true. */
@@ -2654,6 +2674,8 @@ export interface PlayerSnapshot {
   listOrdinal?: number;
   /** The player's trapShutAtTurn; written only while true. */
   trapShutAtTurn?: true;
+  /** The player's trapShutFresh; written only while true. */
+  trapShutFresh?: true;
   /** The player's cc2SlideFrame; written only when set. */
   cc2SlideFrame?: 0 | 1;
   /** The player's cc2FrameRetry; written only while true. */

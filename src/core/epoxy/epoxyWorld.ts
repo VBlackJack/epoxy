@@ -1059,11 +1059,15 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
     const actions = (pending.actions ?? []).map((a) => (a.kind === 'drop' ? `d${a.itemId ?? ''}` : 'c')).join('+');
     parts.push(`P${pending.dirs.join('')}${pending.held ? 'h' : ''}${actions !== '' ? `:${actions}` : ''}`);
   }
-  const trapShut = playersOf(w).flatMap((p, index) => (p.trapShutAtTurn === true ? [index] : []));
+  const trapShut = playersOf(w).flatMap((p, index) => (p.trapShutAtTurn === true ? [p.trapShutFresh === true ? `${index}f` : index] : []));
   if (trapShut.length > 0) parts.push(`T${trapShut.join(',')}`);
   // The decisions the mirror players copy, the mirrors held by a shut trap and the steps that ended in the running pass.
   const mirror = w.mirrorMove;
-  if (mirror !== undefined) parts.push(`M${mirror.remembered ?? '-'}${mirror.snapshot ?? '-'}${mirror.attempted ? 1 : 0}`);
+  if (mirror !== undefined) {
+    const exit = mirror.exitStep !== undefined ? `x${mirror.exitStep.character}.${mirror.exitStep.ordinal ?? '-'}.${mirror.exitStep.ticks}` : '';
+    const swap = mirror.swap !== undefined ? `s${mirror.swap.ordinal ?? '-'}.${mirror.swap.newOrdinal ?? '-'}.${mirror.swap.oldCharacter ?? '-'}.${mirror.swap.oldSnapshot ?? '-'}.${mirror.swap.newFree === true ? 1 : 0}` : '';
+    parts.push(`M${mirror.remembered ?? '-'}${mirror.snapshot ?? '-'}${mirror.attempted ? 1 : 0}${exit}${swap}`);
+  }
   const held = w.entities.filter((e) => e.trapHeld === true).map((e) => e.uid);
   if (held.length > 0) parts.push(`h${held.join(',')}`);
   // A record older than the running pass and the one before it no longer matters (the monster step drops it), so it is left out.
