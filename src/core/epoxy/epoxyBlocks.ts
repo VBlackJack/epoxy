@@ -22,7 +22,7 @@ import { turnClockwise } from '../lynx/directions';
 import { Direction, RuntimeEntity, TileDefinition } from '../types';
 import { isPushAllowed } from './epoxyArrowBlocks';
 import { usesCc2Engine } from './ccRules';
-import { forceCycleArrival } from './epoxyForceCycle';
+import { forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
 import { markYellowButtonArrival } from './epoxySteering';
 import { railRedirect } from './epoxyRailsCc2';
 import { enterSwivel, leaveSwivel } from './epoxySwivels';
@@ -621,8 +621,11 @@ export function settleBlockArrival(ctx: EpoxyContext, block: RuntimeEntity, dir:
     block.isSliding = true;
     block.cooldownTicks = blockSlideCooldown(w, blockDef);
   } else if (updatedTile.slideType === 'force' && blockDef?.slidesOnForce) {
+    // Wave 35 (RFB): on a one-player CC2 level a block's step onto a turning floor draws when it ends (Lexy on_stand at the arrival frame).
+    const rffDeferred = updatedTile.forceCycle === true && rffActive(w);
+    if (rffDeferred) rffDefer(block, rffStepStart(w, w.cc2PrePassStepping === true ? w.cc2PrePassFrame : undefined));
     block.dir =
-      forceCycleArrival(w, updatedTile) ??
+      (rffDeferred ? null : forceCycleArrival(w, updatedTile)) ??
       (updatedTile.forceDirection === 'RANDOM' || !updatedTile.forceDirection ? dir : updatedTile.forceDirection);
     block.isSliding = true;
     block.cooldownTicks = blockSlideCooldown(w, blockDef);
@@ -750,6 +753,7 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
     return tile.slideType === 'force' ? BLOCK_STEP_REFUSED_ON_FORCE : BLOCK_STEP_DONE;
   }
 
+  delete entity.cc2RffStuck;
   if (usesCc2Engine(w.level)) settleAheadEarly(ctx, nx, ny);
   if (!isCanBlockEnter(w, entity, nx, ny, slideDir) && slidePushesAhead(ctx, entity, nx, ny, slideDir)) {
     // The slide shoved the block ahead out of the way (CC2: a sliding block moves with the push rule).
@@ -783,6 +787,28 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
   const refusal: PushRefusal = {};
   noteBump(w, entity, nx, ny, slideDir, refusal);
   revealBump(w, refusal);
+  // Wave 35 (RFB): refused on a turning floor, the block bonks: it steps on the cell again, the floor turns it, and it tries the new way at
+  // once (Lexy _possibly_bonk); still refused, it stays sliding and tries again in the next frame.
+  if (rffActive(w) && tile.forceCycle === true && ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall !== true) {
+    const redraw = forceCycleArrival(w, tile);
+    entity.isSliding = true;
+    entity.cc2RffStuck = true;
+    if (redraw === null) return BLOCK_STEP_DONE;
+    entity.dir = redraw;
+    if (redraw === slideDir) return BLOCK_STEP_DONE;
+    const rv = DIRECTION_VECTORS[redraw];
+    const rx = entity.x + rv.dx;
+    const ry = entity.y + rv.dy;
+    settleAheadEarly(ctx, rx, ry);
+    if (!isCanBlockEnter(w, entity, rx, ry, redraw) && slidePushesAhead(ctx, entity, rx, ry, redraw)) {
+      if (!w.player.alive) return BLOCK_STEP_DONE;
+    }
+    if (isCanBlockEnter(w, entity, rx, ry, redraw)) {
+      delete entity.cc2RffStuck;
+      moveBlockTo(ctx, entity, rx, ry, redraw, true, arrivesAtStepEnd(w, rx, ry));
+    }
+    return BLOCK_STEP_DONE;
+  }
   // A CC3D block stops at what refuses it; the others bounce back the way they came.
   if (tile.slideType === 'ice' && ConfigRegistry.getEntityDef(entity.type)?.stopsAtWall !== true) {
     const bounceDir = OPPOSITE_DIRECTION[slideDir];

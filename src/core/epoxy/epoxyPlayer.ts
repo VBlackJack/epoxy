@@ -26,7 +26,7 @@ import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
-import { forceCycleArrival } from './epoxyForceCycle';
+import { drawRffPlayer, forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
@@ -177,7 +177,9 @@ export function resumeForceCarry(w: EpoxyWorld): void {
     return;
   }
   if (tile.forceDirection === 'RANDOM' || tile.forceCycle === true) {
-    evaluatePlayerSliding(w, tile, w.player.dir);
+    // Wave 35: a carried try draws at once (a draw still pending is made first), it does not wait for an arrival frame.
+    drawRffPlayer(w, true);
+    evaluatePlayerSliding(w, tile, w.player.dir, true);
     w.player.slideCooldown = 0;
     return;
   }
@@ -190,6 +192,8 @@ export function resumeForceCarry(w: EpoxyWorld): void {
 
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
+  // Wave 35: the arrival draw still pending is made before the next decision (Lexy: the arrival always precedes it).
+  drawRffPlayer(w, true);
   if (w.ccRules) updateForcePermission(w, fromSlide);
   const controller = w.player;
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
@@ -1302,7 +1306,7 @@ export function playerWalkCooldown(w: EpoxyWorld): number {
   return Math.max(MIN_WALK_COOLDOWN_TICKS, Math.ceil(ConfigRegistry.getGame().timing.playerMoveCooldownTicks / playerHaste(w)));
 }
 
-function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction): void {
+function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegistry.getTile>, entryDir: Direction, resumed = false): void {
   if (tile.slideType === 'ice') {
     if (playerGripsTile(w, tile)) {
       w.player.isSliding = false;
@@ -1322,8 +1326,15 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
   }
 
   if (tile.slideType === 'force') {
+    // Wave 35 (RFP): on a one-player CC2 level a step onto a turning floor draws when it ends (Lexy on_stand at the arrival frame); a
+    // carried try of a resting player (`resumed`) draws at once. Wave 35 (BTS): a player whose boots cancel the push draws nothing (Lexy:
+    // a forceproof actor's on_stand returns before the draw).
+    const bootsCancel = !!tile.protectedByItem && w.player.boots.has(tile.protectedByItem);
+    const bootsSkip = bootsCancel && tile.forceCycle === true && rffActive(w);
+    const rffDeferred = !bootsSkip && !resumed && tile.forceCycle === true && rffActive(w);
+    if (rffDeferred) rffDefer(w.player, rffStepStart(w, w.cc2PrePassPlayer === true ? w.cc2PrePassFrame : undefined));
     // The arrival counts on the shared turn even when boots protect the player from the push.
-    const cycleDir = forceCycleArrival(w, tile);
+    const cycleDir = rffDeferred || bootsSkip ? null : forceCycleArrival(w, tile);
     if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
       w.player.isSliding = false;
       w.player.slideDir = null;
@@ -1466,6 +1477,7 @@ function refusedOnTurningForceFloor(w: EpoxyWorld, tile: TileDefinition, mover: 
 
 export function processPlayerSlideStep(ctx: EpoxyContext): void {
   const w = ctx.world;
+  drawRffPlayer(w, true);
   const dir = w.player.slideDir || w.player.dir;
   const currentTile = ConfigRegistry.getTile(w.terrain[w.player.y][w.player.x]);
 
