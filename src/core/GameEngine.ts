@@ -171,6 +171,8 @@ const MIN_BOOTS_TO_CYCLE = 2;
 
 /** CC2 engine: the frame of the wire phase of tic 0 (Lexy game.js:872-876): a clone let out then carries frame 0. */
 const CC2_LOAD_PRESS_FRAME = 0;
+/** CC2 engine: the list ordinal of a presser the list has no slot for yet (add_actor appends it, so it counts as listed last). */
+const UNLISTED_PRESSER_ORDINAL = Number.MAX_SAFE_INTEGER;
 /** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
 const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
@@ -1797,8 +1799,17 @@ export class GameEngine {
   }
 
   /**
-   * False when the player's trap opened in the tick his step onto it ended, by presses of actors listed after him only. Several
-   * players: the fresh mark is set at the pass start; one player (actor order): at the end of his turn in runPlayerTurn.
+   * False when the player's trap opened in the tick his step onto it ended and the presser listed last on a linked pressed button is
+   * listed after him. Lexy ejects only on the first 0 -> 1 press of a trap (tiletypes.js:1768-1779), and within one frame the actor
+   * listed last acts first in the reverse loop (game.js _do_combined_action_phase), so the release is allowed only when every
+   * presser is listed before him (an earlier press finds him moving and the ejection is tried once and lost). This supersedes the
+   * wave 34 wording "by presses of actors listed after him only".
+   * Frame window: the presses of frames 0 and 1 of his arrival tic are visible at this check (his walking arrival is in frame 1, so a
+   * same-frame press is decided by list order here, while a frame-0 block press is refused earlier by the block hook); a press in
+   * frame 2 lands after his arrival, finds him at rest and ejects in Lexy too.
+   * A presser with no listOrdinal (a fresh cloner template or a dropped rolling ball: add_actor appends to the list, game.js:3100-3123)
+   * counts as listed last.
+   * Several players: the fresh mark is set at the pass start; one player (actor order): at the end of his turn in runPlayerTurn.
    */
   private releaseAllowed(p: PlayerState): boolean {
     const w = this.w;
@@ -1808,10 +1819,12 @@ export class GameEngine {
     const ordinals: number[] = [];
     for (const l of w.trapLinks) {
       if (l.trapX !== p.x || l.trapY !== p.y || !isButtonPressed(w, l.buttonX, l.buttonY)) continue;
-      for (const e of w.entities) if (e.x === l.buttonX && e.y === l.buttonY && e.listOrdinal !== undefined) ordinals.push(e.listOrdinal);
+      for (const e of w.entities) {
+        if (e.x === l.buttonX && e.y === l.buttonY) ordinals.push(e.listOrdinal ?? UNLISTED_PRESSER_ORDINAL);
+      }
       for (const q of playersOf(w)) if (q !== p && q.x === l.buttonX && q.y === l.buttonY && q.listOrdinal !== undefined) ordinals.push(q.listOrdinal);
     }
-    return ordinals.length === 0 || ordinals.some((o) => o < own);
+    return ordinals.length === 0 || ordinals.every((o) => o < own);
   }
 
   /** A refused release drops the marks once the trap reads open (Lexy tries the ejection once, at the press); one-player levels too. */

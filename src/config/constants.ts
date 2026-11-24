@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 31;
+export const CC2_RULES_VERSION = 32;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -595,6 +595,10 @@ export const CC2_RULES_VERSION = 31;
 // a fixed force floor first slides in frame 1 and one loaded on a turning floor draws in the first tic; a player whose suction
 // boots cancel the floor draws nothing; a yellow tank is carried by a turning floor as any monster). A stored solution that rides
 // a turning force floor on a one-player level replays differently.
+// Version 32: the wave 36 rules (CLN: a presser with no list slot, a cloner template or a dropped rolling ball, counts as listed last;
+// TPX: a trap opened in the tic of the lead's arrival lets him out only when every presser is listed before him; PFPB: a block press
+// in frame 0 of that tic, or in frame 1 by a block listed after him, finds him still moving and the ejection is lost). A stored
+// solution with a trap button pressed by a clone, by two actors or by a block on force floors in the tic of the arrival replays differently.
 // CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.

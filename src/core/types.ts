@@ -2518,6 +2518,7 @@ export interface RuntimeEntity {
   /**
    * CC2 engine: the position of this actor in the order the source lists its actors
    * (reading order of the load grid). An entity without one was spawned after load and counts as after every other.
+   * Wave 36: the trap release reads it that way too (a cloner template or a dropped rolling ball counts as listed last).
    * Present on every CC2-engine level.
    */
   listOrdinal?: number;
