@@ -690,6 +690,8 @@ export function resetFrameWorld(w: EpoxyWorld): void {
   delete w.cc2PrePassFrame;
   delete w.cc2PrePassMonsterFrame;
   delete w.cc2PrePassPlayer;
+  delete w.cc2RffPre;
+  delete w.cc2RffMain;
 }
 
 /** The end of a tick's entity pass: the next tick's pre-pass is still to come, and nothing the pre-pass moved is still marked. */

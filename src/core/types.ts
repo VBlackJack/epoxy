@@ -2493,6 +2493,18 @@ export interface RuntimeEntity {
   cc2ArrivalFrame?: 0 | 1 | 2;
   /** CC2 engine: the frame pre-pass moved (or settled) this actor for the coming tick, so that tick's main pass skips its turn. Deleted at the end of that pass. */
   cc2PrePassMoved?: true;
+  /**
+   * CC2 engine, actor order (wave 35): the absolute frame (tick * 3 + frame) a step of this actor onto a turning force floor started in,
+   * until the step's wait is known. The floor draws when the step ends (Lexy on_stand from step_on_cell), so the draw waits for the
+   * arrival frame (`cc2RffDue`). Written only while a draw is pending; deleted once finalized.
+   */
+  cc2RffStart?: number;
+  /** CC2 engine, actor order (wave 35): the absolute frame (tick * 3 + frame) the turning floor draws for this actor at its arrival. Deleted once drawn. */
+  cc2RffDue?: number;
+  /** CC2 engine, actor order (wave 35): the absolute frame the last turning-floor draw of this actor was made in; it gates the bonk retries of the frames right after it. Pruned once older than 3 frames. */
+  cc2RffArrived?: number;
+  /** CC2 engine, actor order (wave 35): a block refused on a turning floor stays sliding and bonks again in every frame. Set only while true. */
+  cc2RffStuck?: true;
   /** CC2 engine: the entity pass (counted by ccMonsterClock) in which this entity's last step ended; read with `stepEndedCell`. Set while it matters (the running pass and the one after it) and dropped by the next monster step once older; the search key holds its age, not the pass number. */
   stepEndedPass?: number;
   /** CC2 engine: the cell index (y * width + x) the step recorded in `stepEndedPass` ended on. Set and cleared together with it. */
@@ -2603,6 +2615,10 @@ export interface PlayerState {
   cc2FrameRetry?: true;
   /** CC2 engine: the pre-pass of this tick already moved the player, so the main turn skips his slide step and cooldown decrement (Lexy game.js:872-889). Set only while true. */
   cc2PrePassMoved?: true;
+  /** CC2 engine, actor order (wave 35): the absolute frame the step of the player onto a turning force floor started in, until its wait is known (see RuntimeEntity.cc2RffStart). */
+  cc2RffStart?: number;
+  /** CC2 engine, actor order (wave 35): the absolute frame the turning floor draws for the player at his arrival (see RuntimeEntity.cc2RffDue). */
+  cc2RffDue?: number;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2682,6 +2698,10 @@ export interface PlayerSnapshot {
   cc2FrameRetry?: true;
   /** The player's cc2PrePassMoved; written only while true. */
   cc2PrePassMoved?: true;
+  /** The player's cc2RffStart; written only when set. */
+  cc2RffStart?: number;
+  /** The player's cc2RffDue; written only when set. */
+  cc2RffDue?: number;
 }
 
 export interface UndoSnapshot {
