@@ -36,7 +36,8 @@ import {
   isEdgeBlocked,
   isInBounds,
   playerAtCell,
-  CC2_WIRED_PAD_ID
+  CC2_WIRED_PAD_ID,
+  UNLISTED_ACTOR_ORDINAL
 } from './epoxyWorld';
 
 /**
@@ -264,7 +265,7 @@ function exitHeldByPushableBlock(w: EpoxyWorld, exitX: number, exitY: number, di
   // block whose held arrival ends in frame 0 of that pre-pass, or in frame 1 listed after the player, has therefore ended its step in
   // Lexy before the landing (map095: the block arrives at t132f0, the player lands at t132f1 and pushes it), so it is judged as at rest.
   const endsBeforeLanding = (frame: 0 | 1 | 2 | undefined, ordinal: number | undefined): boolean =>
-    frame === 0 || (frame === 1 && (w.player.listOrdinal === undefined || (ordinal ?? Number.MAX_SAFE_INTEGER) > w.player.listOrdinal));
+    frame === 0 || (frame === 1 && (w.player.listOrdinal === undefined || (ordinal ?? UNLISTED_ACTOR_ORDINAL) > w.player.listOrdinal));
   if (held?.kind === 'block' && held.cc2ArrivalWait === 1 && endsBeforeLanding(held.cc2ArrivalFrame, held.listOrdinal) && !w.cc3dPace) {
     return canPushBlock(w, held, dir, true, false, true);
   }

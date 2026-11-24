@@ -46,7 +46,8 @@ import {
   shotAt,
   playerAtCell,
   killPlayerAt,
-  mapWidth
+  mapWidth,
+  UNLISTED_ACTOR_ORDINAL
 } from './epoxyWorld';
 
 /**
@@ -58,11 +59,11 @@ export const CC2_SPLASH_BLOCK_PASSES = 5;
 /** Quarter turns in a full circle of directions. */
 const QUARTER_TURNS_IN_CIRCLE = 4;
 
-/** Frames 0 and 1 of the pre-pass, where a press can come before the lead's walking arrival (frame 1). */
-const PRE_PASS_FRAME_FIRST = 0;
-const PRE_PASS_FRAME_SECOND = 1;
-/** The list ordinal of a presser the list has no slot for (counts as listed last), and the one a player without a slot stands for. */
-const UNLISTED_PRESSER_ORDINAL = Number.MAX_SAFE_INTEGER;
+/** Frame 0 of the pre-pass, where a press always comes before the lead's walking arrival. */
+const PRE_PASS_FRAME_ZERO = 0;
+/** Frame 1 of the pre-pass, the lead's walking arrival frame, where a press comes first only when listed after the player. */
+const PRE_PASS_FRAME_ONE = 1;
+/** The list ordinal a player without a slot stands for, so every listed presser counts as after it. */
 const NO_ORDINAL_BEFORE = -1;
 
 /** The block type the CC2 item bar (blocksDirtBlock) applies to. */
@@ -308,7 +309,7 @@ export function attemptPushBlock(
     // The frame of a block the player or a sliding block pushed (Lexy out-of-turn step, game.js:2218-2242).
     if (frameModelOn(w) && (byPlayer || (slider !== undefined && slider !== member))) {
       const later = byPlayer
-        ? (member.listOrdinal ?? Number.MAX_SAFE_INTEGER) < (w.player.listOrdinal ?? -1)
+        ? (member.listOrdinal ?? UNLISTED_ACTOR_ORDINAL) < (w.player.listOrdinal ?? -1)
         : w.entities.indexOf(member) < w.entities.indexOf(slider as RuntimeEntity);
       tagPushedBlock(w, member, byPlayer, w.player.isSliding, later, byPlayer ? undefined : steppingFrame(w, slider));
     }
@@ -847,6 +848,8 @@ export function stepSlidingBlock(ctx: EpoxyContext, entity: RuntimeEntity): Bloc
  * CC2 engine, wave 31: the traps a brown press at (buttonX, buttonY) opens eject what they hold, out of turn. A trap another linked
  * button still holds, or one that reads closed, ejects nothing. The extra cooldown tick of an ejected monster applies inside the tick
  * only when the arrival settled in the frame pre-pass.
+ *
+ * presserOrdinal: the listOrdinal of the block that pressed, read by the caller before any bomb kill (undefined = listed last).
  */
 function ejectTrapsOfButton(ctx: EpoxyContext, buttonX: number, buttonY: number, presserOrdinal: number | undefined): void {
   const w = ctx.world;
@@ -871,8 +874,8 @@ function refusesPrePassEjection(w: EpoxyWorld, trapX: number, trapY: number, pre
   const p = w.player;
   if (p.x !== trapX || p.y !== trapY || p.trapShutAtTurn !== true || p.trapShutFresh !== true) return false;
   const frame = w.cc2SettleFrame ?? (w.cc2PrePassStepping === true ? w.cc2PrePassFrame : undefined);
-  const listedAfter = (presserOrdinal ?? UNLISTED_PRESSER_ORDINAL) > (p.listOrdinal ?? NO_ORDINAL_BEFORE);
-  if (frame === PRE_PASS_FRAME_FIRST || (frame === PRE_PASS_FRAME_SECOND && listedAfter)) {
+  const listedAfter = (presserOrdinal ?? UNLISTED_ACTOR_ORDINAL) > (p.listOrdinal ?? NO_ORDINAL_BEFORE);
+  if (frame === PRE_PASS_FRAME_ZERO || (frame === PRE_PASS_FRAME_ONE && listedAfter)) {
     delete p.trapShutAtTurn;
     delete p.trapShutFresh;
     return true;

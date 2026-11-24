@@ -136,6 +136,7 @@ import {
   playersOf,
   rebuildDeviceLookups,
   refreshTrapLatch,
+  UNLISTED_ACTOR_ORDINAL,
   withPlayer
 } from './epoxy/epoxyWorld';
 import {
@@ -171,8 +172,6 @@ const MIN_BOOTS_TO_CYCLE = 2;
 
 /** CC2 engine: the frame of the wire phase of tic 0 (Lexy game.js:872-876): a clone let out then carries frame 0. */
 const CC2_LOAD_PRESS_FRAME = 0;
-/** CC2 engine: the list ordinal of a presser the list has no slot for yet (add_actor appends it, so it counts as listed last). */
-const UNLISTED_PRESSER_ORDINAL = Number.MAX_SAFE_INTEGER;
 /** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
 const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
@@ -1820,7 +1819,7 @@ export class GameEngine {
     for (const l of w.trapLinks) {
       if (l.trapX !== p.x || l.trapY !== p.y || !isButtonPressed(w, l.buttonX, l.buttonY)) continue;
       for (const e of w.entities) {
-        if (e.x === l.buttonX && e.y === l.buttonY) ordinals.push(e.listOrdinal ?? UNLISTED_PRESSER_ORDINAL);
+        if (e.x === l.buttonX && e.y === l.buttonY) ordinals.push(e.listOrdinal ?? UNLISTED_ACTOR_ORDINAL);
       }
       for (const q of playersOf(w)) if (q !== p && q.x === l.buttonX && q.y === l.buttonY && q.listOrdinal !== undefined) ordinals.push(q.listOrdinal);
     }
