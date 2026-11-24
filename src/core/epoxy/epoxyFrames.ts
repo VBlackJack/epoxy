@@ -18,7 +18,18 @@ import { ConfigRegistry } from '../../config/ConfigRegistry';
 import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
 import { applyGreenFrameToggles, canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
-import { forceCycleArrival } from './epoxyForceCycle';
+import {
+  drawRffEntity,
+  drawRffLoadEntity,
+  drawRffLoadPlayer,
+  drawRffPlayer,
+  forceCycleArrival,
+  isRffYellowTank,
+  rffActive,
+  rffArrivedBefore,
+  rffDueFromTag,
+  rffHolds
+} from './epoxyForceCycle';
 import { applyCc3dStepEnd, isCarriedByForceFloor, processPlayerSlideStep, recordCc2PlayerView, resumeForceCarry, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
 import { settleBlockArrival, stepSlidingBlock } from './epoxyBlocks';
@@ -97,6 +108,8 @@ export function tagSlideFrame(w: EpoxyWorld, block: RuntimeEntity, frame: 0 | 1 
   }
   block.cc2SlideFrame = frame;
   block.cc2SlideDue = ticks + pendingPrePass(w);
+  // A pushed block's turning-floor draw falls on the frame before its first slide step (wave 35).
+  rffDueFromTag(w, block, frame, ticks);
 }
 
 /**
@@ -198,15 +211,24 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
     // ahead of him, after the loop when none is.
     let playerStepped = false;
     const playerOrdinal = w.player.listOrdinal;
+    w.cc2RffPre = frame;
+    const loadDrawFrame = rffActive(w) && frame === 0 && w.ccMonsterClock === 0;
     for (const block of [...w.entities].reverse()) {
       if (w.levelCompleted) return arrivalFrame;
       if (!playerStepped && playerOrdinal !== undefined && block.listOrdinal !== undefined && block.listOrdinal < playerOrdinal) {
         playerStepped = true;
+        drawRffPlayer(w);
         if (!firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
         if (!playerFrameStep(ctx, frame)) return arrivalFrame;
+        if (loadDrawFrame) drawRffLoadPlayer(w);
         if (w.levelCompleted) return arrivalFrame;
       }
+      // Wave 35: the actor's turning-floor draw due at its slot of this frame, and the idle draw of an actor loaded on such a floor.
+      drawRffEntity(w, block);
+      if (loadDrawFrame) drawRffLoadEntity(w, block, rffLoadSubject(w, block));
       if (firedNow.has(block.uid)) continue;
+      // Tic 0, frame 0 moves no monster loaded on a fixed force floor: the floors only schedule their slides (Lexy on_stand in the idle phase).
+      if (rffActive(w) && frame === 0 && w.ccMonsterClock === 0 && block.kind === 'monster' && block.cc2SlideFrame === 1) continue;
       if (block.kind === 'monster' && monsterFrameStep(w, block, frame)) {
         if (!stepMonsterInFrame(ctx, block, frame)) return arrivalFrame;
         // A slide step on ice refused in frame 0 is decided again in frame 1 (Lexy forces a decision in every frame, game.js:869-888).
@@ -231,6 +253,20 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
         arrivalFrame ??= frame;
         if (!w.player.alive) return arrivalFrame;
         continue;
+      }
+      // A block stuck on a turning floor bonks again in every frame after its arrival (wave 35).
+      if (
+        rffActive(w) &&
+        block.cc2RffStuck === true &&
+        block.isSliding &&
+        block.cooldownTicks === 0 &&
+        block.arrivalTicks === undefined &&
+        block.cc2PrePassMoved !== true &&
+        rffArrivedBefore(w, block) !== false &&
+        ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).forceCycle === true
+      ) {
+        block.cc2SlideFrame = frame;
+        delete block.cc2SlideDue;
       }
       if (block.cc2SlideFrame !== frame) continue;
       if (!block.isSliding || block.arrivalTicks !== undefined) {
@@ -288,9 +324,11 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
     // CC2 engine: the green pad teleports whose step ends in this frame come before the player's frame step (the player acts last in
     // Lexy's actor list); the green toggles of the frame come after it (Lexy do_post_actor_phase).
     // When the player already stepped, the full call below runs the jumps and then the toggles.
+    if (!playerStepped) drawRffPlayer(w);
     if (!playerStepped && !applyGreenFrameToggles(ctx, frame, 'tp')) return arrivalFrame;
     if (!playerStepped && !firePlayerPress(ctx, frame, firedNow)) return arrivalFrame;
     if (!playerStepped && !playerFrameStep(ctx, frame)) return arrivalFrame;
+    if (!playerStepped && loadDrawFrame) drawRffLoadPlayer(w);
     if (w.levelCompleted) return arrivalFrame;
     if (!applyGreenFrameToggles(ctx, frame)) return arrivalFrame;
     // The frame-1 phase reads the sources as frame 0 left them for the toggle switches that frame flipped.
@@ -365,6 +403,9 @@ export function fireDeferredPlayerPress(ctx: EpoxyContext): boolean {
 /** Whether the world holds anything the pre-pass acts on. */
 function prePassHasWork(w: EpoxyWorld): boolean {
   if (pendingPlayerPress(w)) return true;
+  // Wave 35: a turning floor at tic 0 (the idle draw), an actor holding a pending draw or a stuck block.
+  if (rffActive(w) && w.ccMonsterClock === 0 && w.hasForceCycle) return true;
+  if (rffActive(w) && (rffHolds(w.player) || w.entities.some((x) => rffHolds(x) || x.cc2RffStuck === true))) return true;
   if (frameModelOn(w) && (w.player.cc2FrameRetry === true || w.player.cc2SlideFrame !== undefined)) return true;
   return w.entities.some((e) => e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined || (e.kind === 'monster' && (monsterForcedRetry(w, e) || monsterRffRetry(w, e) || monsterIceRetry(w, e))));
 }
@@ -401,9 +442,9 @@ function dropIceRefusals(w: EpoxyWorld): void {
 export function monsterForcedRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
   if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
   if (e.cc2PrePassMoved === true) return false;
-  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  if ((!followsCcCadence(e.type, true) && !isRffYellowTank(w, e)) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
   const def = ConfigRegistry.getEntityDef(e.type);
-  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || def?.steeredBy !== undefined) return false;
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || (def?.steeredBy !== undefined && !isRffYellowTank(w, e))) return false;
   const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
   if (tile.slideType !== 'force' || tile.forceCycle === true || tile.forceDirection === undefined || tile.forceDirection === 'RANDOM' || tile.isCloneMachine === true) return false;
   // A step that ended in the last pass: it arrived in the frames just before, so its first forced try is the main pass.
@@ -421,13 +462,16 @@ export function monsterForcedRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
 function monsterRffRetry(w: EpoxyWorld, e: RuntimeEntity): boolean {
   if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
   if (e.cc2PrePassMoved === true) return false;
-  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  if ((!followsCcCadence(e.type, true) && !isRffYellowTank(w, e)) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
   const def = ConfigRegistry.getEntityDef(e.type);
-  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || def?.steeredBy !== undefined) return false;
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || (def?.steeredBy !== undefined && !isRffYellowTank(w, e))) return false;
   const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
   if (tile.forceCycle !== true || tile.isCloneMachine === true || slideImmune(w, e, tile)) return false;
   const coming = w.ccMonsterClock + 1;
-  if (e.stepEndedPass !== undefined && e.stepEndedPass >= coming - 1) return false;
+  // Wave 35: a monster whose drawn arrival lies before the running frame retries (bonks) in it; else the old guard on a step that just ended.
+  const arrived = rffArrivedBefore(w, e);
+  if (arrived === false) return false;
+  if (arrived === undefined && e.stepEndedPass !== undefined && e.stepEndedPass >= coming - 1) return false;
   if ((e.heldTools ?? []).length > 0) return false;
   return true;
 }
@@ -449,7 +493,7 @@ function retryRffMonster(ctx: EpoxyContext, e: RuntimeEntity, frame: 0 | 1): boo
 /** The slide floor that carries a monster here (ice, or a force floor, a turning one included: it goes the way the floor gave it), else undefined. */
 function monsterSlideHere(w: EpoxyWorld, e: RuntimeEntity): 'ice' | 'force' | undefined {
   const def = ConfigRegistry.getEntityDef(e.type);
-  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || def?.steeredBy !== undefined) return undefined;
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true || (def?.steeredBy !== undefined && !isRffYellowTank(w, e))) return undefined;
   const tile = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]);
   if (tile.isCloneMachine === true || slideImmune(w, e, tile)) return undefined;
   if (tile.slideType === 'ice') return 'ice';
@@ -472,7 +516,7 @@ function monsterFrameStep(w: EpoxyWorld, e: RuntimeEntity, frame: 0 | 1): boolea
   if (e.cc2SlideFrame === undefined) return false;
   if (!frameModelOn(w) || e.cooldownTicks !== 0 || w.removedUids.has(e.uid) || !w.entities.includes(e)) return false;
   if (e.cc2PrePassMoved === true) return false;
-  if (!followsCcCadence(e.type, true) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
+  if ((!followsCcCadence(e.type, true) && !isRffYellowTank(w, e)) || e.atLoadCell === true || e.teleportExit !== undefined) return false;
   if ((e.heldTools ?? []).length > 0) return false;
   if (monsterSlideHere(w, e) === undefined) {
     delete e.cc2SlideFrame;
@@ -600,6 +644,7 @@ function runPrePassAndWires(ctx: EpoxyContext): boolean {
     arrivalFrame = runPrePass(ctx);
     arrived = w.cc2PrePassArrived === true;
   } finally {
+    delete w.cc2RffPre;
     delete w.cc2PrePassArrived;
   }
   if (!w.player.alive) return false;
@@ -731,12 +776,40 @@ export function fixedForceFloor(w: EpoxyWorld, block: RuntimeEntity): boolean {
   return tile.slideType === 'force' && tile.forceCycle !== true && tile.forceDirection !== undefined && tile.forceDirection !== 'RANDOM';
 }
 
+/** Whether a turning floor acts on this actor at all, so a monster or block loaded on one draws in the idle phase of tic 0 (wave 35, LRF). */
+function rffLoadSubject(w: EpoxyWorld, e: RuntimeEntity): boolean {
+  const def = ConfigRegistry.getEntityDef(e.type);
+  if (e.kind === 'block') return def?.slidesOnForce === true;
+  if (e.kind !== 'monster') return false;
+  if (def?.ignoresFloorEffects === true || def?.ignoresSlidingFloors === true) return false;
+  if (def?.steeredBy !== undefined && !isRffYellowTank(w, e)) return false;
+  return !slideImmune(w, e, ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]));
+}
+
 /**
  * A block loaded on a fixed force floor first slides in frame 1 of tic 0 (Lexy lanes w24_ff_pair_w, w26_ff_fireball, w26_ff_off: t0f1),
  * so the tic-0 pre-pass tags it for frame 1; it keeps that frame. Run at the pre-pass of tic 0 (clock 0, inside the tick).
  */
 function tagLoadedForceBlocks(w: EpoxyWorld): void {
   if (!frameModelOn(w)) return;
+  if (rffActive(w)) {
+    // Wave 35 (LFF): a monster or the controlled player loaded on a fixed force floor first slides in frame 1 of tic 0, as in Lexy.
+    for (const e of w.entities) {
+      if (e.kind !== 'monster' || e.cc2SlideFrame !== undefined || e.cooldownTicks !== 0 || e.atLoadCell === true) continue;
+      if (!fixedForceFloor(w, e) || monsterSlideHere(w, e) !== 'force') continue;
+      e.dir = ConfigRegistry.getTile(w.terrain[e.y]?.[e.x]).forceDirection as Direction;
+      e.cc2SlideFrame = 1;
+    }
+    const p = w.player;
+    const pt = ConfigRegistry.getTile(w.terrain[p.y]?.[p.x]);
+    if (w.swappedIn === null && p.moveCooldown === 0 && pt.slideType === 'force' && pt.forceCycle !== true && pt.forceDirection !== undefined && pt.forceDirection !== 'RANDOM' && isCarriedByForceFloor(w, pt)) {
+      p.isSliding = true;
+      p.slideDir = pt.forceDirection as Direction;
+      p.dir = pt.forceDirection as Direction;
+      p.slideCooldown = 0;
+      p.cc2SlideFrame = 1;
+    }
+  }
   for (const e of w.entities) {
     // A block marked as landed by a move (cc2SlideArrived) is not a block at its load state.
     if (e.kind !== 'block' || e.cc2SlideArrived === true || e.arrivalTicks !== undefined || e.cc2SlideFrame !== undefined || e.cc2ArrivalWait !== undefined) continue;
