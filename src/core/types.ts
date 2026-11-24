@@ -2595,7 +2595,7 @@ export interface PlayerState {
   listOrdinal?: number;
   /** CC2-engine level: the player's trap was shut at his last turn (actor order) or pass start (several players, parked players too); when it is open he steps out of it. Set only while true. */
   trapShutAtTurn?: true;
-  /** CC2 engine: his step onto the trap ended in the last turn (set at the pass start without actor order, in runPlayerTurn on one-player levels). Set only while true. */
+  /** CC2 engine: his step onto the trap ended in the last turn (without actor order: trapShutAtTurn first set at the last pass start; one-player levels: set in runPlayerTurn when his step onto the trap ended in that turn). Set only while true. */
   trapShutFresh?: true;
   /** CC2 engine: the frame (0 or 1) a forced step of the controlled player is due in, after a slide step of the last tick (Lexy game.js:869-888). Scalar, deleted when unused. */
   cc2SlideFrame?: 0 | 1;

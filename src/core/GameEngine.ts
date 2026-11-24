@@ -1691,7 +1691,8 @@ export class GameEngine {
     // Lexy: a trap's press ejects through attempt_out_of_turn_step, which attempt_step refuses for a moving actor (game.js:2155; trap
     // add_press, tiletypes.js:1768-1779). His step onto the trap ended in this turn, so a press by an actor listed after him finds him moving.
     if (usesCc2Engine(w.level) && !w.cc3dPace) {
-      if (w.player.trapShutAtTurn === true && !restAtStart && w.player.moveCooldown === 0 && !w.player.isSliding && isCellClosedTrap(w, w.player.x, w.player.y)) w.player.trapShutFresh = true;
+      const arrivedNow = !restAtStart && w.player.moveCooldown === 0 && !w.player.isSliding;
+      if (w.player.trapShutAtTurn === true && arrivedNow && isCellClosedTrap(w, w.player.x, w.player.y)) w.player.trapShutFresh = true;
       else delete w.player.trapShutFresh;
     }
     // His step onto a pad ended in this turn: its whole step end runs here, at his place in the order, the jump included (Lexy
@@ -1753,8 +1754,8 @@ export class GameEngine {
   /**
    * CC2 engine, actor order: a player whose trap was shut at his last turn and is open at the start of a pass steps out the way he
    * faces, before the pass, input or not (Lexy trap add_press, attempt_out_of_turn_step, tiletypes.js:1764-1779). Not when the trap
-   * is open only by its wire: Lexy's add_press does nothing for a wire. One-player levels too: the tick start refuses the ejection
-   * when releaseAllowed says his step onto the trap ended in his last turn (the mark is set in runPlayerTurn).
+   * is open only by its wire: Lexy's add_press does nothing for a wire. One-player levels too: tick() calls dropOpenTrapMark instead when
+   * releaseAllowed is false (the fresh mark is set in runPlayerTurn).
    */
   private releaseTrappedPlayer(): void {
     const w = this.w;

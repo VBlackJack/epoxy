@@ -234,7 +234,7 @@ describe('CC2 wave 34 (h, i): a slide or a teleporter exit that ends in the pres
   });
 });
 
-describe('CC2 wave 34 (k): a presser listed before him ejects him, arrival or not', () => {
+describe('CC2 wave 34 (k): a presser listed before him ejects him after a same-tic teleporter exit', () => {
   it('ejects Chip after his teleporter exit when the tank is listed before him (Lexy lane w34r2_tp_c_b_o4)', async () => {
     const engine = await load('tp_c_b_o4', PREFIX_W34R2);
     const inputs = plan([[4, E], [30, N], [34, W]]);
