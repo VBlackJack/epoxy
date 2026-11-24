@@ -294,10 +294,17 @@ describe('two keys on a force floor', () => {
   });
 
   it('plays the hold as ever once the player has the permission', () => {
-    const engine = forceRoom();
-    engine.getPlayer().forcePermission = true;
-    expect(playHeld(engine, ['N', 'E']).moved).toBe(true);
-    expect(engine.getTimedMoveHistory()).toHaveLength(1);
+    // Loaded on a force floor, Chip is carried in frame 1 of tic 0 (a monster or player loaded on a fixed force floor first slides in
+    // frame 1, Lexy), before any decision. So he starts beside the floor and steps onto it: the first carried step grants him the
+    // permission, as in the game, instead of the field being written.
+    const floor = (row: number): Record<string, string> => ({ [`${START_X},${row}`]: 'force_n' });
+    const engine = load({ dir: 'S', entities: [mirror(START_X + 3, START_Y)], terrain: { ...floor(START_Y - 1), ...floor(START_Y - 2), ...floor(START_Y - 3) } });
+    playMove(engine, 'N');
+    for (let waited = 0; waited <= MAX_WAIT_TICKS && engine.getPlayer().forcePermission !== true; waited++) engine.tick();
+    expect(engine.getPlayer().forcePermission).toBe(true);
+    const recorded = engine.getTimedMoveHistory().length;
+    expect(hold(engine, ['N', 'E'])).toBe(true);
+    expect(engine.getTimedMoveHistory()).toHaveLength(recorded + 1);
   });
 });
 

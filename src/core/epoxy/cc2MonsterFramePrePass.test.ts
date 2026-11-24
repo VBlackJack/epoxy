@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { buildTestLevel } from '../../test/buildTestLevel';
 import { room, type RoomMode } from '../../test/cc2Room';
@@ -97,13 +98,20 @@ describe('CC2 monster retry on a force floor in the frame pre-pass', () => {
     expect(find(w, 'paramecium').cooldownTicks).toBe(PRE_PASS_STEP_COOLDOWN);
   });
 
-  it('a monster that just arrived on a force floor does not retry early', () => {
-    const { engine, w } = load('cc2');
-    const para = find(w, 'paramecium');
-    // It stepped onto the floor in the pass that just ran: its first forced try is the decisions of the coming tick.
-    para.stepEndedPass = w.ccMonsterClock;
-    engine.tick();
-    expect(find(w, 'paramecium').y).toBe(FORCED_Y);
+  it('a monster that just arrived on a force floor tries again in the frame after its arrival, not before (Lexy lane w35t_mfp)', async () => {
+    // The paramecium steps onto the floor in frame 1 of tic 0 and arrives in frame 0 of tic 2: its first forced try is frame 1 of that
+    // tic, refused until the fireball in the way has left in frame 2 of tic 4 (Lexy lane; positions after the tick() calls 3, 4 and 5).
+    const engine = new GameEngine();
+    engine.loadLevel(await loadCc2Lane('mfp', 'w35t_'), 0);
+    const w = (engine as unknown as { w: EpoxyWorld }).w;
+    const cellAfter = (calls: number, from: number): [number, number] => {
+      for (let call = from + 1; call <= calls; call++) engine.tick();
+      const para = find(w, 'paramecium');
+      return [para.x, para.y];
+    };
+    expect(cellAfter(3, 0)).toEqual([FORCED_X, BELOW_Y]);
+    expect(cellAfter(4, 3)).toEqual([FORCED_X, BELOW_Y]);
+    expect(cellAfter(5, 4)).toEqual([FORCED_X, BELOW_Y + 1]);
   });
 });
 

@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { room } from '../../test/cc2Room';
 import { GameEngine } from '../GameEngine';
@@ -58,18 +59,21 @@ function boxedPad(): CompiledLevel {
 }
 
 describe('PRF: a refused forced step on a turning force floor', () => {
-  it('turns the floor and goes the new way in the same attempt (map054 t198 shape)', () => {
-    const engine = load(room({ mode: 'cc2', terrain: FIRST_DRAW_BLOCKED_TERRAIN }));
+  it('turns the floor and goes the new way in the same attempt (map054 t198 shape; Lexy lane w35t_prf)', async () => {
+    const engine = new GameEngine();
+    engine.loadLevel(await loadCc2Lane('prf', 'w35t_'), 0);
+    // The lane header starts the shared turn east: the first draw is refused by the wall.
+    engine.setReplayForceStart('E');
     const w = worldOf(engine);
-    engine.attemptPlayerMove('E');
+    engine.attemptPlayerMoveHeld(['E']);
     const trail: string[] = [];
     for (let i = 0; i < TICKS_TO_LEAVE; i++) {
       engine.tick();
       trail.push(`${w.player.x},${w.player.y}:${w.forceCycleTurn}`);
     }
-    // Draw 0 (east) is refused by the wall at tick 2; the bonk draws 1 (south) and the step goes at once, one tick before the carry
-    // of the next tick would have turned him.
-    expect(trail.slice(0, 3)).toEqual(['3,5:1', '3,5:1', '3,6:2']);
+    // Nothing is drawn before his arrival on the floor (t2 f1): draw 0 (east) is refused by the wall at t2 f2, the bonk draws 1 (south)
+    // and the step goes at once, in the same frame.
+    expect(trail.slice(0, 3)).toEqual(['3,5:0', '3,5:0', '3,6:2']);
     // He is on the cell below the pad, not stuck on it.
     expect({ x: w.player.x, y: w.player.y }).toEqual({ x: PAD.x, y: PAD.y + 1 });
     expect(w.forceCycleTurn).toBe(2);

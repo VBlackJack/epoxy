@@ -29,7 +29,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
-import { ROOM_ROW, room } from '../../test/cc2Room';
+import { ROOM_ROW } from '../../test/cc2Room';
 import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { GameEngine } from '../GameEngine';
@@ -42,15 +42,15 @@ beforeEach(() => {
 
 const SEED = 0;
 const BALL = 'pink_ball';
-const FORCE_CYCLE = 'force_cycle';
-const WALL = 'wall';
-const DIRT_BLOCK = 'dirt_block';
 const LANE_PREFIX = 'w26_';
 const PAIR_PREFIX = 'w24_';
+const TURN_PREFIX = 'w35t_';
 /** The unit room of the turning-floor guard. */
 const TURN_X = 5;
 const TURN_BLOCK_EAST_X = 6;
 const TURN_TICKS = 6;
+/** A block jammed on a turning floor draws in every frame of a tic (Lexy _possibly_bonk). */
+const DRAWS_PER_TICK = 3;
 
 async function load(lane: string, prefix: string = LANE_PREFIX): Promise<GameEngine> {
   const engine = new GameEngine();
@@ -196,33 +196,19 @@ describe('CC2 wave 26: a block loaded on a fixed force floor first slides in fra
 });
 
 describe('CC2 wave 26: a turning force floor keeps the after-pass retry', () => {
-  it('a block refused on a turning floor by a block keeps the turn count and its position, with no slide frame', () => {
-    const level = room({
-      mode: 'cc2',
-      startX: 1,
-      terrain: {
-        [`${TURN_X},${ROOM_ROW}`]: FORCE_CYCLE,
-        [`${TURN_X - 1},${ROOM_ROW}`]: WALL,
-        [`${TURN_X},${ROOM_ROW - 1}`]: WALL,
-        [`${TURN_X},${ROOM_ROW + 1}`]: WALL
-      },
-      // The east block is listed first, so the pass reaches the block on the floor second.
-      entities: [
-        { type: DIRT_BLOCK, x: TURN_BLOCK_EAST_X, y: ROOM_ROW, dir: 'E' },
-        { type: DIRT_BLOCK, x: TURN_X, y: ROOM_ROW, dir: 'E' }
-      ]
-    });
-    const engine = new GameEngine();
-    engine.loadLevel(level, SEED);
+  it('a block refused on a turning floor by a block bonks in every frame and keeps its position, with no slide frame (Lexy lane w35t_w26)', async () => {
+    // The lane lists the blocks in reading order (the block on the floor first); the shared turn starts north, as the lane header does.
+    const engine = await load('w26', TURN_PREFIX);
+    engine.setReplayForceStart('N');
     const turnBefore = world(engine).forceCycleTurn;
     for (let i = 0; i < TURN_TICKS; i++) {
       engine.tick();
-      expect(world(engine).forceCycleTurn - turnBefore).toBe(i + 1);
+      expect(world(engine).forceCycleTurn - turnBefore).toBe(DRAWS_PER_TICK * (i + 1));
     }
-    expect(world(engine).forceCycleTurn - turnBefore).toBe(TURN_TICKS);
+    expect(world(engine).forceCycleTurn - turnBefore).toBe(DRAWS_PER_TICK * TURN_TICKS);
     const onFloor = engine.getEntities().find((e) => e.x === TURN_X && e.y === ROOM_ROW) as RuntimeEntity;
     const east = engine.getEntities().find((e) => e.x === TURN_BLOCK_EAST_X && e.y === ROOM_ROW) as RuntimeEntity;
-    expect(onFloor.dir).toBe('S');
+    expect(onFloor.dir).toBe('E');
     expect(onFloor.cc2SlideFrame).toBeUndefined();
     expect(east.cc2SlideFrame).toBeUndefined();
   });

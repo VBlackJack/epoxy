@@ -29,6 +29,7 @@ vi.mock('../../audio/AudioManager', () => ({
   })
 }));
 
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { ROOM_ROW, room } from '../../test/cc2Room';
 import { playMove } from '../../test/cc2Play';
@@ -156,21 +157,17 @@ describe('block step result on a force floor (FB2)', () => {
   });
 });
 
-describe('block jammed on a turning force floor draws once per tick (FB2)', () => {
+describe('block jammed on a turning force floor bonks in every frame (FB2)', () => {
   const JAM_TICKS = 4;
-  const walls: Record<string, string> = {
-    [`${FORCE_START_X},${ROOM_ROW}`]: FORCE_CYCLE,
-    [`${FORCE_START_X - 1},${ROOM_ROW}`]: 'wall',
-    [`${FORCE_START_X + 1},${ROOM_ROW}`]: 'wall',
-    [`${FORCE_START_X},${ROOM_ROW - 1}`]: 'wall',
-    [`${FORCE_START_X},${ROOM_ROW + 1}`]: 'wall'
-  };
+  /** The frames of a tic: a block refused on a turning floor draws in each of them (Lexy _possibly_bonk, once per frame). */
+  const DRAWS_PER_TICK = 3;
 
-  it('advances the shared sequence once per tick when terrain refuses the block', () => {
-    const engine = load('cc2', { startX: 1, terrain: walls, entities: [{ type: BLOCK, x: FORCE_START_X, y: ROOM_ROW, dir: 'E' }] });
+  it('draws in every frame when terrain refuses the block (Lexy lane w35t_fb2: 3 draws per tic)', async () => {
+    const engine = new GameEngine();
+    engine.loadLevel(await loadCc2Lane('fb2', 'w35t_'), 0);
     const before = worldOf(engine).forceCycleTurn;
     for (let i = 0; i < JAM_TICKS; i++) engine.tick();
-    expect(worldOf(engine).forceCycleTurn - before).toBe(JAM_TICKS);
+    expect(worldOf(engine).forceCycleTurn - before).toBe(JAM_TICKS * DRAWS_PER_TICK);
   });
 
   it('does not report a retry for a wall, and reports the way for a block in the road', () => {

@@ -97,6 +97,7 @@ import {
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
+import { drawRffPlayer } from './epoxy/epoxyForceCycle';
 import { beginCc2MirrorTick, copiesControllerMove, copyMirrorMove, endCc2MirrorTick, hasCc2MirrorCadence, noteCc2Swap, rememberPlayerMove } from './epoxy/epoxyMirrors';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
@@ -1036,6 +1037,8 @@ export class GameEngine {
       ...(p.cc2SlideFrame !== undefined ? { cc2SlideFrame: p.cc2SlideFrame } : {}),
       ...(p.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
       ...(p.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
+      ...(p.cc2RffStart !== undefined ? { cc2RffStart: p.cc2RffStart } : {}),
+      ...(p.cc2RffDue !== undefined ? { cc2RffDue: p.cc2RffDue } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -1066,6 +1069,8 @@ export class GameEngine {
       ...(snap.cc2SlideFrame !== undefined ? { cc2SlideFrame: snap.cc2SlideFrame } : {}),
       ...(snap.cc2FrameRetry === true ? { cc2FrameRetry: true as const } : {}),
       ...(snap.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
+      ...(snap.cc2RffStart !== undefined ? { cc2RffStart: snap.cc2RffStart } : {}),
+      ...(snap.cc2RffDue !== undefined ? { cc2RffDue: snap.cc2RffDue } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -1621,6 +1626,8 @@ export class GameEngine {
     const w = this.w;
     delete w.cc2TurnAhead;
     if (!w.player.alive || w.levelCompleted) return;
+    // Wave 35: the turning-floor arrival draw due at the player's slot of this frame.
+    drawRffPlayer(w);
     // A red-button press the frame pre-pass did not fire acts as his turn opens.
     if (!fireDeferredPlayerPress(this.ctx) || !w.player.alive || w.levelCompleted) return;
     const clock = w.ccMonsterClock;

@@ -27,10 +27,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../audio/AudioManager', () => import('../../test/silentAudio'));
 
 import { ROOM_ROW, room, type RoomMode } from '../../test/cc2Room';
+import { loadCc2Lane } from '../../test/cc2LaneFixture';
 import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { FORCE_CYCLE_ORDER } from '../../config/constants';
 import { GameEngine } from '../GameEngine';
-import type { RuntimeEntity } from '../types';
+import type { Direction, RuntimeEntity } from '../types';
 import { cc2HiddenStateKey } from './epoxyWorld';
 import type { EpoxyWorld } from './epoxyWorld';
 
@@ -42,7 +43,6 @@ const FORCE_CYCLE = 'force_cycle';
 const FORCE_EAST = 'force_e';
 const PARAMECIUM = 'paramecium';
 const FIREBALL = 'fireball';
-const DIRT_BLOCK = 'dirt_block';
 const WALL = 'wall';
 const PLAYER_START_X = 2;
 const FLOOR_X = 5;
@@ -52,6 +52,10 @@ const BELOW_Y = ROOM_ROW + 1;
 const SOUTH_TURN = FORCE_CYCLE_ORDER.indexOf('S');
 /** The frame the monster of the MAP120 shape takes its forced steps in. */
 const FRAME_0 = 0;
+/** A monster loaded on a force floor first slides in frame 1 of tic 0 (Lexy), and keeps that frame on a force row. */
+const FRAME_1 = 1;
+/** The prefix of the Lexy lanes of wave 35 that rebuild the turning-floor shapes. */
+const LANE_PREFIX = 'w35t_';
 
 const worldOf = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 const monsterOf = (engine: GameEngine, type: string): RuntimeEntity => engine.getEntities().find((e) => e.type === type) as RuntimeEntity;
@@ -73,39 +77,53 @@ function load(mode: RoomMode, setup: Setup, justArrived = true): GameEngine {
 
 const paramecium = (dir: 'E' | 'S' | 'W' | 'N' = 'E') => ({ type: PARAMECIUM, x: FLOOR_X, y: ROOM_ROW, dir });
 
+/** Loads a Lexy lane of wave 35, the shared turn started as the lane's replay header says. */
+async function loadLane(lane: string, start: Direction): Promise<GameEngine> {
+  const engine = new GameEngine();
+  engine.loadLevel(await loadCc2Lane(lane, LANE_PREFIX), 0);
+  engine.setReplayForceStart(start);
+  return engine;
+}
+
+/** Plays `calls` tick() calls of a lane and returns the engine with the number of turning-floor draws they made. */
+async function playLane(lane: string, start: Direction, calls: number): Promise<{ engine: GameEngine; draws: number }> {
+  const engine = await loadLane(lane, start);
+  const before = worldOf(engine).forceCycleTurn;
+  for (let call = 1; call <= calls; call++) engine.tick();
+  return { engine, draws: worldOf(engine).forceCycleTurn - before };
+}
+
 describe('CC2 engine: a monster refused on a turning force floor turns it at the move (MAP120 t424)', () => {
-  it('turns the floor once and goes the new way in the same tick when a wall refuses its way', () => {
-    const engine = load('cc2', { terrain: { [`${AHEAD_X},${ROOM_ROW}`]: WALL }, entities: [paramecium()] });
-    engine.tick();
+  it('turns the floor once and goes the new way in the same tick when a wall refuses its way (Lexy lane w35t_mtf_wall: the arrival draws east, the bonk south)', async () => {
+    // The step onto the floor ends at t2 f0 (call 3); the arrival draws east into the wall, the bonk turns it south at once: 2 draws.
+    const { engine, draws } = await playLane('mtf_wall', 'E', 3);
     const para = monsterOf(engine, PARAMECIUM);
     expect([para.x, para.y]).toEqual([FLOOR_X, BELOW_Y]);
     expect(para.dir).toBe('S');
-    expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN + 1);
+    expect(draws).toBe(2);
   });
 
-  it('turns the floor once and goes the new way when a block that stays refuses its way', () => {
-    const engine = load('cc2', { entities: [paramecium(), { type: DIRT_BLOCK, x: AHEAD_X, y: ROOM_ROW, dir: 'E' }] });
-    engine.tick();
+  it('turns the floor once and goes the new way when a block that stays refuses its way (Lexy lane w35t_mtf_block)', async () => {
+    const { engine, draws } = await playLane('mtf_block', 'E', 3);
     const para = monsterOf(engine, PARAMECIUM);
     expect([para.x, para.y]).toEqual([FLOOR_X, BELOW_Y]);
-    expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN + 1);
+    expect(draws).toBe(2);
   });
 
-  it('is two monsters, the blocker listed to move first: the second goes the floor way, no bonk (Lexy bonks at the move)', () => {
-    // The fireball is listed last, so the pass moves it first: it has left the cell when the paramecium tries it.
-    const engine = load('cc2', { entities: [paramecium(), { type: FIREBALL, x: AHEAD_X, y: ROOM_ROW, dir: 'E' }] });
-    engine.tick();
+  it('is two monsters, the blocker listed to move first: the second goes the floor way, no bonk (Lexy lane w35t_mtf_fbafter)', async () => {
+    // The fireball is listed after the paramecium, so a frame moves it first: it has left the cell when the paramecium tries it.
+    const { engine, draws } = await playLane('mtf_fbafter', 'E', 3);
     const para = monsterOf(engine, PARAMECIUM);
     expect([para.x, para.y]).toEqual([AHEAD_X, ROOM_ROW]);
-    expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN);
+    expect(draws).toBe(1);
   });
 
-  it('is two monsters, the blocker listed to move last: the first is refused and the floor turns it', () => {
-    const engine = load('cc2', { entities: [{ type: FIREBALL, x: AHEAD_X, y: ROOM_ROW, dir: 'E' }, paramecium()] });
-    engine.tick();
+  it('is two monsters, the blocker listed to move last: the first is refused and the floor turns it (Lexy lane w35t_mtf_cross_before)', async () => {
+    // The fireball crossing the cell ahead refuses the east way, the bonk south meets the wall, the bonk west is free: 3 draws.
+    const { engine, draws } = await playLane('mtf_cross_before', 'E', 3);
     const para = monsterOf(engine, PARAMECIUM);
-    expect([para.x, para.y]).toEqual([FLOOR_X, BELOW_Y]);
-    expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN + 1);
+    expect([para.x, para.y]).toEqual([FLOOR_X - 1, ROOM_ROW]);
+    expect(draws).toBe(3);
   });
 
   it('does nothing on a classic-rules or a native level: the monster stays', () => {
@@ -128,14 +146,14 @@ describe('CC2 engine: a monster keeps the frame of its slide steps (MAP120 t849-
     return engine;
   }
 
-  it('tags frame 0 after a pre-pass step, and keeps it through the following force-floor steps', () => {
-    const engine = forceRow('cc2');
+  it('tags frame 1 after a pre-pass step (a monster loaded on a force floor first slides in frame 1), and keeps it through the following force-floor steps (Lexy lane w35t_mtf_row)', async () => {
+    const engine = await loadLane('mtf_row', 'N');
     const seen: (number | undefined)[] = [];
     for (let tick = 1; tick <= 6; tick++) {
       engine.tick();
       seen.push(monsterOf(engine, PARAMECIUM).cc2SlideFrame);
     }
-    expect(seen).toEqual(Array(seen.length).fill(FRAME_0));
+    expect(seen).toEqual(Array(seen.length).fill(FRAME_1));
     expect(monsterOf(engine, PARAMECIUM).x).toBeGreaterThan(AHEAD_X);
   });
 
@@ -186,14 +204,12 @@ describe('CC2 engine: a monster keeps the frame of its slide steps (MAP120 t849-
 });
 
 describe('CC2 engine: a turning force floor carries the slide frame too (MSFR)', () => {
-  it('tags the frame of a step onto a turning floor', () => {
-    const engine = new GameEngine();
-    const terrain = { [`${FLOOR_X},${ROOM_ROW}`]: FORCE_EAST, [`${AHEAD_X},${ROOM_ROW}`]: FORCE_CYCLE };
-    engine.loadLevel(room({ mode: 'cc2', startX: PLAYER_START_X, terrain, entities: [paramecium()] }));
+  it('tags the frame of a step onto a turning floor (Lexy lane w35t_mtf_msfr: the step onto it is in frame 1 of tic 0)', async () => {
+    const engine = await loadLane('mtf_msfr', 'N');
     engine.tick();
     const para = monsterOf(engine, PARAMECIUM);
     expect(para.x).toBe(AHEAD_X);
-    expect(para.cc2SlideFrame).toBe(FRAME_0);
+    expect(para.cc2SlideFrame).toBe(FRAME_1);
   });
 });
 
@@ -208,21 +224,33 @@ describe('CC2 engine: a monster tagged with a slide frame on a turning floor sti
     expect([para.x, para.y]).toEqual([FLOOR_X, BELOW_Y]);
     expect(worldOf(engine).forceCycleTurn).toBe(SOUTH_TURN + 1);
   });
+
+  it('bonks in each of its own frames after its arrival, the refused way answered by the next draw (Lexy lane w35t_mtf_cross_after: south at t2 f1, west at t2 f2)', async () => {
+    // Nothing is drawn before the arrival at t2 f0 (call 3). In tic 2 the east way is refused by the crossing fireball (arrival draw), the
+    // bonk in frame 1 turns it south into the wall, the bonk in frame 2 turns it west and it steps: 3 draws, all in call 3.
+    const engine = await loadLane('mtf_cross_after', 'E');
+    const before = worldOf(engine).forceCycleTurn;
+    engine.tick();
+    engine.tick();
+    expect(worldOf(engine).forceCycleTurn - before).toBe(0);
+    engine.tick();
+    const para = monsterOf(engine, PARAMECIUM);
+    expect([para.x, para.y]).toEqual([FLOOR_X - 1, ROOM_ROW]);
+    expect(para.dir).toBe('W');
+    expect(worldOf(engine).forceCycleTurn - before).toBe(3);
+  });
 });
 
-describe('CC2 engine: a retry step off a turning floor onto a force row keeps frame 0', () => {
-  it('stays tagged frame 0 over the steps along the row (MAP120 t849-t857 shape)', () => {
-    const terrain: Record<string, string> = { [`${FLOOR_X},${ROOM_ROW}`]: FORCE_CYCLE };
-    for (let x = AHEAD_X; x <= AHEAD_X + 5; x++) terrain[`${x},${ROOM_ROW}`] = FORCE_EAST;
-    const engine = new GameEngine();
-    engine.loadLevel(room({ mode: 'cc2', startX: PLAYER_START_X, terrain, entities: [paramecium()] }));
+describe('CC2 engine: a retry step off a turning floor onto a force row keeps its frame', () => {
+  it('stays tagged frame 1 over the steps along the row (MAP120 t849-t857 shape; Lexy lane w35t_mtf_rffrow: it draws in the idle phase of tic 0 and steps in frame 1)', async () => {
+    const engine = await loadLane('mtf_rffrow', 'E');
     const seen: (number | undefined)[] = [];
     for (let tick = 1; tick <= 3; tick++) {
       engine.tick();
       seen.push(monsterOf(engine, PARAMECIUM).cc2SlideFrame);
     }
     expect(monsterOf(engine, PARAMECIUM).x).toBeGreaterThan(AHEAD_X);
-    expect(seen).toEqual(Array(seen.length).fill(FRAME_0));
+    expect(seen).toEqual(Array(seen.length).fill(FRAME_1));
   });
 });
 
@@ -237,13 +265,10 @@ describe('CC2 engine: the monster slide frame is state', () => {
     expect(new Set([bare, tagged, tagged1]).size).toBe(3);
   });
 
-  it('an undo round trip across a frame-0 monster step replays identically', () => {
-    const terrain: Record<string, string> = {};
-    for (let x = FLOOR_X; x <= FLOOR_X + 5; x++) terrain[`${x},${ROOM_ROW}`] = FORCE_EAST;
-    const engine = new GameEngine();
-    engine.loadLevel(room({ mode: 'cc2', startX: PLAYER_START_X, terrain, entities: [paramecium()] }));
+  it('an undo round trip across a pre-pass monster step replays identically (Lexy lane w35t_mtf_row: the step is in frame 1)', async () => {
+    const engine = await loadLane('mtf_row', 'N');
     engine.tick();
-    expect(monsterOf(engine, PARAMECIUM).cc2SlideFrame).toBe(FRAME_0);
+    expect(monsterOf(engine, PARAMECIUM).cc2SlideFrame).toBe(FRAME_1);
     const snap = engine.captureState();
     const key = cc2HiddenStateKey(worldOf(engine));
     const trace = (): string[] => {
@@ -257,7 +282,7 @@ describe('CC2 engine: the monster slide frame is state', () => {
     };
     const first = trace();
     engine.restoreState(snap);
-    expect(monsterOf(engine, PARAMECIUM).cc2SlideFrame).toBe(FRAME_0);
+    expect(monsterOf(engine, PARAMECIUM).cc2SlideFrame).toBe(FRAME_1);
     expect(cc2HiddenStateKey(worldOf(engine))).toBe(key);
     expect(trace()).toEqual(first);
   });

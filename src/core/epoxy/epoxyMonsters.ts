@@ -61,7 +61,7 @@ import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2Blob
 import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
-import { forceCycleArrival } from './epoxyForceCycle';
+import { drawRffEntity, forceCycleArrival, isRffYellowTank, rffActive, rffDefer, rffHolds, rffStepStart } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
@@ -127,6 +127,7 @@ export function updateEntities(ctx: EpoxyContext): void {
     // CC2 engine: a green toggle a monster's step queued is applied after the entity pass (Lexy do_post_actor_phase).
     if (w.ccRules && usesCc2Engine(w.level) && w.player.alive && !applyQueuedArrivals(ctx, undefined, passClock, true)) return;
   } finally {
+    delete w.cc2RffMain;
     w.ccPassOpen = false;
     closeFramePass(w);
     // CC2 engine, actor order: the per-pass sets live for one pass only.
@@ -376,6 +377,8 @@ function planClassicDecisions(ctx: EpoxyContext): boolean {
     }
     // A rolling ball that blows up takes the actor in its way, or the one that probed it, with it: that one decides nothing.
     if (removedDuringPass(entity)) continue;
+    // Wave 35: a turning-floor arrival draw still pending at a decision is drawn first (Lexy: the arrival always precedes the actor's next decision).
+    if (entity.cooldownTicks === 0 && rffHolds(entity)) drawRffEntity(w, entity, true);
     if (isCc2YellowTank(w, entity)) {
       promoteSteerQueue(entity, clock);
       if (!planYellowTankCarried(w, entity)) planYellowTank(w, entity, clock);
@@ -484,8 +487,13 @@ function planYellowTankCarried(w: EpoxyWorld, tank: RuntimeEntity): boolean {
     w.ccPlans.set(tank.uid, here.deflectionMap?.[tank.dir] || tank.dir);
     return true;
   }
-  if (here.slideType === 'force' && here.forceDirection !== undefined && here.forceDirection !== 'RANDOM') {
+  if (here.slideType === 'force' && here.forceDirection !== undefined && here.forceDirection !== 'RANDOM' && here.forceCycle !== true) {
     w.ccPlans.set(tank.uid, here.forceDirection);
+    return true;
+  }
+  // Wave 35 (RFY): a turning floor carries it the way its arrival drew (the bonk at the move turns it).
+  if (here.slideType === 'force' && here.forceCycle === true && isRffYellowTank(w, tank)) {
+    w.ccPlans.set(tank.uid, tank.dir);
     return true;
   }
   return false;
@@ -572,6 +580,7 @@ function runEntityPass(ctx: EpoxyContext): void {
   w.removedUids.clear();
   const clock = w.ccMonsterClock;
   if (w.ccRules || w.cc3dPace) w.ccMonsterClock++;
+  w.cc2RffMain = true;
   const snapshotEntities = [...w.entities];
   // The classic game moves its creatures from the end of the list to the start.
   if (w.ccRules) snapshotEntities.reverse();
@@ -589,6 +598,8 @@ function runEntityPass(ctx: EpoxyContext): void {
       ctx.cc2PlayerActs?.();
       if (!w.player.alive || w.levelCompleted) return;
     }
+    // Wave 35: the turning-floor arrival draw due at this actor's slot of the frame.
+    drawRffEntity(w, entity);
     if (w.removedUids.has(entity.uid)) continue;
     // A cloner template that went out of its place skips the rest of the pass.
     if (w.cc2SkipTurn?.has(entity.uid) === true) continue;
@@ -654,6 +665,13 @@ function runEntityPass(ctx: EpoxyContext): void {
       && entersSlide(w, entity, entity.x, entity.y)
     ) {
       entity.cooldownTicks = cc2EntryStepTicks(w, entity, entity.x, entity.y) - 1;
+    }
+    // Wave 35 (RFY): a yellow tank refused on a turning floor stays ready: it bonks again in every frame (as stepClassicMonster resets a classic one).
+    if (
+      !classic && wasReady && entity.x === fromX && entity.y === fromY && entity.cooldownTicks > 0 && isRffYellowTank(w, entity) &&
+      ConfigRegistry.getTile(w.terrain[entity.y]?.[entity.x]).forceCycle === true
+    ) {
+      entity.cooldownTicks = 0;
     }
     // CC2 engine: a move of the main pass ends the frame a monster's slide kept in the pre-pass.
     if (entity.cc2SlideFrame !== undefined && (entity.x !== fromX || entity.y !== fromY)) delete entity.cc2SlideFrame;
@@ -749,6 +767,8 @@ function stepClassicMonster(ctx: EpoxyContext, entity: RuntimeEntity, clock: num
   const ready = entity.cooldownTicks === 0;
   const x = entity.x;
   const y = entity.y;
+  // Wave 35: an arrival draw still pending when the monster is ready is drawn first.
+  if (ready && rffHolds(entity)) drawRffEntity(ctx.world, entity, true);
   const alive = stepMonster(ctx, entity);
   // The first step away from the load cell forgets it: the ice there is an ordinary slide from now on.
   if (entity.atLoadCell === true && (entity.x !== x || entity.y !== y)) delete entity.atLoadCell;
@@ -1161,7 +1181,11 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   else notePulseArrival(w, nx, ny, entity);
 
   // A turning force floor turns the monster to the next direction of the shared turn.
-  const cycleDir = floorFree || def?.ignoresSlidingFloors === true || slideImmune(w, entity, destTile) ? undefined : forceCycleArrival(w, destTile);
+  // Wave 35 (RFM): on a one-player CC2 level the turning floor draws when the step ends (Lexy on_stand from step_on_cell at the arrival frame).
+  const rffSubject = !(floorFree || def?.ignoresSlidingFloors === true || slideImmune(w, entity, destTile)) && destTile.forceCycle === true;
+  const rffDeferred = rffSubject && rffActive(w) && entity.kind === 'monster';
+  if (rffDeferred) rffDefer(entity, rffStepStart(w, w.cc2PrePassMonsterFrame));
+  const cycleDir = !rffSubject || rffDeferred ? undefined : forceCycleArrival(w, destTile);
   if (cycleDir) entity.dir = cycleDir;
 
   // CC2 engine: a monster arriving on the yellow button sets the pending decision of the yellow tanks, at its step end.
