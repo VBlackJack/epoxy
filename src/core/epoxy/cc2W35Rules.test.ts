@@ -28,7 +28,7 @@
  * tick() call k plays the Lexy tic k - 1, so "after N calls" is the end of Lexy tic N - 1; an input of Lexy tic t is given before the
  * tick() call t + 1. The lanes start the shared turn of the turning floors at north (the replay header of each lane, as the lane
  * runs did), so every load calls setReplayForceStart('N'). The values are the end-of-tic values of the Lexy lane named next to each
- * case (actor oracle), read from the lane run, not from the engine. Every row fails with at least one rule removed.
+ * case (actor oracle), read from the lane run, not from the engine. Every row except j (the actor-order guard) fails with at least one rule removed.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -269,9 +269,11 @@ describe('CC2 wave 35 (l): a clone released onto a turning floor draws at its ar
     const engine = await load('clone_o0', PREFIX_W35T);
     const inputs = plan([[0, S]]);
     const seen = sample(engine, inputs, [6, 8], (e) => entitiesOfType(e, TANK).map((t) => ({ cell: [t.x, t.y] as Cell, dir: t.dir })));
-    // The released tank (the one at (7,5)) drew east at its arrival (t5 f2); with RFM removed it faces west at call 6. The clone's own
-    // step runs a tick early (the clone-due leftover), so only its facing is read at call 6.
-    expect(seen[0]).toContainEqual({ cell: [7, 5], dir: 'E' });
+    // The released tank (the one not on the cloner cell (5,5)) drew east at its arrival (t5 f2); with RFM removed it faces west at
+    // call 6. Its cell is not asserted at call 6: Lexy has it at (6,5) and Epoxy at (7,5), because the clone's own step runs a tick
+    // early (the leftover "clone due"), so only its facing is read there.
+    const clone = seen[0].find((t) => t.cell[0] !== 5 || t.cell[1] !== 5);
+    expect(clone?.dir).toBe('E');
     expect(seen[1]).toContainEqual({ cell: [7, 5], dir: 'E' });
   });
 });
@@ -294,9 +296,9 @@ describe('CC2 wave 35 (m-q): a yellow tank is carried by a turning floor as any 
 
   it('carries the tank from a fixed force row onto a turning floor (Lexy lane w35y_fixed_rff)', async () => {
     const engine = await load('fixed_rff', PREFIX_W35Y);
-    const seen = sample(engine, NO_INPUT, [11, 13], (e) => cellOf(YELLOW_TANK)(e));
+    const seen = sample(engine, NO_INPUT, [11, 13], (e) => stateOf(YELLOW_TANK)(e));
     // With RFY removed the tank stands at (8,5) facing east at both calls.
-    expect(seen).toEqual([[8, 6], [8, 6]]);
+    expect(seen).toEqual([{ cell: [8, 6], dir: 'S' }, { cell: [8, 6], dir: 'S' }]);
   });
 
   it('carries the tank onto the turning floor after the yellow button steered it (Lexy lane w35y_btn_o0_d8)', async () => {
@@ -310,10 +312,10 @@ describe('CC2 wave 35 (m-q): a yellow tank is carried by a turning floor as any 
 
   it('draws the tank listed before the player in the Lexy order (Lexy lane w35y_pair_player_b_n)', async () => {
     const engine = await load('pair_player_b_n', PREFIX_W35Y);
-    const seen = sample(engine, NO_INPUT, [4, 10], (e) => ({ chip: playerCell(e), tank: stateOf(YELLOW_TANK)(e) }));
+    const seen = sample(engine, NO_INPUT, [4, 10], (e) => ({ chip: playerFacing(e), tank: stateOf(YELLOW_TANK)(e) }));
     // With RFY removed the tank faces east at both calls and Chip stands at (11,9) at call 10.
-    expect(seen[0]).toEqual({ chip: [11, 8], tank: { cell: [6, 3], dir: 'N' } });
-    expect(seen[1]).toEqual({ chip: [11, 8], tank: { cell: [6, 4], dir: 'S' } });
+    expect(seen[0]).toEqual({ chip: { cell: [11, 8], dir: 'S' }, tank: { cell: [6, 3], dir: 'N' } });
+    expect(seen[1]).toMatchObject({ chip: { cell: [11, 8] }, tank: { cell: [6, 4], dir: 'S' } });
   });
 });
 

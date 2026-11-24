@@ -24,6 +24,7 @@ import { underlayAt, underlayMap } from '../Underlays';
 import { isConvertedCc3dLevel } from '../cc3d/cc3dConstants';
 import { usesCc2Engine, usesCcRules } from './ccRules';
 import { leaveSplash } from './epoxyBlocks';
+import { CC2_FRAMES_PER_TICK } from './epoxyForceCycle';
 import type { CcGenerators } from './ccGenerators';
 import { DELAYED_GATE_KINDS, type SignalEdge } from './signalNetwork';
 import type { CcArrival, Cc2MirrorMove, Cc2PendingDecision, Cc2PlayerView, Cc3dPlayerArrival, SignalNodeKind } from '../types';
@@ -1040,8 +1041,9 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
   // The Lexy frame at which a clone released by a wire ends its move (0 and 2 only; frame 1 is the absent default).
   const frames = w.entities.filter((e) => e.cc2Frame !== undefined).map((e) => `${e.uid}${e.cc2Frame}`);
   if (frames.length > 0) parts.push(`F${frames.join(',')}`);
-  // The deferred turning-floor draw (wave 35), frames relative to the running pass: the same position reached at another time gives the same key.
-  const rffBase = pass * 3;
+  // The deferred turning-floor draw (wave 35), frames relative to the running pass: the same position reached at another time gives
+  // the same key.
+  const rffBase = pass * CC2_FRAMES_PER_TICK;
   const rffOf = (x: { cc2RffStart?: number; cc2RffDue?: number; cc2RffArrived?: number; cc2RffStuck?: true }): string =>
     `${x.cc2RffStart !== undefined ? `s${x.cc2RffStart - rffBase}` : ''}${x.cc2RffDue !== undefined ? `d${x.cc2RffDue - rffBase}` : ''}${x.cc2RffArrived !== undefined ? `a${x.cc2RffArrived - rffBase}` : ''}${x.cc2RffStuck === true ? 'k' : ''}`;
   const rffMarks = [

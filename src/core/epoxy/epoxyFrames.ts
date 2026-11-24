@@ -19,6 +19,7 @@ import { Direction, RuntimeEntity } from '../types';
 import { followsCcCadence, OPPOSITE_DIRECTION } from '../coreConstants';
 import { applyGreenFrameToggles, canMonsterEnter, slideImmune, stepClassicMonsterOutOfTurn } from './epoxyMonsters';
 import {
+  CC2_FRAMES_PER_TICK,
   drawRffEntity,
   drawRffLoadEntity,
   drawRffLoadPlayer,
@@ -59,8 +60,6 @@ import { EpoxyContext, EpoxyWorld } from './epoxyWorld';
  * the end of the previous tick for those levels loses Boiler and map045.
  */
 
-/** Lexy frames per tic. */
-const FRAMES_PER_TICK = 3;
 /** Frames of a step onto a cell that is not a slide (Lexy walk cooldown, game.js:2218-2242). */
 export const PLAIN_STEP_FRAMES = 12;
 /** Frames of a step onto ice or a force floor. */
@@ -121,8 +120,8 @@ export function holdFrameArrival(w: EpoxyWorld, block: RuntimeEntity, total: num
   // A block on a clone machine never settles: its arrival only counts down (finishClonerOccupantStep), in every frame. Holding it
   // here would settle it in frames 0 and 1 and leave it counting down in frame 2.
   if (ConfigRegistry.getTile(w.terrain[block.y]?.[block.x]).isCloneMachine === true) return;
-  block.cc2ArrivalWait = Math.floor(total / FRAMES_PER_TICK) + (counted ? pendingPrePass(w) : 0);
-  block.cc2ArrivalFrame = (total % FRAMES_PER_TICK) as 0 | 1 | 2;
+  block.cc2ArrivalWait = Math.floor(total / CC2_FRAMES_PER_TICK) + (counted ? pendingPrePass(w) : 0);
+  block.cc2ArrivalFrame = (total % CC2_FRAMES_PER_TICK) as 0 | 1 | 2;
 }
 
 /**
@@ -154,14 +153,14 @@ export function tagPushedBlock(w: EpoxyWorld, block: RuntimeEntity, byPlayer: bo
       holdFrameArrival(w, block, pushFrame + PLAIN_STEP_FRAMES - 1 - dd, !inPrePass);
     } else if (playerSliding) {
       const total = pushFrame + SLIDE_STEP_FRAMES - d;
-      tagSlideFrame(w, block, (total % FRAMES_PER_TICK) as 0 | 1 | 2, Math.floor(total / FRAMES_PER_TICK));
+      tagSlideFrame(w, block, (total % CC2_FRAMES_PER_TICK) as 0 | 1 | 2, Math.floor(total / CC2_FRAMES_PER_TICK));
     } else tagSlideFrame(w, block, 1, DECISION_PUSH_SLIDE_TICKS);
     return;
   }
   if (sliderFrame === undefined) return;
   if (block.arrivalTicks === undefined && block.isSliding) {
     const total = sliderFrame + SLIDE_STEP_FRAMES - d;
-    tagSlideFrame(w, block, (total % FRAMES_PER_TICK) as 0 | 1 | 2, Math.floor(total / FRAMES_PER_TICK));
+    tagSlideFrame(w, block, (total % CC2_FRAMES_PER_TICK) as 0 | 1 | 2, Math.floor(total / CC2_FRAMES_PER_TICK));
   } else if (block.arrivalTicks !== undefined && w.cc2PrePassStepping === true) {
     holdFrameArrival(w, block, sliderFrame + PLAIN_STEP_FRAMES - 1 - d, false);
   }

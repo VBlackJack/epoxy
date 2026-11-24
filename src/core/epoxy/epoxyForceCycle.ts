@@ -44,16 +44,23 @@ export function rffActive(w: EpoxyWorld): boolean {
   return usesCc2Engine(w.level) && !w.cc3dPace && w.cc2ActorOrder === true;
 }
 
+/** Lexy frames per tic. */
+export const CC2_FRAMES_PER_TICK = 3;
+/** The frame of the main pass inside a tic (frames 0 and 1 are the pre-pass frames). */
+const MAIN_PASS_FRAME = 2;
+/** The remembered arrival frame is pruned once it is older than this many frames. */
+const RFF_ARRIVED_PRUNE_FRAMES = 3;
+
 /** Absolute frame index (tick * 3 + frame) of the moment the code runs: a pre-pass frame, the main pass, or before the pass (frame 2). */
 export function rffNow(w: EpoxyWorld): number {
-  if (w.cc2RffPre !== undefined) return (w.ccMonsterClock + 1) * 3 + w.cc2RffPre;
-  if (w.cc2RffMain === true && w.ccPassOpen) return w.ccMonsterClock * 3 + 2;
-  return (w.ccMonsterClock + 1) * 3 + 2;
+  if (w.cc2RffPre !== undefined) return (w.ccMonsterClock + 1) * CC2_FRAMES_PER_TICK + w.cc2RffPre;
+  if (w.cc2RffMain === true && w.ccPassOpen) return w.ccMonsterClock * CC2_FRAMES_PER_TICK + MAIN_PASS_FRAME;
+  return (w.ccMonsterClock + 1) * CC2_FRAMES_PER_TICK + MAIN_PASS_FRAME;
 }
 
 /** Absolute frame of a step start: the pre-pass frame of the stepping monster, block or player when given, else rffNow. */
 export function rffStepStart(w: EpoxyWorld, preFrame: 0 | 1 | undefined): number {
-  if (preFrame !== undefined) return (w.ccMonsterClock + 1) * 3 + preFrame;
+  if (preFrame !== undefined) return (w.ccMonsterClock + 1) * CC2_FRAMES_PER_TICK + preFrame;
   return rffNow(w);
 }
 
@@ -71,7 +78,7 @@ export function rffHolds(actor: RffActor): boolean {
 /** Turns a step start into the due arrival frame once the step's wait is known (the first visit after the step). */
 function rffFinalize(actor: RffActor, ticks: number): void {
   if (actor.cc2RffStart === undefined) return;
-  actor.cc2RffDue = actor.cc2RffStart + 3 * ticks - 1;
+  actor.cc2RffDue = actor.cc2RffStart + CC2_FRAMES_PER_TICK * ticks - 1;
   delete actor.cc2RffStart;
 }
 
@@ -82,7 +89,7 @@ function rffFinalize(actor: RffActor, ticks: number): void {
 export function drawRffEntity(w: EpoxyWorld, e: RuntimeEntity, force = false): void {
   if (!rffActive(w)) return;
   // The remembered arrival frame only gates the bonk retries of the frames right after it: pruned once older than 3 frames.
-  if (e.cc2RffArrived !== undefined && e.cc2RffArrived < rffNow(w) - 3) delete e.cc2RffArrived;
+  if (e.cc2RffArrived !== undefined && e.cc2RffArrived < rffNow(w) - RFF_ARRIVED_PRUNE_FRAMES) delete e.cc2RffArrived;
   rffFinalize(e, e.cooldownTicks + 1);
   const due = e.cc2RffDue;
   if (due === undefined) return;
@@ -132,7 +139,7 @@ export function rffArrivedBefore(w: EpoxyWorld, e: RuntimeEntity): boolean | und
 export function rffDueFromTag(w: EpoxyWorld, block: RuntimeEntity, frame: 0 | 1 | 2, ticks: number): void {
   if (!rffActive(w) || block.cc2RffStart === undefined) return;
   delete block.cc2RffStart;
-  block.cc2RffDue = (Math.floor(rffNow(w) / 3) + ticks) * 3 + frame - 1;
+  block.cc2RffDue = (Math.floor(rffNow(w) / CC2_FRAMES_PER_TICK) + ticks) * CC2_FRAMES_PER_TICK + frame - 1;
 }
 
 /**

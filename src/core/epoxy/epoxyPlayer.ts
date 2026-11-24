@@ -1333,7 +1333,8 @@ function evaluatePlayerSliding(w: EpoxyWorld, tile: ReturnType<typeof ConfigRegi
     const bootsSkip = bootsCancel && tile.forceCycle === true && rffActive(w);
     const rffDeferred = !bootsSkip && !resumed && tile.forceCycle === true && rffActive(w);
     if (rffDeferred) rffDefer(w.player, rffStepStart(w, w.cc2PrePassPlayer === true ? w.cc2PrePassFrame : undefined));
-    // The arrival counts on the shared turn even when boots protect the player from the push.
+    // The arrival counts on the shared turn even when boots protect the player from the push
+    // (except on a one-player CC2 level, wave 35 BTS: no draw).
     const cycleDir = rffDeferred || bootsSkip ? null : forceCycleArrival(w, tile);
     if (tile.protectedByItem && w.player.boots.has(tile.protectedByItem)) {
       w.player.isSliding = false;
