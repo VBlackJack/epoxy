@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 29;
+export const CC2_RULES_VERSION = 30;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -588,6 +588,8 @@ export const CC2_RULES_VERSION = 29;
 // tick's input, TEPI; a trapped player's refused move is copied by the mirrors, and the horizontal key of two held decides, TDM /
 // TDM2; a swap clears the mirrors' memory, remembers the leaver's same-tick slide for the new controller and lets the mirrors listed
 // after him read the old memory, SWP / SWP2). A stored solution with mirrors beside a trap, an exit or a swap replays differently.
+// Version 30: the wave 34 rule (B1SP: on a one-player level a trap does not eject the player when his step onto the trap ended in the turn of the tic of the
+// opening press and every presser is listed after him). A stored solution with a presser listed after the player replays differently.
 // CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.

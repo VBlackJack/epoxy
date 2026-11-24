@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- On CC2 levels with one player, a player who enters a trap at the very moment a button opens it now stays in the trap when every monster pressing the button comes after him in CC2's order, as in CC2, whether he walks, slides on ice or leaves a teleporter into it. CC1 .DAT imports, native levels and CC3D levels are unchanged. Official replays won stay at 200 of 200 for CC2 and 149 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept) (CC2 rules version 30).
+
 ## [2.41.0] - 2026-11-24
 
 ### Changed

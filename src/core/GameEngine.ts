@@ -261,6 +261,7 @@ export class GameEngine {
       // Wave 31: a trap that opens under the controlled player ejects him through his forced out-of-turn step, facing as he does.
       cc2ReleaseTrappedPlayer: () => {
         delete this.w.player.trapShutAtTurn;
+        delete this.w.player.trapShutFresh;
         this.playForcedStep(this.w.player.dir);
       }
     };
@@ -1307,7 +1308,8 @@ export class GameEngine {
     }
     if (actorOrder) {
       this.settleBeforeActorPass();
-      this.releaseTrappedPlayer();
+      if (usesCc2Engine(this.w.level) && !this.w.cc3dPace && !this.releaseAllowed(this.w.player)) this.dropOpenTrapMark(this.w.player);
+      else this.releaseTrappedPlayer();
     } else if (usesCc2Engine(this.w.level) && !this.w.cc3dPace) {
       // No actor order (several players): the players at rest on a closed trap are marked, the release of the next input or tick start
       // ejects the ones whose trap a press opened. A trap shut for the first time at this pass start (his step onto it ended in this
@@ -1669,6 +1671,7 @@ export class GameEngine {
     const w = this.w;
     if (isCellClosedTrap(w, w.player.x, w.player.y)) w.player.trapShutAtTurn = true;
     else delete w.player.trapShutAtTurn;
+    const restAtStart = w.player.moveCooldown === 0 && !w.player.isSliding;
     const seen = w.cc2TurnSeen ?? new Set<number>();
     const before = new Map<number, string>();
     for (const e of w.entities) if (e.kind === 'block' && seen.has(e.uid)) before.set(e.uid, this.blockTurnState(e));
@@ -1685,6 +1688,13 @@ export class GameEngine {
       else processPlayerSlideStep(this.ctx);
     }
     processTeleportExit(this.ctx);
+    // Lexy: a trap's press ejects through attempt_out_of_turn_step, which attempt_step refuses for a moving actor (game.js:2155; trap
+    // add_press, tiletypes.js:1768-1779). His step onto the trap ended in this turn, so a press by an actor listed after him finds him moving.
+    if (usesCc2Engine(w.level) && !w.cc3dPace) {
+      const arrivedNow = !restAtStart && w.player.moveCooldown === 0 && !w.player.isSliding;
+      if (w.player.trapShutAtTurn === true && arrivedNow && isCellClosedTrap(w, w.player.x, w.player.y)) w.player.trapShutFresh = true;
+      else delete w.player.trapShutFresh;
+    }
     // His step onto a pad ended in this turn: its whole step end runs here, at his place in the order, the jump included (Lexy
     // step_on_cell, game.js:2310-2335: the items before the terrain). Whatever else is pending waits for the next flush as before.
     if (w.player.cc3dArrival?.teleport !== undefined && (w.player.isSliding ? w.player.slideCooldown : w.player.moveCooldown) <= 0) {
@@ -1744,7 +1754,8 @@ export class GameEngine {
   /**
    * CC2 engine, actor order: a player whose trap was shut at his last turn and is open at the start of a pass steps out the way he
    * faces, before the pass, input or not (Lexy trap add_press, attempt_out_of_turn_step, tiletypes.js:1764-1779). Not when the trap
-   * is open only by its wire: Lexy's add_press does nothing for a wire.
+   * is open only by its wire: Lexy's add_press does nothing for a wire. One-player levels too: tick() calls dropOpenTrapMark instead when
+   * releaseAllowed is false (the fresh mark is set in runPlayerTurn).
    */
   private releaseTrappedPlayer(): void {
     const w = this.w;
@@ -1778,7 +1789,10 @@ export class GameEngine {
     }
   }
 
-  /** False when the player's trap opened in the tick his step onto it ended, by presses of actors listed after him only. */
+  /**
+   * False when the player's trap opened in the tick his step onto it ended, by presses of actors listed after him only. Several
+   * players: the fresh mark is set at the pass start; one player (actor order): at the end of his turn in runPlayerTurn.
+   */
   private releaseAllowed(p: PlayerState): boolean {
     const w = this.w;
     if (p.trapShutFresh !== true || p.trapShutAtTurn !== true || isCellClosedTrap(w, p.x, p.y)) return true;
@@ -1793,7 +1807,7 @@ export class GameEngine {
     return ordinals.length === 0 || ordinals.some((o) => o < own);
   }
 
-  /** A refused release drops the marks once the trap reads open (Lexy tries the ejection once, at the press). */
+  /** A refused release drops the marks once the trap reads open (Lexy tries the ejection once, at the press); one-player levels too. */
   private dropOpenTrapMark(p: PlayerState): void {
     if (p.trapShutAtTurn === true && !isCellClosedTrap(this.w, p.x, p.y)) {
       delete p.trapShutAtTurn;
