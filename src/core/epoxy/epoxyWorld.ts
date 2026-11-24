@@ -569,6 +569,9 @@ export function buildCc2PadNets(level: CompiledLevel, terrain: string[][]): Map<
   return map.size > 0 ? map : undefined;
 }
 
+/** CC2 engine: the list ordinal an actor without one stands for (add_actor appends it, so it counts as listed last). */
+export const UNLISTED_ACTOR_ORDINAL = Number.MAX_SAFE_INTEGER;
+
 /**
  * CC2 engine: numbers every actor (entities and players) in the reading order of the load grid, which is the order the
  * source lists them in. Entities spawned later keep no ordinal and count as after every other. Any other level is left
