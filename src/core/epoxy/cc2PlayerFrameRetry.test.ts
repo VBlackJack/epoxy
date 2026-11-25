@@ -206,25 +206,30 @@ describe('PFS: a block pushed by a forced step of frame 0 is timed from frame 0 
   });
 });
 
-describe('PFS: the pre-pass stops once the level is won (item 15)', () => {
-  it('a monster listed ahead of the player does not step after his winning step', () => {
-    const GATE_ROW = 3;
+describe('PFS: a monster listed ahead of the player steps until his step onto the exit ends (item 15)', () => {
+  const GATE_ROW = 3;
+  /** Ticks until the last player's step onto the exit has ended and the level is won (wave 38). */
+  const WIN_TICKS = 5;
+
+  it('a bug on a force floor steps at the first tick, and the level is won when the step ends (Lexy lane w38r2_pfs_b: success at 5)', () => {
+    // The lead stands on a force floor east with the exit on the next cell; a bug listed ahead of him stands on a force floor east
+    // with a wall behind the floor beyond it. No input. Lexy lane w38r2_pfs_b: the bug is on (4,3) from tic 0, the win is at tic 5.
+    // The bug of the winning tick is not asserted: Lexy's bug decides there, Epoxy ends the tick before the monsters.
     const terrain: Record<string, string> = {
       [`${LANE_X},${ROOM_ROW}`]: FORCE_EAST,
-      [`${LANE_X + 1},${ROOM_ROW}`]: WALL,
+      [`${LANE_X + 1},${ROOM_ROW}`]: 'exit',
       [`${LANE_X},${GATE_ROW}`]: FORCE_EAST,
-      [`${LANE_X + 1},${GATE_ROW}`]: WALL
+      [`${LANE_X + 2},${GATE_ROW}`]: WALL
     };
     const monster = { type: 'bug', x: LANE_X, y: GATE_ROW, dir: 'E' } as EntityPlacement;
     const engine = load(room({ mode: 'cc2', startX: LANE_X, terrain, entities: [monster] }));
-    for (let i = 0; i < WARM_UP_TICKS; i++) engine.tick();
     const w = worldOf(engine);
-    w.terrain[ROOM_ROW][LANE_X + 1] = 'exit';
-    w.terrain[GATE_ROW][LANE_X + 1] = 'floor';
     engine.tick();
+    expect(w.levelCompleted).toBe(false);
+    expect(w.entities.find((e) => e.kind === 'monster')?.x).toBe(LANE_X + 1);
+    for (let i = 1; i < WIN_TICKS; i++) engine.tick();
     expect(w.levelCompleted).toBe(true);
-    const bug = w.entities.find((e) => e.kind === 'monster');
-    expect(bug?.x).toBe(LANE_X);
+    expect(engine.getTick()).toBe(WIN_TICKS);
   });
 });
 
