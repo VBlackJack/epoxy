@@ -26,7 +26,7 @@ import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
-import { drawRffPlayer, forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
+import { CC2_FRAMES_PER_TICK, PRE_PASS_END_FRAME_SHIFT, drawRffPlayer, forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
@@ -190,6 +190,33 @@ export function resumeForceCarry(w: EpoxyWorld): void {
   w.player.slideCooldown = 0;
 }
 
+/** The Lexy frame a voluntary walk onto a trap ends in: the decision is taken in frame 2 and the step lasts a whole number of tics (game.js 2218-2242). */
+const VOLUNTARY_ARRIVAL_FRAME = 1;
+
+/** The only pre-pass frame of a player's step whose Lexy arrival frame is known (wave 37): frame 1 ends in Lexy frame (1 + 2) % 3 = 0. */
+const KNOWN_PRE_PASS_FRAME = 1;
+
+
+/**
+ * CC2 engine, off the CC3D pace (wave 37, PFPL): after a step that moved the player, records the Lexy frame it ends in when it ended on a
+ * trap (`cc2TrapArrivalFrame`, read by releaseAllowed and by the block hook, refusesPrePassEjection) and drops the mark of any other
+ * step of his. Known arrivals only: a voluntary walk (decision in Lexy frame 2) ends in frame 1; a pre-pass step of pre-pass frame 1 on
+ * an actor-order level ends in frame 0. Every other step onto a trap (a pre-pass frame-0 step, a forced step out of a trap, a teleport
+ * exit, a main-pass slide, any carried step on a level without actor order) leaves no mark: unknown, which keeps list order, as before
+ * wave 37 (no lane gives a frame-2 arrival, and a level without actor order has no player frame model). Lexy tiletypes.js 1768-1779,
+ * game.js 2155, 2218-2242.
+ */
+function markTrapArrivalFrame(w: EpoxyWorld, player: PlayerState, fromSlide: boolean): void {
+  if (!usesCc2Engine(w.level) || w.cc3dPace) return;
+  delete player.cc2TrapArrivalFrame;
+  if (ConfigRegistry.getTile(w.terrain[player.y]?.[player.x]).isTrap !== true) return;
+  if (!fromSlide && w.cc2ForcedStep !== true && w.cc2PrePassPlayer !== true) {
+    player.cc2TrapArrivalFrame = VOLUNTARY_ARRIVAL_FRAME;
+  } else if (fromSlide && w.cc2PrePassPlayer === true && w.cc2PrePassFrame === KNOWN_PRE_PASS_FRAME && w.cc2ActorOrder === true) {
+    player.cc2TrapArrivalFrame = ((KNOWN_PRE_PASS_FRAME + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK) as 0;
+  }
+}
+
 export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fromSlide: boolean): boolean {
   const w = ctx.world;
   // Wave 35: the arrival draw still pending is made before the next decision (Lexy: the arrival always precedes it).
@@ -197,6 +224,7 @@ export function executePlayerMove(ctx: EpoxyContext, requestedDir: Direction, fr
   if (w.ccRules) updateForcePermission(w, fromSlide);
   const controller = w.player;
   const moved = attemptPlayerStep(ctx, requestedDir, fromSlide);
+  if (moved && controller.alive) markTrapArrivalFrame(w, controller, fromSlide);
   // The step onto an exit lasts the leaver's walking step (read before control changes hands).
   const leaverWait = playerWalkCooldown(w);
   // The mirrors copy the controlled player's decided step onto the exit until it ends (Lexy remember_player_move at the

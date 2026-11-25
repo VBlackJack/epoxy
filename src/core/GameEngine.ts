@@ -45,7 +45,7 @@ import { railStateKey, railStateOf, restoreRailState } from './epoxy/epoxyRailsC
 import { CC2_SPLASH_BLOCK_PASSES, stepSlidingBlock } from './epoxy/epoxyBlocks';
 import { copyLitCharges, detonateCharges, lightCharge, litChargesStateKey } from './epoxy/epoxyCharges';
 import { lightDepartedDynamite, setDownDynamite } from './epoxy/epoxyDynamite';
-import { setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
+import { CC2_DEFAULT_FRAME, setHoldDoors, setPoweredCells, triggerButton } from './epoxy/epoxyDevices';
 import {
   copySignalPulses,
   copySignalState,
@@ -97,7 +97,7 @@ import {
   resumeForceCarry,
   tickParkedPlayers
 } from './epoxy/epoxyPlayer';
-import { drawRffPlayer } from './epoxy/epoxyForceCycle';
+import { CC2_FRAMES_PER_TICK, drawRffPlayer } from './epoxy/epoxyForceCycle';
 import { beginCc2MirrorTick, copiesControllerMove, copyMirrorMove, endCc2MirrorTick, hasCc2MirrorCadence, noteCc2Swap, rememberPlayerMove } from './epoxy/epoxyMirrors';
 import { startLevelWorld } from './epoxy/epoxyLevelStart';
 import { teleportEntity } from './epoxy/epoxyTeleports';
@@ -172,6 +172,14 @@ const MIN_BOOTS_TO_CYCLE = 2;
 
 /** CC2 engine: the frame of the wire phase of tic 0 (Lexy game.js:872-876): a clone let out then carries frame 0. */
 const CC2_LOAD_PRESS_FRAME = 0;
+/**
+ * CC2 engine, wave 37: the order inside one Epoxy pass window of the Lexy frames, which run 2 (of the tic before), 0, 1: rank(f) = (f + 1) % 3
+ * gives 2 -> 0, 0 -> 1, 1 -> 2 (see releaseAllowed).
+ */
+const WINDOW_RANK_SHIFT = 1;
+function windowRank(lexyFrame: number): number {
+  return (lexyFrame + WINDOW_RANK_SHIFT) % CC2_FRAMES_PER_TICK;
+}
 /** The order in which CC2 slaps the blocks next to the player when two direction keys are held (Lexy: north, south, west, east). */
 const CC2_SLAP_ORDER: readonly Direction[] = ['N', 'S', 'W', 'E'];
 
@@ -1040,6 +1048,7 @@ export class GameEngine {
       ...(p.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(p.cc2RffStart !== undefined ? { cc2RffStart: p.cc2RffStart } : {}),
       ...(p.cc2RffDue !== undefined ? { cc2RffDue: p.cc2RffDue } : {}),
+      ...(p.cc2TrapArrivalFrame !== undefined ? { cc2TrapArrivalFrame: p.cc2TrapArrivalFrame } : {}),
       ...(this.hasSeveralPlayers() ? { character: p.character ?? this.w.level.character ?? DEFAULT_PLAYER_CHARACTER } : {})
     };
   }
@@ -1072,6 +1081,7 @@ export class GameEngine {
       ...(snap.cc2PrePassMoved === true ? { cc2PrePassMoved: true as const } : {}),
       ...(snap.cc2RffStart !== undefined ? { cc2RffStart: snap.cc2RffStart } : {}),
       ...(snap.cc2RffDue !== undefined ? { cc2RffDue: snap.cc2RffDue } : {}),
+      ...(snap.cc2TrapArrivalFrame !== undefined ? { cc2TrapArrivalFrame: snap.cc2TrapArrivalFrame } : {}),
       ...(character !== undefined ? { character } : {})
     };
   }
@@ -1325,7 +1335,11 @@ export class GameEngine {
         if (p.alive && !this.w.levelCompleted && p.moveCooldown === 0 && !p.isSliding && isCellClosedTrap(this.w, p.x, p.y)) {
           p.trapShutAtTurn = true;
           if (!wasShut) p.trapShutFresh = true;
-          else delete p.trapShutFresh;
+          else {
+            delete p.trapShutFresh;
+            // A player at rest has no fresh arrival: Lexy ejects him.
+            if (p.moveCooldown === 0 && !p.isSliding) delete p.cc2TrapArrivalFrame;
+          }
         } else {
           delete p.trapShutAtTurn;
           delete p.trapShutFresh;
@@ -1803,9 +1817,19 @@ export class GameEngine {
    * listed last acts first in the reverse loop (game.js _do_combined_action_phase), so the release is allowed only when every
    * presser is listed before him (an earlier press finds him moving and the ejection is tried once and lost). This supersedes the
    * wave 34 wording "by presses of actors listed after him only".
-   * Frame window: the presses of frames 0 and 1 of his arrival tic are visible at this check (his walking arrival is in frame 1, so a
-   * same-frame press is decided by list order here, while a frame-0 block press is refused earlier by the block hook); a press in
-   * frame 2 lands after his arrival, finds him at rest and ejects in Lexy too.
+   * Frame window (wave 36, superseded for monster pressers by wave 37 below): the presses of frames 0 and 1 of his arrival tic are
+   * visible at this check (his walking arrival is in frame 1, so a same-frame press is decided by list order here, while a frame-0
+   * block press is refused earlier by the block hook); a press in frame 2 lands after his arrival, finds him at rest and ejects in Lexy too.
+   * Wave 37 (PFPM, PFPL): one Epoxy pass holds the Lexy frames 2 (of the tic before), 0 and 1 of his arrival tic, ranked 0, 1, 2 (rank(f) =
+   * (f + 1) % 3), so a press of Lexy frame 2 or 0 in his arrival pass precedes a walking (frame 1) arrival. add_press ejects only on the
+   * first 0 -> 1 press (tiletypes.js 1768-1779) through attempt_out_of_turn_step, which attempt_step refuses for a moving actor (game.js
+   * 2155), and the lead moves until his arrival frame (a step started in frame s lasting D frames ends in s + D - 1, one frame sooner for
+   * an out-of-turn step given to an actor whose slot of that frame is still to come: game.js 2218-2242). So a monster presser whose step
+   * ended in the pass before this one (`stepEndedPass`) is ranked by its press frame (`cc2PressFrame`, default 1) against his arrival frame
+   * (`cc2TrapArrivalFrame`): earlier, the ejection is refused (return false); later, he is at rest for it and it adds no ordinal; the
+   * same frame goes by list order. An unknown arrival (no mark: a frame-2 arrival, a forced step, a teleport exit, a main-pass slide, any
+   * carried step on a level without actor order) keeps list order for every presser: no lane gives one, and a level without actor order
+   * has no player frame model. Blocks and players keep their ordinals (the block hook, refusesPrePassEjection, ranks block presses).
    * A presser with no listOrdinal (a fresh cloner template or a dropped rolling ball: add_actor appends to the list, game.js:3100-3123)
    * counts as listed last.
    * Several players: the fresh mark is set at the pass start; one player (actor order): at the end of his turn in runPlayerTurn.
@@ -1816,13 +1840,28 @@ export class GameEngine {
     const own = p.listOrdinal;
     if (own === undefined) return true;
     const ordinals: number[] = [];
+    const arrival = p.cc2TrapArrivalFrame;
+    const thisPass = w.ccPassOpen ? w.ccMonsterClock : w.ccMonsterClock + 1;
+    let refused = false;
     for (const l of w.trapLinks) {
       if (l.trapX !== p.x || l.trapY !== p.y || !isButtonPressed(w, l.buttonX, l.buttonY)) continue;
       for (const e of w.entities) {
-        if (e.x === l.buttonX && e.y === l.buttonY) ordinals.push(e.listOrdinal ?? UNLISTED_ACTOR_ORDINAL);
+        if (e.x !== l.buttonX || e.y !== l.buttonY) continue;
+        // Guard only: the arrival frame is set on the CC2 engine, off CC3D pace.
+        if (arrival !== undefined && usesCc2Engine(w.level) && !w.cc3dPace && e.kind === 'monster' && e.stepEndedPass === thisPass - 1) {
+          const pressRank = windowRank(e.cc2PressFrame ?? CC2_DEFAULT_FRAME);
+          const arrivalRank = windowRank(arrival);
+          if (pressRank < arrivalRank) {
+            refused = true;
+            continue;
+          }
+          if (pressRank > arrivalRank) continue;
+        }
+        ordinals.push(e.listOrdinal ?? UNLISTED_ACTOR_ORDINAL);
       }
       for (const q of playersOf(w)) if (q !== p && q.x === l.buttonX && q.y === l.buttonY && q.listOrdinal !== undefined) ordinals.push(q.listOrdinal);
     }
+    if (refused) return false;
     return ordinals.length === 0 || ordinals.every((o) => o < own);
   }
 

@@ -46,6 +46,8 @@ export function rffActive(w: EpoxyWorld): boolean {
 
 /** Lexy frames per tic. */
 export const CC2_FRAMES_PER_TICK = 3;
+/** A pre-pass step of frame f ends in Lexy frame (f + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK (game.js 2218-2242). */
+export const PRE_PASS_END_FRAME_SHIFT = 2;
 /** The frame of the main pass inside a tic (frames 0 and 1 are the pre-pass frames). */
 const MAIN_PASS_FRAME = 2;
 /** The remembered arrival frame is pruned once it is older than this many frames. */
