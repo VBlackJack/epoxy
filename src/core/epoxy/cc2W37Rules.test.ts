@@ -48,7 +48,7 @@ import { loadTestConfigs } from '../../test/loadTestConfigs';
 import { CONVERTED_ID_SUFFIX } from '../cc3d/cc3dConstants';
 import { GameEngine } from '../GameEngine';
 import type { CompiledLevel, Direction, PlayerSnapshot } from '../types';
-import type { EpoxyWorld } from './epoxyWorld';
+import { cc2HiddenStateKey, type EpoxyWorld } from './epoxyWorld';
 
 beforeEach(() => {
   loadTestConfigs();
@@ -210,7 +210,7 @@ describe('CC2 wave 37 (a-d, g2, l3b): a press before the lead\'s arrival frame i
     expect(sample(engine, plan([[3, E]]), [7, 8, 9, 13], playerCell)).toEqual(EJECTED_LATE);
   });
 
-  it('guard: one tic late the trap is open and he walks through as before (Lexy lane w37_ff3_sp_c_tank_b_o5)', async () => {
+  it('guard: one tic late the press lands while the trap is open; he stays where he stopped (Lexy lane w37_ff3_sp_c_tank_b_o5)', async () => {
     const engine = await load('ff3_sp_c_tank_b_o5', PREFIX_FORCE);
     expect(sample(engine, plan([[5, E]]), [9, 10, 11, 15], playerCell)).toEqual(STAYS);
   });
@@ -361,7 +361,7 @@ describe('CC2 wave 37 (t): the marks are in the hidden key only while they can b
   const FORCE_INPUTS = plan([[4, E]]);
   const TELEPORT_INPUTS = plan([[6, E]]);
   /** The entries of the hidden key that start with `letter`: Z (a press frame, a pad frame) and L (a trap arrival frame). */
-  const entries = (engine: GameEngine, letter: string): string[] => engine.getRuntimeKeyExtra().split(';').filter((part) => part.startsWith(letter));
+  const entries = (engine: GameEngine, letter: string): string[] => cc2HiddenStateKey(world(engine)).split(';').filter((part) => part.startsWith(letter));
   const tankMark = (engine: GameEngine) => engine.getEntities().find((e) => e.type === TANK)?.cc2PressFrame;
 
   it('holds the press and arrival entries from the arrival to the release check, and none after (Lexy lane w37_ff3_sp_c_tank_b_o4)', async () => {
@@ -423,10 +423,12 @@ describe('CC2 wave 37 (t): the marks are in the hidden key only while they can b
 
 describe('CC2 wave 37 (u): a level that is not a CC2-engine level carries no mark', () => {
   const FORCE_INPUTS = plan([[4, E]]);
-  /** The ff3 lane without its CC2 source (a native level: the CC2 engine is off), and the same as a converted CC3D level (the CC3D pace). */
-  const FLAVORS: ReadonlyArray<readonly [string, (level: CompiledLevel) => CompiledLevel]> = [
-    ['a native level', (level) => ({ ...level, cc2: undefined })],
-    ['a converted CC3D level (CC3D pace)', (level) => ({ ...level, cc2: undefined, id: `lane${CONVERTED_ID_SUFFIX}` })]
+  const entries = (engine: GameEngine, letter: string): string[] => cc2HiddenStateKey(world(engine)).split(';').filter((part) => part.startsWith(letter));
+  /** The ff3 lane without its CC2 source (the CC2 engine is off): CC1 rules, a native level, and a converted CC3D level (the CC3D pace). */
+  const FLAVORS: ReadonlyArray<readonly [string, (level: CompiledLevel) => CompiledLevel, boolean, boolean]> = [
+    ['CC1 rules (.DAT-like)', (level) => ({ ...level, cc2: undefined }), true, false],
+    ['a native level', (level) => ({ ...level, cc2: undefined, rulesFlavor: undefined }), false, false],
+    ['a converted CC3D level (CC3D pace)', (level) => ({ ...level, cc2: undefined, rulesFlavor: undefined, id: `lane${CONVERTED_ID_SUFFIX}` }), false, true]
   ];
 
   it('control: the CC2-engine level writes the marks at the same step (Lexy lane w37_ff3_sp_c_tank_b_o4)', async () => {
@@ -434,15 +436,18 @@ describe('CC2 wave 37 (u): a level that is not a CC2-engine level carries no mar
     play(engine, FORCE_INPUTS, 6);
     expect(playerCell(engine)).toEqual([4, 5]);
     expect(JSON.stringify(engine.captureState())).toContain('"cc2TrapArrivalFrame":1');
-    expect(engine.getRuntimeKeyExtra()).toMatch(/(^|;)Z/);
-    expect(engine.getRuntimeKeyExtra()).toMatch(/(^|;)L/);
+    expect(entries(engine, 'Z').length).toBeGreaterThan(0);
+    expect(entries(engine, 'L').length).toBeGreaterThan(0);
   });
 
-  it.each(FLAVORS)('%s: the player steps onto the trap and no press, pad or arrival mark exists', async (_name, convert) => {
+  it.each(FLAVORS)('%s: the player steps onto the trap and no press, pad or arrival mark exists', async (_name, convert, ccRules, cc3dPace) => {
     const engine = setUp(new GameEngine(), convert(await loadCc2Lane('ff3_sp_c_tank_b_o4', PREFIX_FORCE)));
+    // The flavor itself is proven before the marks are looked for.
+    expect(world(engine).ccRules).toBe(ccRules);
+    expect(world(engine).cc3dPace).toBe(cc3dPace);
     const seen = sample(engine, FORCE_INPUTS, [5, 6, 7, 8, 9, 12], (e) => {
       expect(JSON.stringify(e.captureState())).not.toContain('cc2TrapArrivalFrame');
-      expect(e.getRuntimeKeyExtra()).not.toMatch(/(^|;)[ZL]/);
+      expect(cc2HiddenStateKey(world(e)).split(';').filter((part) => part.startsWith('Z') || part.startsWith('L'))).toEqual([]);
       for (const entity of e.getEntities()) {
         expect(entity.cc2PressFrame).toBeUndefined();
         expect(entity.cc2PadFrame).toBeUndefined();

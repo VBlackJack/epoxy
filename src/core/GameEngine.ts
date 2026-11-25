@@ -1335,7 +1335,11 @@ export class GameEngine {
         if (p.alive && !this.w.levelCompleted && p.moveCooldown === 0 && !p.isSliding && isCellClosedTrap(this.w, p.x, p.y)) {
           p.trapShutAtTurn = true;
           if (!wasShut) p.trapShutFresh = true;
-          else delete p.trapShutFresh;
+          else {
+            delete p.trapShutFresh;
+            // A player at rest has no fresh arrival: Lexy ejects him.
+            if (p.moveCooldown === 0 && !p.isSliding) delete p.cc2TrapArrivalFrame;
+          }
         } else {
           delete p.trapShutAtTurn;
           delete p.trapShutFresh;
@@ -1843,6 +1847,7 @@ export class GameEngine {
       if (l.trapX !== p.x || l.trapY !== p.y || !isButtonPressed(w, l.buttonX, l.buttonY)) continue;
       for (const e of w.entities) {
         if (e.x !== l.buttonX || e.y !== l.buttonY) continue;
+        // Guard only: the arrival frame is set on the CC2 engine, off CC3D pace.
         if (arrival !== undefined && usesCc2Engine(w.level) && !w.cc3dPace && e.kind === 'monster' && e.stepEndedPass === thisPass - 1) {
           const pressRank = windowRank(e.cc2PressFrame ?? CC2_DEFAULT_FRAME);
           const arrivalRank = windowRank(arrival);

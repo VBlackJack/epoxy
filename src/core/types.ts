@@ -2491,8 +2491,8 @@ export interface RuntimeEntity {
   cc2PadJumped?: true;
   /**
    * CC2 engine, actor order (wave 37, PFPMT): the pad frame (a PRE-PASS frame, see `cc2PadFrame`) the forced exit step of this monster
-   * carries, set at the exit decision and consumed by the arrival of that step. Transient: deleted at the next exit decision and at the
-   * next arrival.
+   * carries, set at the exit decision and consumed by the arrival of that step. Transient: deleted at every decision (also when the step does not move)
+   * and at the next arrival.
    */
   cc2ExitFrame?: 0 | 1;
   /**

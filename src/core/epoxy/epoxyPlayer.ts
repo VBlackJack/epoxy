@@ -26,7 +26,7 @@ import { STEP_TICKS } from '../cc3d/cc3dConstants';
 import { attemptPushBlock, isCc3dPush, splashBarsPlayer } from './epoxyBlocks';
 import { bribeThief, foilBumpedWall, toggleTimerOnStep } from './epoxyCc2Items';
 import { triggerButton } from './epoxyDevices';
-import { CC2_FRAMES_PER_TICK, drawRffPlayer, forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
+import { CC2_FRAMES_PER_TICK, PRE_PASS_END_FRAME_SHIFT, drawRffPlayer, forceCycleArrival, rffActive, rffDefer, rffStepStart } from './epoxyForceCycle';
 import { wakeLurkersNearPlayer } from './epoxyLurkers';
 import { absorbMonsterContact, shieldedFromContact, wardBootsHeld } from './epoxyWard';
 import { killPlayerByShot, spendShotAt } from './epoxyShots';
@@ -196,8 +196,6 @@ const VOLUNTARY_ARRIVAL_FRAME = 1;
 /** The only pre-pass frame of a player's step whose Lexy arrival frame is known (wave 37): frame 1 ends in Lexy frame (1 + 2) % 3 = 0. */
 const KNOWN_PRE_PASS_FRAME = 1;
 
-/** A pre-pass step of frame f ends in Lexy frame (f + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK (game.js 2218-2242). */
-const PRE_PASS_END_FRAME_SHIFT = 2;
 
 /**
  * CC2 engine, off the CC3D pace (wave 37, PFPL): after a step that moved the player, records the Lexy frame it ends in when it ended on a

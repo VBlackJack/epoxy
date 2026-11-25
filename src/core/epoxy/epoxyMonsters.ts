@@ -61,7 +61,7 @@ import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2Blob
 import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
-import { CC2_FRAMES_PER_TICK, drawRffEntity, forceCycleArrival, isRffYellowTank, rffActive, rffDefer, rffHolds, rffStepStart } from './epoxyForceCycle';
+import { CC2_FRAMES_PER_TICK, PRE_PASS_END_FRAME_SHIFT, drawRffEntity, forceCycleArrival, isRffYellowTank, rffActive, rffDefer, rffHolds, rffStepStart } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
@@ -999,14 +999,24 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
     if (occupant !== undefined && occupant.kind === 'block') {
       attemptPushBlock(ctx, occupant, moveDir, false, true);
       if (!w.player.alive) return false;
-      if (getEntityAt(w, nx, ny) !== undefined) return true;
+      if (getEntityAt(w, nx, ny) !== undefined) {
+        delete entity.cc2ExitFrame;
+        return true;
+      }
       // The push may have pressed a button that changed the cell (a toggle wall closing): judge the cell again, without
       // pushing, and stay put when it no longer lets the rover in. The block stays where the push left it.
-      if (!canMonsterEnter(w, entity, moveDir)) return true;
+      if (!canMonsterEnter(w, entity, moveDir)) {
+        delete entity.cc2ExitFrame;
+        return true;
+      }
     }
   }
   // A step into a tile that monsters reveal reveals it and is refused: the monster stays (CC3D, at the attempt only).
-  if (!phases && revealOnAttempt(w, def, nx, ny)) return true;
+  if (!phases && revealOnAttempt(w, def, nx, ny)) {
+    // No step: the exit frame is spent with the decision.
+    delete entity.cc2ExitFrame;
+    return true;
+  }
   if (!phases && !floorFree) leaveSwivel(w, entity.x, entity.y, moveDir);
   if (def?.trailTile !== undefined) leaveTrail(w, entity, def.trailTile);
   // A monster that may enter turtles sinks the one it leaves, unless it leaves turtles afloat.
@@ -1285,8 +1295,6 @@ export function resolveMonsterArrival(
   return true;
 }
 
-/** The pre-pass frame a step ends in is `(frame + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK` in Lexy frames (game.js 2218-2242). */
-const PRE_PASS_END_FRAME_SHIFT = 2;
 
 /** The Lexy frame a main-pass step ends in (the default press frame, never stored on `cc2PressFrame`). */
 const MAIN_PASS_END_FRAME = 1;
