@@ -556,11 +556,14 @@ function stepMonsterAlong(ctx: EpoxyContext, e: RuntimeEntity, dir: Direction, f
   // Only the pre-pass inside an open entity pass of a tick times the press by the frame: the tick-start pre-pass of a parked level and the
   // parked end-of-tick one keep their press timing.
   if (w.ccPassOpen && w.inTick) w.cc2PrePassMonsterFrame = frame;
+  // Wave 37 (PFPM): the arrival of this step reads the frame on every pre-pass, to place its brown-button press in a Lexy frame.
+  w.cc2PrePassStepFrame = frame;
   try {
     if (!stepClassicMonsterOutOfTurn(ctx, e)) return false;
   } finally {
     w.ccPlans.delete(e.uid);
     delete w.cc2PrePassMonsterFrame;
+    delete w.cc2PrePassStepFrame;
   }
   if (w.entities.includes(e) && (e.x !== x || e.y !== y)) {
     e.cc2PrePassMoved = true;

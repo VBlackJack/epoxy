@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 32;
+export const CC2_RULES_VERSION = 33;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -599,6 +599,11 @@ export const CC2_RULES_VERSION = 32;
 // TPX: a trap opened in the tic of the lead's arrival lets him out only when every presser is listed before him; PFPB: a block press
 // in frame 0 of that tic, or in frame 1 by a block listed after him, finds him still moving and the ejection is lost). A stored
 // solution with a trap button pressed by a clone, by two actors or by a block on force floors in the tic of the arrival replays differently.
+// Version 33: the wave 37 rules (PFPM: a trap press by a monster in an early frame of the lead's arrival pass, before his arrival frame, finds
+// him still moving and the ejection is lost, whatever forces the monster off the walking cycle; PFPMT: a teleport exit step carries the
+// pre-pass frame of the step onto the pad; PFPMC: a monster clone's release step ends in frame (press frame + 11 - later) % 3; PFPL: a lead
+// carried onto the trap arrives in frame 0, a frame-1 press then finds him at rest and a frame-0 press goes by list order). A stored
+// solution with a trap button pressed by a monster driven by force floors, a teleport, a clone machine or ice replays differently.
 // CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.

@@ -44,6 +44,7 @@ import { hasEntityFacing } from './epoxyArrowBlocks';
 import { initialEmulationState } from './epoxyEmulation';
 import { isCanBlockEnter, leaveBlockSplash, moveBlockTo, slidePushesAhead } from './epoxyBlocks';
 import { advanceRailSwitch } from './epoxyRailsCc2';
+import { CC2_FRAMES_PER_TICK } from './epoxyForceCycle';
 import { holdFrameArrival, tagSlideFrame } from './epoxyFrames';
 import { deferHazardToStepEnd, judgesHazardsAtStepEnd, stepStillRuns } from './epoxyPlayer';
 import { usesCc2Engine } from './ccRules';
@@ -843,6 +844,16 @@ function spawnFromClonerOneWay(
     if (cc2Clone && releaseFrame !== undefined) {
       if (releaseFrame === CC2_LATE_RELEASE_FRAME && spawned.cooldownTicks > 0) spawned.cooldownTicks -= 1;
       tagCloneFrame(spawned, releaseFrame);
+    }
+    if (cc2Clone) {
+      // Wave 37 (PFPMC): the Lexy frame this clone's out-of-turn release step ends in, which its press of a brown button carries: press
+      // frame r + PLAIN_CLONE_STEP_END_FRAMES, one frame sooner for a template listed before the pressing actor (r = 1 only, as for blocks
+      // above). The pressing actor is the player in a frame-model press (cc2PressOrdinal), else the monster whose step-end press fired the
+      // cloner (cc2ReleaserOrdinal, PFPMC2). Lexy game.js 2218-2242.
+      const r = releaseFrame ?? (w.cc2BeforePass === true ? CC2_DEFAULT_FRAME : CC2_LATE_RELEASE_FRAME);
+      const pressOrdinal = w.cc2PressOrdinal ?? w.cc2ReleaserOrdinal;
+      const later = r === CC2_DEFAULT_FRAME && pressOrdinal !== undefined && spawned.listOrdinal !== undefined && spawned.listOrdinal < pressOrdinal ? 1 : 0;
+      return resolveMonsterArrival(ctx, spawned, true, true, ((r + PLAIN_CLONE_STEP_END_FRAMES - later) % CC2_FRAMES_PER_TICK) as 0 | 1 | 2);
     }
     return resolveMonsterArrival(ctx, spawned, true, true);
   }

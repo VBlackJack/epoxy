@@ -63,6 +63,8 @@ const QUARTER_TURNS_IN_CIRCLE = 4;
 const PRE_PASS_FRAME_ZERO = 0;
 /** Frame 1 of the pre-pass, the lead's walking arrival frame, where a press comes first only when listed after the player. */
 const PRE_PASS_FRAME_ONE = 1;
+/** The Lexy frame 0 a lead carried onto the trap by a pre-pass frame-1 step arrives in (`cc2TrapArrivalFrame`, wave 37 PFPL). */
+const LEAD_ARRIVAL_FRAME_ZERO = 0;
 /** The list ordinal a player without a slot stands for, so every listed presser counts as after it. */
 const NO_ORDINAL_BEFORE = -1;
 
@@ -869,12 +871,22 @@ function ejectTrapsOfButton(ctx: EpoxyContext, buttonX: number, buttonY: number,
  * refuses the moving player (game.js:2155), so the ejection is tried once and lost; his marks are dropped like a refused release.
  * The frame-1 branch follows Lexy's same-frame reverse order (the same predicate as epoxyTeleports.ts) and is not covered by any
  * lane: no constructed block arrival lands in frame 1 in the lead's arrival tic. A presser without an ordinal counts as listed last.
+ * Wave 37 (PFPL): a lead whose step onto the trap ended in Lexy frame 0 (`cc2TrapArrivalFrame` 0: a pre-pass frame-1 step on an actor-order
+ * level) is refused a frame-0 block press only when the block is listed after him (same frame: reverse list order) and never a frame-1
+ * press (he is at rest by then and Lexy ejects). A walking lead (mark 1) and an unknown one (no mark) keep the wave 36 rule above, which is
+ * what releaseAllowed (GameEngine.ts) does for a monster presser too: the two paths agree on every arrival frame.
  */
 function refusesPrePassEjection(w: EpoxyWorld, trapX: number, trapY: number, presserOrdinal: number | undefined): boolean {
   const p = w.player;
   if (p.x !== trapX || p.y !== trapY || p.trapShutAtTurn !== true || p.trapShutFresh !== true) return false;
   const frame = w.cc2SettleFrame ?? (w.cc2PrePassStepping === true ? w.cc2PrePassFrame : undefined);
   const listedAfter = (presserOrdinal ?? UNLISTED_ACTOR_ORDINAL) > (p.listOrdinal ?? NO_ORDINAL_BEFORE);
+  if (p.cc2TrapArrivalFrame === LEAD_ARRIVAL_FRAME_ZERO) {
+    if (frame !== PRE_PASS_FRAME_ZERO || !listedAfter) return false;
+    delete p.trapShutAtTurn;
+    delete p.trapShutFresh;
+    return true;
+  }
   if (frame === PRE_PASS_FRAME_ZERO || (frame === PRE_PASS_FRAME_ONE && listedAfter)) {
     delete p.trapShutAtTurn;
     delete p.trapShutFresh;

@@ -2474,6 +2474,28 @@ export interface RuntimeEntity {
    */
   cc2Frame?: 0 | 2;
   /**
+   * CC2 engine (wave 37, PFPM): the Lexy frame (0 or 2) the step this monster is taking onto a brown (trap-holding) button ends in,
+   * when it is not 1. Lexy frames, not pre-pass frames: a step taken in pre-pass frame f ends in Lexy frame (f + 2) % 3; a main-pass step
+   * starts in Lexy frame 2 and ends in frame 1 (the default, never stored). releaseAllowed ranks the press by it against the trapped
+   * player's arrival frame (tiletypes.js 1768-1779, game.js 2155, 2218-2242). Deleted at every step start of the monster. Set only under
+   * the CC2 engine, never on cc3dPace. 0 is falsy: read it with `!== undefined`.
+   */
+  cc2PressFrame?: 0 | 2;
+  /**
+   * CC2 engine, actor order only (wave 37, PFPMT): the PRE-PASS frame (0 or 1, not a Lexy frame) of the step that put this monster onto
+   * the teleport pad it stands on. Its forced exit step carries it, so a press at the end of that exit step lands in Lexy frame
+   * (pad frame + 2) % 3. Lives through the one arrival jump only (a second jump, or any other destination, deletes it). 0 is falsy.
+   */
+  cc2PadFrame?: 0 | 1;
+  /** CC2 engine, actor order (wave 37, PFPMT): the monster already took the arrival jump of the pad frame it carries; a second jump deletes both. Set only while true. */
+  cc2PadJumped?: true;
+  /**
+   * CC2 engine, actor order (wave 37, PFPMT): the pad frame (a PRE-PASS frame, see `cc2PadFrame`) the forced exit step of this monster
+   * carries, set at the exit decision and consumed by the arrival of that step. Transient: deleted at the next exit decision and at the
+   * next arrival.
+   */
+  cc2ExitFrame?: 0 | 1;
+  /**
    * CC2 engine, on a sliding block or a monster whose slide steps fall in Lexy frame 0 or 1 of the tic (game.js:869-888): that frame. The
    * frame pre-pass moves it; the main pass skips it. Set only under the CC2 engine, never on cc3dPace; deleted with
    * `cc2SlideDue` once the slide ends or its frame is 2. 0 is falsy: read it with `!== undefined`. A monster has no `cc2SlideDue`: its
@@ -2620,6 +2642,15 @@ export interface PlayerState {
   cc2RffStart?: number;
   /** CC2 engine, actor order (wave 35): the absolute frame the turning floor draws for the player at his arrival (see RuntimeEntity.cc2RffDue). */
   cc2RffDue?: number;
+  /**
+   * CC2 engine (wave 37, PFPL): the Lexy frame (0 or 1, not a pre-pass frame) his step onto a trap ends in, when known: 1 for a
+   * voluntary walk (decision in Lexy frame 2), 0 for a pre-pass step of pre-pass frame 1 on an actor-order level (a step taken in
+   * pre-pass frame f ends in Lexy frame (f + 2) % 3). No mark means unknown (a pre-pass frame-0 step, a forced step out of a trap, a
+   * teleport exit, a main-pass slide, any carried step on a level without actor order): releaseAllowed and the block hook then keep
+   * list order, as before wave 37. Set only under the CC2 engine, never on cc3dPace, only on a trap arrival; deleted by any other
+   * step of his. 0 is falsy: read it with `!== undefined`.
+   */
+  cc2TrapArrivalFrame?: 0 | 1;
   /** Set for the moment a player that reached an exit is being removed from the map (see withPlayer). */
   exited?: true;
 }
@@ -2703,6 +2734,8 @@ export interface PlayerSnapshot {
   cc2RffStart?: number;
   /** The player's cc2RffDue; written only when set. */
   cc2RffDue?: number;
+  /** The player's cc2TrapArrivalFrame; written only when set. */
+  cc2TrapArrivalFrame?: 0 | 1;
 }
 
 export interface UndoSnapshot {

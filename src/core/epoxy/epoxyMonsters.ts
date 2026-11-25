@@ -61,7 +61,7 @@ import { CC2_BLOB_BEHAVIOR_DEFAULT, CcGenerators, drawBlobDirection, drawCc2Blob
 import { attemptPushBlock, canPushBlock, eraseSplash, leaveSplash, pruneSplashes, stepSlidingBlock } from './epoxyBlocks';
 import { isLitChargeItem } from './epoxyCharges';
 import { advanceEmulation, emulatedDef } from './epoxyEmulation';
-import { drawRffEntity, forceCycleArrival, isRffYellowTank, rffActive, rffDefer, rffHolds, rffStepStart } from './epoxyForceCycle';
+import { CC2_FRAMES_PER_TICK, drawRffEntity, forceCycleArrival, isRffYellowTank, rffActive, rffDefer, rffHolds, rffStepStart } from './epoxyForceCycle';
 import { stepMirrorFloor } from './epoxyMirrors';
 import { followRail } from './epoxyRails';
 import { railRedirect } from './epoxyRailsCc2';
@@ -287,9 +287,12 @@ function applyQueuedArrivals(
       // rather than deleted so a future caller inside a release scope keeps its frame.
       const savedFrame = w.cc2ReleaseFrame;
       if (arrival.stepEnd === true) w.cc2ReleaseFrame = monster.cc2Frame ?? CC2_DEFAULT_FRAME;
+      // Wave 37 (PFPMC2): the clone machine this press fires reads the releaser's list ordinal (a template listed before it acts later).
+      w.cc2ReleaserOrdinal = monster.listOrdinal;
       try {
         if (!ctx.triggerButton(arrival.x, arrival.y, tile.buttonAction)) return false;
       } finally {
+        delete w.cc2ReleaserOrdinal;
         if (arrival.stepEnd === true) {
           if (savedFrame === undefined) delete w.cc2ReleaseFrame;
           else w.cc2ReleaseFrame = savedFrame;
@@ -927,8 +930,11 @@ function stepMonsterCore(ctx: EpoxyContext, entity: RuntimeEntity): boolean {
   // A monster a teleporter put on its destination pad leaves by a forced step; a blocked exit lets it decide normally.
   const exitDir = entity.teleportExit;
   delete entity.teleportExit;
+  // Wave 37 (PFPMT, actor order): the exit step out of a teleport pad carries the pre-pass frame of the step that put the monster there.
+  delete entity.cc2ExitFrame;
   if (exitDir !== undefined && canStep(w, entity, exitDir)) {
     chosenDir = exitDir;
+    if (entity.cc2PadFrame !== undefined && usesCc2Engine(w.level) && !w.cc3dPace && w.cc2ActorOrder === true) entity.cc2ExitFrame = entity.cc2PadFrame;
   } else if (exitDir !== undefined && usesCc2Engine(w.level)) {
     // CC2 engine: a blocked forced exit spends this decision (nothing is drawn); the monster decides normally on the next one.
     chosenDir = null;
@@ -1060,9 +1066,17 @@ function resolvePhasedArrival(ctx: EpoxyContext, entity: RuntimeEntity): boolean
  * teleport or a clone spawn): the player under it dies, a flying shot kills it, a bomb or water or
  * fire removes it (on the CC2 engine when its step ends, queued as a CcArrival removal), a button is pressed and a teleporter
  * jumps it on.
+ * `cloneEndFrame` (wave 37, PFPMC): on a clone's release step, the Lexy frame that step ends in, which the press of a brown button
+ * carries (see markStepEndFrames).
  * Returns false when the player was killed, so the caller stops processing.
  */
-export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, allowTeleport: boolean, cloneRelease = false): boolean {
+export function resolveMonsterArrival(
+  ctx: EpoxyContext,
+  entity: RuntimeEntity,
+  allowTeleport: boolean,
+  cloneRelease = false,
+  cloneEndFrame?: 0 | 1 | 2
+): boolean {
   const w = ctx.world;
   const nx = entity.x;
   const ny = entity.y;
@@ -1201,6 +1215,7 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
   // whatever the phase that released it (a tick-end release is outside the tick): the press waits for the first pass start where its step
   // has ended. The gray area button works the same way (Lexy button_gray on_arrive from step_on_cell, tiletypes.js 2446-2451): a clone
   // released onto it pulses its area when its step ends. Other buttons keep their own timing.
+  markStepEndFrames(w, entity, destTile, allowTeleport, cloneRelease, cloneEndFrame);
   const cloneStepEnd = cloneRelease && usesCc2Engine(w.level) && !w.cc3dPace && entity.kind === 'monster' && CC2_CLONE_STEP_END_ACTIONS.has(destTile.buttonAction);
   if (destTile.buttonAction && destTile.buttonWorkedBy !== 'player' && def?.pressesPlates !== false) {
     if (cloneStepEnd) {
@@ -1268,6 +1283,67 @@ export function resolveMonsterArrival(ctx: EpoxyContext, entity: RuntimeEntity, 
     return ctx.teleportEntity(entity, nx, ny, entity.dir) ? resolveMonsterArrival(ctx, entity, false) : true;
   }
   return true;
+}
+
+/** The pre-pass frame a step ends in is `(frame + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK` in Lexy frames (game.js 2218-2242). */
+const PRE_PASS_END_FRAME_SHIFT = 2;
+
+/** The Lexy frame a main-pass step ends in (the default press frame, never stored on `cc2PressFrame`). */
+const MAIN_PASS_END_FRAME = 1;
+
+/**
+ * CC2 engine, off the CC3D pace (wave 37: PFPM, PFPMT, PFPMC): keeps the Lexy frame the step that just ended on `destTile` presses in.
+ * releaseAllowed ranks a monster's press of a brown button by it against the arrival frame of the trapped player (Lexy refuses the
+ * ejection when the first press lands before the lead's arrival frame: tiletypes.js 1768-1779, game.js 2155).
+ *
+ * Frame vocabulary: "pre-pass frame f" is the Epoxy pre-pass slot (0 or 1) a step is taken in; "Lexy frame" is the frame (0, 1, 2) of
+ * Lexy's tic. A step taken in pre-pass frame f ends in Lexy frame (f + 2) % 3; a main-pass step starts in Lexy frame 2 and ends in frame
+ * 1 (the default, never stored). Stored here: `cc2PressFrame` is a Lexy frame, `cc2PadFrame` and `cc2ExitFrame` are pre-pass frames.
+ *   - PFPM: the pre-pass frame of the step (stepMonsterAlong) gives the press frame, on every pre-pass.
+ *   - PFPMT: a teleport exit step (a step out of a pad) carries the pre-pass frame of the step that put the monster on the pad
+ *     (`cc2PadFrame`, written only with actor order, kept through the one arrival jump, deleted by any other destination or a second jump).
+ *   - PFPMC: a clone's release step ends in the frame the clone machine computed (`cloneEndFrame`, spawnFromCloner), else in its cc2Frame tag.
+ * Deleted at every step start of the monster (here: every arrival), so a stale frame never outlives its step.
+ */
+function markStepEndFrames(
+  w: EpoxyWorld,
+  entity: RuntimeEntity,
+  destTile: TileDefinition,
+  allowTeleport: boolean,
+  cloneRelease: boolean,
+  cloneEndFrame: 0 | 1 | 2 | undefined
+): void {
+  if (!usesCc2Engine(w.level) || w.cc3dPace || entity.kind !== 'monster') return;
+  delete entity.cc2PressFrame;
+  const exitFrame = entity.cc2ExitFrame;
+  delete entity.cc2ExitFrame;
+  const onPad = destTile.isTeleporter === true || destTile.teleportsToSelf === true;
+  // The pad frame lives from the step onto the pad through its one arrival jump; any later jump drops it.
+  if (!onPad) {
+    delete entity.cc2PadJumped;
+    delete entity.cc2PadFrame;
+  } else if (!allowTeleport && entity.cc2PadFrame !== undefined) {
+    if (entity.cc2PadJumped === true) {
+      delete entity.cc2PadJumped;
+      delete entity.cc2PadFrame;
+    } else entity.cc2PadJumped = true;
+  }
+  const stepFrame = w.cc2PrePassStepFrame ?? exitFrame;
+  if (onPad && allowTeleport && stepFrame !== undefined && w.cc2ActorOrder === true) {
+    entity.cc2PadFrame = stepFrame;
+    delete entity.cc2PadJumped;
+  } else if (onPad && allowTeleport && stepFrame === undefined) {
+    delete entity.cc2PadJumped;
+    delete entity.cc2PadFrame;
+  }
+  if (destTile.buttonAction !== 'hold_trap') return;
+  const frame =
+    stepFrame !== undefined
+      ? (stepFrame + PRE_PASS_END_FRAME_SHIFT) % CC2_FRAMES_PER_TICK
+      : cloneRelease
+        ? (cloneEndFrame ?? entity.cc2Frame ?? CC2_DEFAULT_FRAME)
+        : MAIN_PASS_END_FRAME;
+  if (frame !== MAIN_PASS_END_FRAME) entity.cc2PressFrame = frame as 0 | 2;
 }
 
 /**

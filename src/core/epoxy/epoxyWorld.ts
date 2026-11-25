@@ -279,6 +279,19 @@ export interface EpoxyWorld {
    */
   cc2PrePassMonsterFrame?: 0 | 1;
   /**
+   * CC2 engine, wave 37 (PFPM): the pre-pass frame (0 or 1) of the out-of-turn monster step taken now, on every frame pre-pass (also the
+   * tick-start and between-tick ones of a level without actor order, where `cc2PrePassMonsterFrame` is not set and keeps its own press
+   * timing). Read by the arrival of that step to derive the Lexy frame its press lands in: (frame + 2) % 3. Transient, set and deleted
+   * in one call (stepMonsterAlong), never saved in a snapshot nor read by the hidden key.
+   */
+  cc2PrePassStepFrame?: 0 | 1;
+  /**
+   * CC2 engine, wave 37 (PFPMC2): the list ordinal of the monster whose step-end press is firing the cloner now, read by the clone
+   * machine to tell a template listed before the releaser when no player press is running (`cc2PressOrdinal`). Transient, set and deleted
+   * in one call (applyQueuedArrivals), never saved in a snapshot nor read by the hidden key.
+   */
+  cc2ReleaserOrdinal?: number;
+  /**
    * CC2 engine, wave 9: true when the player takes his turn at his place in the actor list (CC2 engine, not cc3dPace, classic
    * rules, no parked player; mirror levels included). Decided once at load, never changed; absent otherwise.
    */
@@ -1103,6 +1116,19 @@ export function cc2HiddenStateKey(w: EpoxyWorld): string {
     return age === 0 || age === 1 ? [`${e.uid}@${age}.${e.stepEndedCell ?? ''}`] : [];
   });
   if (ended.length > 0) parts.push(`e${ended.join(',')}`);
+  // Wave 37 marks, only while they can still be read (a stale one stays on its object but is left out, so the same position reached
+  // later gives the same key): a press frame from its step start onto the button until one pass after the step ended, a pad frame while
+  // set (with its jumped flag), a trap arrival frame while the player steps onto the trap or is marked shut on it.
+  const pressMarks = w.entities.flatMap((e) => {
+    const readable = e.cc2PressFrame !== undefined && (e.cooldownTicks > 0 || (e.stepEndedPass !== undefined && pass - e.stepEndedPass <= 1));
+    if (!readable && e.cc2PadFrame === undefined) return [];
+    return [`${e.uid}:${readable ? e.cc2PressFrame : '-'}${e.cc2PadFrame !== undefined ? `p${e.cc2PadFrame}${e.cc2PadJumped === true ? 'j' : ''}` : ''}`];
+  });
+  if (pressMarks.length > 0) parts.push(`Z${pressMarks.join(',')}`);
+  const arrivalMarks = playersOf(w).flatMap((p, index) =>
+    p.cc2TrapArrivalFrame !== undefined && (p.moveCooldown > 0 || p.isSliding || p.trapShutAtTurn === true) ? [`${index}:${p.cc2TrapArrivalFrame}`] : []
+  );
+  if (arrivalMarks.length > 0) parts.push(`L${arrivalMarks.join(',')}`);
   // A light switch or pulse source worked by a monster waits for the next settle.
   const pulses = w.ccArrivals.filter((a) => a.pulse === true).map((a) => `${a.uid}@${a.due - pass}`);
   if (pulses.length > 0) parts.push(`u${pulses.join(',')}`);
