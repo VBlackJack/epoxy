@@ -606,8 +606,8 @@ export const CC2_RULES_VERSION = 34;
 // solution with a trap button pressed by a monster driven by force floors, a teleport, a clone machine or ice replays differently.
 // Version 34: the wave 38 rules (WEX: the last player's step onto the exit wins when that step ends, in the tick that follows, after its
 // clock advance and before the time-out check; the exit step ends any slide, so the last step off ice or a force floor runs at walking
-// speed; every input is refused once the exit is reached). A stored solution replays to a win 4 ticks later, and a run that reaches the
-// exit in the last tick before the time limit now wins where one a tick later loses.
+// speed; every input is refused once the exit is reached). A stored solution replays to a win 4 ticks later, and a run still stepping
+// onto the exit when the time limit is reached now loses (it used to win).
 // CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.

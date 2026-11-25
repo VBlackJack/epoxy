@@ -120,7 +120,7 @@ describe('CC2 wave 38 (WEX win timing): the last player wins when his step onto 
     expect(engine.getTick()).toBe(TICKS_PER_STEP_ON_EXIT + 1);
   });
 
-  it('wins at the arrival of a longer walk (Lexy lane w38_wk2_sp_c_n_o0 would be 9; w38_wk3_sp_c_n_o6: win tic 19, 100 s, rule off 15)', async () => {
+  it('wins at the arrival of a longer walk (Lexy lane w38_wk3_sp_c_n_o6: win tic 19, 100 s, rule off 15)', async () => {
     const { outcome } = await run('wk3_sp_c_n_o6', PREFIX, 6);
     expect(outcome).toMatchObject({ tic: 19, completed: true, alive: true, time: TIME_LIMIT_SECONDS });
   });
@@ -200,13 +200,14 @@ describe('CC2 wave 38 (WEX input refusal): no input once the exit is reached', (
     }
   });
 
-  it('refuses a move, a held key, a swap and a turn between the step end and the winning tick', async () => {
+  it('refuses a move, a held key, a turn, a swap, a drop and an inventory cycle between the step end and the winning tick', async () => {
     const engine = await load('wk1_sp_c_n_o0', PREFIX);
     playTo(engine, 0, TICKS_PER_STEP_ON_EXIT);
     engine.flushPendingStepEnd();
     expect(world(engine).player.cc3dArrival?.exit?.reached).toBe(true);
     expect(engine.attemptPlayerMove('E')).toBe(false);
     expect(engine.attemptPlayerMoveHeld(['E', 'N'])).toBe(false);
+    expect(engine.turnPlayer('E')).toBe(false);
     expect(engine.swapPlayer()).toBe(false);
     expect(engine.dropItem(null)).toBe(false);
     expect(engine.cycleInventory()).toBe(false);
