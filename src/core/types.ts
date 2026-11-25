@@ -2564,6 +2564,12 @@ export interface Cc3dPlayerArrival {
   bomb?: GridPoint;
   /** CC2 engine: the cell of a hazard stepped onto (fire, water, slime or a lit jet), or of a jet lit under a step that runs: it is judged when the step ends. */
   hazard?: GridPoint;
+  /**
+   * CC2 engine, last player only: the exit his step has run onto (Lexy exit.on_arrive fires when the step ends, game.js 2176-2195,
+   * and the level is won in that tic's action phase, game.js 1040-1043). `reached` is set once the step has ended: the level is then
+   * won in the tick that follows, after its clock advance and before the time-out check, and every input is refused until then.
+   */
+  exit?: GridPoint & { reached?: true };
 }
 
 /**

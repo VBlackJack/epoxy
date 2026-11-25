@@ -1137,6 +1137,14 @@ function resolvePlayerArrival(ctx: EpoxyContext, entryDir: Direction, allowTelep
   }
 
   if (tile.isLevelExit) {
+    // CC2 engine, last player: Lexy's exit.on_arrive fires when the step onto the exit ends (game.js 2176-2195 times the step by its
+    // goal cell), and the level is won in that tic's action phase (game.js 1040-1043). So the exit is only noted here: applyCc3dStepEnd
+    // reaches it, and the tick that follows wins. The exit is no slide tile, so the rest of the step runs at walking speed.
+    if (usesCc2Engine(w.level) && !w.cc3dPace && !atStepEnd && w.parked.length === 0) {
+      cc3dArrivalOf(w.player).exit = { x, y };
+      evaluatePlayerSliding(w, tile, entryDir);
+      return;
+    }
     ctx.emitVisual('win', x, y);
     // Lexy's Labyrinth exit.on_arrive: the level is won when no player remains; otherwise this one leaves play.
     if (leaveThroughExit(w)) ctx.completeLevel();
@@ -1271,6 +1279,11 @@ export function applyCc3dStepEnd(ctx: EpoxyContext): boolean {
         return true;
       }
     }
+  }
+  if (pending.exit !== undefined && (pending.exit.reached === true || (p.x === pending.exit.x && p.y === pending.exit.y && ConfigRegistry.getTile(w.terrain[p.y][p.x]).isLevelExit === true))) {
+    // The step onto the exit has ended (Lexy exit.on_arrive): the level is won in the tick that follows (see GameEngine.tick).
+    if (pending.exit.reached !== true) ctx.emitVisual('win', p.x, p.y);
+    cc3dArrivalOf(p).exit = { x: pending.exit.x, y: pending.exit.y, reached: true };
   }
   if (pending.teleport !== undefined && !w.cc3dPace) {
     jumpAtStepEnd(ctx, pending.teleport);

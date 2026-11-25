@@ -1226,6 +1226,10 @@ export class GameEngine {
   private beginInput(): boolean {
     if (this.paused || !this.w.player.alive || this.w.levelCompleted) return false;
     if (!this.flushCc2StepEnd()) return false;
+    // CC2 engine: the last player has reached the exit and is out of play until the winning tick (Lexy remaining_players is 0 and win()
+    // follows in that tic's action phase, game.js 1040-1043). Every input entry point calls beginInput, so one line refuses a move, a
+    // held key, a drop, a swap and a turn alike; without it he could step off the exit into a monster the original never lets him meet.
+    if (this.w.player.cc3dArrival?.exit?.reached === true) return false;
     // CC2 engine: the parked players' step ends of the previous tick act before this decision, as Lexy runs every step end of a tic
     // before the decisions of the next (idempotent: an applied effect is gone).
     if (!flushParkedStepEnds(this.ctx)) return false;
@@ -1250,6 +1254,16 @@ export class GameEngine {
     this.w.beamDirty = true;
     this.ticksElapsed++;
     countPausedTick(this.w);
+    // CC2 engine: the last player's step onto the exit has ended (applyCc3dStepEnd). Lexy wins in the action phase of that tic and its
+    // cleanup still counts the tic (game.js 1040-1043, 1503-1514), while its time-out comes after (1508-1511): the win goes before the
+    // time-out check, and a failure after a win is refused (3009-3011). Hence the level is won here, right after the clock advance.
+    const reachedExit = this.w.player.cc3dArrival?.exit;
+    if (reachedExit?.reached === true) {
+      delete this.w.player.cc3dArrival?.exit;
+      if (this.w.player.cc3dArrival !== undefined && Object.keys(this.w.player.cc3dArrival).length === 0) delete this.w.player.cc3dArrival;
+      this.completeLevel();
+      return;
+    }
     if (this.getTimeRemainingSeconds() <= 0 && this.w.level.timeLimitSeconds > 0) {
       killPlayer(this.ctx, 'hud.messages.death_time', 'death');
       this.w.cc2PendingDecision = undefined;

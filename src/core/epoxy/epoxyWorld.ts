@@ -967,7 +967,8 @@ export function copyCc3dArrival(a: Cc3dPlayerArrival): Cc3dPlayerArrival {
     ...(a.pulse !== undefined ? { pulse: { ...a.pulse } } : {}),
     ...(a.brown !== undefined ? { brown: { ...a.brown } } : {}),
     ...(a.bomb !== undefined ? { bomb: { ...a.bomb } } : {}),
-    ...(a.hazard !== undefined ? { hazard: { ...a.hazard } } : {})
+    ...(a.hazard !== undefined ? { hazard: { ...a.hazard } } : {}),
+    ...(a.exit !== undefined ? { exit: { ...a.exit } } : {})
   };
 }
 
@@ -1157,7 +1158,7 @@ export function cc3dArrivalKey(w: EpoxyWorld): string {
     const a = p.cc3dArrival;
     if (a === undefined) return;
     const cell = (c: GridPoint | undefined): string => (c === undefined ? '-' : `${c.x}.${c.y}`);
-    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}${a.bomb === undefined ? '' : `:x${cell(a.bomb)}`}${a.hazard === undefined ? '' : `:h${cell(a.hazard)}`}`);
+    parts.push(`${index}:${cell(a.press)}:${cell(a.chip)}:${cell(a.teleport)}${a.teleport?.dir ?? ''}${a.opening === undefined ? '' : `:o${cell(a.opening)}`}${a.pulse === undefined ? '' : `:u${cell(a.pulse)}`}${a.brown === undefined ? '' : `:b${cell(a.brown)}`}${a.bomb === undefined ? '' : `:x${cell(a.bomb)}`}${a.hazard === undefined ? '' : `:h${cell(a.hazard)}`}${a.exit === undefined ? '' : `:e${cell(a.exit)}${a.exit.reached === true ? 'r' : ''}`}`);
   });
   return parts.join(';');
 }
