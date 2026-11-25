@@ -212,6 +212,9 @@ function runPrePass(ctx: EpoxyContext): 0 | 1 | undefined {
     const playerOrdinal = w.player.listOrdinal;
     w.cc2RffPre = frame;
     const loadDrawFrame = rffActive(w) && frame === 0 && w.ccMonsterClock === 0;
+    // The levelCompleted checks of this pre-pass (item 15) stay as a safeguard. Since wave 38 the last player's win on an exit happens at
+    // the start of the tick, before this pre-pass runs (Lexy wins in the action phase of the arrival tic, game.js 1040-1043, and fails
+    // after a win are refused, 3009-3011), so they no longer fire for an exit win; a second winner path would need them.
     for (const block of [...w.entities].reverse()) {
       if (w.levelCompleted) return arrivalFrame;
       if (!playerStepped && playerOrdinal !== undefined && block.listOrdinal !== undefined && block.listOrdinal < playerOrdinal) {

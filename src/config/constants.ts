@@ -493,7 +493,7 @@ export const CC_RULES_VERSION = 9;
  * Rules version of Epoxy levels imported from a CC2-engine source (.c2m), which carry rules of their own; bumping it
  * drops only their stored replays, never those of .DAT or native classic levels (CC_RULES_VERSION).
  */
-export const CC2_RULES_VERSION = 33;
+export const CC2_RULES_VERSION = 34;
 // Version 3: the wave 4 rules (brown button held by a step, step-end pulse sources) change what a recorded replay plays to.
 // Version 3 also covers the wave 5 rules (green teleporter and transmogrifier draws, tools held by ghosts and rovers, the
 // rolling ball), unreleased together with wave 4; bump again if a release ships between two rule changes.
@@ -604,6 +604,10 @@ export const CC2_RULES_VERSION = 33;
 // pre-pass frame of the step onto the pad; PFPMC: a monster clone's release step ends in frame (press frame + 11 - later) % 3; PFPL: a lead
 // carried onto the trap arrives in frame 0, a frame-1 press then finds him at rest and a frame-0 press goes by list order). A stored
 // solution with a trap button pressed by a monster driven by force floors, a teleport, a clone machine or ice replays differently.
+// Version 34: the wave 38 rules (WEX: the last player's step onto the exit wins when that step ends, in the tick that follows, after its
+// clock advance and before the time-out check; the exit step ends any slide, so the last step off ice or a force floor runs at walking
+// speed; every input is refused once the exit is reached). A stored solution replays to a win 4 ticks later, and a run still stepping
+// onto the exit when the time limit is reached now loses (it used to win).
 // CC2_RULES_VERSION is the replay signature, not a runtime switch: the rules above run for every CC2-engine level off the CC3D pace.
 // Note: a later change to the two-key rules of the CC2 engine (the slap, the choice between two held keys) changes what a
 // recorded {dir, alt} move replays to, so it needs a bump of CC2_RULES_VERSION.

@@ -39,6 +39,8 @@ const EXIT_X = 4;
 const OTHER_X = 9;
 /** Ticks of the wait already counted down by the tick that played the exit step. */
 const PLAYED_TICKS = 1;
+/** Ticks the step onto the exit still runs after the tick that played it (a walking step is 4 ticks, the first included). */
+const EXIT_STEP_TICKS = 4;
 
 const world = (engine: GameEngine): EpoxyWorld => (engine as unknown as { w: EpoxyWorld }).w;
 
@@ -80,10 +82,14 @@ describe('control after an exit', () => {
     expect(engine.getPlayer().moveCooldown).toBe(0);
   });
 
-  it('does not delay the end of the level when the last player leaves', () => {
+  it("the last player's level ends when his step onto the exit ends, with no extra wait", () => {
     const engine = new GameEngine();
     engine.loadLevel(room({ mode: 'cc2', startX: EXIT_X - 1, terrain: { [`${EXIT_X},${ROOM_ROW}`]: 'exit' } }));
     expect(playMove(engine, 'E').accepted).toBe(true);
+    // Wave 38 (Lexy lane w38_wk1_sp_c_n_o0: win tic 5): the exit is reached when the step ends, and the level is won in the tick after.
+    expect(engine.isLevelCompleted()).toBe(false);
+    for (let t = 0; t < EXIT_STEP_TICKS; t++) engine.tick();
     expect(engine.isLevelCompleted()).toBe(true);
+    expect(engine.getTick()).toBe(EXIT_STEP_TICKS + PLAYED_TICKS);
   });
 });

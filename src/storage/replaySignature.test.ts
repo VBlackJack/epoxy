@@ -118,8 +118,8 @@ describe('CC2-engine signature', () => {
     expect(isReplayPlayable(NATIVE, stored)).toBe(false);
   });
 
-  it('signs a CC2 import with the wave 37 rules version 33', () => {
-    expect(CC2_RULES_VERSION).toBe(33);
+  it('signs a CC2 import with the wave 38 rules version 34', () => {
+    expect(CC2_RULES_VERSION).toBe(34);
   });
 
   it('a CC2 rules bump drops the CC2 replays and keeps the DAT ones', async () => {
