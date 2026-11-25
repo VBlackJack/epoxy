@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- On CC2 levels with one player, a player who enters a trap just as a monster pushed by a force floor, coming out of a teleporter or leaving a clone machine presses its button now stays in the trap, as in CC2: a press made before he has finished arriving no longer throws him out, and this also holds when he is carried onto the trap by a force floor. CC1 .DAT imports, native levels and CC3D levels are unchanged. Official replays won stay at 200 of 200 for CC2 and 149 of 149 for CC1 Steam .c2m. Replays recorded on CC2 and .c2m imports before this version are no longer offered (scores are kept) (CC2 rules version 33).
+
 ## [2.42.0] - 2026-11-24
 
 ### Changed
