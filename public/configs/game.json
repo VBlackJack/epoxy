@@ -612,48 +612,64 @@
     "joystickBaseFollowRadiusPx": 24,
     "joystickKnobRadiusPx": 48
   },
+  "officialCc1Signatures": [
+    "a1530fe116b89ddba39d7bc7acaebf511b914e5828e2d272e44cc9e538a636dc",
+    "441cb04773cd0fa4b2e3f77dc8970b88f121732c33d19493b127469057528666"
+  ],
   "ultimatePacks": [
     {
       "id": "ccup_tw_intro",
       "name": "Tile World Intro",
       "i18nKey": "app.packs.ccup_tw_intro.label",
       "url": "./packs/TW_INTRO.DAT",
-      "prefix": "tw_intro"
+      "prefix": "tw_intro",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     },
     {
       "id": "ccup_cclp1",
       "name": "CCLP 1",
       "i18nKey": "app.packs.ccup_cclp1.label",
       "url": "./packs/CCLP1.DAT",
-      "prefix": "cclp1"
+      "prefix": "cclp1",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     },
     {
       "id": "ccup_cclp2",
       "name": "CCLP 2",
       "i18nKey": "app.packs.ccup_cclp2.label",
       "url": "./packs/CCLP2.DAT",
-      "prefix": "cclp2"
+      "prefix": "cclp2",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     },
     {
       "id": "ccup_cclp3",
       "name": "CCLP 3",
       "i18nKey": "app.packs.ccup_cclp3.label",
       "url": "./packs/CCLP3.DAT",
-      "prefix": "cclp3"
+      "prefix": "cclp3",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     },
     {
       "id": "ccup_cclp4",
       "name": "CCLP 4",
       "i18nKey": "app.packs.ccup_cclp4.label",
       "url": "./packs/CCLP4.DAT",
-      "prefix": "cclp4"
+      "prefix": "cclp4",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     },
     {
       "id": "ccup_cclp5",
       "name": "CCLP 5",
       "i18nKey": "app.packs.ccup_cclp5.label",
       "url": "./packs/CCLP5.DAT",
-      "prefix": "cclp5"
+      "prefix": "cclp5",
+      "ruleset": "lynx",
+      "rulesProfile": "cclp"
     }
   ],
   "blockPuzzle": {

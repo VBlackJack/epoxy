@@ -128,6 +128,12 @@ describe('ConfigRegistry.compileBlueprint', () => {
     expect('rulesFlavor' in ConfigRegistry.compileBlueprint(blueprint())).toBe(false);
   });
 
+  it('copies the cclp rule profile of a Lynx level only', () => {
+    expect(ConfigRegistry.compileBlueprint(blueprint({ ruleset: 'lynx', rulesProfile: 'cclp' })).rulesProfile).toBe('cclp');
+    expect('rulesProfile' in ConfigRegistry.compileBlueprint(blueprint({ rulesProfile: 'cclp' }))).toBe(false);
+    expect('rulesProfile' in ConfigRegistry.compileBlueprint(blueprint({ ruleset: 'lynx', rulesProfile: 'other' as never }))).toBe(false);
+  });
+
   it('gives procedural and custom packs a translation key', () => {
     ConfigRegistry.setProceduralLevels([ConfigRegistry.compileBlueprint(blueprint())]);
     const procedural = ConfigRegistry.getAllPacks().find((p) => p.levels.length === 1);

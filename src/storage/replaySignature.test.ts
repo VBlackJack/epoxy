@@ -25,6 +25,8 @@ import {
 import { sanitizeHighScores } from './persistedState';
 import { CC2_RULES_VERSION, CC3D_PACE_VERSION, CC_RULES_VERSION } from '../config/constants';
 
+const CCLP: SignatureLevel = { ruleset: 'lynx', rulesProfile: 'cclp' };
+
 const NATIVE: SignatureLevel = {};
 const CC_FLAVOR: SignatureLevel = { rulesFlavor: 'cc' };
 const CC2_IMPORT = { cc2: {} } as unknown as SignatureLevel;
@@ -35,6 +37,13 @@ const CONVERTED_BY_SOURCE = { id: 'renamed', cc3dSource: {} } as unknown as Sign
 const CONVERTED_CLASSIC: SignatureLevel = { id: 'cc3d_p1_001~epoxy', rulesFlavor: 'cc' };
 
 describe('replaySignature', () => {
+  it('signs a CCLP level with the Lynx and the CCLP rules versions, apart from plain Lynx levels', () => {
+    expect(replaySignature(CCLP)).toBe('cclp:1.1');
+    expect(isReplayPlayable(CCLP, 'lynx:1')).toBe(false);
+    expect(isReplayPlayable(CCLP, `epoxy-cc:${CC_RULES_VERSION}`)).toBe(false);
+    expect(isReplayPlayable({ ruleset: 'lynx' }, 'cclp:1.1')).toBe(false);
+  });
+
   it('names the engine and rules version of each kind of level', () => {
     expect(replaySignature(NATIVE)).toBe('epoxy:1');
     expect(replaySignature({ ruleset: 'epoxy' })).toBe('epoxy:1');

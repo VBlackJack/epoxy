@@ -77,3 +77,13 @@ export class HeldKeys {
     return this.keys.length > 0 ? this.keys[this.keys.length - 1].dir : null;
   }
 }
+
+/**
+ * What an engine that reads every held key is told for one tick: nothing while a replay plays; the keyboard's held keys
+ * (most recent first) when there are any; else the single held direction (a swipe, the d-pad, the gamepad) or nothing.
+ */
+export function directionsForTick(keyboard: readonly Direction[], single: Direction | null, replaying: boolean): Direction[] {
+  if (replaying) return [];
+  if (keyboard.length > 0) return [...keyboard];
+  return single !== null ? [single] : [];
+}

@@ -17,7 +17,8 @@
 import { ConfigBundle, ConfigRegistry } from './config/ConfigRegistry';
 import { isForeignAuthoringEnabled } from './config/featureFlags';
 import { isRemovablePack, removablePackIds } from './ui/importedPacks';
-import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, IMPORTED_PACK_RULESET, PLAYTEST_ONLY_PACK_IDS } from './config/constants';
+import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, PLAYTEST_ONLY_PACK_IDS } from './config/constants';
+import { decodeImportedDat } from './packs/datProfiles';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
@@ -113,7 +114,7 @@ import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
 import { AimMode, turnDirectionForChord } from './ui/aimInput';
-import { HeldKeys, supportsHeldMove } from './ui/heldKeys';
+import { directionsForTick, HeldKeys, supportsHeldMove } from './ui/heldKeys';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -796,7 +797,7 @@ class EpoxyApplication {
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
     // An engine that tells presses from holds hears the held direction (or its release) once per tick.
-    this.engine.holdPlayerDirection?.(this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection));
+    this.holdDirectionsForTick();
     // CC2 actor order: a click-to-move step is stored by the input and played by the tick, so its outcome is read after the tick.
     let autoStepStored = false;
     if (this.isReplaying) {
@@ -1276,7 +1277,7 @@ class EpoxyApplication {
       let levels: CompiledLevel[];
       let skippedCount = 0;
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
-        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), packName, IMPORTED_PACK_RULESET);
+        levels = await decodeImportedDat(await file.arrayBuffer(), packName);
         if (levels.length === 0) {
           throw new Error('Empty pack');
         }
@@ -1719,6 +1720,19 @@ class EpoxyApplication {
   /** True when the level lets the player turn without stepping and the engine can do it. */
   private turnsInPlace(): boolean {
     return Boolean(this.engine.turnPlayer) && featuresFor(this.engine.getLevel()).turnInPlace;
+  }
+
+  /**
+   * Tells the engine what is held for this tick. An engine that reads every held key gets the keyboard set (most recent first)
+   * when the keyboard owns the hold, else the single held direction; any other engine gets the single direction as before.
+   */
+  private holdDirectionsForTick(): void {
+    const single = this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection);
+    if (this.engine.holdPlayerDirections) {
+      this.engine.holdPlayerDirections(directionsForTick(this.heldKeys.directions(), single, this.isReplaying));
+      return;
+    }
+    this.engine.holdPlayerDirection?.(single);
   }
 
   /** Starts a held move from any input source (keys, d-pad, swipe). */

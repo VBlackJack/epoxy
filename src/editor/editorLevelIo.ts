@@ -102,7 +102,8 @@ export function documentFromLevel(level: CompiledLevel, texts: DocumentTexts): E
     winRule: level.winRule ?? DEFAULT_WIN_RULE,
     ruleset: level.ruleset,
     ...(level.character !== undefined && level.character !== DEFAULT_PLAYER_CHARACTER ? { character: level.character } : {}),
-    ...(level.rulesFlavor !== undefined ? { rulesFlavor: level.rulesFlavor } : {})
+    ...(level.rulesFlavor !== undefined ? { rulesFlavor: level.rulesFlavor } : {}),
+    ...(level.rulesProfile !== undefined ? { rulesProfile: level.rulesProfile } : {})
   };
 }
 
@@ -132,6 +133,8 @@ export function levelFromDocument(doc: EditorDocument, context: LevelExportConte
     // Chip is the default character and stays unwritten, so a level played by Chip keeps the record it always had.
     ...(doc.character !== undefined && doc.character !== DEFAULT_PLAYER_CHARACTER ? { character: doc.character } : {}),
     ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {}),
+    // The profile stays only while the document is still a Lynx level (the form may have changed the ruleset).
+    ...(doc.rulesProfile !== undefined && doc.ruleset === 'lynx' ? { rulesProfile: doc.rulesProfile } : {}),
     number: context.number,
     customTitle: doc.title || context.fallbackTitle,
     customHint: doc.hint,

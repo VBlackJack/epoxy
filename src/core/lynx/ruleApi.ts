@@ -155,6 +155,12 @@ export interface RuleContext {
   playSfx(id: string): void;
 }
 
+/** What Chip does with two keys down: the direction he decides, and the key whose block he only pushes (null: none). */
+export interface HeldKeysDecision {
+  dir: Direction;
+  slap: Direction | null;
+}
+
 /** A module: one area of the rules, kept in its own file under rules/. */
 export interface RuleModule {
   readonly name: string;
@@ -167,6 +173,14 @@ export interface RuleModule {
   onTickStart?: (ctx: RuleContext) => void;
   /** Phase B: the move this module forces on a creature at rest, or null. Must not change anything. */
   forcedMove?: (ctx: RuleContext, creature: Creature) => ForcedMove | null;
+  /**
+   * Phase B: Chip, at rest and free to choose, has two orthogonal direction keys down (`keys` in the order N, E, S, W).
+   * `open[i]` tells whether a step along `keys[i]` is allowed now, judged as Chip's decision judges it (a block he would push
+   * counts as open, also off a tile that yields to a push). Return the direction he decides, and the other key when his
+   * decision also pushes ("slaps") the block that way without him moving; null leaves the single held direction to decide.
+   * Must not change anything: the core starts both pushes. The first module that answers wins.
+   */
+  resolveHeldKeys?: (ctx: RuleContext, chip: Creature, keys: readonly Direction[], open: readonly boolean[]) => HeldKeysDecision | null;
   /** Phase B: the creature received the forced move this module returned (side effects go here). */
   onForcedMove?: (ctx: RuleContext, creature: Creature, forced: ForcedMove) => void;
   /** After every real attempt to start a step, accepted or refused (bounce, slide permission). */

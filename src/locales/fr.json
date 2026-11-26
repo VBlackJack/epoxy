@@ -528,7 +528,7 @@
           }
         },
         "lynx_notice": {
-          "label": "Les niveaux Lynx de ce pack se jouent sans les aides d'Epoxy. Un fichier .DAT réimporté se joue sur le moteur Epoxy avec ces aides, dans un nouveau pack : les scores ne sont pas repris."
+          "label": "Ce pack se joue avec les règles Lynx pour lesquelles ses niveaux ont été conçus. Les aides d'Epoxy (indices, dépôt d'objets, revoir la solution) n'y sont pas encore disponibles."
         },
         "levels": {
           "title": {

@@ -15,7 +15,7 @@
  */
 
 import { CC2_GATE_BASE_IDS, DEFAULT_RULESET, NO_SIGN_ITEM_IDS, NO_SIGN_ITEM_PREFIX, SIGNAL_GATE_CC2_ID_SUFFIX } from '../core/coreConstants';
-import type { Ruleset } from '../core/types';
+import type { Ruleset, RulesProfile } from '../core/types';
 
 export const ENV_CONFIG = {
   CONFIG_BASE_URL: import.meta.env.VITE_APP_CONFIG_BASE_URL || './configs',
@@ -61,8 +61,15 @@ export const DEFAULT_FACING = 'S' as const;
 /** The directions a turning force floor pushes in, one per arrival of any actor, in turn. */
 export const FORCE_CYCLE_ORDER = ['E', 'S', 'W', 'N'] as const;
 
-/** Ruleset given to the levels of a .DAT / .CCL file the player imports: they play on the Epoxy engine with the classic rules flavor. */
+/**
+ * Ruleset given to the levels of an official Chip's Challenge 1 .DAT the player imports (recognised by its password signature):
+ * they play on the Epoxy engine with the classic rules flavor, as the CC1 Steam levels do.
+ */
 export const IMPORTED_PACK_RULESET: Ruleset = DEFAULT_RULESET;
+
+/** Ruleset and rule profile of every other .DAT / .CCL level set: the Lynx rules of the CCLP engine. */
+export const CC1_DAT_RULESET: Ruleset = 'lynx';
+export const CC1_DAT_RULES_PROFILE: RulesProfile = 'cclp';
 
 /** Password assigned to a level that does not define one. */
 export const DEFAULT_LEVEL_PASSWORD = 'EPOX';
@@ -617,6 +624,12 @@ export const CC2_SLAP_REVEALED_TILE_IDS: readonly string[] = ['blue_wall_fake'];
 
 /** Rules version of the Lynx engine, for replays recorded on Lynx levels. */
 export const LYNX_RULES_VERSION = 1;
+
+/**
+ * Rules version of the CCLP profile (the Lynx engine plus the CCLP modules: two held keys, the block slap). A replay of a
+ * CCLP level is signed with both versions, so a change to either drops it.
+ */
+export const CCLP_RULES_VERSION = 1;
 
 /** Rules version of the CC3D engine, for replays recorded on CC3D levels. */
 export const CC3D_RULES_VERSION = 1;

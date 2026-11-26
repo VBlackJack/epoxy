@@ -945,6 +945,7 @@ export function stripInvalidTextFields(level: CompiledLevel): CompiledLevel {
   const cc2Nets = 'cc2' in record && isCc2LevelData(record.cc2) ? withValidTeleportNets(record.cc2) : undefined;
   const badNets = cc2Nets !== undefined && cc2Nets !== record.cc2;
   if ('rulesFlavor' in record && record.rulesFlavor !== 'cc') bad.push('rulesFlavor');
+  if ('rulesProfile' in record && (record.rulesProfile !== 'cclp' || record.ruleset !== 'lynx')) bad.push('rulesProfile');
   const badPassword = typeof record.password !== 'string';
   let edges: CellEdge[] | null = null;
   if ('cellEdges' in record) {

@@ -17,7 +17,8 @@
 import { storedSolutionWins } from '../generator/SolutionReplay';
 import { ConfigBundle, ConfigRegistry } from '../config/ConfigRegistry';
 import { isForeignAuthoringEnabled } from '../config/featureFlags';
-import { CC2_LEVEL_EXTENSION, IMPORTED_PACK_RULESET } from '../config/constants';
+import { CC2_LEVEL_EXTENSION } from '../config/constants';
+import { decodeImportedDat } from '../packs/datProfiles';
 import { InvalidLevelError, isPlayerCharacter, isRuleset, isWinRule, sanitizeStoredLevels } from '../config/ConfigValidation';
 import { i18n, t } from '../i18n/I18nManager';
 import { nameWithDescription, paletteDescription } from './paletteDescriptions';
@@ -7429,7 +7430,7 @@ export class LevelEditor {
     let skipped = 0;
     try {
       if (lower.endsWith('.dat') || lower.endsWith('.ccl')) {
-        levels = DatCodec.decodeBuffer(await file.arrayBuffer(), baseName, IMPORTED_PACK_RULESET);
+        levels = await decodeImportedDat(await file.arrayBuffer(), baseName);
       } else if (lower.endsWith(CC2_LEVEL_EXTENSION)) {
         const converted = await convertC2mBytes(new Uint8Array(await file.arrayBuffer()), { file: file.name, order: 1 });
         if (!(await Cc2SourceStorage.putAll([converted.source]))) {

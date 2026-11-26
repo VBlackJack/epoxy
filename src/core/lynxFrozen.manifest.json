@@ -1,6 +1,6 @@
 {
-  "src/core/lynx/LynxEngine.ts": "c873db03c0c229bdcd0dbcbf1c8f5ca1ff31870bd07e11534c3b61dd36d04bb0",
-  "src/core/lynx/Simulation.ts": "5a1e2499dccc322740ecc8d52837536ea06d19edcf8a3e99e06b2df2da90325b",
+  "src/core/lynx/LynxEngine.ts": "d903d0e89ef536fc880a95ee6f5c3aa9876c2616e52e571063d6ee100c7b4030",
+  "src/core/lynx/Simulation.ts": "e4a94531f2b356eb82316541178c4b1d897869d8522c40ff832bc35693ab5700",
   "src/core/lynx/blocks.test.ts": "d12528a6deb43b0c34180d16f01d81d890704847a45c1001922555afc48f1ed3",
   "src/core/lynx/contract.test.ts": "19906ba953a033a2ee74ebacc4672b1c145be00c56f78d8de4fe6623f47e1003",
   "src/core/lynx/directions.ts": "aa4aac54352013c07f38c8f2fc99d70922a259e648d12d588dcd09b40e3c0361",
@@ -17,7 +17,7 @@
   "src/core/lynx/monsters.test.ts": "24aa6ba1d83de8b42f8821dcae8f01cf7d4bd5a5b500fd646e457240004f7929",
   "src/core/lynx/moving.test.ts": "0d58ca690c42c231cac42158ea1d6ace7f98152710241a3e8e7c8cf29c62e98b",
   "src/core/lynx/order.test.ts": "85bb470b309d5eb448c178ff0b01b807ed2df20e7352db45ecc1396a69c245b2",
-  "src/core/lynx/ruleApi.ts": "c6c3b9d3beb329a22adca438702ec1c13f8023ace5b979384e8e0a68c66cbda8",
+  "src/core/lynx/ruleApi.ts": "9e990532a12e9a1b3bf208401326ee085ab032bcbe68aa1642f1a545a54ebebc",
   "src/core/lynx/ruleBook.ts": "b7839837f26456a3f3f9927b062d0d467abfc8c99e31f6cca0f98e98828bf60a",
   "src/core/lynx/rules/buttons.test.ts": "b11f5eefbdefdff7a5712aff4c8a7648b2ac8f8b9ec077e3c5e758ce3292ef5e",
   "src/core/lynx/rules/buttons.ts": "1ada361f9d4c5d37a171122a5e80999f58a74021021622a176ad03c6fc443ee9",

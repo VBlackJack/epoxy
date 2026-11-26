@@ -985,6 +985,8 @@ export interface UltimatePackDescriptor {
   prefix: string;
   /** Ruleset of the pack's levels; absent means 'epoxy'. */
   ruleset?: Ruleset;
+  /** Rule profile of the pack's levels (only with ruleset 'lynx'); absent means none. */
+  rulesProfile?: RulesProfile;
 }
 
 export interface TouchConfig {
@@ -1048,6 +1050,12 @@ export interface GameConfig {
   blockPuzzle: BlockPuzzleConfig;
   campaignGuard: CampaignGuardConfig;
   ultimatePacks?: UltimatePackDescriptor[];
+  /**
+   * Password signatures of the official Chip's Challenge 1 level sets (SHA-256, lowercase hex, of the level passwords in file
+   * order joined by a line feed): an imported .DAT whose signature is listed keeps the classic Epoxy rules; any other .DAT
+   * plays the CCLP engine. See packs/datProfiles.ts.
+   */
+  officialCc1Signatures?: string[];
   timing: TimingConfig;
   storage: StorageConfig;
   import: ImportConfig;
@@ -1955,6 +1963,8 @@ export interface BlockBudget {
 
 /** The rules flavor of an Epoxy level: 'cc' plays with the classic Chip's Challenge timing rules. */
 export type RulesFlavor = 'cc';
+/** A rule profile of the Lynx ruleset: 'cclp' plays the Lynx rules every non-official CC1 .DAT (bundled or imported) is played under. */
+export type RulesProfile = 'cclp';
 
 export interface LevelBlueprint {
   id: string;
@@ -1980,6 +1990,8 @@ export interface LevelBlueprint {
    * A level that carries `cc2` plays with these rules too (see usesCcRules).
    */
   rulesFlavor?: RulesFlavor;
+  /** With ruleset 'lynx': the rule profile of every non-official CC1 .DAT (see CompiledLevel.rulesProfile). */
+  rulesProfile?: RulesProfile;
   number: number;
   titleKey?: string;
   customTitle?: string;
@@ -2347,6 +2359,8 @@ export interface CompiledLevel {
    * A level that carries `cc2` plays with these rules too (see usesCcRules).
    */
   rulesFlavor?: RulesFlavor;
+  /** With ruleset 'lynx': the rule profile of every non-official CC1 .DAT, played by the CCLP engine (see EngineSelector). Absent elsewhere. */
+  rulesProfile?: RulesProfile;
   /**
    * The CC3D level an Epoxy level was converted from at import, kept so it can be converted again when the converter improves.
    * Absent on every other level, and ignorable by any reader: no engine reads it (only the 'cc3d' ruleset reads `cc3d`, and a

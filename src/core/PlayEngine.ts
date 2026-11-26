@@ -62,6 +62,12 @@ export interface PlayEngine {
    */
   holdPlayerDirection?(dir: Direction | null): void;
   /**
+   * Optional. Every direction key held down right now, most recent first (empty when none), called once per tick in place of
+   * holdPlayerDirection by a page that has it. The first key is the held direction; an engine with the Lynx two-key rules
+   * (the CCLP engine) also resolves two orthogonal keys.
+   */
+  holdPlayerDirections?(dirs: readonly Direction[]): void;
+  /**
    * Optional. The direction keys held at once, most recent first (one or two, orthogonal; three or an opposing pair are
    * legal input too). An engine with the two-key rules of Chip's Challenge 2 resolves them as the original does; one
    * without them plays `dirs[0]` exactly as attemptPlayerMove does. False when no move was made.
