@@ -103,6 +103,10 @@ export interface StorageConfig {
   onboardingSeenKey: string;
   /** Flag set once the one-time "New: Tutorial" notice was shown. */
   tutorialNoticeSeenKey: string;
+  /** Record of the load-time move of stored .DAT packs to the CCLP engine: its version and the packs it kept. */
+  cclpStoredMoveKey?: string;
+  /** The kept .DAT packs the player was told about, so each is told once. */
+  cclpKeptNoticeSeenKey?: string;
   /** Pack the editor last saved a level into, preselected in its "Save into" dialog. */
   lastSaveDestinationKey: string;
   /** Which inspector sections of the editor are open. */

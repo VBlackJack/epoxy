@@ -19,6 +19,8 @@ import { isForeignAuthoringEnabled } from './config/featureFlags';
 import { isRemovablePack, removablePackIds } from './ui/importedPacks';
 import { BUILTIN_PACK_IDS, DIRECTION_VECTORS, PLAYTEST_ONLY_PACK_IDS } from './config/constants';
 import { decodeImportedDat } from './packs/datProfiles';
+import { parseNoticedPackIds } from './packs/cclpMigration';
+import { storedPackNotice } from './packs/storedPackNotices';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
@@ -477,7 +479,7 @@ class EpoxyApplication {
     this.startGameLoop();
     this.startRenderLoop();
     this.maybeShowOnboarding(hadSavedProgress);
-    this.announceCc3dMigration();
+    this.announceStoredPackChanges();
     // A parked share link opens its own dialog: the notice would sit on top of it.
     if (!this.parkedShareHash) this.maybeShowTutorialNotice();
     this.bindShareLinks();
@@ -2907,13 +2909,28 @@ class EpoxyApplication {
     );
   }
 
-  /** Tells the player, once, that stored CC3D levels were converted to Epoxy levels (and any that stayed on the CC3D engine). */
-  private announceCc3dMigration(): void {
-    const report = ConfigRegistry.takeCc3dMigrationReport();
-    if (!report) return;
-    const lines = [t('cc3d.import.migration.converted.label', { count: report.converted })];
-    if (report.kept > 0) lines.push(t('cc3d.import.migration.kept.label', { kept: report.kept }));
-    this.showTransientStatus(lines.join(' '));
+  /**
+   * Tells the player, in one message, what the load-time migrations did: stored CC3D levels converted (and any that stayed on
+   * the CC3D engine), stored .DAT packs moved to the community rules, and each .DAT pack that keeps its old rules, once.
+   */
+  private announceStoredPackChanges(): void {
+    const suffix = ConfigRegistry.getGame().storage.cclpKeptNoticeSeenKey;
+    const seenKey = suffix ? ConfigRegistry.getStorageKey(suffix) : null;
+    let told: string[] = [];
+    try {
+      told = seenKey ? parseNoticedPackIds(localStorage.getItem(seenKey)) : [];
+    } catch {
+      // Storage unavailable: a kept pack may be told again next start
+    }
+    const notice = storedPackNotice(ConfigRegistry.takeCc3dMigrationReport(), ConfigRegistry.takeCclpMoveReport(), told, t);
+    if (notice.message === null) return;
+    this.showTransientStatus(notice.message);
+    if (notice.keptPackIdsTold.length === 0 || !seenKey) return;
+    try {
+      localStorage.setItem(seenKey, JSON.stringify([...told, ...notice.keptPackIdsTold]));
+    } catch {
+      // Storage unavailable: a kept pack may be told again next start
+    }
   }
 
   private tutorialNoticeKey(): string {

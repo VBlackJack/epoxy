@@ -631,6 +631,15 @@ export const LYNX_RULES_VERSION = 1;
  */
 export const CCLP_RULES_VERSION = 1;
 
+/** Version of the load-time move of stored .DAT packs to the CCLP engine; a stored record at this version skips it. */
+export const CCLP_STORED_MOVE_VERSION = 1;
+
+/**
+ * Release time (ms) of v2.44.0, the first build whose .DAT imports play the CCLP engine. A pack imported at or after it is
+ * not an old import, so the record-only checks of the stored pack move never vouch for it.
+ */
+export const CCLP_IMPORT_RELEASE_MS = 1795733334000;
+
 /** Rules version of the CC3D engine, for replays recorded on CC3D levels. */
 export const CC3D_RULES_VERSION = 1;
 
@@ -647,5 +656,10 @@ export const CC3D_PACE_VERSION = 5;
  * Epoxy levels are authored for Epoxy. The code and its tests stay in place.
  */
 export const FEATURE_FLAGS = {
-  foreignAuthoring: false
+  foreignAuthoring: false,
+  /**
+   * Moves the packs imported from a .DAT file before community sets played the CCLP engine to that engine on load
+   * (see packs/cclpMigration). On: the rewrite of stored player data was accepted; remove the flag one release later.
+   */
+  cclpStoredPackMove: true
 } as const;
