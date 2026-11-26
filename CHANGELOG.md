@@ -5,9 +5,11 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.44.0] - 2026-11-26
+
 ### Changed
 
-- The engine of a CC1 `.DAT` pack is now picked from what the pack is. The official CC1 `CHIPS.DAT` (recognised by the signature of its passwords) keeps the Epoxy engine with the classic rules. Every other `.DAT`, bundled (TW_INTRO, CCLP1 to CCLP5) or imported, now plays on the Lynx engine with the Lynx rules most community packs were made for: of the 596 public Lynx solutions of CCLP1, 3, 4 and 5, 570 now win (85 before), against 583 in Lexy's Labyrinth. Solutions recorded under the MS rules win less often (67 to 17 on CCLP1 to CCLP5; CCLP2, an MS set, 10 to 6). On these packs the objective marker and tap-to-path work (see Added); item drop, the push hint, the dead-end watch and solution replay stay off. Replays recorded on the bundled community packs before this version are no longer offered (scores and completion are kept) (CCLP rules version 1). Packs imported before this version keep the engine they were imported with until the `.DAT` is imported again. On a force floor, Chip can still turn back against the floor, which the Lynx rules refuse.
+- The engine of a CC1 `.DAT` pack is now picked from what the pack is. The official CC1 `CHIPS.DAT` (recognised by the signature of its passwords) keeps the Epoxy engine with the classic rules. Every other `.DAT`, bundled (TW_INTRO, CCLP1 to CCLP5) or imported, now plays on the Lynx engine with the Lynx rules most community packs were made for: of the 596 public Lynx solutions of CCLP1, 3, 4 and 5, 594 now win (85 before), against 583 in Lexy's Labyrinth. Solutions recorded under the MS rules win less often (67 to 17 on CCLP1 to CCLP5; CCLP2, an MS set, 10 to 6). On these packs the objective marker and tap-to-path work (see Added); item drop, the push hint, the dead-end watch and solution replay stay off. Replays recorded on the bundled community packs before this version are no longer offered (scores and completion are kept) (CCLP rules version 1). Packs imported before this version keep the engine they were imported with until the `.DAT` is imported again. On a force floor, Chip can still turn back against the floor, which the Lynx rules refuse.
 
 ### Added
 
