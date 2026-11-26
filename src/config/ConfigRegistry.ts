@@ -119,6 +119,7 @@ import {
   UltimatePackDescriptor
 } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
+import { applyRulesProfile } from '../packs/rulesProfile';
 import { MotifAnnotations, MotifsConfig, PieceLegendEntry } from '../generator/PieceTypes';
 import { clampPackMetadata, PackMetadata, PackMetadataLimits, withPackMetadata } from '../packs/packMetadata';
 import { PackJsonError, parsePackJson, serializePack } from '../packs/packJson';
@@ -656,6 +657,7 @@ class ConfigRegistryService {
     for (const { descriptor, buffer } of fetched) {
       try {
         const decoded = DatCodec.decodeBuffer(buffer, descriptor.prefix, descriptor.ruleset ?? DEFAULT_RULESET);
+        applyRulesProfile(decoded, descriptor.rulesProfile);
         if (decoded.length > 0) {
           loaded.push({
             id: descriptor.id,
@@ -1571,6 +1573,8 @@ class ConfigRegistryService {
       ...(isBlockBudget(bp.blockBudget) ? { blockBudget: { waters: bp.blockBudget.waters, targets: bp.blockBudget.targets } } : {}),
       ...(isCc2LevelData(bp.cc2) ? { cc2: withValidTeleportNets(bp.cc2) } : {}),
       ...(bp.rulesFlavor === 'cc' ? { rulesFlavor: bp.rulesFlavor } : {}),
+      // The CCLP profile lives only on a Lynx level; anywhere else it is dropped.
+      ...(bp.rulesProfile === 'cclp' && bp.ruleset === 'lynx' ? { rulesProfile: bp.rulesProfile } : {}),
       ...(isWinRule(bp.winRule) ? { winRule: bp.winRule } : {}),
       // Chip is the default character and stays unwritten, so a level played by Chip is the same record as before.
       ...(isPlayerCharacter(bp.character) && bp.character !== DEFAULT_PLAYER_CHARACTER ? { character: bp.character } : {}),

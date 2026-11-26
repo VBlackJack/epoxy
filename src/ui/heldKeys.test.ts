@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { HeldKeys, supportsHeldMove } from './heldKeys';
+import { directionsForTick, HeldKeys, supportsHeldMove } from './heldKeys';
 
 describe('HeldKeys', () => {
   it('moves a fresh press of a held code to the front, but keeps place on auto-repeat', () => {
@@ -83,5 +83,14 @@ describe('supportsHeldMove', () => {
   it('checks for the method', () => {
     expect(supportsHeldMove({})).toBe(false);
     expect(supportsHeldMove({ attemptPlayerMoveHeld: () => true })).toBe(true);
+  });
+});
+
+describe('directionsForTick', () => {
+  it('gives the keyboard keys, else the single held direction, and nothing while replaying', () => {
+    expect(directionsForTick(['E', 'S'], 'E', false)).toEqual(['E', 'S']);
+    expect(directionsForTick([], 'N', false)).toEqual(['N']);
+    expect(directionsForTick([], null, false)).toEqual([]);
+    expect(directionsForTick(['E', 'S'], 'E', true)).toEqual([]);
   });
 });

@@ -26,7 +26,7 @@ import { canonicalRailTracks, cloneRailTracks } from './editorRailTracks';
 import { canonicalUnderlays, cloneUnderlays } from './editorUnderlays';
 import { canonicalLauncherLinks, cloneLauncherLinks } from './editorLauncherLinks';
 import { canonicalSignalLinks, cloneSignalLinks } from './editorSignalLinks';
-import { CellEdge, CellHint, CellUnderlay, CloneLink, Direction, EntityPlacement, ExtraPlayerStart, LauncherLink, PlayerCharacter, RailTrackCell, Ruleset, RulesFlavor, SignalLink, TrapLink, WinRule } from '../core/types';
+import { CellEdge, CellHint, CellUnderlay, CloneLink, Direction, EntityPlacement, ExtraPlayerStart, LauncherLink, PlayerCharacter, RailTrackCell, Ruleset, RulesFlavor, RulesProfile, SignalLink, TrapLink, WinRule } from '../core/types';
 
 /** Where the player starts and which way the character faces. */
 export interface EditorPlayerStart {
@@ -103,6 +103,8 @@ export interface EditorMetadata {
   character?: PlayerCharacter;
   /** The rules flavor of the level, kept through editing so an edited CC import keeps its rules; absent means Epoxy rules. */
   rulesFlavor?: RulesFlavor;
+  /** The CCLP rule profile of a Lynx level, kept through editing so an edited CCLP level keeps its engine; absent otherwise. */
+  rulesProfile?: RulesProfile;
 }
 
 /** Everything an undo step must bring back: the map and the metadata. */
@@ -191,7 +193,8 @@ export function snapshotDocument(doc: EditorDocument): EditorDocument {
     winRule: doc.winRule,
     ruleset: doc.ruleset,
     ...(doc.character !== undefined ? { character: doc.character } : {}),
-    ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {})
+    ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {}),
+    ...(doc.rulesProfile !== undefined ? { rulesProfile: doc.rulesProfile } : {})
   };
 }
 
@@ -228,7 +231,8 @@ export function cloneDocument(doc: EditorDocument): EditorDocument {
     winRule: doc.winRule,
     ruleset: doc.ruleset,
     ...(doc.character !== undefined ? { character: doc.character } : {}),
-    ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {})
+    ...(doc.rulesFlavor !== undefined ? { rulesFlavor: doc.rulesFlavor } : {}),
+    ...(doc.rulesProfile !== undefined ? { rulesProfile: doc.rulesProfile } : {})
   };
 }
 
@@ -277,7 +281,8 @@ export function sameDocument(a: EditorDocument, b: EditorDocument): boolean {
       winRule: doc.winRule,
       ruleset: effectiveRuleset(doc.ruleset),
       character: doc.character ?? DEFAULT_PLAYER_CHARACTER,
-      rulesFlavor: doc.rulesFlavor ?? null
+      rulesFlavor: doc.rulesFlavor ?? null,
+      rulesProfile: doc.rulesProfile ?? null
     });
   return normalize(a) === normalize(b);
 }
