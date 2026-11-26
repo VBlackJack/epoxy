@@ -122,6 +122,18 @@ describe('load-time move of stored .DAT packs to the CCLP engine', () => {
     expect(moveRecord()).toBeUndefined();
   });
 
+  it('writes no record and decodes nothing when the library holds no stored pack', async () => {
+    holdSynthSet();
+    const decode = vi.spyOn(DatCodec, 'decodeBuffer');
+    const setItem = vi.spyOn(localStorage, 'setItem');
+    await ConfigRegistry.loadStoredPacks();
+    expect(decode).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(storage.size).toBe(0);
+    expect(moveRecord()).toBeUndefined();
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
+  });
+
   it('moves a classic pack of a bundled set once, keeps the level ids, and runs only once', async () => {
     holdSynthSet();
     const old = storePack('epoxy');

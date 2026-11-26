@@ -1098,6 +1098,9 @@ class ConfigRegistryService {
    * the version it ran at and the .DAT packs it kept, for the one-time notice.
    */
   private async moveStoredDatPacksToCclp(): Promise<void> {
+    // An empty library has nothing to move: no plan, no decode, no record (a pack imported later is not an old import).
+    this.cclpMoveReport = null;
+    if (!this.storedPacks.some((p) => p.builtIn !== true)) return;
     const recordKey = this.gameConfig.storage.cclpStoredMoveKey;
     const liveIds = new Set(this.storedPacks.map((p) => p.id));
     const record = recordKey ? parseCclpMoveRecord(this.readStorage(recordKey)) : null;
