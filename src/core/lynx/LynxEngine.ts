@@ -25,7 +25,7 @@ import { World } from './model';
 import { LYNX_RULE_MODULES } from './rules';
 import { buildRuleBook, RuleBook } from './ruleBook';
 import { RuleModule } from './ruleApi';
-import { Simulation } from './Simulation';
+import { HELD_PAIR_SIZE, Simulation } from './Simulation';
 import { entitiesOf, playerOf } from './views';
 import { buildWorld, ReplayOptions } from './worldBuilder';
 
@@ -67,8 +67,6 @@ const NO_PLAYER: PlayerState = {
 /** The order two held keys are offered to the rule modules in (Lexy reads its input bits north, east, south, west). */
 const HELD_KEY_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
 const VERTICAL_KEYS: readonly Direction[] = ['N', 'S'];
-/** Two keys make a pair; three or more are no pair. */
-const HELD_PAIR_SIZE = 2;
 
 /** Two keys on different axes, in HELD_KEY_ORDER; empty for anything else (one key, an opposing pair, three keys). */
 function orthogonalPair(dirs: readonly Direction[]): Direction[] {
@@ -172,10 +170,15 @@ export class LynxEngine implements PlayEngine {
 
   public attemptPlayerMove(dir: Direction): boolean {
     const sim = this.sim;
-    if (!sim || this.paused || !sim.world.chipState.alive || sim.world.complete) return false;
+    if (!sim || !this.canPress(sim)) return false;
     sim.pending = dir;
     sim.pendingKeys = [];
     return sim.chipCanTakeInput();
+  }
+
+  /** Whether a key press is taken at all: not while paused, dead or finished. */
+  private canPress(sim: Simulation): boolean {
+    return !this.paused && sim.world.chipState.alive && !sim.world.complete;
   }
 
   public holdPlayerDirection(dir: Direction | null): void {
@@ -197,9 +200,10 @@ export class LynxEngine implements PlayEngine {
   /** A press of one or two keys: the first is the pending press; two orthogonal keys are offered to the rule modules too. */
   public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     if (dirs.length === 0) return false;
+    const taken = this.sim !== null && this.canPress(this.sim);
     const accepted = this.attemptPlayerMove(dirs[0]);
-    // Only the press just made carries the pair (a press refused by a paused or finished game leaves `pending` as it was).
-    if (this.sim && this.sim.pending === dirs[0]) this.sim.pendingKeys = orthogonalPair(dirs);
+    // Only a press that was taken carries the pair (a press refused by a paused, dead or finished game stores nothing).
+    if (this.sim && taken) this.sim.pendingKeys = orthogonalPair(dirs);
     return accepted;
   }
 

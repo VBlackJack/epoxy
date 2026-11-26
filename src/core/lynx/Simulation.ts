@@ -65,6 +65,8 @@ type StepAnalysis =
   | { allowed: true; block: Creature | null }
   | { allowed: false; pushRefusedBy: Creature | null };
 
+/** Two keys make a pair; three or more are no pair. */
+export const HELD_PAIR_SIZE = 2;
 const REFUSED: StepAnalysis = { allowed: false, pushRefusedBy: null };
 const ALLOWED: StepAnalysis = { allowed: true, block: null };
 
@@ -329,13 +331,14 @@ export class Simulation implements RuleContext {
     if (!this.chipOnBoard()) return;
     if (chipState.stuck) {
       this.pending = null;
+      this.pendingKeys = [];
       return;
     }
     if (chip.remaining > 0) return;
     const forced = this.takeForcedMove(chip);
     const mayChoose = forced === null || forced.chipMayChoose;
-    const pair = this.pendingKeys.length === 2 ? this.pendingKeys : this.pending === null ? this.heldKeys : [];
-    const decision = mayChoose && pair.length === 2 ? this.resolveHeldKeys(pair) : null;
+    const pair = this.pendingKeys.length === HELD_PAIR_SIZE ? this.pendingKeys : this.pending === null ? this.heldKeys : [];
+    const decision = mayChoose && pair.length === HELD_PAIR_SIZE ? this.resolveHeldKeys(pair) : null;
     const wanted = decision?.dir ?? this.pending ?? this.held;
     if (wanted !== null && mayChoose) {
       const dir = wanted;

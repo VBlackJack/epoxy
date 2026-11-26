@@ -25,7 +25,7 @@ import { heldKeyRules } from './rules/heldKeys';
 export const CCLP_RULE_MODULES: readonly RuleModule[] = [heldKeyRules];
 
 /**
- * The rules of the bundled CCLP1, 3, 4 and 5 packs (levels with ruleset 'lynx' and rulesProfile 'cclp'): the frozen Lynx
+ * The rules of every non-official CC1 .DAT, bundled or imported (the CCLP packs among them; levels with ruleset 'lynx' and rulesProfile 'cclp'): the frozen Lynx
  * engine with the CCLP modules added through its constructor, as Cc2Engine does. Nothing of the Lynx folder is changed here.
  */
 export class CclpEngine extends LynxEngine {

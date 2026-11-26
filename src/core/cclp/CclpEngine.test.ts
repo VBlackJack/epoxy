@@ -107,6 +107,14 @@ describe('CclpEngine: two held keys', () => {
     expect([engine.getPlayer().x, engine.getPlayer().y, engine.getPlayer().dir]).toEqual([2, 2, 'S']);
     expect(engine.getEntities().map((e) => `${e.x},${e.y}`)).toEqual(['2,4']);
     expect(engine.getTerrain()[3][2]).toBe('wall');
+    // Rule off: the plain Lynx engine takes the first key and walks east.
+    const plain = new LynxEngine(SILENT);
+    plain.loadLevel(level);
+    for (let i = 0; i < STEP_TICKS; i++) {
+      plain.holdPlayerDirections(i === 0 ? ['E', 'S'] : []);
+      plain.tick();
+    }
+    expect([plain.getPlayer().x, plain.getPlayer().y, plain.getPlayer().dir]).toEqual([3, 2, 'E']);
   });
 
   it('slaps an unmovable block: it turns, Chip takes the other key', () => {
@@ -158,6 +166,17 @@ describe('CclpEngine: two held keys', () => {
     // The pair is pressed while Chip is still walking west: it waits for his next decision.
     engine.attemptPlayerMoveHeld(['E', 'S']);
     expect(engine.undo()).toBe(true);
+    for (let i = 0; i < STEP_TICKS; i++) engine.tick();
+    expect([engine.getPlayer().x, engine.getPlayer().y]).toEqual([2, 2]);
+    expect(engine.getEntities().map((e) => `${e.x},${e.y}`)).toEqual(['3,2']);
+  });
+
+  it('stores no pair from a press refused while paused', () => {
+    const engine = new CclpEngine(SILENT);
+    engine.loadLevel(lynxLevel(SLAP_ROOM));
+    engine.setPaused(true);
+    expect(engine.attemptPlayerMoveHeld(['E', 'S'])).toBe(false);
+    engine.setPaused(false);
     for (let i = 0; i < STEP_TICKS; i++) engine.tick();
     expect([engine.getPlayer().x, engine.getPlayer().y]).toEqual([2, 2]);
     expect(engine.getEntities().map((e) => `${e.x},${e.y}`)).toEqual(['3,2']);

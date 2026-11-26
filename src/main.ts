@@ -1735,7 +1735,6 @@ class EpoxyApplication {
     this.engine.holdPlayerDirection?.(single);
   }
 
-
   /** Starts a held move from any input source (keys, d-pad, swipe). */
   private beginHeldMove(dir: Direction, fromKeyboard = false): void {
     this.clearAutoMove();

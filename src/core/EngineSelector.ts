@@ -70,7 +70,7 @@ export class EngineSelector {
   private engineFor(ruleset: CompiledLevel['ruleset'], profile: CompiledLevel['rulesProfile']): PlayEngine {
     switch (ruleset) {
       case 'lynx':
-        // The bundled CCLP packs (and imports of the same files) play the Lynx engine with the CCLP modules.
+        // Every non-official CC1 .DAT (bundled or imported) plays the Lynx engine with the CCLP modules.
         return profile === 'cclp' ? this.cclpEngine() : this.lynxEngine();
       case 'cc3d':
         return this.cc3dEngine();

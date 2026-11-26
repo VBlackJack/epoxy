@@ -1963,7 +1963,7 @@ export interface BlockBudget {
 
 /** The rules flavor of an Epoxy level: 'cc' plays with the classic Chip's Challenge timing rules. */
 export type RulesFlavor = 'cc';
-/** A rule profile of the Lynx ruleset: 'cclp' plays the Lynx rules the bundled CCLP1, 3, 4 and 5 were recorded under. */
+/** A rule profile of the Lynx ruleset: 'cclp' plays the Lynx rules every non-official CC1 .DAT (bundled or imported) is played under. */
 export type RulesProfile = 'cclp';
 
 export interface LevelBlueprint {
@@ -1990,7 +1990,7 @@ export interface LevelBlueprint {
    * A level that carries `cc2` plays with these rules too (see usesCcRules).
    */
   rulesFlavor?: RulesFlavor;
-  /** With ruleset 'lynx': the rule profile of the bundled CCLP packs (see CompiledLevel.rulesProfile). */
+  /** With ruleset 'lynx': the rule profile of every non-official CC1 .DAT (see CompiledLevel.rulesProfile). */
   rulesProfile?: RulesProfile;
   number: number;
   titleKey?: string;
@@ -2359,7 +2359,7 @@ export interface CompiledLevel {
    * A level that carries `cc2` plays with these rules too (see usesCcRules).
    */
   rulesFlavor?: RulesFlavor;
-  /** With ruleset 'lynx': the rule profile of the bundled CCLP packs, played by the CCLP engine (see EngineSelector). Absent elsewhere. */
+  /** With ruleset 'lynx': the rule profile of every non-official CC1 .DAT, played by the CCLP engine (see EngineSelector). Absent elsewhere. */
   rulesProfile?: RulesProfile;
   /**
    * The CC3D level an Epoxy level was converted from at import, kept so it can be converted again when the converter improves.
