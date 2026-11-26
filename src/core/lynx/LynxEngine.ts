@@ -64,6 +64,19 @@ const NO_PLAYER: PlayerState = {
   boots: new Set<string>()
 };
 
+/** The order two held keys are offered to the rule modules in (Lexy reads its input bits north, east, south, west). */
+const HELD_KEY_ORDER: readonly Direction[] = ['N', 'E', 'S', 'W'];
+const VERTICAL_KEYS: readonly Direction[] = ['N', 'S'];
+/** Two keys make a pair; three or more are no pair. */
+const HELD_PAIR_SIZE = 2;
+
+/** Two keys on different axes, in HELD_KEY_ORDER; empty for anything else (one key, an opposing pair, three keys). */
+function orthogonalPair(dirs: readonly Direction[]): Direction[] {
+  const keys = HELD_KEY_ORDER.filter((d) => dirs.includes(d));
+  if (keys.length !== HELD_PAIR_SIZE) return [];
+  return keys.filter((d) => VERTICAL_KEYS.includes(d)).length === 1 ? keys : [];
+}
+
 /**
  * The Lynx rules for Epoxy (spec: local/clean/lynx-rules-spec.md). This class
  * is the contract with the page: scores, undo, pause, histories and the views.
@@ -161,11 +174,33 @@ export class LynxEngine implements PlayEngine {
     const sim = this.sim;
     if (!sim || this.paused || !sim.world.chipState.alive || sim.world.complete) return false;
     sim.pending = dir;
+    sim.pendingKeys = [];
     return sim.chipCanTakeInput();
   }
 
   public holdPlayerDirection(dir: Direction | null): void {
-    if (this.sim) this.sim.held = dir;
+    if (!this.sim) return;
+    this.sim.held = dir;
+    this.sim.heldKeys = [];
+  }
+
+  /**
+   * The keys held down right now, most recent first. The first one is the held direction, as holdPlayerDirection gives it;
+   * two orthogonal keys are also offered to the rule modules (resolveHeldKeys), which the Lynx modules leave alone.
+   */
+  public holdPlayerDirections(dirs: readonly Direction[]): void {
+    if (!this.sim) return;
+    this.sim.held = dirs[0] ?? null;
+    this.sim.heldKeys = orthogonalPair(dirs);
+  }
+
+  /** A press of one or two keys: the first is the pending press; two orthogonal keys are offered to the rule modules too. */
+  public attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
+    if (dirs.length === 0) return false;
+    const accepted = this.attemptPlayerMove(dirs[0]);
+    // Only the press just made carries the pair (a press refused by a paused or finished game leaves `pending` as it was).
+    if (this.sim && this.sim.pending === dirs[0]) this.sim.pendingKeys = orthogonalPair(dirs);
+    return accepted;
   }
 
   public dropItem(_itemId: string | null): boolean {

@@ -43,7 +43,7 @@ import {
   isRemains
 } from './model';
 import { RuleBook } from './ruleBook';
-import { MonsterRule, RuleContext, RuleModule, StepOutcome, StepProbe, TileRule } from './ruleApi';
+import { HeldKeysDecision, MonsterRule, RuleContext, RuleModule, StepOutcome, StepProbe, TileRule } from './ruleApi';
 import { newCreature } from './worldBuilder';
 
 /** Where the simulation sends what the player sees and hears. */
@@ -87,6 +87,10 @@ export class Simulation implements RuleContext {
   public pending: Direction | null = null;
   /** The direction the player holds down right now; Chip reads it only at a moment he can decide. */
   public held: Direction | null = null;
+  /** Two orthogonal keys held down right now (empty otherwise); only a module's resolveHeldKeys reads them. */
+  public heldKeys: Direction[] = [];
+  /** Two orthogonal keys pressed together and not taken yet (empty otherwise); `pending` holds the first of them. */
+  public pendingKeys: Direction[] = [];
   public readonly moves: Direction[] = [];
   public readonly timedMoves: TimedMove[] = [];
   public report: TickReport = { chipTookInput: false, chipStartedStep: false };
@@ -231,6 +235,7 @@ export class Simulation implements RuleContext {
   public restore(world: World): void {
     this.world = world;
     this.pending = null;
+    this.pendingKeys = [];
   }
 
   // ------------------------------------------------------------------ tick
@@ -328,19 +333,49 @@ export class Simulation implements RuleContext {
     }
     if (chip.remaining > 0) return;
     const forced = this.takeForcedMove(chip);
-    const wanted = this.pending ?? this.held;
-    if (wanted !== null && (forced === null || forced.chipMayChoose)) {
+    const mayChoose = forced === null || forced.chipMayChoose;
+    const pair = this.pendingKeys.length === 2 ? this.pendingKeys : this.pending === null ? this.heldKeys : [];
+    const decision = mayChoose && pair.length === 2 ? this.resolveHeldKeys(pair) : null;
+    const wanted = decision?.dir ?? this.pending ?? this.held;
+    if (wanted !== null && mayChoose) {
       const dir = wanted;
       this.pending = null;
+      this.pendingKeys = [];
       this.moves.push(dir);
-      this.timedMoves.push({ tick, dir });
+      this.timedMoves.push(decision?.slap ? { tick, dir, alt: decision.slap } : { tick, dir });
       this.report.chipTookInput = true;
       chip.plan = { dir, intent: 'chosen' };
       this.world.chipTarget = neighbour(chip, dir);
       this.preparePush(dir);
+      if (decision?.slap) this.slapPush(decision.slap);
     } else if (forced) {
       chip.plan = { dir: forced.dir, intent: forced.intent };
     }
+  }
+
+  /** The first module that resolves two held keys; null when none does (the single held direction decides). */
+  private resolveHeldKeys(keys: readonly Direction[]): HeldKeysDecision | null {
+    const resolvers = this.book.modules.filter((module) => module.resolveHeldKeys !== undefined);
+    if (resolvers.length === 0) return null;
+    const { chip } = this.world;
+    // Each key is probed as Chip's own decision probes it (preparePush): a block he would push counts as open.
+    const open = keys.map((dir) => this.analyze(chip, chip, dir, 'chosen', 'test', true).allowed);
+    for (const module of resolvers) {
+      const decision = module.resolveHeldKeys?.(this, chip, keys, open);
+      if (decision) return decision;
+    }
+    return null;
+  }
+
+  /** Chip's decision also pushes the block on the side of his other key: it moves in its own turn, he does not turn. */
+  private slapPush(dir: Direction): void {
+    const { chip } = this.world;
+    const target = this.world.chipTarget;
+    const facing = chip.dir;
+    this.world.chipTarget = neighbour(chip, dir);
+    this.preparePush(dir);
+    this.world.chipTarget = target;
+    chip.dir = facing;
   }
 
   /** Chip chose a direction that points at a block: the block moves first, in its own turn. */

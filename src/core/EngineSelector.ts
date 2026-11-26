@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { CclpEngine } from './cclp/CclpEngine';
 import { Cc3dEngine } from './cc3d/Cc3dEngine';
 import { GameEngine } from './GameEngine';
 import { LynxEngine } from './lynx/LynxEngine';
@@ -29,6 +30,7 @@ import { CompiledLevel } from './types';
 export class EngineSelector {
   private readonly epoxy = new GameEngine();
   private lynx: LynxEngine | null = null;
+  private cclp: CclpEngine | null = null;
   private cc3d: Cc3dEngine | null = null;
   private active: PlayEngine = this.epoxy;
   private winCallback: WinCallback | null = null;
@@ -43,6 +45,7 @@ export class EngineSelector {
     this.winCallback = cb;
     this.epoxy.setOnWinCallback(cb);
     this.lynx?.setOnWinCallback(cb);
+    this.cclp?.setOnWinCallback(cb);
     this.cc3d?.setOnWinCallback(cb);
   }
 
@@ -50,12 +53,13 @@ export class EngineSelector {
     this.visualCallback = cb;
     this.epoxy.setOnVisualEventCallback(cb);
     this.lynx?.setOnVisualEventCallback(cb);
+    this.cclp?.setOnVisualEventCallback(cb);
     this.cc3d?.setOnVisualEventCallback(cb);
   }
 
   /** The engine that plays the level; it becomes the current one. */
-  public forLevel(level: Pick<CompiledLevel, 'ruleset'>): PlayEngine {
-    const next = this.engineFor(level.ruleset);
+  public forLevel(level: Pick<CompiledLevel, 'ruleset' | 'rulesProfile'>): PlayEngine {
+    const next = this.engineFor(level.ruleset, level.rulesProfile);
     if (next !== this.active) {
       next.carryTotalScore(this.active.getTotalScore());
       this.active = next;
@@ -63,10 +67,11 @@ export class EngineSelector {
     return next;
   }
 
-  private engineFor(ruleset: CompiledLevel['ruleset']): PlayEngine {
+  private engineFor(ruleset: CompiledLevel['ruleset'], profile: CompiledLevel['rulesProfile']): PlayEngine {
     switch (ruleset) {
       case 'lynx':
-        return this.lynxEngine();
+        // The bundled CCLP packs (and imports of the same files) play the Lynx engine with the CCLP modules.
+        return profile === 'cclp' ? this.cclpEngine() : this.lynxEngine();
       case 'cc3d':
         return this.cc3dEngine();
       case 'epoxy':
@@ -86,6 +91,15 @@ export class EngineSelector {
       if (this.visualCallback) this.cc3d.setOnVisualEventCallback(this.visualCallback);
     }
     return this.cc3d;
+  }
+
+  private cclpEngine(): CclpEngine {
+    if (this.cclp === null) {
+      this.cclp = new CclpEngine();
+      if (this.winCallback) this.cclp.setOnWinCallback(this.winCallback);
+      if (this.visualCallback) this.cclp.setOnVisualEventCallback(this.visualCallback);
+    }
+    return this.cclp;
   }
 
   private lynxEngine(): LynxEngine {
