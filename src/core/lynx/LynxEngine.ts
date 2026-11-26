@@ -176,6 +176,11 @@ export class LynxEngine implements PlayEngine {
     return sim.chipCanTakeInput();
   }
 
+  /** Whether Chip would take a direction at his next decision. Reads only. */
+  public canChipTakeInput(): boolean {
+    return this.sim?.chipCanTakeInput() ?? false;
+  }
+
   /** Whether a key press is taken at all: not while paused, dead or finished. */
   private canPress(sim: Simulation): boolean {
     return !this.paused && sim.world.chipState.alive && !sim.world.complete;

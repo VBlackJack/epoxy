@@ -38,16 +38,6 @@ export class CclpEngine extends LynxEngine {
     super.holdPlayerDirections(cancelsDirections(dirs) ? [] : dirs);
   }
 
-  /**
-   * Whether Chip would take a direction at his next decision. False while a step is under way, while a forced move he may not
-   * override carries him (a teleport exit), and when he is stuck or off the board. Reads only: a press that is refused here
-   * would otherwise stay stored and be played later.
-   */
-  public canChipTakeInput(): boolean {
-    const sim = (this as unknown as { sim: { chipCanTakeInput(): boolean } | null }).sim;
-    return sim?.chipCanTakeInput() ?? false;
-  }
-
   /** A press of an opposing pair or of three keys or more is no move. */
   public override attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     return cancelsDirections(dirs) ? false : super.attemptPlayerMoveHeld(dirs);

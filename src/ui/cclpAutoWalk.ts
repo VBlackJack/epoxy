@@ -15,7 +15,11 @@
  */
 
 import { DIRECTION_VECTORS } from '../config/constants';
+import { CclpEngine } from '../core/cclp/CclpEngine';
+import { cclpPathView } from '../core/cclp/cclpPathView';
+import { GameEngine } from '../core/GameEngine';
 import { PathEngine, Pathfinder } from '../core/Pathfinder';
+import { PlayEngine } from '../core/PlayEngine';
 import { Direction, GridPoint, PlayerState } from '../core/types';
 
 /**
@@ -75,4 +79,15 @@ export function endWalkStep(engine: Pick<WalkEngine, 'getPlayer'>, start: WalkSt
   const player = engine.getPlayer();
   if (player.x === start.target.x && player.y === start.target.y) return 'advanced';
   return canMove(player) ? 'stopped' : 'waiting';
+}
+
+/** The running level as the path and objective searches read it: the Epoxy engine itself, the CCLP view, null for any other engine. */
+export function pathEngineOf(engine: PlayEngine): PathEngine | null {
+  if (engine instanceof CclpEngine) return cclpPathView(engine);
+  return engine instanceof GameEngine ? engine : null;
+}
+
+/** Whether a pad direction takes the move from a tapped path: on the CCLP engine only, where the walk is ours. */
+export function padCancelsWalk(engine: PlayEngine, direction: Direction | null): boolean {
+  return direction !== null && engine instanceof CclpEngine;
 }

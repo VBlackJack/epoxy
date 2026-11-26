@@ -22,11 +22,12 @@ vi.mock('../audio/AudioManager', () => ({
 
 import { CclpEngine } from '../core/cclp/CclpEngine';
 import { cclpPathView } from '../core/cclp/cclpPathView';
+import { LynxEngine } from '../core/lynx/LynxEngine';
 import { lynxLevel } from '../core/lynx/lynxTestMaps';
 import { Pathfinder } from '../core/Pathfinder';
 import { Direction, GridPoint, PlayerState } from '../core/types';
 import { loadTestConfigs } from '../test/loadTestConfigs';
-import { endWalkStep, startWalkStep, WalkEngine, WalkPlan } from './cclpAutoWalk';
+import { endWalkStep, padCancelsWalk, pathEngineOf, startWalkStep, WalkEngine, WalkPlan } from './cclpAutoWalk';
 
 beforeAll(() => {
   loadTestConfigs();
@@ -179,9 +180,28 @@ describe('endWalkStep', () => {
     expect(endWalkStep(fakeEngine(chipAt(1, 1)), { kind: 'idle' })).toBe('waiting');
   });
 
-  it('with the autoStepTarget missing (no press sent), the tick changes nothing and the plan is kept', () => {
+  it('when no press was sent this tick, the walk waits and keeps the plan', () => {
     expect(endWalkStep(fakeEngine(chipAt(2, 1)), { kind: 'idle' })).toBe('waiting');
     expect(endWalkStep(fakeEngine(chipAt(2, 1)), { kind: 'stop' })).toBe('waiting');
+  });
+});
+
+describe('pad and engine seams', () => {
+  it('a pad direction cancels the walk on the CCLP engine only', () => {
+    const cclp = new CclpEngine(SILENT);
+    const plain = new LynxEngine(SILENT);
+    expect(padCancelsWalk(cclp, 'E')).toBe(true);
+    expect(padCancelsWalk(cclp, null)).toBe(false);
+    expect(padCancelsWalk(plain, 'E')).toBe(false);
+  });
+
+  it('a plain Lynx engine has no path engine, so its aids stay off; the CCLP engine has one', () => {
+    const plain = new LynxEngine(SILENT);
+    plain.loadLevel(lynxLevel(OPEN_ROW));
+    expect(pathEngineOf(plain)).toBeNull();
+    const cclp = new CclpEngine(SILENT);
+    cclp.loadLevel(cclpLevel(OPEN_ROW));
+    expect(pathEngineOf(cclp)).not.toBeNull();
   });
 });
 
@@ -211,9 +231,8 @@ describe('the walk on the CCLP engine', () => {
     const plan = Pathfinder.findPath(view, 5, 1);
     run(engine, plan, 2);
     settle(engine);
-    const player = engine.getPlayer();
-    expect(player.x).toBeLessThan(5);
-    expect(engine.getTimedMoveHistory().length).toBe(player.x - 1);
+    expect(engine.getPlayer()).toMatchObject({ x: 2, y: 1 });
+    expect(engine.getTimedMoveHistory().length).toBe(1);
   });
 
   it('a pause stops the walk, and the plan from before it is not resumed after it', () => {
@@ -235,7 +254,7 @@ describe('the walk on the CCLP engine', () => {
     const plan = Pathfinder.findPath(view, 5, 1);
     expect(startWalkStep(plan, engine, view).kind).toBe('sent');
     engine.tick();
-    expect(engine.getPlayer().moveCooldown).toBeGreaterThan(0);
+    expect(engine.getPlayer().moveCooldown).toBe(3);
     expect(engine.canChipTakeInput()).toBe(false);
   });
 

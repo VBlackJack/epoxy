@@ -121,11 +121,11 @@ describe('CCLP aids, batch 1', () => {
     const level = cclpLevel(DETOUR);
     const engine = new CclpEngine(SILENT);
     engine.loadLevel(level);
-    const chipsBefore = engine.getChipsRemaining();
+    expect(engine.getChipsRemaining()).toBe(0);
     const path = Pathfinder.findPath(cclpPathView(engine), 7, 1);
     expect(walk(engine, path.moves, path.points)).toEqual({ arrived: true, steps: 10 });
     expect(engine.getPlayer()).toMatchObject({ x: 7, y: 1 });
-    expect(engine.getChipsRemaining()).toBe(Math.max(0, chipsBefore - 1));
+    expect(engine.getChipsRemaining()).toBe(0);
     const moves = engine.getTimedMoveHistory();
     expect(moves.map((m) => m.dir)).toEqual(DETOUR_MOVES);
 
@@ -164,7 +164,7 @@ describe('CCLP aids, batch 1', () => {
     Pathfinder.findNextObjective(view);
     Pathfinder.findPath(view, 7, 1);
     Pathfinder.isNextStepSafe(view, 'E', true);
-    expect(engine.canChipTakeInput()).toBeTypeOf('boolean');
+    expect(engine.canChipTakeInput()).toBe(false);
     expect(structuredClone(worldOf(engine))).toEqual(before);
   });
 

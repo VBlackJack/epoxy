@@ -24,7 +24,7 @@ import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { CclpEngine } from './core/cclp/CclpEngine';
 import { cclpPathView } from './core/cclp/cclpPathView';
-import { endWalkStep, startWalkStep, WalkStart } from './ui/cclpAutoWalk';
+import { endWalkStep, padCancelsWalk, pathEngineOf, startWalkStep, WalkStart } from './ui/cclpAutoWalk';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
 import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, DYNAMITE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
@@ -1939,8 +1939,8 @@ class EpoxyApplication {
    * sent the direction every tick, as it always was.
    */
   private steerWithGamepad(direction: Direction | null): void {
-    // A pad direction takes the move from a tapped path, as a key does.
-    if (direction !== null) this.clearAutoMove();
+    // A pad direction takes the move from a tapped CCLP path, as a key does; the other engines keep their behaviour.
+    if (padCancelsWalk(this.engine, direction)) this.clearAutoMove();
     if (this.engine.holdPlayerDirection) {
       // Keys held on the keyboard own the cadence: the pad does not take the move from them.
       if (direction !== null && direction !== this.gamepadDirection && this.heldKeys.current() === null) this.engine.attemptPlayerMove(direction);
@@ -2236,8 +2236,7 @@ class EpoxyApplication {
 
   /** The running level as the path and objective searches read it: the Epoxy engine itself or the CCLP view; null otherwise. */
   private pathEngine(): PathEngine | null {
-    const cclp = this.cclpEngine();
-    return cclp ? cclpPathView(cclp) : this.epoxyEngine();
+    return pathEngineOf(this.engine);
   }
 
   /** Next goal to show, when the level's ruleset has the objective marker. */
