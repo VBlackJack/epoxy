@@ -28,10 +28,29 @@ import {
   THIEF_PAYMENT_ITEM_IDS
 } from './coreConstants';
 import { cellEdgeMask, isEdgeBlockedAt } from './EdgeRules';
-import { GameEngine } from './GameEngine';
 import { entityPressesPlate } from './epoxy/epoxyWorld';
 import { hiddenUnder, isRemovableTop, underlayMap } from './Underlays';
-import { ChannelColor, Direction, GridPoint, TileDefinition } from './types';
+import { BeamCell, ChannelColor, CompiledLevel, Direction, GridPoint, PlayerCharacter, PlayerState, RuntimeEntity, TileDefinition } from './types';
+
+/**
+ * What the path search and the objective search read from a running level. The Epoxy engine has all of it; another
+ * engine is read through a view that answers for the mechanisms its rules do not have (no beams, no tracks, one character).
+ */
+export interface PathEngine {
+  getLevel(): CompiledLevel;
+  getTerrain(): string[][];
+  getItems(): (string | null)[][];
+  getEntities(): RuntimeEntity[];
+  getPlayer(): PlayerState;
+  getBeamCells(): readonly BeamCell[];
+  isCellClosedTrap(x: number, y: number): boolean;
+  getChipsRemaining(): number;
+  holdsItem(itemId: string): boolean;
+  getPlayerCharacter(): PlayerCharacter;
+  getRailState(): readonly (readonly [number, number, Direction])[] | undefined;
+  getRevealedTerrain?(x: number, y: number): string | undefined;
+  canPlayerStepOn(tile: TileDefinition, itemId?: string | null): boolean;
+}
 
 /** Step cost of a plain cell. */
 const BASE_STEP_COST = 1;
@@ -114,7 +133,7 @@ export class Pathfinder {
    * stay open without the walker. False for a colour with no visible plate, a plate hidden under a removable top,
    * or a level with signal wiring.
    */
-  private static colorHeldByBlocks(engine: GameEngine, color: ChannelColor): boolean {
+  private static colorHeldByBlocks(engine: PathEngine, color: ChannelColor): boolean {
     const level = engine.getLevel();
     const terrain = engine.getTerrain();
     if ((level.signalLinks?.length ?? 0) > 0) return false;
@@ -139,7 +158,7 @@ export class Pathfinder {
    * no channel button unless the cell ends the walk, and a hold door only while resting blocks hold it open. The
    * auto-move re-checks each step with it, since a plate crossed on the way can open a door that shielded a beam.
    */
-  public static isStepSafe(engine: GameEngine, x: number, y: number, isFinal: boolean): boolean {
+  public static isStepSafe(engine: PathEngine, x: number, y: number, isFinal: boolean): boolean {
     const terrain = engine.getTerrain();
     if (y < 0 || y >= terrain.length || x < 0 || x >= (terrain[y]?.length ?? 0)) return false;
     if (engine.getBeamCells().some((cell) => cell.x === x && cell.y === y)) return false;
@@ -154,7 +173,7 @@ export class Pathfinder {
   }
 
   /** Whether the next auto-move step, one cell towards `dir`, is still safe; `isFinal` marks the last step of the walk. */
-  public static isNextStepSafe(engine: GameEngine, dir: Direction, isFinal: boolean): boolean {
+  public static isNextStepSafe(engine: PathEngine, dir: Direction, isFinal: boolean): boolean {
     const player = engine.getPlayer();
     const vec = DIRECTION_VECTORS[dir];
     return Pathfinder.isStepSafe(engine, player.x + vec.dx, player.y + vec.dy, isFinal);
@@ -168,7 +187,7 @@ export class Pathfinder {
    * of the keys the player actually holds.
    */
   public static findPath(
-    engine: GameEngine,
+    engine: PathEngine,
     targetX: number,
     targetY: number
   ): { moves: Direction[]; points: GridPoint[] } {
@@ -433,7 +452,7 @@ export class Pathfinder {
    * Locates the most relevant next objective (key, boot, unlockable door, button, chip, or exit)
    * currently reachable by the player.
    */
-  public static findNextObjective(engine: GameEngine): GridPoint | null {
+  public static findNextObjective(engine: PathEngine): GridPoint | null {
     const player = engine.getPlayer();
     const terrain = engine.getTerrain();
     const items = engine.getItems();

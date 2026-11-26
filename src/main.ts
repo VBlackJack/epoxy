@@ -22,6 +22,9 @@ import { decodeImportedDat } from './packs/datProfiles';
 import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
+import { CclpEngine } from './core/cclp/CclpEngine';
+import { cclpPathView } from './core/cclp/cclpPathView';
+import { endWalkStep, startWalkStep, WalkStart } from './ui/cclpAutoWalk';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
 import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, DYNAMITE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
@@ -50,7 +53,7 @@ import {
   groupLevelsByChapter,
   renderChapterView
 } from './ui/campaignChapters';
-import { Pathfinder } from './core/Pathfinder';
+import { PathEngine, Pathfinder } from './core/Pathfinder';
 import { ProceduralGenerator } from './core/ProceduralGenerator';
 import {
   CompiledLevel,
@@ -800,6 +803,8 @@ class EpoxyApplication {
     this.holdDirectionsForTick();
     // CC2 actor order: a click-to-move step is stored by the input and played by the tick, so its outcome is read after the tick.
     let autoStepStored = false;
+    // CCLP engine: the step sent this tick, checked after the tick (Lynx takes a press it cannot play).
+    let cclpStart: WalkStart = { kind: 'idle' };
     if (this.isReplaying) {
       this.advanceReplay();
     } else if (this.heldDirection) {
@@ -807,23 +812,30 @@ class EpoxyApplication {
       // An engine without holds is told again every tick, as it always was.
       if (!this.engine.holdPlayerDirection) this.sendHeldMove(this.heldDirection, true);
     } else if (this.autoMoveQueue.length > 0) {
-      const nextDir = this.autoMoveQueue[0];
-      // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
-      const epoxy = this.epoxyEngine();
-      // A CC2 step that just ended has its effects pending until the next tick: the safety check must see them.
-      epoxy?.flushPendingStepEnd();
-      const stepSafe = epoxy && !epoxy.getPlayer().isSliding && epoxy.getPlayer().moveCooldown === 0
-        ? Pathfinder.isNextStepSafe(epoxy, nextDir, this.autoMoveQueue.length === 1)
-        : true;
-      if (!stepSafe) {
-        this.clearAutoMove();
-      }
-      const accepted = stepSafe && this.engine.attemptPlayerMove(nextDir);
-      autoStepStored = accepted && epoxy?.playsInActorOrder() === true;
-      if (accepted && !autoStepStored) {
-        this.advanceAutoMove();
-      } else if (!accepted && !this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
-        this.clearAutoMove();
+      const cclp = this.cclpEngine();
+      if (cclp) {
+        cclpStart = startWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, cclp, cclpPathView(cclp));
+        if (cclpStart.kind === 'stop') this.clearAutoMove();
+      } else {
+        const nextDir = this.autoMoveQueue[0];
+        // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
+        const epoxy = this.epoxyEngine();
+        // A CC2 step that just ended has its effects pending until the next tick: the safety check must see them.
+        epoxy?.flushPendingStepEnd();
+        const walker = this.engine.getPlayer();
+        const stepSafe = epoxy && !walker.isSliding && walker.moveCooldown === 0
+          ? Pathfinder.isNextStepSafe(epoxy, nextDir, this.autoMoveQueue.length === 1)
+          : true;
+        if (!stepSafe) {
+          this.clearAutoMove();
+        }
+        const accepted = stepSafe && this.engine.attemptPlayerMove(nextDir);
+        autoStepStored = accepted && epoxy?.playsInActorOrder() === true;
+        if (accepted && !autoStepStored) {
+          this.advanceAutoMove();
+        } else if (!accepted && !this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
+          this.clearAutoMove();
+        }
       }
     }
     this.engine.tick();
@@ -834,6 +846,11 @@ class EpoxyApplication {
       } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
         this.clearAutoMove();
       }
+    }
+    if (cclpStart.kind === 'sent') {
+      const end = endWalkStep(this.engine, cclpStart);
+      if (end === 'advanced') this.advanceAutoMove();
+      else if (end === 'stopped') this.clearAutoMove();
     }
     // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
     this.epoxyEngine()?.flushPendingStepEnd();
@@ -1790,7 +1807,7 @@ class EpoxyApplication {
       this.renderer.setHoveredGridPoint(gridPt);
       this.updateInspectBadge(gridPt);
     }
-    const engine = this.epoxyEngine();
+    const engine = this.pathEngine();
     if (!engine || !featuresFor(engine.getLevel()).tapToPath) return;
     const result = Pathfinder.findPath(engine, gridPt.x, gridPt.y);
     this.autoMoveQueue = result.moves;
@@ -1922,6 +1939,8 @@ class EpoxyApplication {
    * sent the direction every tick, as it always was.
    */
   private steerWithGamepad(direction: Direction | null): void {
+    // A pad direction takes the move from a tapped path, as a key does.
+    if (direction !== null) this.clearAutoMove();
     if (this.engine.holdPlayerDirection) {
       // Keys held on the keyboard own the cadence: the pad does not take the move from them.
       if (direction !== null && direction !== this.gamepadDirection && this.heldKeys.current() === null) this.engine.attemptPlayerMove(direction);
@@ -2211,9 +2230,19 @@ class EpoxyApplication {
     return this.engine instanceof GameEngine ? this.engine : null;
   }
 
+  private cclpEngine(): CclpEngine | null {
+    return this.engine instanceof CclpEngine ? this.engine : null;
+  }
+
+  /** The running level as the path and objective searches read it: the Epoxy engine itself or the CCLP view; null otherwise. */
+  private pathEngine(): PathEngine | null {
+    const cclp = this.cclpEngine();
+    return cclp ? cclpPathView(cclp) : this.epoxyEngine();
+  }
+
   /** Next goal to show, when the level's ruleset has the objective marker. */
   private nextObjective(): GridPoint | null {
-    const engine = this.epoxyEngine();
+    const engine = this.pathEngine();
     if (!engine || !featuresFor(engine.getLevel()).objectiveMarker) return null;
     return Pathfinder.findNextObjective(engine);
   }

@@ -65,6 +65,12 @@ const LYNX_FEATURES: RulesetFeatures = {
   turnInPlace: false
 };
 
+/**
+ * The CCLP engine (every non-official CC1 .DAT): the aids that only read the board and send ordinary key presses, a tapped
+ * path and the objective marker. The block searches model Epoxy goals, no solution is stored and Lynx has no drop or turn.
+ */
+const CCLP_FEATURES: RulesetFeatures = { ...LYNX_FEATURES, tapToPath: true, objectiveMarker: true };
+
 /** CC3D levels are played by their own engine: no Epoxy play aid applies, only the high score replay. */
 const CC3D_FEATURES: RulesetFeatures = {
   tapToPath: false,
@@ -568,7 +574,7 @@ const TURRET_RECEIVER_COLOR_LEVEL_FEATURES: RulesetFeatures = { ...RECEIVER_COLO
 
 /** The parts of a level that decide its aids; a level without a grid only gets the ruleset's aids. */
 type FeatureLevel = Pick<CompiledLevel, 'ruleset'> &
-  Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2'>>;
+  Partial<Pick<CompiledLevel, 'id' | 'cc3dSource' | 'terrain' | 'items' | 'entities' | 'winRule' | 'cloneLinks' | 'underlays' | 'signalLinks' | 'rulesFlavor' | 'cc2' | 'rulesProfile'>>;
 
 /** Laser and colour content never change on a compiled level, so the answers are kept per level object. */
 const laserContentCache = new WeakMap<object, boolean>();
@@ -794,7 +800,7 @@ function baseFeaturesFor(level: FeatureLevel | undefined): RulesetFeatures {
   if (!level) return EPOXY_FEATURES;
   switch (level.ruleset) {
     case 'lynx':
-      return LYNX_FEATURES;
+      return level.rulesProfile === 'cclp' ? CCLP_FEATURES : LYNX_FEATURES;
     case 'cc3d':
       return CC3D_FEATURES;
     case 'epoxy':
