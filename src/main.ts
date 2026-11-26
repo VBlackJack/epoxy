@@ -2922,7 +2922,9 @@ class EpoxyApplication {
     } catch {
       // Storage unavailable: a kept pack may be told again next start
     }
-    const notice = storedPackNotice(ConfigRegistry.takeCc3dMigrationReport(), ConfigRegistry.takeCclpMoveReport(), told, t);
+    // The kept line waits for a free HUD: under a dialog, or just before one opens, it would be missed yet marked told.
+    const busy = isDialogOpen() || this.parkedShareHash !== '' || this.onboardingShownThisSession || this.isTutorialNoticeDue();
+    const notice = storedPackNotice(ConfigRegistry.takeCc3dMigrationReport(), ConfigRegistry.takeCclpMoveReport(), told, t, busy);
     if (notice.message === null) return;
     this.showTransientStatus(notice.message);
     if (notice.keptPackIdsTold.length === 0 || !seenKey) return;
@@ -2939,7 +2941,14 @@ class EpoxyApplication {
 
   /** Opens the one-time "New: Tutorial" notice, also for players who have saves. */
   private maybeShowTutorialNotice(): void {
-    const show = shouldShowTutorialNotice({
+    if (!this.isTutorialNoticeDue()) return;
+    this.markTutorialNoticeSeen();
+    this.openModal(MODAL_IDS.TUTORIAL_NOTICE, byId('tutorial-notice-start-btn'));
+  }
+
+  /** True when the one-time tutorial notice would open now. */
+  private isTutorialNoticeDue(): boolean {
+    return shouldShowTutorialNotice({
       tutorialVisible: this.isTutorialOffered(),
       noticeSeen: this.tutorialNoticeShownThisSession || readSeenFlag(this.tutorialNoticeKey(), ONBOARDING_STORES),
       onboardingShownThisSession: this.onboardingShownThisSession,
@@ -2947,9 +2956,6 @@ class EpoxyApplication {
       mode: this.activeMode,
       dialogOpen: isDialogOpen()
     });
-    if (!show) return;
-    this.markTutorialNoticeSeen();
-    this.openModal(MODAL_IDS.TUTORIAL_NOTICE, byId('tutorial-notice-start-btn'));
   }
 
   private markTutorialNoticeSeen(): void {

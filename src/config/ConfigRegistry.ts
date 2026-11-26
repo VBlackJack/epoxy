@@ -300,6 +300,9 @@ class ConfigRegistryService {
   private cclpMoveReport: CclpMoveReport | null = null;
   /** The bytes of the bundled .DAT packs, kept for the load-time move of stored packs (read both ways on demand). */
   private bundledDatPacks: FetchedPack[] = [];
+  /** True when a bundled .DAT pack the move needs as a reference was not fetched or could not be read this start. */
+  private bundledDatMissing = false;
+  private cclpReferencesIncomplete = false;
   private activePackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   public async loadAll(): Promise<void> {
@@ -353,6 +356,9 @@ class ConfigRegistryService {
     this.playtestPacksVisible = this.readStorage(game.storage.playtestEnabledKey) === PLAYTEST_FLAG_ON;
     const fetchedPacks = await packsPromise;
     this.bundledDatPacks = fetchedPacks;
+    this.bundledDatMissing = (game.ultimatePacks ?? []).some(
+      (d) => d.ruleset !== undefined && d.rulesProfile !== undefined && !fetchedPacks.some((f) => f.descriptor.id === d.id)
+    );
     this.ultimatePacks = this.decodeUltimatePacks(fetchedPacks);
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
@@ -1087,7 +1093,20 @@ class ConfigRegistryService {
     await this.migrateLegacyCustomLevels();
     await this.dedupeStoredLevelIds();
     await this.migrateStoredCc3dLevels();
-    if (isCclpStoredPackMoveEnabled()) await this.moveStoredDatPacksToCclp();
+    if (isCclpStoredPackMoveEnabled()) await this.moveStoredDatPacksToCclpSafely();
+  }
+
+  /**
+   * The move rewrites stored player data once and must never stop the app from starting: any unexpected failure is logged,
+   * leaves no record, and the move is tried again at the next start.
+   */
+  private async moveStoredDatPacksToCclpSafely(): Promise<void> {
+    try {
+      await this.moveStoredDatPacksToCclp();
+    } catch (err) {
+      console.warn(`Stored pack move to the CCLP engine failed, it will be tried again: ${String(err)}`);
+      this.cclpMoveReport = null;
+    }
   }
 
   /**
@@ -1100,6 +1119,8 @@ class ConfigRegistryService {
   private async moveStoredDatPacksToCclp(): Promise<void> {
     // An empty library has nothing to move: no plan, no decode, no record (a pack imported later is not an old import).
     this.cclpMoveReport = null;
+    // An unreadable library is unknown, not empty: nothing is judged and nothing is recorded until it can be read.
+    if (this.legacyCustomStore) return;
     if (!this.storedPacks.some((p) => p.builtIn !== true)) return;
     const recordKey = this.gameConfig.storage.cclpStoredMoveKey;
     const liveIds = new Set(this.storedPacks.map((p) => p.id));
@@ -1110,6 +1131,7 @@ class ConfigRegistryService {
       return;
     }
     let references: CclpReferenceSet[] | null = null;
+    this.cclpReferencesIncomplete = false;
     const { mapWidth, mapHeight } = this.gameConfig.grid;
     const context = {
       isCloneMachine: (id: string) => this.tilesConfig.tiles[id]?.isCloneMachine === true,
@@ -1122,10 +1144,10 @@ class ConfigRegistryService {
     };
     let movedPacks = 0;
     let complete = true;
-    const keptPackIds: string[] = [];
+    const keptCandidates: string[] = [];
     for (const pack of this.storedPacks.filter((p) => p.builtIn !== true)) {
       const plan = await planCclpPackMove(pack, context);
-      if (isKeptVerdict(plan.verdict)) keptPackIds.push(pack.id);
+      keptCandidates.push(...(isKeptVerdict(plan.verdict) ? [pack.id] : []));
       if (plan.verdict !== 'moved') continue;
       const read = canonicalJson(pack);
       const outcome = await LevelPackStorage.replacePackIfUnchanged(
@@ -1140,6 +1162,11 @@ class ConfigRegistryService {
       this.upsertStoredPack(plan.pack);
       movedPacks++;
     }
+    // A bundled reference that is missing (a failed fetch or decode) makes every "changed" or "unknown" verdict unsure: no
+    // pack is reported as kept and no record is written, so the next start judges again.
+    const referencesSure = !this.bundledDatMissing && !this.cclpReferencesIncomplete;
+    if (!referencesSure) complete = false;
+    const keptPackIds = referencesSure ? keptCandidates : [];
     if (complete && recordKey) this.writeStorage(recordKey, JSON.stringify({ version: CCLP_STORED_MOVE_VERSION, kept: keptPackIds }));
     this.cclpMoveReport = movedPacks > 0 || keptPackIds.length > 0 ? { movedPacks, keptPackIds } : null;
   }
@@ -1155,7 +1182,8 @@ class ConfigRegistryService {
         applyRulesProfile(lynx, descriptor.rulesProfile);
         sets.push({ signature: await passwordSignature(classic), classic, lynx });
       } catch {
-        // A corrupt bundled pack is no reference: a stored copy of it stays as it is
+        // A corrupt bundled pack is no reference: a stored copy of it stays as it is, and the run is not recorded
+        this.cclpReferencesIncomplete = true;
       }
     }
     return sets;

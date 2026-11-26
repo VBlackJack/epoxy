@@ -33,7 +33,8 @@ export function storedPackNotice(
   cc3d: Cc3dMigrationReport | null,
   cclp: CclpMoveReport | null,
   keptPackIdsAlreadyTold: readonly string[],
-  translate: Translate
+  translate: Translate,
+  hudBusy = false
 ): StoredPackNotice {
   const lines: string[] = [];
   if (cc3d) {
@@ -41,7 +42,8 @@ export function storedPackNotice(
     if (cc3d.kept > 0) lines.push(translate('cc3d.import.migration.kept.label', { kept: cc3d.kept }));
   }
   if (cclp && cclp.movedPacks > 0) lines.push(translate('app.packs.cclp_move.moved.label', { packs: cclp.movedPacks }));
-  const fresh = (cclp?.keptPackIds ?? []).filter((id) => !keptPackIdsAlreadyTold.includes(id));
+  // While a dialog is open or about to open the kept line waits: it is not shown, so it is not marked told either.
+  const fresh = hudBusy ? [] : (cclp?.keptPackIds ?? []).filter((id) => !keptPackIdsAlreadyTold.includes(id));
   if (fresh.length > 0) lines.push(translate('app.packs.cclp_move.kept.label', { count: fresh.length }));
   return { message: lines.length > 0 ? lines.join(' ') : null, keptPackIdsTold: fresh };
 }

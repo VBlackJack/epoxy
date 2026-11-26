@@ -189,6 +189,15 @@ describe('stored .DAT packs move to the CCLP engine', () => {
     expect(plan.verdict).toBe('changed');
   });
 
+  it('counts an edit that only touched the hidden layer as a change', async () => {
+    const stored = storedClassicPack();
+    stored.levels[1] = { ...stored.levels[1], underlays: [{ x: 9, y: 9, terrain: 'wall' }] };
+    const plan = await planCclpPackMove(stored, ctx());
+    expect(plan.verdict).toBe('changed');
+    expect(plan.moved).toBe(0);
+    expect(plan.pack).toBe(stored);
+  });
+
   it('leaves a pack whose level was added or removed', async () => {
     const added = storedLynxPack();
     added.levels.push({ ...structuredClone(added.levels[0]), id: 'lvl_custom_1700000000001', number: 4 });
@@ -317,6 +326,13 @@ describe('start-up message about stored packs', () => {
     expect(notice.message).toBe('app.packs.cclp_move.kept.label{"count":1}');
     expect(notice.keptPackIdsTold).toEqual(['b']);
     expect(storedPackNotice(null, { movedPacks: 0, keptPackIds: ['a', 'b'] }, ['a', 'b'], translate)).toEqual({ message: null, keptPackIdsTold: [] });
+  });
+
+  it('keeps the kept line back, and unmarked, while a dialog is open or about to open', () => {
+    const busy = storedPackNotice(null, { movedPacks: 1, keptPackIds: ['a'] }, [], translate, true);
+    expect(busy.message).toBe('app.packs.cclp_move.moved.label{"packs":1}');
+    expect(busy.keptPackIdsTold).toEqual([]);
+    expect(storedPackNotice(null, { movedPacks: 0, keptPackIds: ['a'] }, [], translate, true)).toEqual({ message: null, keptPackIdsTold: [] });
   });
 
   it('says nothing when nothing happened', () => {

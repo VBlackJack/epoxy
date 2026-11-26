@@ -91,6 +91,7 @@ const moveRecord = () => storage.get(`${ConfigRegistry.getStorageKey(RECORD_KEY)
 beforeEach(() => {
   loadTestConfigs();
   (ConfigRegistry as unknown as { bundledDatPacks: unknown[] }).bundledDatPacks = [];
+  (ConfigRegistry as unknown as { bundledDatMissing: boolean }).bundledDatMissing = false;
   fake.records.clear();
   fake.abortWrites = false;
   fake.abortReads = false;
@@ -199,6 +200,7 @@ describe('load-time move of stored .DAT packs to the CCLP engine', () => {
     expect(stored().levels[1].timeLimitSeconds).toBe(777);
     expect(stored().levels.every((l) => l.rulesFlavor === 'cc')).toBe(true);
     expect(loaded().levels.every((l) => l.rulesFlavor === 'cc')).toBe(true);
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
     expect(moveRecord()).toBeUndefined();
   });
 
@@ -212,5 +214,56 @@ describe('load-time move of stored .DAT packs to the CCLP engine', () => {
     expect((fake.records.get(PACK_ID) as typeof raw).levels[1].terrain).toBe('broken');
     expect((fake.records.get(PACK_ID) as LevelPack).levels.every((l) => l.rulesProfile === undefined)).toBe(true);
     expect(moveRecord()).toBeUndefined();
+  });
+
+  it('leaves a classic pack and writes no record while a bundled reference is missing, then moves it on the next start', async () => {
+    const old = storePack('epoxy');
+    // The set's bundled file failed to fetch: its stored copy would read as unknown, wrongly, and must neither move nor be told.
+    (ConfigRegistry as unknown as { bundledDatMissing: boolean }).bundledDatMissing = true;
+    await ConfigRegistry.loadStoredPacks();
+    expect(stored().levels).toEqual(old.levels);
+    expect(loaded().levels.every((l) => l.rulesFlavor === 'cc')).toBe(true);
+    expect(moveRecord()).toBeUndefined();
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
+    (ConfigRegistry as unknown as { bundledDatMissing: boolean }).bundledDatMissing = false;
+    holdSynthSet();
+    await ConfigRegistry.loadStoredPacks();
+    expect(stored().levels.every((l) => l.rulesProfile === 'cclp')).toBe(true);
+    expect(ConfigRegistry.takeCclpMoveReport()).toEqual({ movedPacks: 1, keptPackIds: [] });
+    expect(JSON.parse(moveRecord() as string)).toEqual({ version: 1, kept: [] });
+  });
+
+  it('does not judge, record or notify when a bundled reference cannot be decoded', async () => {
+    holdSynthSet();
+    (ConfigRegistry as unknown as { bundledDatPacks: { buffer: ArrayBuffer }[] }).bundledDatPacks[0].buffer = new ArrayBuffer(3);
+    const old = storePack('epoxy');
+    await ConfigRegistry.loadStoredPacks();
+    expect(stored().levels).toEqual(old.levels);
+    expect(moveRecord()).toBeUndefined();
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
+  });
+
+  it('moves nothing and records nothing while the library cannot be read', async () => {
+    holdSynthSet();
+    const old = storePack('epoxy');
+    fake.abortReads = true;
+    await ConfigRegistry.loadStoredPacks();
+    expect(stored().levels).toEqual(old.levels);
+    expect(moveRecord()).toBeUndefined();
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
+  });
+
+  it('lets the app start, records nothing and retries when the move throws', async () => {
+    holdSynthSet();
+    const old = storePack('epoxy');
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const replace = vi.spyOn(LevelPackStorage, 'replacePackIfUnchanged').mockRejectedValueOnce(new Error('boom'));
+    await expect(ConfigRegistry.loadStoredPacks()).resolves.toBeUndefined();
+    expect(stored().levels).toEqual(old.levels);
+    expect(moveRecord()).toBeUndefined();
+    expect(ConfigRegistry.takeCclpMoveReport()).toBeNull();
+    replace.mockRestore();
+    await ConfigRegistry.loadStoredPacks();
+    expect(stored().levels.every((l) => l.rulesProfile === 'cclp')).toBe(true);
   });
 });

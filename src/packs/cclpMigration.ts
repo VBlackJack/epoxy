@@ -234,6 +234,11 @@ function adopt(reference: CompiledLevel, stored: CompiledLevel): CompiledLevel {
   return { ...structuredClone(reference), id: stored.id, number: stored.number };
 }
 
+function sameUnderlays(stored: CompiledLevel, reference: CompiledLevel): boolean {
+  if (stored.underlays === undefined || stored.underlays.length === 0) return true;
+  return canonicalJson(stored.underlays) === canonicalJson(reference.underlays ?? []);
+}
+
 /**
  * A stored classic level of a held set is untouched when it holds only .DAT keys and its whole record equals the classic
  * reading of the bytes, or its transformation equals the Lynx reading (a record an older build wrote, whose classic reading
@@ -241,7 +246,11 @@ function adopt(reference: CompiledLevel, stored: CompiledLevel): CompiledLevel {
  */
 function isUntouchedClassic(stored: CompiledLevel, ref: { classic: CompiledLevel; lynx: CompiledLevel }, ctx: CclpMoveContext): boolean {
   if (!hasOnlyDatKeys(stored)) return false;
-  return contentOf(stored) === contentOf(ref.classic) || contentOf(moveClassicDatLevel(stored, ctx.isCloneMachine)) === contentOf(ref.lynx);
+  if (contentOf(stored) === contentOf(ref.classic)) return true;
+  // The transformation drops the hidden layer, so an edit that only touched it must be caught here: the stored layer has to
+  // be the bytes' own (or absent, as records of the first classic builds).
+  if (!sameUnderlays(stored, ref.classic)) return false;
+  return contentOf(moveClassicDatLevel(stored, ctx.isCloneMachine)) === contentOf(ref.lynx);
 }
 
 /**
