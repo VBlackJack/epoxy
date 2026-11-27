@@ -340,7 +340,7 @@ class EpoxyApplication {
   private gamepadDirection: Direction | null = null;
   /** Every key the gamepad holds now, most recent first (two for a diagonal on an engine that reads key pairs). */
   private gamepadKeys: Direction[] = [];
-  /** The stick's keys at the last poll (its sector hysteresis reads them). */
+  /** The stick's keys at the last poll (the release threshold reads them). */
   private stickKeys: Direction[] = [];
   private readonly padKeyOrder = new PadKeyOrder();
   private customStatusMessage: string | null = null;

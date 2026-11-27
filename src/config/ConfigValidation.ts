@@ -1185,6 +1185,9 @@ export function findGamepadConfigErrors(value: unknown): string[] {
   if (!isRecord(value)) return ['gamepad: not an object'];
   const merged: Record<string, unknown> = { ...GAMEPAD_DEFAULTS, ...value };
   const errors: string[] = [];
+  for (const key of Object.keys(value)) {
+    if (!(GAMEPAD_THROW_KEYS as readonly string[]).includes(key)) errors.push(`gamepad.${key}: unknown key`);
+  }
   for (const key of GAMEPAD_THROW_KEYS) {
     const v = merged[key];
     if (!isFiniteNumber(v) || v <= 0 || v >= 1) errors.push(`gamepad.${key}: not a number in (0, 1)`);

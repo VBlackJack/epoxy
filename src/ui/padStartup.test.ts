@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 import { findGamepadConfigErrors } from '../config/ConfigValidation';
 import { dpadKeys, gamepadConfigFrom, heldSetForTick, PadKeyOrder, padKeys, padSteer, singlePadDirection, stickKeys } from './padDirections';
 
-describe('the pad modules without a loaded config', () => {
+describe('the pure pad modules (no page, no engine) without a loaded config', () => {
   it('build and run on the defaults', () => {
     expect(() => new PadKeyOrder()).not.toThrow();
     const config = gamepadConfigFrom(undefined);

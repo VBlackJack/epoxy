@@ -261,6 +261,11 @@ describe('gamepad config', () => {
     expect(findGamepadConfigErrors({ stickPressThreshold: 0.35 })).toEqual(['gamepad.stickReleaseThreshold: not under stickPressThreshold']);
   });
 
+  it('refuses a key it does not know', () => {
+    expect(findGamepadConfigErrors({ stickDeadZone: 0.5 })).toEqual(['gamepad.stickDeadZone: unknown key']);
+    expect(findGamepadConfigErrors({ stickPressThreshold: 0.6, extra: 1 })).toEqual(['gamepad.extra: unknown key']);
+  });
+
   it('refuses what is not a throw strictly between 0 and 1', () => {
     expect(findGamepadConfigErrors(null)).toEqual(['gamepad: not an object']);
     expect(findGamepadConfigErrors([])).toEqual(['gamepad: not an object']);
