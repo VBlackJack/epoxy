@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- The tapped walk steps aside when a monster leaves no other way: if neither the next step nor standing still keeps Chip alive over the look-ahead, it tries the neighbouring cells of plain ground (never a button, trap, teleporter, toggle floor, item or the exit), closest to the goal first, and presses the first one where one step then standing still is safe. Once Chip stands there it plans again to the same goal, and the monster watch judges each step as before. A tapped walk steps aside at most twice (`timing.walkStepAsideLimit` in `game.json`, 0 turns it off); the block puzzle hint walk never does. The search spends what is left of the time budget of the decision, and a step aside does not give the walk more time to wait. The step is an ordinary press, so recorded runs replay as before, and the walk says so with one line (`hud.messages.walk_monster_aside.label`).
+
 ## [2.46.0] - 2026-11-27
 
 ### Changed

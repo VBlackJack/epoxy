@@ -66,6 +66,8 @@ export interface TimingConfig {
   walkCatchUpTicks?: number;
   /** Path search steps one objective marker search may spend in all, over its tries; past it the marker shows the first goal unmarked. */
   walkObjectiveExpansionBudget?: number;
+  /** Steps aside one tapped walk may take when both its next step and standing still are deadly; 0 turns the step aside off. */
+  walkStepAsideLimit?: number;
 }
 
 export interface UserSettings {

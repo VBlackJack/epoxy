@@ -17,7 +17,8 @@
 import { GameEngine } from '../core/GameEngine';
 import { Pathfinder } from '../core/Pathfinder';
 import { PlayEngine } from '../core/PlayEngine';
-import { WalkJudge, WalkPlan } from './cclpAutoWalk';
+import { Direction, GridPoint } from '../core/types';
+import { WalkAside, WalkJudge, WalkPlan } from './cclpAutoWalk';
 import { maxWalkWaitTicks } from './walkForecast';
 
 /**
@@ -29,17 +30,19 @@ import { maxWalkWaitTicks } from './walkForecast';
 /**
  * idle: nothing was done, keep the plan (Chip is mid-step); stop: drop the plan; wait: a monster makes the step deadly but
  * standing still is safe, keep the plan and ask again next tick; danger: neither is safe, drop the plan; sent: the press was
- * taken (`stored`: the engine plays it in its next turn, so the queue follows what that turn did).
+ * taken (`stored`: the engine plays it in its next turn, so the queue follows what that turn did); aside: neither is safe, a
+ * press off the plan towards `target` was taken instead (`stored` as for sent).
  */
 export type EpoxyWalkStart =
   | { kind: 'idle' }
   | { kind: 'stop' }
   | { kind: 'wait' }
   | { kind: 'danger' }
-  | { kind: 'sent'; stored: boolean };
+  | { kind: 'sent'; stored: boolean }
+  | { kind: 'aside'; dir: Direction; target: GridPoint; stored: boolean };
 
 /** Before the tick: sends the next step when the world allows it and the monster watch does not hold it back. */
-export function startEpoxyWalkStep(plan: WalkPlan, engine: PlayEngine, epoxy: GameEngine | null, judge?: WalkJudge): EpoxyWalkStart {
+export function startEpoxyWalkStep(plan: WalkPlan, engine: PlayEngine, epoxy: GameEngine | null, judge?: WalkJudge, aside?: WalkAside): EpoxyWalkStart {
   if (plan.moves.length === 0) return { kind: 'idle' };
   // A paused game does not walk, and a walk planned before the pause is not resumed after it.
   if (engine.isPaused()) return { kind: 'stop' };
@@ -53,7 +56,11 @@ export function startEpoxyWalkStep(plan: WalkPlan, engine: PlayEngine, epoxy: Ga
   // The monster watch: a step a monster would make deadly waits, or stops the walk when standing still is deadly too.
   const verdict = epoxy && free ? (judge?.(plan) ?? 'go') : 'go';
   if (verdict === 'wait') return { kind: 'wait' };
-  if (verdict === 'stop') return { kind: 'danger' };
+  if (verdict === 'stop') {
+    const step = aside?.(plan) ?? null;
+    if (step === null || !engine.attemptPlayerMove(step.dir)) return { kind: 'danger' };
+    return { kind: 'aside', dir: step.dir, target: step.point, stored: epoxy?.playsInActorOrder() === true };
+  }
   if (engine.attemptPlayerMove(dir)) return { kind: 'sent', stored: epoxy?.playsInActorOrder() === true };
   const after = engine.getPlayer();
   return !after.isSliding && after.moveCooldown === 0 ? { kind: 'stop' } : { kind: 'idle' };
