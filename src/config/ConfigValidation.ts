@@ -37,8 +37,7 @@ import {
 } from '../core/coreConstants';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
-import { GAMEPAD_DEFAULTS, ORDERED_DIRECTIONS } from './constants';
-import { TOUCH_DEFAULTS } from '../ui/uiConstants';
+import { GAMEPAD_DEFAULTS, ORDERED_DIRECTIONS, TOUCH_DEFAULTS } from './constants';
 import { CC_TEETH_ACTIVE_TICKS, SIGNAL_GATE_CC2_ID_SUFFIX, CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
@@ -1158,11 +1157,13 @@ const MIN_JOYSTICK_AXIS_SWITCH_RATIO = 1;
 /** touch fields that are not lengths: the axis switch ratio, the diagonal switch and the two diagonal ratios. */
 const TOUCH_OTHER_KEYS = ['joystickAxisSwitchRatio', 'joystickDiagonals', 'joystickDiagonalPressRatio', 'joystickDiagonalReleaseRatio'];
 /**
- * Largest joystick diagonal press ratio. The axis switch ratio (1.25) lets the off-axis component grow to 1.25 times the
- * primary one before the primary axis changes, and the finger stays within the base follow radius of the base, so the off-axis
- * distance never passes 1.25 / sqrt(1 + 1.25^2) = 0.78 of that radius: a press ratio at or over it could never be reached.
+ * Largest joystick diagonal press ratio for an axis switch ratio r. The primary axis changes once the off-axis component
+ * passes r times the primary one, and the finger stays within the base follow radius of the base, so the off-axis distance
+ * never passes r / sqrt(1 + r^2) of that radius (0.78 for the default 1.25): a press ratio at or over it could never be reached.
  */
-const MAX_JOYSTICK_DIAGONAL_PRESS_RATIO = 0.78;
+function maxJoystickDiagonalPressRatio(axisSwitchRatio: number): number {
+  return axisSwitchRatio / Math.sqrt(1 + axisSwitchRatio * axisSwitchRatio);
+}
 
 /**
  * Problems of the optional game.json touch section. Every key is optional (the code falls back to
@@ -1195,16 +1196,21 @@ export function findTouchConfigErrors(value: unknown): string[] {
 
 /**
  * The joystick diagonal settings, checked as they will be read: the touch section over TOUCH_DEFAULTS, so a section that sets
- * one ratio is judged against the default of the other. 0 < release < press < MAX_JOYSTICK_DIAGONAL_PRESS_RATIO.
+ * one ratio is judged against the default of the other. 0 < release < press < maxJoystickDiagonalPressRatio.
  */
 function findJoystickDiagonalErrors(value: Record<string, unknown>): string[] {
   const merged: Record<string, unknown> = { ...TOUCH_DEFAULTS, ...value };
   const errors: string[] = [];
+  const switchRatio = merged.joystickAxisSwitchRatio;
+  // An unusable axis switch ratio is reported by the caller; the bound then reads the default.
+  const maxPress = maxJoystickDiagonalPressRatio(
+    isFiniteNumber(switchRatio) && switchRatio >= MIN_JOYSTICK_AXIS_SWITCH_RATIO ? switchRatio : TOUCH_DEFAULTS.joystickAxisSwitchRatio
+  );
   if (typeof merged.joystickDiagonals !== 'boolean') errors.push('touch.joystickDiagonals: not a boolean');
   const press = merged.joystickDiagonalPressRatio;
   const release = merged.joystickDiagonalReleaseRatio;
-  if (!isFiniteNumber(press) || press <= 0 || press >= MAX_JOYSTICK_DIAGONAL_PRESS_RATIO) {
-    errors.push(`touch.joystickDiagonalPressRatio: not a number in (0, ${MAX_JOYSTICK_DIAGONAL_PRESS_RATIO})`);
+  if (!isFiniteNumber(press) || press <= 0 || press >= maxPress) {
+    errors.push(`touch.joystickDiagonalPressRatio: not a number in (0, ${maxPress.toFixed(3)})`);
   }
   if (!isFiniteNumber(release) || release <= 0) errors.push('touch.joystickDiagonalReleaseRatio: not a number above 0');
   if (errors.length > 0 || !isFiniteNumber(press) || !isFiniteNumber(release)) return errors;

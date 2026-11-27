@@ -125,29 +125,39 @@ export class TouchKeySteer {
   private keys: Direction[] = [];
   /** The last reading held a key: a finger is on the glass, steering. */
   private fingerDown = false;
+  /** A press was consumed by a gate (takeover, replay, aim): the keys that remain must not turn into a walk until a new press. */
+  private suppressed = false;
 
   /** The joystick now holds `now` (SIMULTANEOUS_KEY_ORDER, empty when released). */
   update(now: readonly Direction[], gate: TouchGate = OPEN_TOUCH_GATE): TouchAction {
     this.fingerDown = now.length > 0;
     if (!gate.pairs) {
       // The engine changed under the finger: one key, as the joystick of a single-key engine sends it.
+      // Single-key fallback: one key per change through beginHeldMove, so each change presses that key again (a finger that
+      // goes from E to SE re-presses E; nothing is lost, the engine reads one key anyway). update([]) also ends a wait for rest.
       this.keys = [];
-      this.order.clear();
+      this.suppressed = false;
+      this.order.update([]);
       return now.length === 0 ? { kind: 'release' } : { kind: 'single', dir: now[0] };
     }
     const { keys, added } = this.order.update(now);
     if (keys.length === 0) {
       this.keys = [];
+      this.suppressed = false;
       return { kind: 'release' };
     }
     if (gate.takeover || gate.aiming) {
       this.keys = [];
+      this.suppressed = true;
       return added ? { kind: 'single', dir: keys[0] } : { kind: 'none' };
     }
     if (gate.replaying) {
       this.keys = [];
+      this.suppressed = true;
       return { kind: 'none' };
     }
+    if (added) this.suppressed = false;
+    else if (this.suppressed) return { kind: 'none' };
     if (!added) {
       this.keys = keys.length > 1 ? keys : [];
       return { kind: 'hold', keys };

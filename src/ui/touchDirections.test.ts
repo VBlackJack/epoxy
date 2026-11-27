@@ -166,6 +166,32 @@ describe('TouchKeySteer', () => {
     expect(steer.update(['W', 'N'])).toEqual({ kind: 'press', keys: ['N', 'W'] });
   });
 
+  it('a level loaded, the engine changed under the finger and the finger lifted: the next touch on a pair engine presses', () => {
+    const steer = new TouchKeySteer();
+    const single: TouchGate = { ...OPEN_TOUCH_GATE, pairs: false };
+    steer.update(['E']);
+    steer.requireRelease();
+    expect(steer.update(['E', 'S'], single)).toEqual({ kind: 'single', dir: 'E' });
+    expect(steer.update([], single)).toEqual({ kind: 'release' });
+    expect(steer.update(['E', 'S'])).toEqual({ kind: 'press', keys: ['E', 'S'] });
+  });
+
+  it('a press consumed by a gate does not become a walk when a key is let go, until a new press', () => {
+    const steer = new TouchKeySteer();
+    const takeover: TouchGate = { ...OPEN_TOUCH_GATE, takeover: true, replaying: true };
+    expect(steer.update(['E', 'S'], takeover)).toEqual({ kind: 'single', dir: 'E' });
+    // The solution is over, the gate is open, the thumb drops one key: still no move.
+    expect(steer.update(['E'])).toEqual({ kind: 'none' });
+    expect(steer.update(['E', 'S'])).toEqual({ kind: 'press', keys: ['S', 'E'] });
+    expect(steer.update(['S'])).toEqual({ kind: 'hold', keys: ['S'] });
+    const aiming: TouchGate = { ...OPEN_TOUCH_GATE, aiming: true };
+    const second = new TouchKeySteer();
+    second.update(['N', 'W'], aiming);
+    expect(second.update(['N'])).toEqual({ kind: 'none' });
+    expect(second.update([])).toEqual({ kind: 'release' });
+    expect(second.update(['N'])).toEqual({ kind: 'single', dir: 'N' });
+  });
+
   it('an engine that stopped reading pairs under the finger gets one key, the first, and a release', () => {
     const steer = new TouchKeySteer();
     const single: TouchGate = { ...OPEN_TOUCH_GATE, pairs: false };
@@ -231,14 +257,24 @@ describe('touch diagonal settings', () => {
   });
 
   it('refuses a press ratio that the finger can never reach (0.78 and over) and one that is not above 0', () => {
-    const badPress = ['touch.joystickDiagonalPressRatio: not a number in (0, 0.78)'];
+    const badPress = ['touch.joystickDiagonalPressRatio: not a number in (0, 0.781)'];
     const badRelease = ['touch.joystickDiagonalReleaseRatio: not a number above 0'];
-    expect(findTouchConfigErrors({ joystickDiagonalPressRatio: 0.78 })).toEqual(badPress);
+    expect(findTouchConfigErrors({ joystickDiagonalPressRatio: 0.78 })).toEqual([]);
+    expect(findTouchConfigErrors({ joystickDiagonalPressRatio: 0.79 })).toEqual(badPress);
     expect(findTouchConfigErrors({ joystickDiagonalPressRatio: 1 })).toEqual(badPress);
     expect(findTouchConfigErrors({ joystickDiagonalPressRatio: 0 })).toEqual(badPress);
     expect(findTouchConfigErrors({ joystickDiagonalPressRatio: Number.NaN })).toEqual(badPress);
     expect(findTouchConfigErrors({ joystickDiagonalReleaseRatio: 0 })).toEqual(badRelease);
     expect(findTouchConfigErrors({ joystickDiagonalReleaseRatio: -0.1 })).toEqual(badRelease);
+  });
+
+  it('takes the press bound from the axis switch ratio: r / sqrt(1 + r^2)', () => {
+    // r = 1: 0.707; r = 2: 0.894 (a finger may sit further off-axis before the primary axis changes)
+    expect(findTouchConfigErrors({ joystickAxisSwitchRatio: 1, joystickDiagonalPressRatio: 0.71 })).toEqual([
+      'touch.joystickDiagonalPressRatio: not a number in (0, 0.707)'
+    ]);
+    expect(findTouchConfigErrors({ joystickAxisSwitchRatio: 1, joystickDiagonalPressRatio: 0.7 })).toEqual([]);
+    expect(findTouchConfigErrors({ joystickAxisSwitchRatio: 2, joystickDiagonalPressRatio: 0.85 })).toEqual([]);
   });
 
   it('refuses a switch that is not a boolean and a key it does not know', () => {
