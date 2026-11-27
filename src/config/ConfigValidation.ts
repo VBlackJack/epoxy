@@ -37,7 +37,7 @@ import {
 } from '../core/coreConstants';
 import { isRemovableTop } from '../core/Underlays';
 import { normalizeSignalLinks } from '../core/signalLinks';
-import { ORDERED_DIRECTIONS } from './constants';
+import { GAMEPAD_DEFAULTS, ORDERED_DIRECTIONS } from './constants';
 import { CC_TEETH_ACTIVE_TICKS, SIGNAL_GATE_CC2_ID_SUFFIX, CC2_SWIVEL_RULE, CELL_EDGE_CANOPY_BIT, CHANNEL_BUTTON_ACTIONS, CHANNEL_COLORS, LOCKED_ARROW_BLOCK_ID, PLAYER_CHARACTERS, PULSE_WIRED_ACTION, RAIL_DEFAULT_ENTRY, RAIL_JUNCTION_TILE_ID, RAIL_TRACK_COUNT, RAIL_TRACK_MASK_ALL, RELAY_TELEPORT_GROUP } from '../core/coreConstants';
 import { isMusicMode, MUSIC_MODES } from '../audio/musicSelection';
 import {
@@ -1168,6 +1168,33 @@ export function findTouchConfigErrors(value: unknown): string[] {
   const release = value.joystickReleaseRadiusPx;
   if (isFiniteNumber(dead) && isFiniteNumber(release) && release > dead) {
     errors.push('touch.joystickReleaseRadiusPx: larger than joystickDeadZonePx');
+  }
+  return errors;
+}
+
+/** gamepad fields that are stick throws. */
+const GAMEPAD_THROW_KEYS = ['stickPressThreshold', 'stickReleaseThreshold'] as const;
+
+/**
+ * Problems of the optional game.json gamepad section, checked on the settings as they will be read: the section over
+ * GAMEPAD_DEFAULTS, so a section that sets one key is judged against the default of the other. Both throws are numbers
+ * strictly between 0 and 1, and the release throw stays under the press throw (or a pressed key could never let go).
+ */
+export function findGamepadConfigErrors(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return ['gamepad: not an object'];
+  const merged: Record<string, unknown> = { ...GAMEPAD_DEFAULTS, ...value };
+  const errors: string[] = [];
+  for (const key of Object.keys(value)) {
+    if (!(GAMEPAD_THROW_KEYS as readonly string[]).includes(key)) errors.push(`gamepad.${key}: unknown key`);
+  }
+  for (const key of GAMEPAD_THROW_KEYS) {
+    const v = merged[key];
+    if (!isFiniteNumber(v) || v <= 0 || v >= 1) errors.push(`gamepad.${key}: not a number in (0, 1)`);
+  }
+  if (errors.length > 0) return errors;
+  if ((merged.stickReleaseThreshold as number) >= (merged.stickPressThreshold as number)) {
+    errors.push('gamepad.stickReleaseThreshold: not under stickPressThreshold');
   }
   return errors;
 }

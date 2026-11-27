@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Gamepad diagonals on the engines that read two held keys: the Lynx rules of the community packs and CC2 levels. The analog stick is now two virtual keys, one per axis (a key presses past 0.5 of the throw and lets go at 0.35, per axis), so a stick pushed into a corner holds two directions as two keyboard keys do; two adjacent d-pad buttons do the same, and the d-pad wins over the stick. The pad's keys are listed most recent first, as the keyboard lists its own, so a gamepad diagonal records the same replay as the same two keys. The thresholds are in the new optional `gamepad` section of `game.json` (`stickPressThreshold`, which applies to every engine, and `stickReleaseThreshold`, which applies only to the two-key engines; the release throw must stay under the press throw). On these engines a stick still held when a level loads waits until it has been released before it steers, and the pad does not steer while a replay plays. On a CC2 level where a tap plans a path, a pad key takes the move from the tapped path, as on the Lynx rules. Every other engine reads the pad exactly as before (one direction, up before down before left before right). Touch diagonals are not part of this change.
+
 ## [2.47.0] - 2026-11-27
 
 ### Added

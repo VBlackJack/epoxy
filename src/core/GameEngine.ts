@@ -1996,6 +1996,12 @@ export class GameEngine {
     endCc2MirrorTick(this.w);
   }
 
+  /** True on a CC2-engine level, where attemptPlayerMoveHeld applies the CC2 two-key rules (the same test it makes). */
+  public readsHeldKeyPairs(): boolean {
+    // No level loaded yet: the world holds a placeholder.
+    return (this.w.level as CompiledLevel | undefined) !== undefined && usesCc2Engine(this.w.level) && !this.w.cc3dPace;
+  }
+
   /**
    * The direction keys held now, most recent first. Without the two-key rules of the CC2 engine (any other level, or
    * one key) this is attemptPlayerMove(dirs[0]). On a CC2-engine level, an opposing pair or more than two keys are

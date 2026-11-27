@@ -1022,6 +1022,17 @@ export interface TouchConfig {
   joystickKnobRadiusPx?: number;
 }
 
+/**
+ * The optional game.json "gamepad" section: the analog stick as two virtual keys (one per axis). Values are fractions of the
+ * full stick throw, strictly between 0 and 1.
+ */
+export interface GamepadConfig {
+  /** Throw of an axis from the centre that presses its key. */
+  stickPressThreshold: number;
+  /** Throw under which a pressed key lets go; under stickPressThreshold (hysteresis). */
+  stickReleaseThreshold: number;
+}
+
 /** Layout counts the block puzzle solver may visit before giving up without a verdict. */
 export interface BlockPuzzleConfig {
   /** Budget of the dead-end watch that runs by itself after every block move. */
@@ -1063,6 +1074,7 @@ export interface GameConfig {
   procedural?: ProceduralConfig;
   endlessUi: EndlessUiConfig;
   touch?: TouchConfig;
+  gamepad?: Partial<GamepadConfig>;
   blockPuzzle: BlockPuzzleConfig;
   campaignGuard: CampaignGuardConfig;
   ultimatePacks?: UltimatePackDescriptor[];

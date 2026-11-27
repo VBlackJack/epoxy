@@ -73,6 +73,11 @@ export interface PlayEngine {
    * without them plays `dirs[0]` exactly as attemptPlayerMove does. False when no move was made.
    */
   attemptPlayerMoveHeld?(dirs: readonly Direction[]): boolean;
+  /**
+   * Optional. True when the loaded level's rules decide two orthogonal held keys (the Lynx two-key rules of the CCLP engine,
+   * the CC2 rules of the Epoxy engine on a CC2-engine level). The page offers gamepad diagonals only then.
+   */
+  readsHeldKeyPairs?(): boolean;
   dropItem(itemId: string | null): boolean;
   holdsItem(itemId: string): boolean;
   undo(): boolean;

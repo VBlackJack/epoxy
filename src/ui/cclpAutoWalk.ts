@@ -20,6 +20,7 @@ import { cclpPathView } from '../core/cclp/cclpPathView';
 import { GameEngine } from '../core/GameEngine';
 import { PathEngine, Pathfinder } from '../core/Pathfinder';
 import { PlayEngine } from '../core/PlayEngine';
+import { featuresFor } from '../core/RulesetFeatures';
 import { Direction, GridPoint, PlayerState } from '../core/types';
 import type { StepVerdict } from './walkForecast';
 import type { AsideStep } from './walkStepAside';
@@ -115,4 +116,14 @@ export function pathEngineOf(engine: PlayEngine): PathEngine | null {
 /** Whether a pad direction takes the move from a tapped path: on the CCLP engine only, where the walk is ours. */
 export function padCancelsWalk(engine: PlayEngine, direction: Direction | null): boolean {
   return direction !== null && engine instanceof CclpEngine;
+}
+
+/**
+ * Whether pad keys, on an engine that reads two held keys, take the move from a tapped path: on the CCLP engine, and on a CC2
+ * level of the Epoxy engine when that level lets a tap plan a path. Every other engine keeps its behaviour.
+ */
+export function padKeysCancelWalk(engine: PlayEngine, keys: readonly Direction[]): boolean {
+  if (keys.length === 0) return false;
+  if (engine instanceof CclpEngine) return true;
+  return engine.readsHeldKeyPairs?.() === true && featuresFor(engine.getLevel()).tapToPath;
 }
