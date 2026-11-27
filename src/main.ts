@@ -1977,19 +1977,18 @@ class EpoxyApplication {
     const justPressed = (idx: number): boolean => pressed(idx) && !this.prevGamepadButtons[idx];
 
     const config = gamepadConfigFrom(ConfigRegistry.getGame().gamepad);
-    if (this.engine.readsHeldKeyPairs?.() === true) {
-      if (this.isReplaying) {
-        this.forgetPadKeys();
-      } else {
-        const read = padKeys(pad, this.stickKeys, config);
-        this.stickKeys = read.stick;
-        const { keys, added } = this.padKeyOrder.update(read.keys);
-        this.steerWithGamepadKeys(keys, added);
-      }
+    if (this.isReplaying) {
+      // A replay owns the engine on every engine kind: the pad steers nothing (B and START below still work).
+      this.forgetPadKeys();
+    } else if (this.engine.readsHeldKeyPairs?.() === true) {
+      const read = padKeys(pad, this.stickKeys, config);
+      this.stickKeys = read.stick;
+      const { keys, added } = this.padKeyOrder.update(read.keys);
+      this.steerWithGamepadKeys(keys, added);
     } else {
       this.stickKeys = [];
       this.padKeyOrder.clear();
-      this.steerWithGamepad(singlePadDirection(pad, config));
+      this.steerWithGamepad(singlePadDirection(pad, config, this.isReplaying));
     }
 
     if (justPressed(GAMEPAD_BUTTONS.B)) {
