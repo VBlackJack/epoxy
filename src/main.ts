@@ -123,6 +123,7 @@ import { setToggleState } from './ui/toggleState';
 import { AimMode, turnDirectionForChord } from './ui/aimInput';
 import { HeldKeys, supportsHeldMove } from './ui/heldKeys';
 import { gamepadConfigFrom, heldSetForTick, PadKeyOrder, padKeys, padSteer, singlePadDirection } from './ui/padDirections';
+import { TouchKeySteer, type TouchAction, type TouchGate } from './ui/touchDirections';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -317,6 +318,8 @@ class EpoxyApplication {
   private heldDirection: Direction | null = null;
   /** Direction keys currently down; owns the keyboard move, ahead of touch and gamepad. */
   private readonly heldKeys = new HeldKeys();
+  /** The joystick's keys on an engine that reads two held keys (a diagonal is two); the page only executes its actions. */
+  private readonly touchKeySteer = new TouchKeySteer();
   /** Phone aim toggle: while on, direction inputs turn the player instead of moving it. */
   private readonly aimMode = new AimMode(document.getElementById('touch-btn-aim') as HTMLButtonElement | null);
   /** Side of the screen the touch pad floats on in the phone full screen layout. */
@@ -1748,7 +1751,7 @@ class EpoxyApplication {
     const replaying = this.replayActive();
     const single = replaying ? null : (this.heldDirection ?? this.gamepadDirection);
     if (this.engine.holdPlayerDirections) {
-      this.engine.holdPlayerDirections(heldSetForTick(this.heldKeys.directions(), this.heldDirection, this.gamepadKeys, replaying));
+      this.engine.holdPlayerDirections(heldSetForTick(this.heldKeys.directions(), this.touchKeySteer.holdFor(this.heldDirection), this.gamepadKeys, replaying));
       return;
     }
     this.engine.holdPlayerDirection?.(single);
@@ -1756,13 +1759,8 @@ class EpoxyApplication {
 
   /** Starts a held move from any input source (keys, d-pad, swipe). */
   private beginHeldMove(dir: Direction, fromKeyboard = false): void {
-    // Any press takes the game back from a Tile World solution (the banner says so); it is not a move.
-    if (this.twsRun.player() !== null) {
-      this.stopAutoMoveAndReplay();
-      this.updateHUD();
-      return;
-    }
-    this.clearAutoMove();
+    if (!this.admitPress()) return;
+    this.touchKeySteer.forgetKeys();
     if (this.aimMode.isOn() && this.turnsInPlace()) {
       this.heldDirection = null;
       this.aimMode.noteAimed(dir);
@@ -1773,14 +1771,77 @@ class EpoxyApplication {
     this.sendHeldMove(dir, fromKeyboard);
   }
 
-  /** Sends the move: the whole keyboard set when the engine takes it, otherwise the single direction as ever. */
+  /**
+   * The front of every press that starts a held move, whatever the input (keys, d-pad, swipe, joystick, one key or two): any
+   * press takes the game back from a Tile World solution (the banner says so; it is not a move), and any other press cancels
+   * the tapped walk. False when the press ends here.
+   */
+  private admitPress(): boolean {
+    if (this.twsRun.player() !== null) {
+      this.stopAutoMoveAndReplay();
+      this.updateHUD();
+      return false;
+    }
+    this.clearAutoMove();
+    return true;
+  }
+
+  /** Sends the move: the whole keyboard set when the engine takes it, otherwise the touch diagonal or the single direction as ever. */
   private sendHeldMove(dir: Direction, keyboardOwns: boolean): void {
     const dirs = this.heldKeys.directions();
     if (keyboardOwns && dirs.length > 0 && supportsHeldMove(this.engine)) {
       this.engine.attemptPlayerMoveHeld(dirs);
       return;
     }
+    const touch = this.touchKeySteer.holdFor(this.heldDirection);
+    if (Array.isArray(touch) && supportsHeldMove(this.engine)) {
+      this.engine.attemptPlayerMoveHeld(touch);
+      return;
+    }
     this.engine.attemptPlayerMove(dir);
+  }
+
+  /** What stands between the joystick's keys and the engine right now (TouchKeySteer reads it at each change). */
+  private touchGate(): TouchGate {
+    return {
+      pairs: this.touchReadsKeyPairs(),
+      takeover: this.twsRun.player() !== null,
+      replaying: this.replayActive(),
+      aiming: this.aimMode.isOn() && this.turnsInPlace()
+    };
+  }
+
+  /** True when the engine on screen reads two held keys (the joystick then reports keys, not one direction). */
+  private touchReadsKeyPairs(): boolean {
+    return this.engine.readsHeldKeyPairs?.() === true;
+  }
+
+  /** The joystick's keys changed on a gesture that reads pairs: TouchKeySteer decides, the page executes. */
+  private steerWithTouchKeys(now: Direction[]): void {
+    this.executeTouchAction(this.touchKeySteer.update(now, this.touchGate()));
+  }
+
+  private executeTouchAction(action: TouchAction): void {
+    switch (action.kind) {
+      case 'single':
+        this.beginHeldMove(action.dir);
+        return;
+      case 'press':
+        // Same front as the single press (admitPress), so a pair press never reaches the engine while a solution plays.
+        if (!this.admitPress()) return;
+        this.heldDirection = action.keys[0];
+        if (supportsHeldMove(this.engine)) this.engine.attemptPlayerMoveHeld(action.keys);
+        return;
+      case 'hold':
+        this.heldDirection = action.keys[0];
+        return;
+      case 'release':
+        this.heldDirection = null;
+        this.aimMode.release();
+        return;
+      case 'none':
+        return;
+    }
   }
 
   /** Forgets every held key; the held direction goes with them only when a key set it. */
@@ -2249,6 +2310,8 @@ class EpoxyApplication {
     // A stick still held from the last level does not walk the first tick of this one.
     this.padKeyOrder.requireRelease();
     this.stickKeys = [];
+    // Same for a joystick still under the thumb (the keys it reported belong to the last level).
+    this.touchKeySteer.requireRelease();
     this.syncSokobanSkinControl(level.winRule);
     this.syncCc2Banner(level);
     return started;
@@ -4051,7 +4114,10 @@ class EpoxyApplication {
         else this.heldDirection = null;
       },
       onTap: (x, y) => this.handleBoardPointer(x, y, true),
-      onEngage: () => this.triggerHaptic()
+      onEngage: () => this.triggerHaptic(),
+      // A diagonal only where the engine reads two keys, never during a replay or an aim (a turn takes one direction).
+      readsKeyPairs: () => this.touchReadsKeyPairs() && !this.replayActive() && !(this.aimMode.isOn() && this.turnsInPlace()),
+      onKeys: (keys) => this.steerWithTouchKeys(keys)
     });
     this.joystick.setEnabled(false);
   }

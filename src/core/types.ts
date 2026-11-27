@@ -1020,6 +1020,16 @@ export interface TouchConfig {
   joystickBaseFollowRadiusPx?: number;
   /** Radius the knob is drawn within, in CSS pixels (visual only). */
   joystickKnobRadiusPx?: number;
+  /** Off switch for joystick diagonals on the engines that read two held keys (default true); false keeps one key everywhere. */
+  joystickDiagonals?: boolean;
+  /**
+   * Engines that read two held keys only: the share of joystickBaseFollowRadiusPx the finger's off-axis distance must pass for the
+   * joystick to also hold the perpendicular key (a diagonal). The base trails the finger at that radius, so it is the longest
+   * reach; the knob is only drawn out to joystickKnobRadiusPx and plays no part in the angle.
+   */
+  joystickDiagonalPressRatio?: number;
+  /** Share under which a held perpendicular key lets go (above 0 and under joystickDiagonalPressRatio: hysteresis). */
+  joystickDiagonalReleaseRatio?: number;
 }
 
 /**

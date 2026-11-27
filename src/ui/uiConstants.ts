@@ -55,7 +55,10 @@ export const TOUCH_DEFAULTS = {
   joystickReleaseRadiusPx: 10,
   joystickAxisSwitchRatio: 1.25,
   joystickBaseFollowRadiusPx: 24,
-  joystickKnobRadiusPx: 48
+  joystickKnobRadiusPx: 48,
+  joystickDiagonals: true,
+  joystickDiagonalPressRatio: 0.5,
+  joystickDiagonalReleaseRatio: 0.35
 } as const;
 
 /**

@@ -161,16 +161,17 @@ export function padSteer(input: PadSteerInput): PadSteer {
 
 /**
  * What an engine that reads every held key is told for one tick: nothing while a replay plays; the keyboard's held keys
- * (most recent first) when there are any; else the touch direction; else the pad's keys (one, or two for a diagonal).
+ * (most recent first) when there are any; else the touch hold (one direction, or the joystick's keys of a diagonal); else the pad's keys (one, or two for a diagonal).
  */
 export function heldSetForTick(
   keyboard: readonly Direction[],
-  touch: Direction | null,
+  touch: Direction | readonly Direction[] | null,
   pad: readonly Direction[],
   replaying: boolean
 ): Direction[] {
   if (replaying) return [];
   if (keyboard.length > 0) return [...keyboard];
-  if (touch !== null) return [touch];
+  if (typeof touch === 'string') return [touch];
+  if (touch !== null && touch.length > 0) return [...touch];
   return [...pad];
 }
