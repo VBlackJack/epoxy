@@ -21,7 +21,8 @@ interface FakeRequest {
 
 /**
  * Just enough of IndexedDB for a store keyed by a field: put, get and delete, several requests per transaction, the
- * transaction completing after its requests. Used for the CC2 source sidecar (key path `sha256`).
+ * transaction completing after its requests. Used for the CC2 source sidecar (key path `sha256`) and the Tile World solution
+ * files (key path `packId`).
  */
 export class FakeKeyedIndexedDb {
   public records = new Map<string, unknown>();
@@ -71,10 +72,12 @@ export class FakeKeyedIndexedDb {
       return req;
     };
     const store = {
-      put: (value: { sha256: string }) =>
+      put: (value: { sha256?: string; packId?: string }) =>
         run(() => {
-          if (!this.abortWrites) this.records.set(value.sha256, value);
-          return value.sha256;
+          // The key path is `sha256` for the CC2 source sidecar and `packId` for the Tile World solution files.
+          const key = value.sha256 ?? value.packId ?? '';
+          if (!this.abortWrites) this.records.set(key, value);
+          return key;
         }),
       get: (key: string) => run(() => this.records.get(key)),
       delete: (key: string) => run(() => this.records.delete(key))

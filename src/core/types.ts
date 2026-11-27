@@ -1043,6 +1043,18 @@ export interface BlockPuzzleConfig {
   watchMaxCells: number;
 }
 
+/** Limits of the replay of a Tile World solution file (.tws) the player loads for a CCLP engine pack. */
+export interface TwsReplayConfig {
+  /** Largest .tws file the player may load, in bytes. */
+  maxFileBytes: number;
+  /** Largest tick a recorded solution may reach. */
+  maxSolutionTicks: number;
+  /** Ticks the replay keeps running, keys released, after the last recorded move. */
+  graceTicks: number;
+  /** Most characters kept of the level set name a file carries. */
+  maxSetNameChars: number;
+}
+
 /** Thresholds of the guard that keeps campaign maps unlike the bundled community packs. */
 export interface CampaignGuardConfig {
   /** Side of the square windows whose canonical shapes make up a level fingerprint. */
@@ -1076,6 +1088,7 @@ export interface GameConfig {
   touch?: TouchConfig;
   gamepad?: Partial<GamepadConfig>;
   blockPuzzle: BlockPuzzleConfig;
+  twsReplay: TwsReplayConfig;
   campaignGuard: CampaignGuardConfig;
   ultimatePacks?: UltimatePackDescriptor[];
   /**

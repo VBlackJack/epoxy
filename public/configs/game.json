@@ -681,6 +681,12 @@
     "hintSearchBudget": 60000,
     "watchMaxCells": 2500
   },
+  "twsReplay": {
+    "maxFileBytes": 1048576,
+    "maxSolutionTicks": 1000000,
+    "graceTicks": 600,
+    "maxSetNameChars": 64
+  },
   "campaignGuard": {
     "windowSize": 5,
     "maxJaccard": 0.25,

@@ -169,6 +169,12 @@ import { cc2PackNameFromFile, dropImportJunk, isCc2FileName, folderNameOf, impor
 import { cc2CoverageBadge, cc2ImportNoticeLines, cc2PlayBannerText } from './ui/cc2Display';
 import { Cc2SourceStorage } from './storage/Cc2SourceStorage';
 import { choiceDialog } from './ui/choiceDialog';
+import { TwsFiles } from './storage/TwsFiles';
+import { TwsParseError } from './formats/TwsCodec';
+import { createTwsPlayer, isTwsLevel, isTwsLoadTarget, matchTwsRecord, TwsReplayPlayer, twsVerdict } from './core/cclp/twsReplay';
+import { solutionControlState, SolutionControl, TWS_FORGET_CHOICE, TWS_RELOAD_CHOICE, twsMatchMessageKey, twsParseRefusal } from './ui/twsSolution';
+import { TwsRun } from './ui/twsRun';
+import { loadTwsFileForPack, pickTwsFile, twsLoadMessage } from './ui/twsLoadFlow';
 import {
   parseGraphicsStyle,
   resolveSavedLevel,
@@ -355,6 +361,8 @@ class EpoxyApplication {
   private replayMoves: TimedMove[] = [];
   private replayIndex: number = 0;
   private isReplaying: boolean = false;
+  /** A run that started from a Tile World solution: its replay while it plays, and the mark that keeps the run off the records. */
+  private readonly twsRun = new TwsRun();
   private lastWarnedSecond: number = NO_WARNED_SECOND;
   /** Chip counter last shown, to pop the HUD counter when a chip is picked up. */
   private hudChipsLeft: number = 0;
@@ -438,6 +446,10 @@ class EpoxyApplication {
     this.setupPlayerSkinSelector();
     this.setupGraphicsStyleSelector();
     this.bindViewportResizeObserver();
+    // A solution file read, loaded or forgotten changes what the Solution button does: draw the HUD again.
+    TwsFiles.subscribe(() => {
+      if (this.activeMode === 'play') this.updateHUD();
+    });
 
     this.rebuildHudIcons();
     this.buildInventorySlots();
@@ -542,7 +554,7 @@ class EpoxyApplication {
   private playtestTickState(): PlaytestTickState {
     return {
       playing: !isDialogOpen() && this.activeMode === 'play',
-      replaying: this.isReplaying,
+      replaying: this.replayActive(),
       packId: this.isTestPlaying() ? null : this.playedPackId
     };
   }
@@ -716,8 +728,13 @@ class EpoxyApplication {
 
   private bindEngineCallbacks(): void {
     this.engineSelector.setOnWinCallback((levelId, timeRemaining, steps, score) => {
-      // A test play of an editor draft is not a record for the stored level that shares its id.
-      if (!this.isReplaying && !this.isTestPlaying()) {
+      // A run that started from a Tile World solution never raises the total: it is put back to what it was at the start.
+      const carriedTotal = this.twsRun.totalScoreToCarry();
+      if (carriedTotal !== null) this.engine.carryTotalScore(carriedTotal);
+      const tookOver = this.twsRun.seeded() && this.twsRun.player() === null && !this.isReplaying;
+      // A test play of an editor draft is not a record for the stored level that shares its id, and a run that started
+      // from a Tile World solution is not one either.
+      if (this.twsRun.mayRecordWin(this.isReplaying, this.isTestPlaying())) {
         this.recordHighScore(
           levelId,
           timeRemaining,
@@ -727,6 +744,8 @@ class EpoxyApplication {
           this.engine.getLevel()
         );
         this.playtest.won();
+      } else if (tookOver) {
+        this.showTransientStatus(t('hud.messages.tws_run_unscored.label'));
       }
       this.stopAutoMoveAndReplay();
     });
@@ -809,11 +828,15 @@ class EpoxyApplication {
     }
     if (this.activeMode !== 'play') return;
     this.pollGamepad();
+    // A Tile World solution holds its own keys every tick; the keyboard and the pad hold nothing meanwhile.
+    const twsPlayer = this.twsRun.player();
     // An engine that tells presses from holds hears the held direction (or its release) once per tick.
-    this.holdDirectionsForTick();
+    if (twsPlayer === null) this.holdDirectionsForTick();
     // The walk of a tapped path: the step is sent before the tick and followed after it, by the one TappedWalk of the page.
     let walkTurn: WalkTurn | null = null;
-    if (this.isReplaying) {
+    if (twsPlayer !== null) {
+      twsPlayer.beforeTick(this.engine);
+    } else if (this.isReplaying) {
       this.advanceReplay();
     } else if (this.heldDirection) {
       this.clearAutoMove();
@@ -824,8 +847,9 @@ class EpoxyApplication {
       this.applyWalkChange(walkTurn);
     }
     this.engine.tick();
+    this.checkTwsReplay();
     // The CCLP copy of the monster watch plays the tick that was just played, so a forecast never replays the history.
-    if (this.cclpEngine() && featuresFor(this.engine.getLevel()).tapToPath) this.walkForecast.follow(this.engine);
+    if (this.cclpEngine() && featuresFor(this.engine.getLevel()).tapToPath && this.twsRun.walkAidsAllowed()) this.walkForecast.follow(this.engine);
     if (walkTurn !== null) this.applyWalkChange(this.walk.afterTick(this.engine, walkTurn));
     // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
     this.epoxyEngine()?.flushPendingStepEnd();
@@ -855,7 +879,7 @@ class EpoxyApplication {
    * speaks when the dead end is proven.
    */
   private watchBlockPuzzles(): void {
-    if (this.isReplaying) return;
+    if (this.replayActive()) return;
     const engine = this.epoxyEngine();
     if (!engine || !featuresFor(engine.getLevel()).deadEndWatch) return;
     // The exact search runs on the main thread: a large level is left to the hint button.
@@ -1721,9 +1745,10 @@ class EpoxyApplication {
    * when the keyboard owns the hold, else the single held direction; any other engine gets the single direction as before.
    */
   private holdDirectionsForTick(): void {
-    const single = this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection);
+    const replaying = this.replayActive();
+    const single = replaying ? null : (this.heldDirection ?? this.gamepadDirection);
     if (this.engine.holdPlayerDirections) {
-      this.engine.holdPlayerDirections(heldSetForTick(this.heldKeys.directions(), this.heldDirection, this.gamepadKeys, this.isReplaying));
+      this.engine.holdPlayerDirections(heldSetForTick(this.heldKeys.directions(), this.heldDirection, this.gamepadKeys, replaying));
       return;
     }
     this.engine.holdPlayerDirection?.(single);
@@ -1731,6 +1756,12 @@ class EpoxyApplication {
 
   /** Starts a held move from any input source (keys, d-pad, swipe). */
   private beginHeldMove(dir: Direction, fromKeyboard = false): void {
+    // Any press takes the game back from a Tile World solution (the banner says so); it is not a move.
+    if (this.twsRun.player() !== null) {
+      this.stopAutoMoveAndReplay();
+      this.updateHUD();
+      return;
+    }
     this.clearAutoMove();
     if (this.aimMode.isOn() && this.turnsInPlace()) {
       this.heldDirection = null;
@@ -1770,7 +1801,7 @@ class EpoxyApplication {
 
   /** Click or tap on the board: stop a replay, or plan a path to the tile. */
   private handleBoardPointer(clientX: number, clientY: number, inspect: boolean): void {
-    if (this.isReplaying) {
+    if (this.replayActive()) {
       this.stopAutoMoveAndReplay();
       this.updateHUD();
       return;
@@ -1785,7 +1816,8 @@ class EpoxyApplication {
       this.updateInspectBadge(gridPt);
     }
     const engine = this.pathEngine();
-    if (!engine || !featuresFor(engine.getLevel()).tapToPath) return;
+    // A run that started from a Tile World solution has its own seed: the path search copies the game with the default one.
+    if (!engine || !featuresFor(engine.getLevel()).tapToPath || !this.twsRun.walkAidsAllowed()) return;
     const result = Pathfinder.findPath(engine, gridPt.x, gridPt.y);
     // The one walk that may step aside: the player tapped its goal.
     this.walk.begin(result.moves, result.points, true);
@@ -1977,7 +2009,8 @@ class EpoxyApplication {
     const justPressed = (idx: number): boolean => pressed(idx) && !this.prevGamepadButtons[idx];
 
     const config = gamepadConfigFrom(ConfigRegistry.getGame().gamepad);
-    if (this.isReplaying) {
+    const replaying = this.replayActive();
+    if (replaying) {
       // A replay owns the engine on every engine kind: the pad steers nothing (B and START below still work).
       this.forgetPadKeys();
     } else if (this.engine.readsHeldKeyPairs?.() === true) {
@@ -1988,7 +2021,7 @@ class EpoxyApplication {
     } else {
       this.stickKeys = [];
       this.padKeyOrder.clear();
-      this.steerWithGamepad(singlePadDirection(pad, config, this.isReplaying));
+      this.steerWithGamepad(singlePadDirection(pad, config, replaying));
     }
 
     if (justPressed(GAMEPAD_BUTTONS.B)) {
@@ -2182,17 +2215,34 @@ class EpoxyApplication {
     this.clearAutoMove();
     this.pendingSwap.cancel();
     this.isReplaying = false;
+    this.twsRun.stopReplay();
     this.replayMoves = [];
     this.replayIndex = 0;
   }
 
-  /** Loads a level into the engine its ruleset asks for. */
+  /** Loads a level into the engine its ruleset asks for; the run it starts is an ordinary one. */
   private loadPlayLevel(level: CompiledLevel): void {
     this.pendingSwap.cancel();
-    this.engineSelector.forLevel(level).loadLevel(level);
+    this.loadRun(level, null);
+  }
+
+  /**
+   * The load itself. With a Tile World `solution` the level loads with that record's stepping, seed and force floor start
+   * and the replay starts; any other load makes the run an ordinary one again.
+   */
+  private loadRun(level: CompiledLevel, solution: TwsReplayPlayer | null): void {
+    const engine = this.engineSelector.forLevel(level);
+    if (solution !== null && isTwsLoadTarget(engine)) {
+      solution.load(engine, level);
+      // Read after the load: a level loaded again starts from the total it had at its start.
+      this.twsRun.begin(solution, engine.getTotalScore());
+    } else {
+      engine.loadLevel(level);
+      this.twsRun.clear();
+    }
     this.forgetWalkAids();
     // The private copy of the monster watch is built at the load, where a level takes its time anyway.
-    if (this.cclpEngine() && featuresFor(level).tapToPath) this.walkForecast.follow(this.engine);
+    if (this.cclpEngine() && featuresFor(level).tapToPath && this.twsRun.walkAidsAllowed()) this.walkForecast.follow(this.engine);
     this.aimMode.set(false);
     this.clearHeldKeys();
     // A stick still held from the last level does not walk the first tick of this one.
@@ -2334,12 +2384,174 @@ class EpoxyApplication {
     return featuresFor(level).solutionReplay ? timedSolution(level) : null;
   }
 
+  /** True while a replay owns the engine: the stored solution playing, or a Tile World solution playing. */
+  private replayActive(): boolean {
+    return this.twsRun.replayActive(this.isReplaying);
+  }
+
+  /** The pack whose solution file the level on screen would play from, or null (a test play of an editor draft has none). */
+  private twsPackId(): string | null {
+    return this.isTestPlaying() ? null : this.playedPackId;
+  }
+
+  /** What the Solution button does on the level on screen. */
+  private solutionControl(): SolutionControl {
+    const level = this.engine.getLevel();
+    const packId = this.twsPackId();
+    const tws = packId !== null && isTwsLevel(level);
+    const file = tws ? TwsFiles.peek(packId) : undefined;
+    const match = file?.kind === 'ready' ? matchTwsRecord(file.index, level) : null;
+    return solutionControlState({ tws, storedAvailable: hasStoredSolution(level), file, match });
+  }
+
+  /** Starts the read of the stored file of the pack the level on screen belongs to, the first time it is wanted. */
+  private readTwsFileOnce(level: CompiledLevel): void {
+    const packId = this.twsPackId();
+    if (packId === null || !isTwsLevel(level) || TwsFiles.peek(packId) !== undefined) return;
+    void TwsFiles.ensure(packId, ConfigRegistry.getGame().twsReplay);
+  }
+
+  /** After a tick: a Tile World replay ends on a death (no grace for a dead Chip) and on the end of its moves. */
+  private checkTwsReplay(): void {
+    const player = this.twsRun.player();
+    if (player === null) return;
+    const verdict = twsVerdict(player, {
+      tick: this.engine.getTick(),
+      alive: this.engine.getPlayer().alive,
+      completed: this.engine.isLevelCompleted()
+    });
+    if (verdict === 'died') {
+      this.twsRun.stopReplay();
+      this.showTransientStatus(t('hud.messages.tws_died.label'));
+    } else if (verdict === 'over') {
+      this.twsRun.stopReplay();
+      this.showTransientStatus(t('hud.messages.tws_not_reached.label'));
+    }
+  }
+
+  /** The Solution button: what it does depends on the level (see solutionControlState). */
+  private async showSolution(): Promise<void> {
+    const control = this.solutionControl();
+    switch (control.action) {
+      case 'tws':
+        return this.showTwsSolution();
+      case 'offer_load':
+        return this.offerTwsFile();
+      case 'loading':
+        this.showTransientStatus(t('hud.messages.tws_loading.label'));
+        return;
+      case 'error':
+        return this.resolveTwsError();
+      case 'none':
+        this.showTransientStatus(t(control.titleKey));
+        return;
+      case 'stored':
+        return this.showStoredSolution();
+    }
+  }
+
+  /** Asks for a Tile World solution file for the pack of the level on screen, then loads it. */
+  private async offerTwsFile(): Promise<void> {
+    const packId = this.twsPackId();
+    if (packId === null) return;
+    const confirmed = await confirmDialog({
+      title: t('app.confirm.title.label'),
+      message: t('hud.messages.tws_offer_load.label'),
+      confirmLabel: t('app.confirm.tws_load.action'),
+      cancelLabel: t('app.confirm.cancel.action')
+    });
+    if (!confirmed) return;
+    // No other await before the picker opens: a browser only opens it for a gesture that is still fresh.
+    await this.loadTwsFile(packId, await pickTwsFile());
+  }
+
+  /** Loads a picked file for a pack and says what came of it. The file belongs to the pack, wherever the player is now. */
+  private async loadTwsFile(packId: string, file: File | null): Promise<void> {
+    if (file === null) return;
+    const levels = ConfigRegistry.getAllPacks().find((pack) => pack.id === packId)?.levels ?? [];
+    const result = await loadTwsFileForPack(packId, levels, file);
+    this.showTransientStatus(twsLoadMessage(result));
+    this.updateHUD();
+  }
+
+  /** A stored file the reader refuses: says why and offers to forget it or to load another. */
+  private async resolveTwsError(): Promise<void> {
+    const packId = this.twsPackId();
+    const file = packId === null ? undefined : TwsFiles.peek(packId);
+    if (packId === null || file?.kind !== 'error') return;
+    const refusal = twsParseRefusal(file.code, ConfigRegistry.getGame().twsReplay);
+    await this.chooseForgetOrReload(packId, t(refusal.errorKey, refusal.params));
+  }
+
+  /** The dialog that follows a refused file: forget it, or load another. */
+  private async chooseForgetOrReload(packId: string, message: string): Promise<void> {
+    const answer = await choiceDialog({
+      title: t('app.confirm.title.label'),
+      message,
+      cancelLabel: t('app.confirm.cancel.action'),
+      options: [
+        { id: TWS_FORGET_CHOICE, label: t('app.packs.manager.tws_forget.action'), primary: true },
+        { id: TWS_RELOAD_CHOICE, label: t('app.packs.manager.tws_load_other.action') }
+      ]
+    });
+    if (answer === TWS_FORGET_CHOICE) {
+      await TwsFiles.forget(packId);
+      this.showTransientStatus(t('app.packs.manager.toast.tws_forgotten.label'));
+      this.updateHUD();
+    } else if (answer === TWS_RELOAD_CHOICE) {
+      await this.loadTwsFile(packId, await pickTwsFile());
+    }
+  }
+
+  /** Restarts the level and plays the solution of the pack's Tile World file, after a confirmation. */
+  private async showTwsSolution(): Promise<void> {
+    const level = this.engine.getLevel();
+    const packId = this.twsPackId();
+    const file = packId === null ? undefined : TwsFiles.peek(packId);
+    if (packId === null || file?.kind !== 'ready') return;
+    const match = matchTwsRecord(file.index, level);
+    if (match.kind === 'playable') {
+      const confirmed = await confirmDialog({
+        title: t('app.confirm.title.label'),
+        message: t('hud.messages.solution_confirm.label'),
+        confirmLabel: t('app.confirm.solution.action'),
+        cancelLabel: t('app.confirm.cancel.action')
+      });
+      // The player may have moved on, or forgotten the file, while the question was open.
+      const unchanged = this.engine.getLevel().id === level.id && this.twsPackId() === packId && TwsFiles.peek(packId) === file;
+      if (!confirmed || !unchanged) return;
+      let player: TwsReplayPlayer;
+      try {
+        player = createTwsPlayer(file.index, match.entry, ConfigRegistry.getGame().twsReplay);
+      } catch (e) {
+        if (!(e instanceof TwsParseError)) throw e;
+        const refusal = twsParseRefusal(e.code, ConfigRegistry.getGame().twsReplay);
+        await this.chooseForgetOrReload(packId, t(refusal.errorKey, refusal.params));
+        return;
+      }
+      this.playtest.solutionViewed();
+      this.startTwsReplay(player);
+      this.showTransientStatus(t('hud.messages.tws_playing.label'));
+      return;
+    }
+    this.showTransientStatus(t(twsMatchMessageKey(match.kind)));
+  }
+
+  /** Reloads the level with the stepping, seed and force floor start of a Tile World record and plays its keys. */
+  private startTwsReplay(player: TwsReplayPlayer): void {
+    this.playtest.replayStarting();
+    this.stopAutoMoveAndReplay();
+    this.forgetWalkAids();
+    this.loadRun(this.engine.getLevel(), player);
+    this.updateHUD();
+  }
+
   /**
    * Restarts the level and plays its proven solution, after a confirmation
    * since progress in the level is lost. Levels without a stored solution
    * (imported packs) say so.
    */
-  private async showSolution(): Promise<void> {
+  private async showStoredSolution(): Promise<void> {
     const moves = this.playableSolution();
     if (!moves) {
       this.showTransientStatus(t('hud.messages.no_solution.label'));
@@ -2365,7 +2577,7 @@ class EpoxyApplication {
   private playBlockHint(): boolean {
     const engine = this.epoxyEngine();
     if (!engine || !featuresFor(engine.getLevel()).blockHint) return false;
-    if (this.isReplaying || !engine.getPlayer().alive) return false;
+    if (this.replayActive() || !engine.getPlayer().alive) return false;
     if (BlockPuzzleSolver.isStuck(engine, requestedSearchBudget())) {
       this.showTransientStatus(t(stuckMessageKey(engine.getLevel().winRule)));
       return true;
@@ -3546,7 +3758,7 @@ class EpoxyApplication {
 
       if (this.activeMode !== 'play') return;
 
-      if (this.isReplaying) {
+      if (this.replayActive()) {
         this.stopAutoMoveAndReplay();
         this.updateHUD();
         return;
@@ -4048,10 +4260,11 @@ class EpoxyApplication {
       'hidden',
       !(showExtras && document.body.classList.contains('fullscreen-mode'))
     );
+    const solutionAvailable = this.solutionControl().enabled;
     const solutionBtn = byId<HTMLButtonElement>('overlay-btn-solution');
-    if (solutionBtn) solutionBtn.disabled = this.playableSolution() === null;
+    if (solutionBtn) solutionBtn.disabled = !solutionAvailable;
     const menuSolution = byId<HTMLButtonElement>('touch-menu-solution');
-    if (menuSolution) menuSolution.disabled = this.playableSolution() === null;
+    if (menuSolution) menuSolution.disabled = !solutionAvailable;
     this.syncJoystickEnabled(state);
     syncOverlayInert(document, this.touchOverlayActive, state !== 'none');
     // A finger left on an inert pad never sends its release: stop the held move with the card.
@@ -4290,7 +4503,7 @@ class EpoxyApplication {
    */
   private swapActivePlayer(): void {
     if (this.activeMode !== 'play') return;
-    if (this.isReplaying) {
+    if (this.replayActive()) {
       this.stopAutoMoveAndReplay();
       this.updateHUD();
       return;
@@ -4336,7 +4549,7 @@ class EpoxyApplication {
   /** Drops the item of a clicked inventory slot, which becomes the selected one. */
   private dropHudItem(itemId: string): void {
     if (this.activeMode !== 'play') return;
-    if (this.isReplaying) {
+    if (this.replayActive()) {
       this.stopAutoMoveAndReplay();
       this.updateHUD();
       return;
@@ -4532,15 +4745,19 @@ class EpoxyApplication {
     }
   }
 
-  /** Disables the solution button of a level that stores none (hidden on the touch bar). */
+  /**
+   * Disables the solution button of a level with nothing to play (hidden on the touch bar). On a CCLP engine level it also
+   * starts the one read of the pack's solution file, once; the state it holds is only looked at here, never parsed.
+   */
   private updateSolutionControls(lvl: CompiledLevel): void {
-    const available = hasStoredSolution(lvl);
+    this.readTwsFileOnce(lvl);
+    const control = this.solutionControl();
     const desktopBtn = byId<HTMLButtonElement>('hud-btn-solution');
     if (desktopBtn) {
-      desktopBtn.disabled = !available;
-      desktopBtn.title = available ? t('hud.controls.solution.hint') : t('hud.controls.solution_unavailable.label');
+      desktopBtn.disabled = !control.enabled;
+      desktopBtn.title = t(control.titleKey);
     }
-    byId('mobile-btn-solution')?.classList.toggle('hidden', !available);
+    byId('mobile-btn-solution')?.classList.toggle('hidden', !control.enabled);
   }
 
   private updateTimer(): void {
@@ -4594,7 +4811,10 @@ class EpoxyApplication {
     if (!statusToast) return;
     const bannerKey = this.engine.getStatusBannerKey();
     let message: string | null = null;
-    if (this.isReplaying) {
+    const twsPlayer = this.twsRun.player();
+    if (twsPlayer !== null) {
+      message = t('hud.messages.tws_replaying_banner.label', twsPlayer.progress(this.engine.getTick()));
+    } else if (this.isReplaying) {
       message = t('hud.messages.replaying_banner.label', {
         step: this.replayIndex,
         total: this.replayMoves.length

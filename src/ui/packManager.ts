@@ -34,6 +34,7 @@ import { cc2CoverageBadge } from './cc2Display';
 import { closeDialog, openDialog } from './dialog';
 import { downloadBlob, MIME_JSON } from './download';
 import { askSaveInto } from './saveIntoDialog';
+import { TwsPackSection } from './twsPackSection';
 import { ThumbnailBatch } from './levelThumbnailView';
 import { formatValidationIssue } from './validatorIssueText';
 import { isShareEncoderSupported } from '../packs/shareLink';
@@ -162,7 +163,15 @@ export class PackManager {
   /** Button to focus when the redraw that ends an operation is done. */
   private pendingFocus: string | null = null;
 
+  /** The Tile World solution files of the CCLP engine packs. */
+  private readonly tws: TwsPackSection;
+
   public constructor(private readonly host: PackManagerHost) {
+    this.tws = new TwsPackSection({
+      isOpen: () => this.isOpen(),
+      notify: (message) => this.host.notify(message),
+      packDisplayName: (pack) => this.host.packDisplayName(pack)
+    });
     this.bindEscapeGuard();
     this.bindStaticControls();
   }
@@ -349,6 +358,7 @@ export class PackManager {
     this.renderLibrary(rows);
     this.syncDetail();
     this.renderLevels();
+    this.tws.render();
     byId('packs-delete-imported-btn')?.classList.toggle(
       HIDDEN_CLASS,
       !rows.some((row) => row.imported)

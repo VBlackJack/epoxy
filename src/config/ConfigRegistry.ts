@@ -70,6 +70,7 @@ import {
   GridSize,
   LevelSizeBounds,
   findBlockPuzzleConfigErrors,
+  findTwsReplayConfigErrors,
   findCampaignGuardConfigErrors,
   findTouchConfigErrors,
   findGamepadConfigErrors,
@@ -136,10 +137,11 @@ import { isCclpStoredPackMoveEnabled } from './featureFlags';
 import { Cc2SourceStorage, Cc2SourceRecord } from '../storage/Cc2SourceStorage';
 import { base64ToBytes, cc2SourceHashes, sha256OfBytes } from '../storage/cc2Sources';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
+import { TwsFiles } from '../storage/TwsFiles';
 
 /** Top-level keys each config file must define. */
 const REQUIRED_CONFIG_KEYS = {
-  GAME: ['grid', 'timing', 'storage', 'import', 'locales', 'keybindings', 'palette', 'blockPuzzle'],
+  GAME: ['grid', 'timing', 'storage', 'import', 'locales', 'keybindings', 'palette', 'blockPuzzle', 'twsReplay'],
   TILES: ['tiles'],
   CC3D_TILES: ['tiles'],
   CC2_TILES: ['tiles', 'entities'],
@@ -397,6 +399,10 @@ class ConfigRegistryService {
     const blockPuzzleErrors = findBlockPuzzleConfigErrors(bundle.game.blockPuzzle);
     if (blockPuzzleErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, blockPuzzleErrors.join('; '));
+    }
+    const twsReplayErrors = findTwsReplayConfigErrors(bundle.game.twsReplay);
+    if (twsReplayErrors.length > 0) {
+      throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, twsReplayErrors.join('; '));
     }
     const campaignGuardErrors = findCampaignGuardConfigErrors(bundle.game.campaignGuard);
     if (campaignGuardErrors.length > 0) {
@@ -1451,6 +1457,7 @@ class ConfigRegistryService {
     if (this.activePackId === packId) this.resetActivePack();
     const persisted = await this.persistDeletion(packId);
     await this.releaseCc2Sources(removed);
+    await TwsFiles.forget(packId);
     return { ok: true, persisted };
   }
 

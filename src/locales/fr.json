@@ -163,6 +163,29 @@
       },
       "retry": {
         "action": "Réessayer"
+      },
+      "tws": {
+        "too_large": {
+          "label": "Ce fichier dépasse {max} Ko."
+        },
+        "signature": {
+          "label": "Ce n'est pas un fichier de solutions Tile World."
+        },
+        "ruleset": {
+          "label": "Ce fichier de solutions utilise des règles inconnues d'Epoxy."
+        },
+        "damaged": {
+          "label": "Ce fichier de solutions est endommagé."
+        },
+        "too_long": {
+          "label": "Une solution de ce fichier est trop longue pour être jouée."
+        },
+        "no_match": {
+          "label": "Ce fichier n'a aucune solution jouable pour les niveaux de ce pack. Rien n'a été enregistré."
+        },
+        "not_stored": {
+          "label": "Le fichier n'a pas pu être enregistré dans ce navigateur : il reste lisible jusqu'à ce que vous quittiez la page."
+        }
       }
     },
     "player_skin": {
@@ -343,6 +366,9 @@
       },
       "replace": {
         "action": "Remplacer"
+      },
+      "tws_load": {
+        "action": "Charger un fichier"
       }
     },
     "playtest": {
@@ -613,6 +639,38 @@
             "label": "Créez un autre pack pour y copier ou y déplacer des niveaux."
           }
         },
+        "tws_section": {
+          "title": {
+            "label": "Solutions Tile World"
+          },
+          "hint": {
+            "label": "Les fichiers de solutions que vous chargez restent dans ce navigateur. Chargez-en un ici, ou depuis le bouton Solution d'un niveau CCLP."
+          },
+          "none": {
+            "label": "Aucun fichier chargé"
+          },
+          "file": {
+            "label": "Fichier : {name}"
+          },
+          "loading": {
+            "label": "Lecture du fichier enregistré..."
+          },
+          "error": {
+            "label": "Le fichier enregistré est illisible"
+          }
+        },
+        "tws_load": {
+          "action": "Charger un fichier"
+        },
+        "tws_load_other": {
+          "action": "Charger un autre fichier"
+        },
+        "tws_forget": {
+          "action": "Oublier le fichier de solutions",
+          "confirm": {
+            "label": "Oublier le fichier de solutions de \"{name}\" ? Vous pourrez le charger de nouveau depuis votre ordinateur."
+          }
+        },
         "delete_dialog": {
           "message": {
             "label": "Supprimer le pack \"{name}\" et {count, plural, one {son niveau} other {ses # niveaux}} ? Cette action est définitive."
@@ -723,6 +781,9 @@
           },
           "failed": {
             "label": "Ce changement n'a pas pu être appliqué."
+          },
+          "tws_forgotten": {
+            "label": "Fichier de solutions oublié."
           }
         }
       },
@@ -1083,6 +1144,15 @@
       "solution_unavailable": {
         "label": "Aucune solution enregistrée pour ce niveau"
       },
+      "solution_tws_load": {
+        "hint": "Charger un fichier de solutions Tile World"
+      },
+      "solution_tws_loading": {
+        "label": "Recherche d'un fichier de solutions enregistré..."
+      },
+      "solution_tws_error": {
+        "hint": "Le fichier de solutions enregistré est illisible"
+      },
       "restart": {
         "action": "Recommencer",
         "hint": "Recommencer (R)"
@@ -1323,6 +1393,45 @@
       },
       "no_solution": {
         "label": "Pas de solution enregistrée pour ce niveau (les packs importés n'en ont pas)."
+      },
+      "tws_offer_load": {
+        "label": "Aucune solution n'est enregistrée pour ce pack. Charger un fichier de solutions Tile World (.tws) depuis votre ordinateur ? Il reste dans ce navigateur."
+      },
+      "tws_loaded": {
+        "label": "Solutions chargées : {matched} des {total} niveaux de ce pack."
+      },
+      "tws_loading": {
+        "label": "Recherche d'un fichier de solutions enregistré. Réessayez dans un instant."
+      },
+      "tws_playing": {
+        "label": "Lecture de votre solution Tile World. Touchez le plateau pour reprendre la main."
+      },
+      "tws_replaying_banner": {
+        "label": "LECTURE DE LA SOLUTION TILE WORLD ({step}/{total}) - Cliquez ou appuyez sur une touche pour reprendre la main"
+      },
+      "tws_not_reached": {
+        "label": "La solution n'a pas atteint la sortie. Elle a peut-être été enregistrée sur une autre version de ce niveau."
+      },
+      "tws_died": {
+        "label": "Chip est mort pendant la solution. Elle a peut-être été enregistrée sur une autre version de ce niveau."
+      },
+      "tws_no_record": {
+        "label": "Votre fichier de solutions n'a pas de solution pour ce niveau."
+      },
+      "tws_password_mismatch": {
+        "label": "Votre fichier de solutions a été enregistré sur un autre niveau {number} (le mot de passe diffère)."
+      },
+      "tws_no_solution": {
+        "label": "Votre fichier de solutions ne contient que le mot de passe de ce niveau."
+      },
+      "tws_mouse_moves": {
+        "label": "Cette solution utilise des déplacements à la souris, qu'Epoxy ne joue pas."
+      },
+      "tws_ms_ruleset": {
+        "label": "Ce fichier contient des solutions en règles MS. Ce pack se joue en règles Lynx : chargez son fichier Lynx (souvent nommé -lynx.tws)."
+      },
+      "tws_run_unscored": {
+        "label": "Cette partie part d'une lecture de solution : elle n'est pas enregistrée comme score."
       },
       "inspect_format": {
         "label": "🔍 ({x}, {y}) : {details}"
