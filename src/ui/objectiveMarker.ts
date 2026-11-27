@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CompiledLevel, GridPoint } from '../core/types';
+import { TIMING_DEFAULTS } from './uiConstants';
 import { PathEngine, Pathfinder } from '../core/Pathfinder';
 
 /** The goal the marker shows; `reachable` is false when no tapped path reaches it from here yet. */
@@ -33,6 +35,8 @@ export class ObjectiveMarker {
   private cache: { level: CompiledLevel; key: string; value: MarkedObjective | null } | null = null;
   /** How many times the search ran, for the tests. */
   public searches = 0;
+  /** How many searches ran out of their expansion budget, for the tests and the harness. */
+  public budgetHits = 0;
 
   public forget(): void {
     this.cache = null;
@@ -45,7 +49,10 @@ export class ObjectiveMarker {
     const key = `${player.x},${player.y}|${engine.getChipsRemaining()}|${JSON.stringify(player.keys)}|${[...player.boots].sort().join('+')}|${second}`;
     if (this.cache?.level !== level || this.cache.key !== key) {
       this.searches++;
-      const reachable = Pathfinder.findReachableObjective(engine);
+      const outcome = { exhausted: false };
+      const budget = ConfigRegistry.getGame().timing.walkObjectiveExpansionBudget ?? TIMING_DEFAULTS.walkObjectiveExpansionBudget;
+      const reachable = Pathfinder.findReachableObjective(engine, budget, outcome);
+      if (outcome.exhausted) this.budgetHits++;
       const found = reachable ?? Pathfinder.findNextObjective(engine);
       this.cache = { level, key, value: found === null ? null : { point: found, reachable: reachable !== null } };
     }

@@ -64,6 +64,8 @@ export interface TimingConfig {
   walkForecastBudgetMs?: number;
   /** Ticks the monster watch copy of a CCLP game plays per call while it catches up after an undo or a restart. */
   walkCatchUpTicks?: number;
+  /** Path search steps one objective marker search may spend in all, over its tries; past it the marker shows the first goal unmarked. */
+  walkObjectiveExpansionBudget?: number;
 }
 
 export interface UserSettings {

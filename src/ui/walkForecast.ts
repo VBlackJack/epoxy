@@ -133,7 +133,7 @@ export class WalkForecaster {
     if (engine !== this.engine) {
       this.engine = engine;
       this.sandbox =
-        engine instanceof CclpEngine ? new CclpSandbox(engine) : engine instanceof GameEngine ? new EpoxySandbox(engine) : null;
+        engine instanceof CclpEngine ? new CclpSandbox(engine, this.now) : engine instanceof GameEngine ? new EpoxySandbox(engine) : null;
     }
     return this.sandbox;
   }

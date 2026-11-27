@@ -169,6 +169,26 @@ describe('Pathfinder.findReachableObjective', () => {
 describe('ObjectiveMarker', () => {
   const TICKS_PER_SECOND = 20;
 
+  it('spends one shared budget of search steps over its tries, then shows the first goal unmarked', () => {
+    const timing = ConfigRegistry.getGame().timing;
+    expect(timing.walkObjectiveExpansionBudget).toBe(1200);
+    const view = cclpPathView(cclp(['#######', '#@iWX##', '#######']));
+    const outcome = { exhausted: false };
+    expect(Pathfinder.findReachableObjective(view, 1, outcome)).toBeNull();
+    expect(outcome.exhausted).toBe(true);
+    expect(Pathfinder.findReachableObjective(view, 1000, outcome)).toEqual({ x: 2, y: 1 });
+    expect(outcome.exhausted).toBe(false);
+    const saved = timing.walkObjectiveExpansionBudget;
+    timing.walkObjectiveExpansionBudget = 1;
+    try {
+      const marker = new ObjectiveMarker();
+      expect(marker.get(view, 0, TICKS_PER_SECOND)).toEqual({ point: { x: 4, y: 1 }, reachable: false });
+      expect(marker.budgetHits).toBe(1);
+    } finally {
+      timing.walkObjectiveExpansionBudget = saved;
+    }
+  });
+
   it('marks the reachable goal, then the goal beyond what the path refuses, flagged', () => {
     const marker = new ObjectiveMarker();
     expect(marker.get(cclpPathView(cclp(['#######', '#@iWX##', '#######'])), 0, TICKS_PER_SECOND)).toEqual({

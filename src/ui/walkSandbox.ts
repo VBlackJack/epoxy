@@ -22,6 +22,7 @@ import { Simulation } from '../core/lynx/Simulation';
 import { World } from '../core/lynx/model';
 import { CompiledLevel, Direction, PlayerState } from '../core/types';
 import { ConfigRegistry } from '../config/ConfigRegistry';
+import { walkForecastBudgetMs } from './walkForecast';
 import { applyTimedMove, collectDueMoves } from './replaySchedule';
 import { TIMING_DEFAULTS } from './uiConstants';
 
@@ -120,11 +121,16 @@ export class CclpSandbox implements Sandbox {
   private moveIndex = 0;
   private mark: SimulationMark | null = null;
   private rebuiltAfterMismatch = false;
+  /** The level costs more per tick than the budget of a decision: the copy stops following (the watch is off) until the next reset. */
+  private abandoned = false;
   /** Counters for the measurement harness and the tests. */
   public rebuilds = 0;
   public mismatches = 0;
 
-  constructor(private readonly live: CclpEngine) {
+  constructor(
+    private readonly live: CclpEngine,
+    private readonly now: () => number = () => performance.now()
+  ) {
     const tap: RuleModule = {
       name: 'walkForecastTap',
       onLoad: (ctx) => {
@@ -138,6 +144,7 @@ export class CclpSandbox implements Sandbox {
   public reset(): void {
     this.level = null;
     this.rebuiltAfterMismatch = false;
+    this.abandoned = false;
   }
 
   /** The private engine, for the tests and the measurement harness. */
@@ -147,7 +154,7 @@ export class CclpSandbox implements Sandbox {
 
   /** Whether the copy is at the tick of the game on screen. */
   public caughtUp(): boolean {
-    return this.level !== null && this.shadow.getTick() >= this.live.getTick();
+    return !this.abandoned && this.level !== null && this.shadow.getTick() >= this.live.getTick();
   }
 
   private load(): void {
@@ -163,6 +170,7 @@ export class CclpSandbox implements Sandbox {
    * until it has caught up (see open).
    */
   public follow(): void {
+    if (this.abandoned) return;
     const until = this.live.getTick();
     if (this.level !== this.live.getLevel() || this.shadow.getTick() > until) this.load();
     if (this.shadow.getTick() >= until) return;
@@ -170,14 +178,19 @@ export class CclpSandbox implements Sandbox {
     // The game on screen took moves back (an undo): the copy has played moves it no longer has.
     if (this.moveIndex > moves.length) this.load();
     const shadow = this.shadow;
-    const stop = Math.min(until, shadow.getTick() + walkCatchUpTicks());
+    const first = shadow.getTick();
+    const stop = Math.min(until, first + walkCatchUpTicks());
+    const startedAt = this.now();
     while (shadow.getTick() < stop) {
       const { due, nextIndex } = collectDueMoves(moves, this.moveIndex, shadow.getTick());
       for (const move of due) applyTimedMove(shadow, move);
       this.moveIndex = nextIndex;
       shadow.tick();
-      if (shadow.isLevelCompleted() || !shadow.getPlayer().alive) return;
+      if (shadow.isLevelCompleted() || !shadow.getPlayer().alive) break;
     }
+    // A level whose own tick costs more than a decision may (a flood of creatures) would double the cost of every tick: leave it.
+    const played = shadow.getTick() - first;
+    if (played > 0 && (this.now() - startedAt) / played > walkForecastBudgetMs()) this.abandoned = true;
   }
 
   /** Whether the copy is, in everything a forecast reads, the game on screen. */

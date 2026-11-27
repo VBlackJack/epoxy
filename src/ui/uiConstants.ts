@@ -73,7 +73,8 @@ export const TIMING_DEFAULTS = {
   walkWaitSeconds: 5,
   walkLookaheadSteps: 2,
   walkForecastBudgetMs: 15,
-  walkCatchUpTicks: 40
+  walkCatchUpTicks: 40,
+  walkObjectiveExpansionBudget: 1200
 } as const;
 
 /** Fallback for the optional game.json "graphics" theme value. */

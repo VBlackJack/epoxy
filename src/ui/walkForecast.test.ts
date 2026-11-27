@@ -454,6 +454,25 @@ describe('WalkForecaster on the CCLP engine', () => {
     expect(sandbox.rebuilds).toBe(1);
   });
 
+  it('a level whose own tick costs more than a decision may is left alone: the copy stops following until the next reset', () => {
+    const live = cclpEngine(EMPTY_ROW);
+    let now = 0;
+    const sandbox = new CclpSandbox(live, () => (now += 100));
+    sandbox.follow();
+    live.tick();
+    sandbox.follow();
+    expect(sandbox.caughtUp()).toBe(false);
+    expect(sandbox.open()).toBeNull();
+    const ticked = sandbox.copy.getTick();
+    live.tick();
+    sandbox.follow();
+    expect(sandbox.copy.getTick()).toBe(ticked);
+    sandbox.reset();
+    expect(sandbox.caughtUp()).toBe(false);
+    sandbox.follow();
+    expect(sandbox.copy.getTick()).toBeGreaterThan(0);
+  });
+
   it('a decision that runs out of its time budget answers go', () => {
     const budget = ConfigRegistry.getGame().timing.walkForecastBudgetMs ?? 0;
     expect(budget).toBe(15);

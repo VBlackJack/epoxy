@@ -63,6 +63,11 @@ const MAX_EXPANDED_STATES = 20000;
 /** Objective candidates the reachable objective tries a path to, best first, before it gives up. */
 const MAX_OBJECTIVE_PATH_TRIES = 8;
 
+/** Search steps still allowed to a group of path searches (see findReachableObjective). */
+export interface ExpansionBudget {
+  left: number;
+}
+
 interface AStarNode {
   x: number;
   y: number;
@@ -191,7 +196,8 @@ export class Pathfinder {
   public static findPath(
     engine: PathEngine,
     targetX: number,
-    targetY: number
+    targetY: number,
+    budget?: ExpansionBudget
   ): { moves: Direction[]; points: GridPoint[] } {
     const player = engine.getPlayer();
     const terrain = engine.getTerrain();
@@ -301,9 +307,10 @@ export class Pathfinder {
     const bestG = new Map<string, number>();
     let expanded = 0;
 
-    while (openList.size > 0 && expanded < MAX_EXPANDED_STATES) {
+    while (openList.size > 0 && expanded < MAX_EXPANDED_STATES && (budget === undefined || budget.left > 0)) {
       const curr = openList.pop()!;
       expanded++;
+      if (budget !== undefined) budget.left--;
 
       if (curr.x === targetX && curr.y === targetY) {
         const moves: Direction[] = [];
@@ -461,13 +468,21 @@ export class Pathfinder {
   /**
    * The next objective a tapped path can walk to now: the candidates of findNextObjective in the same order, each kept only
    * when findPath reaches it. The search for the objective crosses what the path refuses (water, monsters, blocks, thieves,
-   * closed traps), so the first candidate alone is often out of reach. Null when none of the first candidates is.
+   * closed traps), so the first candidate alone is often out of reach. Null when none of the first candidates is, or when
+   * the `expansions` budget ran out first (`outcome.exhausted`): the caller then keeps the first candidate, not marked reachable.
    */
-  public static findReachableObjective(engine: PathEngine): GridPoint | null {
+  public static findReachableObjective(engine: PathEngine, expansions: number = Infinity, outcome?: { exhausted: boolean }): GridPoint | null {
+    // One budget of search steps is shared by every try, so a crowded level cannot cost the page more than that in all.
+    const budget: ExpansionBudget = { left: expansions };
     let tries = 0;
+    if (outcome) outcome.exhausted = false;
     for (const candidate of Pathfinder.objectiveCandidates(engine)) {
       if (tries++ >= MAX_OBJECTIVE_PATH_TRIES) break;
-      if (Pathfinder.findPath(engine, candidate.x, candidate.y).moves.length > 0) return candidate;
+      if (Pathfinder.findPath(engine, candidate.x, candidate.y, budget).moves.length > 0) return candidate;
+      if (budget.left <= 0) {
+        if (outcome) outcome.exhausted = true;
+        break;
+      }
     }
     return null;
   }
