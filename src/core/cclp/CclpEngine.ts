@@ -39,6 +39,11 @@ export class CclpEngine extends LynxEngine {
     super.holdPlayerDirections(cancelsDirections(dirs) ? [] : dirs);
   }
 
+  /** The CCLP rules decide two held keys on every level. */
+  public readsHeldKeyPairs(): boolean {
+    return true;
+  }
+
   /** A press of an opposing pair or of three keys or more is no move. */
   public override attemptPlayerMoveHeld(dirs: readonly Direction[]): boolean {
     return cancelsDirections(dirs) ? false : super.attemptPlayerMoveHeld(dirs);

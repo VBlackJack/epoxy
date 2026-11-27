@@ -23,6 +23,15 @@ export const ENV_CONFIG = {
   STORAGE_PREFIX: import.meta.env.VITE_APP_STORAGE_PREFIX || 'epoxy_v1_'
 } as const;
 
+/**
+ * Fallbacks for the optional game.json "gamepad" section: the stick throw (fraction of the full throw, per axis) that presses
+ * a direction, and the lower throw under which a pressed direction lets go (the gap keeps a stick near the edge from flickering).
+ */
+export const GAMEPAD_DEFAULTS = {
+  stickPressThreshold: 0.5,
+  stickReleaseThreshold: 0.35
+} as const;
+
 export const CONFIG_ENDPOINTS = {
   GAME: `${ENV_CONFIG.CONFIG_BASE_URL}/game.json`,
   TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/tiles.json`,

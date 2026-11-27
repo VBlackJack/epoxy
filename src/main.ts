@@ -25,7 +25,7 @@ import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { CclpEngine } from './core/cclp/CclpEngine';
-import { padCancelsWalk, pathEngineOf } from './ui/cclpAutoWalk';
+import { padCancelsWalk, padKeysCancelWalk, pathEngineOf } from './ui/cclpAutoWalk';
 import { TappedWalk, WalkChange, WalkTurn } from './ui/tappedWalk';
 import { MarkedObjective, ObjectiveMarker } from './ui/objectiveMarker';
 import { WalkForecaster } from './ui/walkForecast';
@@ -121,7 +121,8 @@ import type { OverlayState } from './ui/testRun';
 import { bindButtonPointerBlur, bindSelectPointerBlur } from './ui/focusHandoff';
 import { setToggleState } from './ui/toggleState';
 import { AimMode, turnDirectionForChord } from './ui/aimInput';
-import { directionsForTick, HeldKeys, supportsHeldMove } from './ui/heldKeys';
+import { HeldKeys, supportsHeldMove } from './ui/heldKeys';
+import { gamepadConfigFrom, heldSetForTick, PadKeyOrder, padKeys, padSteer, singlePadDirection } from './ui/padDirections';
 import { SokobanSkinLoader } from './render/sokobanSkin';
 import {
   buildGraphicsStyleOptions,
@@ -210,9 +211,6 @@ import {
   DRAWER_ADVANCED_OPEN_VALUE,
   DRAWER_ADVANCED_STORAGE_SUFFIX,
   DEFAULT_THEME_ID,
-  GAMEPAD_AXIS_THRESHOLD,
-  GAMEPAD_AXIS_X,
-  GAMEPAD_AXIS_Y,
   GAMEPAD_BUTTONS,
   GAMEPAD_INDEX,
   HUD_BUMP_CLASS,
@@ -340,6 +338,11 @@ class EpoxyApplication {
   private prevGamepadButtons: boolean[] = [];
   /** The direction the gamepad holds now; a change to a new direction is a press. */
   private gamepadDirection: Direction | null = null;
+  /** Every key the gamepad holds now, most recent first (two for a diagonal on an engine that reads key pairs). */
+  private gamepadKeys: Direction[] = [];
+  /** The stick's keys at the last poll (its sector hysteresis reads them). */
+  private stickKeys: Direction[] = [];
+  private readonly padKeyOrder = new PadKeyOrder();
   private customStatusMessage: string | null = null;
   private customStatusTimeout: number | null = null;
   /** A swap pressed during a step of the controlled player, kept for his next decision (CC2 levels). */
@@ -1720,7 +1723,7 @@ class EpoxyApplication {
   private holdDirectionsForTick(): void {
     const single = this.isReplaying ? null : (this.heldDirection ?? this.gamepadDirection);
     if (this.engine.holdPlayerDirections) {
-      this.engine.holdPlayerDirections(directionsForTick(this.heldKeys.directions(), single, this.isReplaying));
+      this.engine.holdPlayerDirections(heldSetForTick(this.heldKeys.directions(), this.heldDirection, this.gamepadKeys, this.isReplaying));
       return;
     }
     this.engine.holdPlayerDirection?.(single);
@@ -1922,6 +1925,37 @@ class EpoxyApplication {
     } else if (direction !== null) {
       this.engine.attemptPlayerMove(direction);
     }
+    this.gamepadKeys = direction !== null ? [direction] : [];
+  }
+
+  /**
+   * The pad on an engine that reads two held keys: its keys go to the engine exactly as the same keys held on the keyboard
+   * would (padSteer decides what is sent and when). The keyboard, or a touch hold, wins: no second move in the same tick.
+   */
+  private steerWithGamepadKeys(keys: Direction[], added: boolean): void {
+    if (padKeysCancelWalk(this.engine, keys)) this.clearAutoMove();
+    const steer = padSteer({
+      keys,
+      added,
+      keyboardDown: this.heldKeys.current() !== null || this.heldDirection !== null,
+      engineKind: this.engine.holdPlayerDirection ? 'hold' : 'resend'
+    });
+    if (steer.press) this.sendPadKeys(steer.press);
+    this.gamepadDirection = keys[0] ?? null;
+    this.gamepadKeys = steer.hold;
+  }
+
+  /** A replay owns the engine: the pad forgets what it held, so nothing it held steers when the replay ends. */
+  private forgetPadKeys(): void {
+    this.gamepadDirection = null;
+    this.gamepadKeys = [];
+    this.stickKeys = [];
+    this.padKeyOrder.clear();
+  }
+
+  private sendPadKeys(keys: readonly Direction[]): void {
+    if (supportsHeldMove(this.engine)) this.engine.attemptPlayerMoveHeld(keys);
+    else this.engine.attemptPlayerMove(keys[0]);
   }
 
   /** Records the held buttons without acting, so a hold across a dialog close is not a new press. */
@@ -1935,26 +1969,28 @@ class EpoxyApplication {
     if (typeof navigator.getGamepads !== 'function') return;
     const pad = navigator.getGamepads()[GAMEPAD_INDEX];
     if (!pad) {
-      this.gamepadDirection = null;
+      this.forgetPadKeys();
       return;
     }
 
-    const axX = pad.axes[GAMEPAD_AXIS_X] || 0;
-    const axY = pad.axes[GAMEPAD_AXIS_Y] || 0;
     const pressed = (idx: number): boolean => Boolean(pad.buttons[idx]?.pressed);
     const justPressed = (idx: number): boolean => pressed(idx) && !this.prevGamepadButtons[idx];
 
-    let padDirection: Direction | null = null;
-    if (pressed(GAMEPAD_BUTTONS.DPAD_UP) || axY < -GAMEPAD_AXIS_THRESHOLD) {
-      padDirection = 'N';
-    } else if (pressed(GAMEPAD_BUTTONS.DPAD_DOWN) || axY > GAMEPAD_AXIS_THRESHOLD) {
-      padDirection = 'S';
-    } else if (pressed(GAMEPAD_BUTTONS.DPAD_LEFT) || axX < -GAMEPAD_AXIS_THRESHOLD) {
-      padDirection = 'W';
-    } else if (pressed(GAMEPAD_BUTTONS.DPAD_RIGHT) || axX > GAMEPAD_AXIS_THRESHOLD) {
-      padDirection = 'E';
+    const config = gamepadConfigFrom(ConfigRegistry.getGame().gamepad);
+    if (this.engine.readsHeldKeyPairs?.() === true) {
+      if (this.isReplaying) {
+        this.forgetPadKeys();
+      } else {
+        const read = padKeys(pad, this.stickKeys, config);
+        this.stickKeys = read.stick;
+        const { keys, added } = this.padKeyOrder.update(read.keys);
+        this.steerWithGamepadKeys(keys, added);
+      }
+    } else {
+      this.stickKeys = [];
+      this.padKeyOrder.clear();
+      this.steerWithGamepad(singlePadDirection(pad, config));
     }
-    this.steerWithGamepad(padDirection);
 
     if (justPressed(GAMEPAD_BUTTONS.B)) {
       this.undoMove();
@@ -2160,6 +2196,9 @@ class EpoxyApplication {
     if (this.cclpEngine() && featuresFor(level).tapToPath) this.walkForecast.follow(this.engine);
     this.aimMode.set(false);
     this.clearHeldKeys();
+    // A stick still held from the last level does not walk the first tick of this one.
+    this.padKeyOrder.requireRelease();
+    this.stickKeys = [];
     this.syncSokobanSkinControl(level.winRule);
     this.syncCc2Banner(level);
   }

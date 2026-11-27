@@ -612,6 +612,10 @@
     "joystickBaseFollowRadiusPx": 24,
     "joystickKnobRadiusPx": 48
   },
+  "gamepad": {
+    "stickPressThreshold": 0.5,
+    "stickReleaseThreshold": 0.35
+  },
   "officialCc1Signatures": [
     "a1530fe116b89ddba39d7bc7acaebf511b914e5828e2d272e44cc9e538a636dc",
     "441cb04773cd0fa4b2e3f77dc8970b88f121732c33d19493b127469057528666"

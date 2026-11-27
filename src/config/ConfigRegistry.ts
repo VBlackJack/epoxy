@@ -72,6 +72,7 @@ import {
   findBlockPuzzleConfigErrors,
   findCampaignGuardConfigErrors,
   findTouchConfigErrors,
+  findGamepadConfigErrors,
   isDirection,
   isFiniteNumber,
   isInBounds,
@@ -401,7 +402,7 @@ class ConfigRegistryService {
     if (campaignGuardErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, campaignGuardErrors.join('; '));
     }
-    const touchErrors = findTouchConfigErrors(bundle.game.touch);
+    const touchErrors = [...findTouchConfigErrors(bundle.game.touch), ...findGamepadConfigErrors(bundle.game.gamepad)];
     if (touchErrors.length > 0) {
       throw new ConfigLoadError(CONFIG_ENDPOINTS.GAME, touchErrors.join('; '));
     }

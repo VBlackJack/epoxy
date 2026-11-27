@@ -85,7 +85,6 @@ export const AUTO_THEME_ID = 'auto';
 
 /** Gamepad handling (standard mapping). */
 export const GAMEPAD_INDEX = 0;
-export const GAMEPAD_AXIS_THRESHOLD = 0.5;
 export const GAMEPAD_AXIS_X = 0;
 export const GAMEPAD_AXIS_Y = 1;
 export const GAMEPAD_BUTTONS = {
