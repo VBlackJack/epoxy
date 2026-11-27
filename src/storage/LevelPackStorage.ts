@@ -127,6 +127,40 @@ class LevelPackStorageService {
     }
   }
 
+  /**
+   * Replaces a stored pack only if it is still what the caller read: the stored record is read, checked and replaced in one
+   * readwrite transaction, so a save made from another tab in between is never overwritten. `isUnchanged` gets the record
+   * as loadAllPacks would return it (null when it is gone or malformed) and the number of levels the raw record holds, and
+   * must decide synchronously. 'changed' when the check refused the write, 'failed' when the transaction did not commit.
+   */
+  public async replacePackIfUnchanged(
+    next: LevelPack,
+    isUnchanged: (stored: LevelPack | null, rawLevelCount: number) => boolean
+  ): Promise<'written' | 'changed' | 'failed'> {
+    try {
+      const db = await this.openDb();
+      const { levelPacksStoreName } = ConfigRegistry.getGame().storage;
+      return await new Promise<'written' | 'changed' | 'failed'>((resolve) => {
+        const tx = db.transaction(levelPacksStoreName, 'readwrite');
+        const store = tx.objectStore(levelPacksStoreName);
+        let outcome: 'written' | 'changed' = 'changed';
+        const read = store.get(next.id);
+        read.onsuccess = () => {
+          const raw: unknown = read.result;
+          const rawLevelCount = isRecord(raw) && Array.isArray(raw.levels) ? raw.levels.length : -1;
+          if (!isUnchanged(this.sanitizePacks([raw])[0] ?? null, rawLevelCount)) return;
+          outcome = 'written';
+          store.put(next);
+        };
+        tx.oncomplete = () => resolve(outcome);
+        tx.onabort = () => resolve('failed');
+        tx.onerror = () => resolve('failed');
+      });
+    } catch {
+      return 'failed';
+    }
+  }
+
   private sanitizePacks(raw: unknown): LevelPack[] {
     if (!Array.isArray(raw)) return [];
     const bounds = ConfigRegistry.getLevelSizeBounds();

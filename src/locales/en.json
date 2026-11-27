@@ -922,6 +922,14 @@
       "imported_toast": {
         "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported successfully!"
       },
+      "cclp_move": {
+        "moved": {
+          "label": "{packs, plural, one {# pack imported from a .DAT file now plays} other {# packs imported from .DAT files now play}} with the community rules. Scores and completion are kept; older replays are no longer offered."
+        },
+        "kept": {
+          "label": "{count, plural, one {# pack imported from a .DAT file keeps its old rules. Import the file again for the community rules: the new copy starts with no scores.} other {# packs imported from .DAT files keep their old rules. Import the files again for the community rules: the new copies start with no scores.}}"
+        }
+      },
       "imported_skipped_toast": {
         "label": "Pack \"{name}\" ({count, plural, one {# level} other {# levels}}) imported; {skipped, plural, one {# level was} other {# levels were}} skipped because they cannot be played."
       },

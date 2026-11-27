@@ -26,7 +26,9 @@ import {
   TUTORIAL_LEVEL_ID_PREFIX,
   PILOT_LEVEL_ID_PREFIX,
   SAVE_SLOT_PACK_SEPARATOR,
-  UNORDERED_PACK_RANK
+  UNORDERED_PACK_RANK,
+  CCLP_IMPORT_RELEASE_MS,
+  CCLP_STORED_MOVE_VERSION
 } from './constants';
 import { FLAG_ON as PLAYTEST_FLAG_ON } from '../playtest/PlaytestStore';
 import {
@@ -127,6 +129,9 @@ import { readSharedPack, SharedPackResult } from '../packs/shareLink';
 import { dedupeLevelIdsAcrossPacks, scopedLevelId, scopeLevelIds } from '../packs/levelIds';
 import * as userPacks from '../packs/userPacks';
 import { Cc3dMigrationReport, migrateCc3dPack } from '../packs/cc3dMigration';
+import { canonicalJson, CclpMoveReport, CclpReferenceSet, isKeptVerdict, parseCclpMoveRecord, planCclpPackMove } from '../packs/cclpMigration';
+import { passwordSignature } from '../packs/passwordSignature';
+import { isCclpStoredPackMoveEnabled } from './featureFlags';
 import { Cc2SourceStorage, Cc2SourceRecord } from '../storage/Cc2SourceStorage';
 import { base64ToBytes, cc2SourceHashes, sha256OfBytes } from '../storage/cc2Sources';
 import { LevelPackStorage } from '../storage/LevelPackStorage';
@@ -292,6 +297,12 @@ class ConfigRegistryService {
   /** True when the legacy list could not be backed up: it must not be overwritten. */
   private legacyWriteBlocked = false;
   private cc3dMigrationReport: Cc3dMigrationReport | null = null;
+  private cclpMoveReport: CclpMoveReport | null = null;
+  /** The bytes of the bundled .DAT packs, kept for the load-time move of stored packs (read both ways on demand). */
+  private bundledDatPacks: FetchedPack[] = [];
+  /** True when a bundled .DAT pack the move needs as a reference was not fetched or could not be read this start. */
+  private bundledDatMissing = false;
+  private cclpReferencesIncomplete = false;
   private activePackId: string = BUILTIN_PACK_IDS.CAMPAIGN;
 
   public async loadAll(): Promise<void> {
@@ -343,10 +354,17 @@ class ConfigRegistryService {
     });
     // Playtest mode decides whether the playtest-only packs exist for this page, before the saved pack is looked up.
     this.playtestPacksVisible = this.readStorage(game.storage.playtestEnabledKey) === PLAYTEST_FLAG_ON;
-    this.ultimatePacks = this.decodeUltimatePacks(await packsPromise);
+    const fetchedPacks = await packsPromise;
+    this.bundledDatPacks = fetchedPacks;
+    this.bundledDatMissing = (game.ultimatePacks ?? []).some(
+      (d) => d.ruleset !== undefined && d.rulesProfile !== undefined && !fetchedPacks.some((f) => f.descriptor.id === d.id)
+    );
+    this.ultimatePacks = this.decodeUltimatePacks(fetchedPacks);
     // The store name and the level size bounds come from game.json, so the
     // stored packs are read only once the configs are installed.
     await this.loadStoredPacks();
+    // The bytes were kept only for the stored pack move: release them.
+    this.bundledDatPacks = [];
 
     const savedPackId = this.readStorage(this.gameConfig.storage.activePackKey);
     if (savedPackId && this.getAllPacks().some((p) => p.id === savedPackId && p.levels.length > 0)) {
@@ -775,6 +793,14 @@ class ConfigRegistryService {
     }
   }
 
+  private writeStorage(suffix: string, value: string): void {
+    try {
+      localStorage.setItem(this.getStorageKey(suffix), value);
+    } catch {
+      // Storage blocked or full: the caller's work runs again next start
+    }
+  }
+
   public getGame(): GameConfig {
     return this.gameConfig;
   }
@@ -1067,6 +1093,107 @@ class ConfigRegistryService {
     await this.migrateLegacyCustomLevels();
     await this.dedupeStoredLevelIds();
     await this.migrateStoredCc3dLevels();
+    if (isCclpStoredPackMoveEnabled()) await this.moveStoredDatPacksToCclpSafely();
+  }
+
+  /**
+   * The move rewrites stored player data once and must never stop the app from starting: any unexpected failure is logged,
+   * leaves no record, and the move is tried again at the next start.
+   */
+  private async moveStoredDatPacksToCclpSafely(): Promise<void> {
+    try {
+      await this.moveStoredDatPacksToCclp();
+    } catch (err) {
+      console.warn(`Stored pack move to the CCLP engine failed, it will be tried again: ${String(err)}`);
+      this.cclpMoveReport = null;
+    }
+  }
+
+  /**
+   * Packs imported from a .DAT file before community sets played the CCLP engine keep an older reading. Each one that
+   * planCclpPackMove proves can move is written once, whole, with the same pack and level ids, through a read-check-write
+   * transaction: a pack changed in storage since it was read (another tab) or one whose record lost a level to validation is
+   * left as it is. The move runs until it completes once (every movable pack written), then only the record it left is read:
+   * the version it ran at and the .DAT packs it kept, for the one-time notice.
+   */
+  private async moveStoredDatPacksToCclp(): Promise<void> {
+    // An empty library has nothing to move: no plan, no decode, no record (a pack imported later is not an old import).
+    this.cclpMoveReport = null;
+    // An unreadable library is unknown, not empty: nothing is judged and nothing is recorded until it can be read.
+    if (this.legacyCustomStore) return;
+    if (!this.storedPacks.some((p) => p.builtIn !== true)) return;
+    const recordKey = this.gameConfig.storage.cclpStoredMoveKey;
+    const liveIds = new Set(this.storedPacks.map((p) => p.id));
+    const record = recordKey ? parseCclpMoveRecord(this.readStorage(recordKey)) : null;
+    if (record && record.version >= CCLP_STORED_MOVE_VERSION) {
+      const kept = record.kept.filter((id) => liveIds.has(id));
+      this.cclpMoveReport = kept.length > 0 ? { movedPacks: 0, keptPackIds: kept } : null;
+      return;
+    }
+    let references: CclpReferenceSet[] | null = null;
+    this.cclpReferencesIncomplete = false;
+    const { mapWidth, mapHeight } = this.gameConfig.grid;
+    const context = {
+      isCloneMachine: (id: string) => this.tilesConfig.tiles[id]?.isCloneMachine === true,
+      mapWidth,
+      mapHeight,
+      passwordSignature,
+      officialSignatures: this.gameConfig.officialCc1Signatures ?? [],
+      references: async () => (references ??= await this.cclpReferenceSets()),
+      oldImportCutoffMs: CCLP_IMPORT_RELEASE_MS
+    };
+    let movedPacks = 0;
+    let complete = true;
+    const keptCandidates: string[] = [];
+    for (const pack of this.storedPacks.filter((p) => p.builtIn !== true)) {
+      const plan = await planCclpPackMove(pack, context);
+      keptCandidates.push(...(isKeptVerdict(plan.verdict) ? [pack.id] : []));
+      if (plan.verdict !== 'moved') continue;
+      const read = canonicalJson(pack);
+      const outcome = await LevelPackStorage.replacePackIfUnchanged(
+        plan.pack,
+        (stored, rawLevelCount) => stored !== null && rawLevelCount === pack.levels.length && canonicalJson(stored) === read
+      );
+      if (outcome !== 'written') {
+        // Changed elsewhere, or not committed: memory keeps the pack as read, and the next start tries again.
+        complete = false;
+        continue;
+      }
+      this.upsertStoredPack(plan.pack);
+      movedPacks++;
+    }
+    // A bundled reference that is missing (a failed fetch or decode) makes every "changed" or "unknown" verdict unsure: no
+    // pack is reported as kept and no record is written, so the next start judges again.
+    const referencesSure = !this.bundledDatMissing && !this.cclpReferencesIncomplete;
+    if (!referencesSure) complete = false;
+    const keptPackIds = referencesSure ? keptCandidates : [];
+    if (complete && recordKey) this.writeStorage(recordKey, JSON.stringify({ version: CCLP_STORED_MOVE_VERSION, kept: keptPackIds }));
+    this.cclpMoveReport = movedPacks > 0 || keptPackIds.length > 0 ? { movedPacks, keptPackIds } : null;
+  }
+
+  /** The bundled .DAT packs of the CCLP engine, read the classic way and the way a fresh import reads them today. */
+  private async cclpReferenceSets(): Promise<CclpReferenceSet[]> {
+    const sets: CclpReferenceSet[] = [];
+    for (const { descriptor, buffer } of this.bundledDatPacks) {
+      if (descriptor.rulesProfile === undefined || descriptor.ruleset === undefined) continue;
+      try {
+        const classic = DatCodec.decodeBuffer(buffer, descriptor.prefix, DEFAULT_RULESET);
+        const lynx = DatCodec.decodeBuffer(buffer, descriptor.prefix, descriptor.ruleset);
+        applyRulesProfile(lynx, descriptor.rulesProfile);
+        sets.push({ signature: await passwordSignature(classic), classic, lynx });
+      } catch {
+        // A corrupt bundled pack is no reference: a stored copy of it stays as it is, and the run is not recorded
+        this.cclpReferencesIncomplete = true;
+      }
+    }
+    return sets;
+  }
+
+  /** What the load-time move of stored .DAT packs did, once: null when there is nothing to tell or it was already told. */
+  public takeCclpMoveReport(): CclpMoveReport | null {
+    const report = this.cclpMoveReport;
+    this.cclpMoveReport = null;
+    return report;
   }
 
   /**

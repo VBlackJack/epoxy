@@ -55,24 +55,35 @@ export class FakeIndexedDb {
 
   private transaction(mode: string): FakeTransaction {
     const tx: FakeTransaction = { error: null, objectStore: () => store };
+    // Like IndexedDB, the transaction settles once no request is pending: a request made in a success handler joins it.
+    let pending = 0;
+    let settled = false;
+    const settle = (): void => {
+      queueMicrotask(() => {
+        if (pending > 0 || settled) return;
+        settled = true;
+        if ((mode === 'readwrite' && this.abortWrites) || (mode === 'readonly' && this.abortReads)) {
+          tx.error = new Error('AbortError');
+          tx.onabort?.();
+        } else {
+          tx.oncomplete?.();
+        }
+      });
+    };
     const run = (work: () => unknown): FakeRequest => {
       const req: FakeRequest = { error: null };
+      pending++;
       queueMicrotask(() => {
         req.result = work();
         req.onsuccess?.();
-        queueMicrotask(() => {
-          if ((mode === 'readwrite' && this.abortWrites) || (mode === 'readonly' && this.abortReads)) {
-            tx.error = new Error('AbortError');
-            tx.onabort?.();
-          } else {
-            tx.oncomplete?.();
-          }
-        });
+        pending--;
+        settle();
       });
       return req;
     };
     const store = {
       getAll: () => run(() => [...this.records.values()]),
+      get: (key: string) => run(() => this.records.get(key)),
       put: (value: { id: string }) =>
         run(() => {
           if (!this.abortWrites) this.records.set(value.id, value);

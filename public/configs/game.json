@@ -713,6 +713,8 @@
     "lastEndlessKey": "last_endless",
     "onboardingSeenKey": "onboarding_seen",
     "tutorialNoticeSeenKey": "tutorial_notice_seen",
+    "cclpStoredMoveKey": "cclp_stored_move",
+    "cclpKeptNoticeSeenKey": "cclp_kept_notice_seen",
     "lastSaveDestinationKey": "last_save_destination",
     "editorSectionsKey": "editor_sections",
     "playtestEnabledKey": "playtest_enabled",

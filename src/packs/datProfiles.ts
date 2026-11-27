@@ -18,16 +18,10 @@ import { ConfigRegistry } from '../config/ConfigRegistry';
 import { CC1_DAT_RULES_PROFILE, CC1_DAT_RULESET, IMPORTED_PACK_RULESET } from '../config/constants';
 import { CompiledLevel } from '../core/types';
 import { DatCodec } from '../formats/DatCodec';
-import { sha256OfBytes } from '../storage/cc2Sources';
+import { passwordSignature } from './passwordSignature';
 import { applyRulesProfile } from './rulesProfile';
 
-/** Separator of the passwords in a password signature. */
-const PASSWORD_SEPARATOR = '\n';
-
-/** The password signature of a level set: SHA-256 of its passwords in file order, one per line. */
-export async function passwordSignature(levels: readonly Pick<CompiledLevel, 'password'>[]): Promise<string> {
-  return sha256OfBytes(new TextEncoder().encode(levels.map((level) => level.password).join(PASSWORD_SEPARATOR)));
-}
+export { passwordSignature };
 
 /** True for a level set that is an official Chip's Challenge 1 set (its password signature is listed in game.json). */
 export async function isOfficialCc1(levels: readonly Pick<CompiledLevel, 'password'>[]): Promise<boolean> {

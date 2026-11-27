@@ -30,3 +30,15 @@ export function isForeignAuthoringEnabled(): boolean {
 export function setForeignAuthoringOverride(value: boolean | null): void {
   foreignAuthoringOverride = value;
 }
+
+let cclpStoredPackMoveOverride: boolean | null = null;
+
+/** Whether stored .DAT packs of an older reading move to the CCLP engine on load. */
+export function isCclpStoredPackMoveEnabled(): boolean {
+  return cclpStoredPackMoveOverride ?? FEATURE_FLAGS.cclpStoredPackMove;
+}
+
+/** Test hook: forces the stored pack move on or off; null restores the configured value. */
+export function setCclpStoredPackMoveOverride(value: boolean | null): void {
+  cclpStoredPackMoveOverride = value;
+}
