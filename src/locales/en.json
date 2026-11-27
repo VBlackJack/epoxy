@@ -1303,6 +1303,9 @@
       "walk_monster_wait": {
         "label": "Waiting for a monster to pass..."
       },
+      "walk_monster_aside": {
+        "label": "Stepping aside to let a monster pass..."
+      },
       "walk_monster_stop": {
         "label": "A monster blocks the way: the walk stops here."
       },

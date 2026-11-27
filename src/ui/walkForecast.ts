@@ -21,6 +21,7 @@ import type { PlayEngine } from '../core/PlayEngine';
 import { Direction, GridPoint, PlayerState } from '../core/types';
 import { TIMING_DEFAULTS } from './uiConstants';
 import { CclpSandbox, EpoxySandbox, ForkEngine, Sandbox } from './walkSandbox';
+import type { AsideStep } from './walkStepAside';
 
 /**
  * The monster watch of a tapped walk. Before each step the walk asks what the next few steps would do, played by the
@@ -113,6 +114,9 @@ export interface ForecastStats {
   mismatches: number;
   timeouts: number;
   decisions: number;
+  /** Step aside searches, and those that ran out of the time of their decision. */
+  asideSearches: number;
+  asideTimeouts: number;
 }
 
 /**
@@ -125,6 +129,10 @@ export class WalkForecaster {
   private engine: PlayEngine | null = null;
   private timeouts = 0;
   private decisions = 0;
+  private asideSearches = 0;
+  private asideTimeouts = 0;
+  /** When the last judge began: the step aside that follows it spends what is left of the same budget. */
+  private decisionStartedAt: number | null = null;
 
   /** `now`: the clock the per-decision budget reads (milliseconds); a test may pass its own. */
   constructor(private readonly now: () => number = () => performance.now()) {}
@@ -158,11 +166,15 @@ export class WalkForecaster {
       rebuilds: s instanceof CclpSandbox ? s.rebuilds : 0,
       mismatches: s instanceof CclpSandbox ? s.mismatches : 0,
       timeouts: this.timeouts,
-      decisions: this.decisions
+      decisions: this.decisions,
+      asideSearches: this.asideSearches,
+      asideTimeouts: this.asideTimeouts
     };
   }
 
   private run(sandbox: Sandbox, plan: ForecastPlan, mode: ForecastMode, expired: () => boolean): { end: ForecastEnd; steps: number } | null {
+    // The copy may take its time to open (the CCLP copy is built or caught up on demand): the budget is asked before and after.
+    if (expired()) return { end: 'timeout', steps: 0 };
     const fork = sandbox.open();
     if (fork === null) return null;
     try {
@@ -185,6 +197,7 @@ export class WalkForecaster {
     if (sandbox === null) return 'go';
     this.decisions++;
     const startedAt = this.now();
+    this.decisionStartedAt = startedAt;
     const budget = walkForecastBudgetMs();
     const expired = (): boolean => this.now() - startedAt > budget;
     const verdict = this.decide(sandbox, plan, expired);
@@ -193,6 +206,34 @@ export class WalkForecaster {
       return 'go';
     }
     return verdict;
+  }
+
+  /**
+   * Called after a stop verdict: the first of `candidates` (neighbouring cells, best first) where taking that one step and
+   * then standing still keeps Chip alive over the forecast, or null when none does, when no forecast can be made, or when the
+   * decision runs out of its time budget (the walk then stops, as without the step aside). The step aside is part of the
+   * decision of the judge before it: it spends what is left of that budget, counted from `startedAt` (by default the start
+   * of the last judge, then forgotten, so a later search never reuses it).
+   */
+  public stepAside(engine: PlayEngine, candidates: readonly AsideStep[], startedAt?: number): AsideStep | null {
+    const since = startedAt ?? this.decisionStartedAt ?? this.now();
+    this.decisionStartedAt = null;
+    if (candidates.length === 0) return null;
+    const sandbox = this.sandboxFor(engine);
+    if (sandbox === null) return null;
+    this.asideSearches++;
+    const budget = walkForecastBudgetMs();
+    const expired = (): boolean => this.now() - since > budget;
+    for (const candidate of candidates) {
+      const result = this.run(sandbox, { moves: [candidate.dir], points: [candidate.point] }, 'follow', expired);
+      if (result === null) return null;
+      if (result.end === 'timeout') {
+        this.asideTimeouts++;
+        return null;
+      }
+      if (result.end === 'alive' && result.steps === 1) return candidate;
+    }
+    return null;
   }
 
   /** The verdict, or null when the budget ran out. */

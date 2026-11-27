@@ -25,9 +25,8 @@ import { InvalidLevelError } from './config/ConfigValidation';
 import { i18n, t } from './i18n/I18nManager';
 import { GameEngine } from './core/GameEngine';
 import { CclpEngine } from './core/cclp/CclpEngine';
-import { cclpPathView } from './core/cclp/cclpPathView';
-import { endWalkStep, padCancelsWalk, pathEngineOf, startWalkStep, WalkStart } from './ui/cclpAutoWalk';
-import { startEpoxyWalkStep, WalkWait } from './ui/epoxyAutoWalk';
+import { padCancelsWalk, pathEngineOf } from './ui/cclpAutoWalk';
+import { TappedWalk, WalkChange, WalkTurn } from './ui/tappedWalk';
 import { MarkedObjective, ObjectiveMarker } from './ui/objectiveMarker';
 import { WalkForecaster } from './ui/walkForecast';
 import { EngineSelector } from './core/EngineSelector';
@@ -343,13 +342,12 @@ class EpoxyApplication {
   private gamepadDirection: Direction | null = null;
   private customStatusMessage: string | null = null;
   private customStatusTimeout: number | null = null;
-  private autoMoveQueue: Direction[] = [];
   /** A swap pressed during a step of the controlled player, kept for his next decision (CC2 levels). */
   private readonly pendingSwap = new PendingSwap();
-  private autoMovePoints: GridPoint[] = [];
-  /** The monster watch of the tapped walk, and the ticks the walk has stood waiting for a monster to pass. */
+  /** The monster watch of the tapped walk. */
   private readonly walkForecast = new WalkForecaster();
-  private readonly walkWait = new WalkWait();
+  /** The tapped walk: its plan, its wait for a monster to pass and its steps aside (all the rules live in TappedWalk). */
+  private readonly walk = new TappedWalk(this.walkForecast);
   private readonly objectiveMarker = new ObjectiveMarker();
   private replayMoves: TimedMove[] = [];
   private replayIndex: number = 0;
@@ -810,57 +808,22 @@ class EpoxyApplication {
     this.pollGamepad();
     // An engine that tells presses from holds hears the held direction (or its release) once per tick.
     this.holdDirectionsForTick();
-    // CC2 actor order: a click-to-move step is stored by the input and played by the tick, so its outcome is read after the tick.
-    let autoStepStored = false;
-    // CCLP engine: the step sent this tick, checked after the tick (Lynx takes a press it cannot play).
-    let cclpStart: WalkStart = { kind: 'idle' };
+    // The walk of a tapped path: the step is sent before the tick and followed after it, by the one TappedWalk of the page.
+    let walkTurn: WalkTurn | null = null;
     if (this.isReplaying) {
       this.advanceReplay();
     } else if (this.heldDirection) {
       this.clearAutoMove();
       // An engine without holds is told again every tick, as it always was.
       if (!this.engine.holdPlayerDirection) this.sendHeldMove(this.heldDirection, true);
-    } else if (this.autoMoveQueue.length > 0) {
-      const cclp = this.cclpEngine();
-      if (cclp) {
-        cclpStart = startWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, cclp, cclpPathView(cclp), (plan) =>
-          this.walkForecast.judge(cclp, plan)
-        );
-        if (cclpStart.kind === 'stop') this.clearAutoMove();
-        else if (cclpStart.kind === 'wait') this.holdWalkForMonster('wait');
-        else if (cclpStart.kind === 'danger') this.holdWalkForMonster('stop');
-        else if (cclpStart.kind === 'sent') this.walkWait.clear();
-      } else {
-        const epoxy = this.epoxyEngine();
-        const start = startEpoxyWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, this.engine, epoxy, (plan) =>
-          this.walkForecast.judge(this.engine, plan)
-        );
-        if (start.kind === 'stop') this.clearAutoMove();
-        else if (start.kind === 'wait') this.holdWalkForMonster('wait');
-        else if (start.kind === 'danger') this.holdWalkForMonster('stop');
-        else if (start.kind === 'sent') {
-          this.walkWait.clear();
-          autoStepStored = start.stored;
-          if (!start.stored) this.advanceAutoMove();
-        }
-      }
+    } else if (this.walk.active) {
+      walkTurn = this.walk.beforeTick(this.engine);
+      this.applyWalkChange(walkTurn);
     }
     this.engine.tick();
     // The CCLP copy of the monster watch plays the tick that was just played, so a forecast never replays the history.
     if (this.cclpEngine() && featuresFor(this.engine.getLevel()).tapToPath) this.walkForecast.follow(this.engine);
-    if (autoStepStored) {
-      // The turn of the tick played the stored step: the queue follows what it did, as it followed the step when it was played at the input.
-      if (this.epoxyEngine()?.getLastPlayerTurn()?.moved === true) {
-        this.advanceAutoMove();
-      } else if (!this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
-        this.clearAutoMove();
-      }
-    }
-    if (cclpStart.kind === 'sent') {
-      const end = endWalkStep(this.engine, cclpStart);
-      if (end === 'advanced') this.advanceAutoMove();
-      else if (end === 'stopped') this.clearAutoMove();
-    }
+    if (walkTurn !== null) this.applyWalkChange(this.walk.afterTick(this.engine, walkTurn));
     // CC2: the effects of a step that ended this tick act now, so the HUD and the next render show them.
     this.epoxyEngine()?.flushPendingStepEnd();
     // A swap kept at the press acts at the controlled player's decision, which this tick may have opened.
@@ -874,27 +837,13 @@ class EpoxyApplication {
     this.watchBlockPuzzles();
   }
 
-  /**
-   * The monster watch held the walk back. wait: Chip stands still this tick and the step is asked again next tick, up to
-   * the limit of game.json timing; stop, or a wait that lasts longer: the walk ends and the player is told why.
-   */
-  private holdWalkForMonster(verdict: 'wait' | 'stop'): void {
-    if (verdict === 'wait') {
-      const held = this.walkWait.hold();
-      if (!held.giveUp) {
-        if (held.first) this.showTransientStatus(t('hud.messages.walk_monster_wait.label'));
-        return;
-      }
-    }
-    this.clearAutoMove();
-    this.showTransientStatus(t('hud.messages.walk_monster_stop.label'));
-  }
-
-  /** The step at the head of the click-to-move queue was taken: drops it from the queue and the drawn path. */
-  private advanceAutoMove(): void {
-    this.autoMoveQueue.shift();
-    this.autoMovePoints.shift();
-    this.renderer.setPlannedPath(this.autoMovePoints);
+  /** What the walk changed this tick: dropped, the drawn path, and what the player is told. */
+  private applyWalkChange(change: WalkChange): void {
+    if (change.cleared) this.clearAutoMove();
+    else if (change.changed) this.renderer.setPlannedPath(this.walk.points);
+    if (change.notice === 'wait') this.showTransientStatus(t('hud.messages.walk_monster_wait.label'));
+    else if (change.notice === 'stop') this.showTransientStatus(t('hud.messages.walk_monster_stop.label'));
+    else if (change.notice === 'aside') this.showTransientStatus(t('hud.messages.walk_monster_aside.label'));
   }
 
   /**
@@ -1835,9 +1784,9 @@ class EpoxyApplication {
     const engine = this.pathEngine();
     if (!engine || !featuresFor(engine.getLevel()).tapToPath) return;
     const result = Pathfinder.findPath(engine, gridPt.x, gridPt.y);
-    this.autoMoveQueue = result.moves;
-    this.autoMovePoints = result.points;
-    this.renderer.setPlannedPath(this.autoMovePoints);
+    // The one walk that may step aside: the player tapped its goal.
+    this.walk.begin(result.moves, result.points, true);
+    this.renderer.setPlannedPath(this.walk.points);
   }
 
   private bindTouchGestures(): void {
@@ -2189,9 +2138,7 @@ class EpoxyApplication {
   // ---------------------------------------------------------------------------
 
   private clearAutoMove(): void {
-    this.walkWait.clear();
-    this.autoMoveQueue = [];
-    this.autoMovePoints = [];
+    this.walk.clear();
     this.renderer.setPlannedPath([]);
     this.renderer.setObjectivePoint(null);
   }
@@ -2286,7 +2233,7 @@ class EpoxyApplication {
    */
   private forgetWalkAids(): void {
     this.walkForecast.reset();
-    this.walkWait.clear();
+    this.walk.clear();
     this.objectiveMarker.forget();
   }
 
@@ -2390,13 +2337,17 @@ class EpoxyApplication {
     const player = engine.getPlayer();
     let x = player.x;
     let y = player.y;
-    this.autoMoveQueue = moves;
-    this.autoMovePoints = moves.map((dir) => {
-      x += DIRECTION_VECTORS[dir].dx;
-      y += DIRECTION_VECTORS[dir].dy;
-      return { x, y };
-    });
-    this.renderer.setPlannedPath(this.autoMovePoints);
+    // The hint walk is not tapped: it never steps aside.
+    this.walk.begin(
+      moves,
+      moves.map((dir) => {
+        x += DIRECTION_VECTORS[dir].dx;
+        y += DIRECTION_VECTORS[dir].dy;
+        return { x, y };
+      }),
+      false
+    );
+    this.renderer.setPlannedPath(this.walk.points);
     this.showTransientStatus(t('hud.messages.block_hint.label'));
     return true;
   }

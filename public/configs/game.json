@@ -705,7 +705,8 @@
     "walkLookaheadSteps": 2,
     "walkForecastBudgetMs": 15,
     "walkCatchUpTicks": 40,
-    "walkObjectiveExpansionBudget": 1200
+    "walkObjectiveExpansionBudget": 1200,
+    "walkStepAsideLimit": 2
   },
   "storage": {
     "saveSlotKey": "save_state",

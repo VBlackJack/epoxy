@@ -1303,6 +1303,9 @@
       "walk_monster_wait": {
         "label": "Attente du passage d'un monstre..."
       },
+      "walk_monster_aside": {
+        "label": "Pas de côté pour laisser passer un monstre..."
+      },
       "walk_monster_stop": {
         "label": "Un monstre barre le chemin : la marche s'arrête ici."
       },

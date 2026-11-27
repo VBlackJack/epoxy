@@ -22,6 +22,7 @@ import { PathEngine, Pathfinder } from '../core/Pathfinder';
 import { PlayEngine } from '../core/PlayEngine';
 import { Direction, GridPoint, PlayerState } from '../core/types';
 import type { StepVerdict } from './walkForecast';
+import type { AsideStep } from './walkStepAside';
 
 /**
  * The tap-to-path walk on the CCLP engine, one tick at a time. Lynx keeps a press made during a step for Chip's next
@@ -47,9 +48,19 @@ export interface WalkPlan {
 
 /**
  * idle: nothing to do this tick, keep the plan; stop: drop the plan; sent: a press was made towards `target`; wait: a monster
- * makes the step deadly but standing still is safe, keep the plan and ask again next tick; danger: neither is safe, drop the plan.
+ * makes the step deadly but standing still is safe, keep the plan and ask again next tick; danger: neither is safe, drop the plan;
+ * aside: neither is safe, a press was made off the plan towards `target`, a neighbouring cell the forecast keeps Chip alive on.
  */
-export type WalkStart = { kind: 'idle' } | { kind: 'stop' } | { kind: 'sent'; target: GridPoint } | { kind: 'wait' } | { kind: 'danger' };
+export type WalkStart =
+  | { kind: 'idle' }
+  | { kind: 'stop' }
+  | { kind: 'sent'; target: GridPoint }
+  | { kind: 'wait' }
+  | { kind: 'danger' }
+  | { kind: 'aside'; dir: Direction; target: GridPoint };
+
+/** The step aside: a neighbouring cell where one step then standing still keeps Chip alive, or null (see WalkForecaster.stepAside). */
+export type WalkAside = (plan: WalkPlan) => AsideStep | null;
 
 /** The monster watch: whether the next step, then what follows, keeps Chip alive (see WalkForecaster). */
 export type WalkJudge = (plan: WalkPlan) => StepVerdict;
@@ -62,7 +73,7 @@ function canMove(player: PlayerState): boolean {
 }
 
 /** Before the tick: sends the next step when, and only when, Chip can take it. */
-export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngine, judge?: WalkJudge): WalkStart {
+export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngine, judge?: WalkJudge, aside?: WalkAside): WalkStart {
   if (plan.moves.length === 0) return { kind: 'idle' };
   // A paused game does not walk, and a walk planned before the pause is not resumed after it.
   if (engine.isPaused()) return { kind: 'stop' };
@@ -78,14 +89,18 @@ export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngi
   if (!Pathfinder.isNextStepSafe(view, dir, plan.moves.length === 1)) return { kind: 'stop' };
   const verdict = judge?.(plan) ?? 'go';
   if (verdict === 'wait') return { kind: 'wait' };
-  if (verdict === 'stop') return { kind: 'danger' };
+  if (verdict === 'stop') {
+    const step = aside?.(plan) ?? null;
+    if (step === null || !engine.attemptPlayerMove(step.dir)) return { kind: 'danger' };
+    return { kind: 'aside', dir: step.dir, target: step.point };
+  }
   if (!engine.attemptPlayerMove(dir)) return { kind: 'stop' };
   return { kind: 'sent', target };
 }
 
 /** After the tick: whether Chip stands on the cell the press went to. */
 export function endWalkStep(engine: Pick<WalkEngine, 'getPlayer'>, start: WalkStart): WalkEnd {
-  if (start.kind !== 'sent') return 'waiting';
+  if (start.kind !== 'sent' && start.kind !== 'aside') return 'waiting';
   const player = engine.getPlayer();
   if (player.x === start.target.x && player.y === start.target.y) return 'advanced';
   return canMove(player) ? 'stopped' : 'waiting';
