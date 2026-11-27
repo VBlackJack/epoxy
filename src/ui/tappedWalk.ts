@@ -36,8 +36,11 @@ import { AsideStep, stepAsideCandidates, WalkDetour } from './walkStepAside';
 
 /** The monster watch the walk asks: see WalkForecaster. */
 export interface WalkWatch {
-  judge(engine: PlayEngine, plan: WalkPlan): StepVerdict;
-  stepAside(engine: PlayEngine, candidates: readonly AsideStep[]): AsideStep | null;
+  /** The clock of the decision budget. */
+  clock(): number;
+  /** `startedAt`: when the decision began (the judge and the step aside after it share one budget). */
+  judge(engine: PlayEngine, plan: WalkPlan, startedAt: number): StepVerdict;
+  stepAside(engine: PlayEngine, candidates: readonly AsideStep[], startedAt: number): AsideStep | null;
 }
 
 /** What to tell the player: a wait began; the walk ends because a monster blocks the way; the walk stepped aside. */
@@ -105,6 +108,8 @@ export class TappedWalk {
   /** Before the engine ticks: sends the next step, or waits, or steps aside, or ends the walk. */
   public beforeTick(engine: PlayEngine): WalkTurn {
     const pending: Pending = { notice: null, cleared: false, changed: false };
+    // When the judge of this tick began: the step aside after it spends what is left of the same budget.
+    let decisionStart = 0;
     const plan: WalkPlan = { moves: this.moves, points: this.points };
     const cclp = engine instanceof CclpEngine ? engine : null;
     if (cclp) {
@@ -113,8 +118,8 @@ export class TappedWalk {
         plan,
         cclp,
         view,
-        (p) => this.watch.judge(cclp, p),
-        (p) => this.chooseAside(cclp, view, p)
+        (p) => this.watch.judge(cclp, p, (decisionStart = this.watch.clock())),
+        (p) => this.chooseAside(cclp, view, p, decisionStart)
       );
       if (start.kind === 'stop') this.drop(pending);
       else if (start.kind === 'wait') this.hold('wait', pending);
@@ -128,8 +133,8 @@ export class TappedWalk {
       plan,
       engine,
       epoxy,
-      (p) => this.watch.judge(engine, p),
-      (p) => (epoxy ? this.chooseAside(epoxy, epoxy, p) : null)
+      (p) => this.watch.judge(engine, p, (decisionStart = this.watch.clock())),
+      (p) => (epoxy ? this.chooseAside(epoxy, epoxy, p, decisionStart) : null)
     );
     let stored = false;
     if (start.kind === 'stop') this.drop(pending);
@@ -169,10 +174,10 @@ export class TappedWalk {
   }
 
   /** A stop verdict: the neighbouring cell the walk may step aside to, while this walk has steps aside left. */
-  private chooseAside(engine: PlayEngine, view: PathEngine, plan: WalkPlan): AsideStep | null {
+  private chooseAside(engine: PlayEngine, view: PathEngine, plan: WalkPlan, startedAt: number): AsideStep | null {
     if (!this.detour.allowed() || plan.moves.length === 0) return null;
     const goal = plan.points[plan.points.length - 1];
-    return this.watch.stepAside(engine, stepAsideCandidates(view, plan.moves[0], goal));
+    return this.watch.stepAside(engine, stepAsideCandidates(view, plan.moves[0], goal), startedAt);
   }
 
   /**

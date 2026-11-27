@@ -131,8 +131,6 @@ export class WalkForecaster {
   private decisions = 0;
   private asideSearches = 0;
   private asideTimeouts = 0;
-  /** When the last judge began: the step aside that follows it spends what is left of the same budget. */
-  private decisionStartedAt: number | null = null;
 
   /** `now`: the clock the per-decision budget reads (milliseconds); a test may pass its own. */
   constructor(private readonly now: () => number = () => performance.now()) {}
@@ -185,19 +183,22 @@ export class WalkForecaster {
     }
   }
 
+  /** The clock of the per-decision budget: a decision reads it once and gives the time to the judge and the step aside. */
+  public clock(): number {
+    return this.now();
+  }
+
   /**
    * Called when Chip can take the next planned step. go when the step, followed by the plan or by standing still, keeps Chip
    * alive over the forecast; wait when only standing still does; stop when nothing does. go too when no forecast can be made
    * (another engine, a copy that cannot follow the game, a decision that ran out of its time budget): the walk then behaves
    * as it did without the watch.
    */
-  public judge(engine: PlayEngine, plan: ForecastPlan): StepVerdict {
+  public judge(engine: PlayEngine, plan: ForecastPlan, startedAt: number = this.now()): StepVerdict {
     if (plan.moves.length === 0) return 'go';
     const sandbox = this.sandboxFor(engine);
     if (sandbox === null) return 'go';
     this.decisions++;
-    const startedAt = this.now();
-    this.decisionStartedAt = startedAt;
     const budget = walkForecastBudgetMs();
     const expired = (): boolean => this.now() - startedAt > budget;
     const verdict = this.decide(sandbox, plan, expired);
@@ -212,12 +213,11 @@ export class WalkForecaster {
    * Called after a stop verdict: the first of `candidates` (neighbouring cells, best first) where taking that one step and
    * then standing still keeps Chip alive over the forecast, or null when none does, when no forecast can be made, or when the
    * decision runs out of its time budget (the walk then stops, as without the step aside). The step aside is part of the
-   * decision of the judge before it: it spends what is left of that budget, counted from `startedAt` (by default the start
-   * of the last judge, then forgotten, so a later search never reuses it).
+   * decision of the judge before it: it spends what is left of that budget, counted from `startedAt`, the time the
+   * decision began (the one the caller gave the judge).
    */
-  public stepAside(engine: PlayEngine, candidates: readonly AsideStep[], startedAt?: number): AsideStep | null {
-    const since = startedAt ?? this.decisionStartedAt ?? this.now();
-    this.decisionStartedAt = null;
+  public stepAside(engine: PlayEngine, candidates: readonly AsideStep[], startedAt: number = this.now()): AsideStep | null {
+    const since = startedAt;
     if (candidates.length === 0) return null;
     const sandbox = this.sandboxFor(engine);
     if (sandbox === null) return null;

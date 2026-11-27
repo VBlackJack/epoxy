@@ -134,12 +134,13 @@ function walkOnPage(engine: PlayEngine, options: WalkOptions): AsideOutcome {
   let waits = 0;
   let asides = 0;
   const watch: WalkWatch = {
-    judge: (e, plan) => {
-      const verdict = forecaster.judge(e, plan);
+    clock: () => forecaster.clock(),
+    judge: (e, plan, startedAt) => {
+      const verdict = forecaster.judge(e, plan, startedAt);
       if (verdict === 'wait') waits++;
       return verdict;
     },
-    stepAside: (e, candidates) => forecaster.stepAside(e, candidates)
+    stepAside: (e, candidates, startedAt) => forecaster.stepAside(e, candidates, startedAt)
   };
   const walk = new TappedWalk(watch, options.wait, new WalkDetour(options.limit));
   const view = pathEngineOf(engine);
@@ -214,15 +215,33 @@ describe('step aside candidates', () => {
     expect(stepAsideCandidates(epoxyEngineOf(NORTH('.')), 'E', { x: 3, y: 2 }).map((c) => c.dir)).toEqual(['N']);
   });
 
+  // Each class names the guard that refuses it: the tile category (anything but plain terrain), the level exit flag (the exit
+  // is plain terrain by category) or an item on the cell.
   it.each([
-    ['a button', 'B'],
-    ['a trap', 'T'],
-    ['a teleport', 'P'],
-    ['a toggle floor', 'O'],
-    ['the level exit', 'E'],
-    ['a bomb', 'b']
-  ])('never offers %s', (_name, glyph) => {
-    expect(stepAsideCandidates(epoxyEngineOf(NORTH(glyph)), 'E', { x: 3, y: 2 })).toEqual([]);
+    ['a button', 'B', 'category'],
+    ['a trap', 'T', 'category'],
+    ['a teleport', 'P', 'category'],
+    ['a toggle floor', 'O', 'category'],
+    ['the level exit', 'E', 'exit'],
+    ['a bomb', 'b', 'item']
+  ])('never offers %s (refused by the %s guard)', (_name, glyph, guard) => {
+    const engine = epoxyEngineOf(NORTH(glyph));
+    const tile = ConfigRegistry.getTile(engine.getTerrain()[1][2]);
+    const item = engine.getItems()[1][2];
+    if (guard === 'category') {
+      expect(tile.category).not.toBe('terrain');
+      expect(tile.isLevelExit).toBeUndefined();
+      expect(item).toBeNull();
+    } else if (guard === 'exit') {
+      expect(tile.category).toBe('terrain');
+      expect(tile.isLevelExit).toBe(true);
+      expect(item).toBeNull();
+    } else {
+      expect(tile.category).toBe('terrain');
+      expect(tile.isLevelExit).toBeUndefined();
+      expect(item).not.toBeNull();
+    }
+    expect(stepAsideCandidates(engine, 'E', { x: 3, y: 2 })).toEqual([]);
   });
 });
 
@@ -398,7 +417,7 @@ describe('WalkDetour', () => {
 });
 
 describe('TappedWalk', () => {
-  const NEVER_ASIDE: WalkWatch = { judge: () => 'go', stepAside: () => null };
+  const NEVER_ASIDE: WalkWatch = { clock: () => 0, judge: () => 'go', stepAside: () => null };
 
   it('a tapped walk arms the detour, a hint walk disarms it, clear forgets everything', () => {
     const walk = new TappedWalk(NEVER_ASIDE, new WalkWait(), new WalkDetour(2));
@@ -455,10 +474,11 @@ describe('the time budget of a step aside', () => {
     const candidates = stepAsideCandidates(engine, 'E', GOAL);
     let now = 0;
     const forecaster = new WalkForecaster(() => now);
-    // The judge began at 0; the clock reads 100 when the step aside begins: the budget of the decision is spent.
-    forecaster.judge(engine, { moves: ['E'], points: [{ x: 5, y: 2 }] });
+    // The decision began at 0 (the start the judge was given); the clock reads 100 when the step aside begins: the budget is spent.
+    const startedAt = forecaster.clock();
+    forecaster.judge(engine, { moves: ['E'], points: [{ x: 5, y: 2 }] }, startedAt);
     now = 100;
-    expect(forecaster.stepAside(engine, candidates)).toBeNull();
+    expect(forecaster.stepAside(engine, candidates, startedAt)).toBeNull();
     expect(forecaster.stats().asideTimeouts).toBe(1);
     // The same search with its own start has the whole budget.
     expect(forecaster.stepAside(engine, candidates, 100)).toEqual({ dir: 'W', point: { x: 3, y: 2 } });
