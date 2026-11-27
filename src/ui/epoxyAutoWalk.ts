@@ -63,7 +63,8 @@ export function startEpoxyWalkStep(plan: WalkPlan, engine: PlayEngine, epoxy: Ga
 export class WalkWait {
   private waited = 0;
 
-  constructor(private readonly limitTicks: number = maxWalkWaitTicks()) {}
+  /** `limitTicks`: for a test; by default the limit is read from game.json when the wait is used, since the page builds this before the config is loaded. */
+  constructor(private readonly limitTicks?: number) {}
 
   /** The ticks waited so far. */
   public get ticks(): number {
@@ -80,7 +81,7 @@ export class WalkWait {
    * (the counter restarts).
    */
   public hold(): { giveUp: boolean; first: boolean } {
-    if (this.waited >= this.limitTicks) {
+    if (this.waited >= (this.limitTicks ?? maxWalkWaitTicks())) {
       this.waited = 0;
       return { giveUp: true, first: false };
     }
