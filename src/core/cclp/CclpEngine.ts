@@ -29,8 +29,9 @@ export const CCLP_RULE_MODULES: readonly RuleModule[] = [heldKeyRules];
  * engine with the CCLP modules added through its constructor, as Cc2Engine does. Nothing of the Lynx folder is changed here.
  */
 export class CclpEngine extends LynxEngine {
-  constructor(sound?: SoundPlayer) {
-    super(sound, [...LYNX_RULE_MODULES, ...CCLP_RULE_MODULES]);
+  /** `extraModules`: rule modules added after the CCLP ones (the monster watch's private copy taps the simulation with one). */
+  constructor(sound?: SoundPlayer, extraModules: readonly RuleModule[] = []) {
+    super(sound, [...LYNX_RULE_MODULES, ...CCLP_RULE_MODULES, ...extraModules]);
   }
 
   /** Lynx reads no direction at all from an opposing pair or from three keys or more (Lexy _extract_player_directions). */

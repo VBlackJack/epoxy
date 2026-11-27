@@ -1300,6 +1300,15 @@
       "objective_receivers": {
         "label": "Goal: light every receiver with the laser beams."
       },
+      "walk_monster_wait": {
+        "label": "Waiting for a monster to pass..."
+      },
+      "walk_monster_stop": {
+        "label": "A monster blocks the way: the walk stops here."
+      },
+      "objective_unreachable": {
+        "label": "Next objective at ({x}, {y}) - no path reaches it from here yet - Mechanism links visible"
+      },
       "objective_found": {
         "label": "Next objective located at ({x}, {y}) - Mechanism links visible"
       },

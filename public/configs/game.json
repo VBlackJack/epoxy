@@ -700,7 +700,12 @@
     "levelBasePoints": 500,
     "goldTimeRatio": 0.5,
     "silverTimeRatio": 0.25,
-    "lowTimeWarningSeconds": 10
+    "lowTimeWarningSeconds": 10,
+    "walkWaitSeconds": 5,
+    "walkLookaheadSteps": 2,
+    "walkForecastBudgetMs": 15,
+    "walkCatchUpTicks": 40,
+    "walkObjectiveExpansionBudget": 1200
   },
   "storage": {
     "saveSlotKey": "save_state",

@@ -21,6 +21,7 @@ import { GameEngine } from '../core/GameEngine';
 import { PathEngine, Pathfinder } from '../core/Pathfinder';
 import { PlayEngine } from '../core/PlayEngine';
 import { Direction, GridPoint, PlayerState } from '../core/types';
+import type { StepVerdict } from './walkForecast';
 
 /**
  * The tap-to-path walk on the CCLP engine, one tick at a time. Lynx keeps a press made during a step for Chip's next
@@ -44,8 +45,14 @@ export interface WalkPlan {
   readonly points: readonly GridPoint[];
 }
 
-/** idle: nothing to do this tick, keep the plan; stop: drop the plan; sent: a press was made towards `target`. */
-export type WalkStart = { kind: 'idle' } | { kind: 'stop' } | { kind: 'sent'; target: GridPoint };
+/**
+ * idle: nothing to do this tick, keep the plan; stop: drop the plan; sent: a press was made towards `target`; wait: a monster
+ * makes the step deadly but standing still is safe, keep the plan and ask again next tick; danger: neither is safe, drop the plan.
+ */
+export type WalkStart = { kind: 'idle' } | { kind: 'stop' } | { kind: 'sent'; target: GridPoint } | { kind: 'wait' } | { kind: 'danger' };
+
+/** The monster watch: whether the next step, then what follows, keeps Chip alive (see WalkForecaster). */
+export type WalkJudge = (plan: WalkPlan) => StepVerdict;
 
 /** advanced: Chip reached the cell, drop the step; stopped: he did not and is free, drop the plan; waiting: still moving. */
 export type WalkEnd = 'advanced' | 'stopped' | 'waiting';
@@ -55,7 +62,7 @@ function canMove(player: PlayerState): boolean {
 }
 
 /** Before the tick: sends the next step when, and only when, Chip can take it. */
-export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngine): WalkStart {
+export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngine, judge?: WalkJudge): WalkStart {
   if (plan.moves.length === 0) return { kind: 'idle' };
   // A paused game does not walk, and a walk planned before the pause is not resumed after it.
   if (engine.isPaused()) return { kind: 'stop' };
@@ -69,6 +76,9 @@ export function startWalkStep(plan: WalkPlan, engine: WalkEngine, view: PathEngi
   // A forced move he may not override is due: a press would be kept and played later.
   if (!engine.canChipTakeInput()) return { kind: 'stop' };
   if (!Pathfinder.isNextStepSafe(view, dir, plan.moves.length === 1)) return { kind: 'stop' };
+  const verdict = judge?.(plan) ?? 'go';
+  if (verdict === 'wait') return { kind: 'wait' };
+  if (verdict === 'stop') return { kind: 'danger' };
   if (!engine.attemptPlayerMove(dir)) return { kind: 'stop' };
   return { kind: 'sent', target };
 }
