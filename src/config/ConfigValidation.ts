@@ -1133,6 +1133,14 @@ export function findBlockPuzzleConfigErrors(value: unknown): string[] {
     .map((key) => `blockPuzzle.${key}: not a positive integer`);
 }
 
+/** Problems of the game.json twsReplay section: it is required and every limit must be a positive integer. */
+export function findTwsReplayConfigErrors(value: unknown): string[] {
+  if (!isRecord(value)) return ['twsReplay: not an object'];
+  return ['maxFileBytes', 'maxSolutionTicks', 'graceTicks', 'maxSetNameChars']
+    .filter((key) => !Number.isInteger(value[key]) || (value[key] as number) <= 0)
+    .map((key) => `twsReplay.${key}: not a positive integer`);
+}
+
 /** touch fields that are pixel or millisecond lengths: finite numbers, zero or more. */
 const TOUCH_LENGTH_KEYS = [
   'swipeDeadzonePx',

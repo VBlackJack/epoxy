@@ -490,6 +490,13 @@ export const CC2_SOURCE_DB_NAME = 'epoxy_cc2_sources_db';
 export const CC2_SOURCE_STORE_NAME = 'cc2_sources';
 export const CC2_SOURCE_DB_VERSION = 1;
 
+/** IndexedDB database and store holding the Tile World solution file (.tws) a player loaded for a pack, keyed by pack id. */
+export const TWS_DB_NAME = 'epoxy_tws_db';
+export const TWS_STORE_NAME = 'solutions';
+export const TWS_DB_VERSION = 1;
+/** Types a file picker may offer for a Tile World solution file (the extension, and the generic type some systems report). */
+export const TWS_FILE_ACCEPT = '.tws,application/octet-stream';
+
 /** Name of the optional pack file field that carries the raw CC2 sources, base64 by SHA-256. */
 export const CC2_SOURCES_FIELD = 'cc2Sources';
 

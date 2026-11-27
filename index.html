@@ -55,6 +55,7 @@
               <button id="btn-delete-imported-packs" class="nav-btn hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
               <input id="pack-file-input" type="file" multiple accept=".dat,.ccl,.json,.har,.xsb,.sok,.xml,.c2m,.c2g" class="hidden" />
               <input id="pack-folder-input" type="file" webkitdirectory multiple class="hidden" />
+              <input id="tws-file-input" type="file" class="hidden" />
             </div>
             <div id="procedural-seed-box" class="pack-box procedural-seed-box hidden">
               <span id="procedural-seed-label" class="procedural-seed-label"></span>
@@ -917,6 +918,11 @@
                 <button id="packs-new-btn" class="hud-btn small primary" type="button" aria-expanded="false" aria-controls="packs-new-form" data-i18n="app.packs.manager.new_pack.action"></button>
                 <button id="packs-import-btn" class="hud-btn small" type="button" data-i18n="app.packs.manager.import.action" data-i18n-title="app.packs.import_formats.label"></button>
                 <button id="packs-delete-imported-btn" class="hud-btn small hidden" type="button" data-i18n="app.packs.delete_all_btn.action" data-i18n-title="app.packs.delete_all_btn.title"></button>
+              </div>
+              <div id="packs-tws" class="packs-tws hidden" role="group" aria-labelledby="packs-tws-title">
+                <h4 id="packs-tws-title" data-i18n="app.packs.manager.tws_section.title.label"></h4>
+                <p class="hint-text" data-i18n="app.packs.manager.tws_section.hint.label"></p>
+                <ul id="packs-tws-list" class="packs-tws-list"></ul>
               </div>
             </section>
             <section id="packs-detail" class="packs-detail" aria-labelledby="packs-detail-title">

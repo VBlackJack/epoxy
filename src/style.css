@@ -2649,6 +2649,46 @@ body.fullscreen-mode .view-section {
   min-height: 4rem;
 }
 
+.packs-tws {
+  margin-top: 0.75rem;
+}
+
+.packs-tws-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.packs-tws-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  background: #202532;
+  border: 1px solid #333b4d;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
+
+.packs-tws-name {
+  font-weight: bold;
+  flex: 1 1 100%;
+}
+
+.packs-tws-status {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+}
+
+.packs-tws-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
 .packs-row {
   width: 100%;
   display: flex;
