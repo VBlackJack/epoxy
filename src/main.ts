@@ -2230,8 +2230,9 @@ class EpoxyApplication {
    * The load itself. With a Tile World `solution` the level loads with that record's stepping, seed and force floor start
    * and the replay starts; any other load makes the run an ordinary one again.
    */
-  private loadRun(level: CompiledLevel, solution: TwsReplayPlayer | null): void {
+  private loadRun(level: CompiledLevel, solution: TwsReplayPlayer | null): boolean {
     const engine = this.engineSelector.forLevel(level);
+    const started = solution !== null && isTwsLoadTarget(engine);
     if (solution !== null && isTwsLoadTarget(engine)) {
       solution.load(engine, level);
       // Read after the load: a level loaded again starts from the total it had at its start.
@@ -2250,6 +2251,7 @@ class EpoxyApplication {
     this.stickKeys = [];
     this.syncSokobanSkinControl(level.winRule);
     this.syncCc2Banner(level);
+    return started;
   }
 
   /** Shows the banner of a level imported from CC2 that holds mechanics Epoxy does not play; hides it for any other. */
@@ -2311,7 +2313,7 @@ class EpoxyApplication {
    */
   private nextObjective(): MarkedObjective | null {
     const engine = this.pathEngine();
-    if (!engine || !featuresFor(engine.getLevel()).objectiveMarker) return null;
+    if (!engine || !featuresFor(engine.getLevel()).objectiveMarker || !this.twsRun.walkAidsAllowed()) return null;
     return this.objectiveMarker.get(engine, this.engine.getTick(), ConfigRegistry.getGame().timing.ticksPerSecond);
   }
 
@@ -2395,13 +2397,13 @@ class EpoxyApplication {
   }
 
   /** What the Solution button does on the level on screen. */
-  private solutionControl(): SolutionControl {
+  private solutionControl(storedAvailable?: boolean): SolutionControl {
     const level = this.engine.getLevel();
     const packId = this.twsPackId();
     const tws = packId !== null && isTwsLevel(level);
     const file = tws ? TwsFiles.peek(packId) : undefined;
     const match = file?.kind === 'ready' ? matchTwsRecord(file.index, level) : null;
-    return solutionControlState({ tws, storedAvailable: hasStoredSolution(level), file, match });
+    return solutionControlState({ tws, storedAvailable: storedAvailable ?? hasStoredSolution(level), file, match, levelNumber: level.number });
   }
 
   /** Starts the read of the stored file of the pack the level on screen belongs to, the first time it is wanted. */
@@ -2443,7 +2445,7 @@ class EpoxyApplication {
       case 'error':
         return this.resolveTwsError();
       case 'none':
-        this.showTransientStatus(t(control.titleKey));
+        this.showTransientStatus(t(control.titleKey, control.titleParams));
         return;
       case 'stored':
         return this.showStoredSolution();
@@ -2529,21 +2531,23 @@ class EpoxyApplication {
         await this.chooseForgetOrReload(packId, t(refusal.errorKey, refusal.params));
         return;
       }
-      this.playtest.solutionViewed();
-      this.startTwsReplay(player);
-      this.showTransientStatus(t('hud.messages.tws_playing.label'));
+      if (this.startTwsReplay(player)) {
+        this.playtest.solutionViewed();
+        this.showTransientStatus(t('hud.messages.tws_playing.label'));
+      }
       return;
     }
-    this.showTransientStatus(t(twsMatchMessageKey(match.kind)));
+    this.showTransientStatus(t(twsMatchMessageKey(match.kind), { number: level.number }));
   }
 
   /** Reloads the level with the stepping, seed and force floor start of a Tile World record and plays its keys. */
-  private startTwsReplay(player: TwsReplayPlayer): void {
-    this.playtest.replayStarting();
+  private startTwsReplay(player: TwsReplayPlayer): boolean {
     this.stopAutoMoveAndReplay();
     this.forgetWalkAids();
-    this.loadRun(this.engine.getLevel(), player);
+    const started = this.loadRun(this.engine.getLevel(), player);
+    if (started) this.playtest.replayStarting();
     this.updateHUD();
+    return started;
   }
 
   /**
@@ -4260,7 +4264,8 @@ class EpoxyApplication {
       'hidden',
       !(showExtras && document.body.classList.contains('fullscreen-mode'))
     );
-    const solutionAvailable = this.solutionControl().enabled;
+    // The pause card keeps its rule for levels the CCLP engine does not play: a stored solution that can replay.
+    const solutionAvailable = this.solutionControl(this.playableSolution() !== null).enabled;
     const solutionBtn = byId<HTMLButtonElement>('overlay-btn-solution');
     if (solutionBtn) solutionBtn.disabled = !solutionAvailable;
     const menuSolution = byId<HTMLButtonElement>('touch-menu-solution');
@@ -4755,7 +4760,7 @@ class EpoxyApplication {
     const desktopBtn = byId<HTMLButtonElement>('hud-btn-solution');
     if (desktopBtn) {
       desktopBtn.disabled = !control.enabled;
-      desktopBtn.title = t(control.titleKey);
+      desktopBtn.title = t(control.titleKey, control.titleParams);
     }
     byId('mobile-btn-solution')?.classList.toggle('hidden', !control.enabled);
   }

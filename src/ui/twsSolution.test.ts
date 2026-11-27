@@ -19,7 +19,7 @@ import { matchTwsRecord, TwsMatch } from '../core/cclp/twsReplay';
 import { lynxLevel } from '../core/lynx/lynxTestMaps';
 import type { CompiledLevel } from '../core/types';
 import { parseTwsIndex, TwsErrorCode, TwsIndex, TwsLimits } from '../formats/TwsCodec';
-import { resolveMessage, TranslationNode } from '../i18n/messageFormat';
+import { formatMessage, resolveMessage, TranslationNode } from '../i18n/messageFormat';
 import enLocale from '../locales/en.json';
 import frLocale from '../locales/fr.json';
 import type { TwsFileState } from '../storage/TwsFiles';
@@ -54,12 +54,12 @@ describe('solutionControlState', () => {
   const lvl = level(1);
 
   it('keeps today\'s stored solution control on a level the CCLP engine does not play', () => {
-    expect(solutionControlState({ tws: false, storedAvailable: true, file: undefined, match: null })).toEqual({
+    expect(solutionControlState({ tws: false, storedAvailable: true, file: undefined, match: null })).toMatchObject({
       action: 'stored',
       enabled: true,
       titleKey: 'hud.controls.solution.hint'
     });
-    expect(solutionControlState({ tws: false, storedAvailable: false, file: undefined, match: null })).toEqual({
+    expect(solutionControlState({ tws: false, storedAvailable: false, file: undefined, match: null })).toMatchObject({
       action: 'stored',
       enabled: false,
       titleKey: 'hud.controls.solution_unavailable.label'
@@ -73,7 +73,7 @@ describe('solutionControlState', () => {
   });
 
   it('offers to load a file when the pack has none', () => {
-    expect(solutionControlState({ tws: true, storedAvailable: false, file: { kind: 'none' }, match: null })).toEqual({
+    expect(solutionControlState({ tws: true, storedAvailable: false, file: { kind: 'none' }, match: null })).toMatchObject({
       action: 'offer_load',
       enabled: true,
       titleKey: 'hud.controls.solution_tws_load.hint'
@@ -88,7 +88,7 @@ describe('solutionControlState', () => {
   it('plays the record when the file has a playable one for the level', () => {
     const index = indexOf(1, [1]);
     const match = matchTwsRecord(index, lvl);
-    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(index), match })).toEqual({
+    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(index), match })).toMatchObject({
       action: 'tws',
       enabled: true,
       titleKey: 'hud.controls.solution.hint'
@@ -102,20 +102,47 @@ describe('solutionControlState', () => {
       [ready(indexOf(2, [1])), matchTwsRecord(indexOf(2, [1]), lvl), 'hud.messages.tws_ms_ruleset.label']
     ];
     for (const [file, match, titleKey] of cases) {
-      expect(solutionControlState({ tws: true, storedAvailable: false, file, match })).toEqual({ action: 'none', enabled: false, titleKey });
+      expect(solutionControlState({ tws: true, storedAvailable: false, file, match })).toMatchObject({ action: 'none', enabled: false, titleKey });
     }
     const passwordOnly = parseTwsIndex(twsFileBytes(1, [{ passwordOnly: { number: 1, password: PASSWORD } }]), LIMITS);
-    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(passwordOnly), match: matchTwsRecord(passwordOnly, lvl) })).toEqual({
+    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(passwordOnly), match: matchTwsRecord(passwordOnly, lvl) })).toMatchObject({
       action: 'none',
       enabled: false,
       titleKey: 'hud.messages.tws_no_solution.label'
     });
     const mouse = parseTwsIndex(twsFileBytes(1, [twsSolutionRecord({ number: 1, password: PASSWORD, moves: [0x13 | (4 << 5), 24] })]), LIMITS);
-    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(mouse), match: matchTwsRecord(mouse, lvl) })).toEqual({
+    expect(solutionControlState({ tws: true, storedAvailable: false, file: ready(mouse), match: matchTwsRecord(mouse, lvl) })).toMatchObject({
       action: 'none',
       enabled: false,
       titleKey: 'hud.messages.tws_mouse_moves.label'
     });
+  });
+});
+
+describe('solutionControlState parameters and the stored path', () => {
+  it('carries the level number the password message names, and formats with no brace left in both languages', () => {
+    const index = indexOf(1, [4], 'ABCD');
+    const lvl = level(4);
+    const control = solutionControlState({
+      tws: true,
+      storedAvailable: false,
+      file: ready(index),
+      match: matchTwsRecord(index, lvl),
+      levelNumber: lvl.number
+    });
+    expect(control.titleKey).toBe('hud.messages.tws_password_mismatch.label');
+    expect(control.titleParams).toEqual({ number: 4 });
+    for (const locale of [enLocale, frLocale]) {
+      const text = formatMessage(String(resolveMessage(locale as TranslationNode, control.titleKey)), control.titleParams, locale === enLocale ? 'en' : 'fr');
+      expect(text).toContain('4');
+      expect(text).not.toMatch(/[{}]/);
+    }
+  });
+
+  it('keeps the stored solution rule for a level the CCLP engine does not play, whatever the file state', () => {
+    const base = { tws: false, file: undefined, match: null } as const;
+    expect(solutionControlState({ ...base, storedAvailable: false }).enabled).toBe(false);
+    expect(solutionControlState({ ...base, storedAvailable: true })).toMatchObject({ action: 'stored', enabled: true });
   });
 });
 

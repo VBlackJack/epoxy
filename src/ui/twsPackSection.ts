@@ -122,7 +122,10 @@ export class TwsPackSection {
   private async load(pack: LevelPack): Promise<void> {
     const file = await pickTwsFile();
     if (file === null) return;
-    const result = await loadTwsFileForPack(pack.id, pack.levels, file);
+    // The pack may have been deleted while the picker was open: no file is kept for a pack that is gone.
+    const current = ConfigRegistry.getAllPacks().find((candidate) => candidate.id === pack.id);
+    if (current === undefined) return;
+    const result = await loadTwsFileForPack(current.id, current.levels, file);
     this.host.notify(twsLoadMessage(result));
   }
 

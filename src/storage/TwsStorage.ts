@@ -53,6 +53,8 @@ class TwsStorageService {
         resolve(db);
       };
       req.onerror = () => reject(req.error);
+      // Another tab holds an older version open: the store is unavailable, and the file plays for the session only.
+      req.onblocked = () => reject(new Error('blocked'));
     });
     this.dbPromise = opening;
     opening.catch(() => {

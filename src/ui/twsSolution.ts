@@ -49,6 +49,8 @@ export interface SolutionControl {
   enabled: boolean;
   /** Key of the tooltip of the desktop button (the reason when it is disabled). */
   titleKey: string;
+  /** Parameters of the title message (the level number the password message names). */
+  titleParams: Record<string, number>;
 }
 
 const STORED_HINT_KEY = 'hud.controls.solution.hint';
@@ -113,21 +115,24 @@ export function solutionControlState(input: {
   storedAvailable: boolean;
   file: TwsFileState | undefined;
   match: TwsMatch | null;
+  levelNumber?: number;
 }): SolutionControl {
+  const titleParams = { number: input.levelNumber ?? 0 };
   if (!input.tws) {
     return {
       action: 'stored',
       enabled: input.storedAvailable,
-      titleKey: input.storedAvailable ? STORED_HINT_KEY : STORED_UNAVAILABLE_KEY
+      titleKey: input.storedAvailable ? STORED_HINT_KEY : STORED_UNAVAILABLE_KEY,
+      titleParams
     };
   }
   const file = input.file;
-  if (file === undefined || file.kind === 'loading') return { action: 'loading', enabled: true, titleKey: TWS_LOADING_KEY };
-  if (file.kind === 'none') return { action: 'offer_load', enabled: true, titleKey: TWS_LOAD_HINT_KEY };
-  if (file.kind === 'error') return { action: 'error', enabled: true, titleKey: TWS_ERROR_HINT_KEY };
+  if (file === undefined || file.kind === 'loading') return { action: 'loading', enabled: true, titleKey: TWS_LOADING_KEY, titleParams };
+  if (file.kind === 'none') return { action: 'offer_load', enabled: true, titleKey: TWS_LOAD_HINT_KEY, titleParams };
+  if (file.kind === 'error') return { action: 'error', enabled: true, titleKey: TWS_ERROR_HINT_KEY, titleParams };
   const match = input.match;
-  if (match === null || match.kind === 'playable') return { action: 'tws', enabled: true, titleKey: STORED_HINT_KEY };
-  return { action: 'none', enabled: false, titleKey: MATCH_REASON_KEYS[match.kind] };
+  if (match === null || match.kind === 'playable') return { action: 'tws', enabled: true, titleKey: STORED_HINT_KEY, titleParams };
+  return { action: 'none', enabled: false, titleKey: MATCH_REASON_KEYS[match.kind], titleParams };
 }
 
 /** A refused file: the message key and its parameters. */
@@ -168,7 +173,8 @@ export function twsLoadOutcome(bytes: Uint8Array, levels: readonly TwsLevel[], l
   try {
     index = parseTwsIndex(bytes, limits);
   } catch (e) {
-    return twsParseRefusal(e instanceof TwsParseError ? e.code : 'truncated', limits);
+    if (!(e instanceof TwsParseError)) throw e;
+    return twsParseRefusal(e.code, limits);
   }
   if (index.ruleset !== 'lynx') return { ok: false, errorKey: MATCH_REASON_KEYS.ms_ruleset, params: {} };
   const matched = countPlayableLevels(index, levels);

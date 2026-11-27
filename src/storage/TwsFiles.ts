@@ -80,7 +80,8 @@ class TwsFilesService {
     try {
       return { kind: 'ready', fileName, index: parseTwsIndex(bytes, limits), persisted };
     } catch (e) {
-      return { kind: 'error', fileName, code: e instanceof TwsParseError ? e.code : 'truncated' };
+      if (!(e instanceof TwsParseError)) throw e;
+      return { kind: 'error', fileName, code: e.code };
     }
   }
 
