@@ -5,6 +5,10 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- The tapped walk and the hint walk now watch the monsters: before each step the game plays the next steps ahead on a private copy of itself, and the walk waits for a monster to pass, or stops and says so when standing still is deadly too. It never presses anything the player could not press, so recorded runs replay as before. The objective marker now shows the first goal a tapped path can reach, and says so when it can only show a goal beyond water, a block or a closed trap. The wait limit, the look-ahead depth and the time budget of one decision are in `game.json` (`timing.walkWaitSeconds`, `walkLookaheadSteps`, `walkForecastBudgetMs`).
+
 ## [2.45.0] - 2026-11-27
 
 ### Changed

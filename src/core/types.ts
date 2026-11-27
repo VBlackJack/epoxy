@@ -56,6 +56,12 @@ export interface TimingConfig {
   goldTimeRatio?: number;
   silverTimeRatio?: number;
   lowTimeWarningSeconds?: number;
+  /** Seconds a tapped walk stands waiting for a monster to pass before it gives up. */
+  walkWaitSeconds?: number;
+  /** Steps past the next one that the monster watch of a tapped walk looks ahead. */
+  walkLookaheadSteps?: number;
+  /** Milliseconds one monster watch decision may take before the walk goes on without it. */
+  walkForecastBudgetMs?: number;
 }
 
 export interface UserSettings {

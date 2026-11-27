@@ -1300,6 +1300,15 @@
       "objective_receivers": {
         "label": "Objectif : allumez tous les récepteurs avec les rayons laser."
       },
+      "walk_monster_wait": {
+        "label": "Attente du passage d'un monstre..."
+      },
+      "walk_monster_stop": {
+        "label": "Un monstre barre le chemin : la marche s'arrête ici."
+      },
+      "objective_unreachable": {
+        "label": "Prochain objectif en ({x}, {y}) - aucun chemin n'y mène encore d'ici - Liaisons mécaniques activées"
+      },
       "objective_found": {
         "label": "Prochain objectif localisé en ({x}, {y}) - Liaisons mécaniques activées"
       },

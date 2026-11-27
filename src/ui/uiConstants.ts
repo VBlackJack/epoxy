@@ -69,7 +69,10 @@ export const TIMING_DEFAULTS = {
   goldTimeRatio: 0.5,
   silverTimeRatio: 0.25,
   lowTimeWarningSeconds: 10,
-  maxUndoSnapshots: 100
+  maxUndoSnapshots: 100,
+  walkWaitSeconds: 5,
+  walkLookaheadSteps: 2,
+  walkForecastBudgetMs: 15
 } as const;
 
 /** Fallback for the optional game.json "graphics" theme value. */

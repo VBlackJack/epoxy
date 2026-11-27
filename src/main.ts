@@ -27,6 +27,9 @@ import { GameEngine } from './core/GameEngine';
 import { CclpEngine } from './core/cclp/CclpEngine';
 import { cclpPathView } from './core/cclp/cclpPathView';
 import { endWalkStep, padCancelsWalk, pathEngineOf, startWalkStep, WalkStart } from './ui/cclpAutoWalk';
+import { startEpoxyWalkStep, WalkWait } from './ui/epoxyAutoWalk';
+import { MarkedObjective, ObjectiveMarker } from './ui/objectiveMarker';
+import { WalkForecaster } from './ui/walkForecast';
 import { EngineSelector } from './core/EngineSelector';
 import { PlayEngine } from './core/PlayEngine';
 import { BRIBE_ITEM_ID, CHARGE_ITEM_ID, DYNAMITE_ITEM_ID, GATE_ITEM_ID, STEEL_FOIL_ITEM_ID, STONE_ITEM_ID, TOKEN_ITEM_ID } from './core/coreConstants';
@@ -344,6 +347,10 @@ class EpoxyApplication {
   /** A swap pressed during a step of the controlled player, kept for his next decision (CC2 levels). */
   private readonly pendingSwap = new PendingSwap();
   private autoMovePoints: GridPoint[] = [];
+  /** The monster watch of the tapped walk, and the ticks the walk has stood waiting for a monster to pass. */
+  private readonly walkForecast = new WalkForecaster();
+  private readonly walkWait = new WalkWait();
+  private readonly objectiveMarker = new ObjectiveMarker();
   private replayMoves: TimedMove[] = [];
   private replayIndex: number = 0;
   private isReplaying: boolean = false;
@@ -816,31 +823,31 @@ class EpoxyApplication {
     } else if (this.autoMoveQueue.length > 0) {
       const cclp = this.cclpEngine();
       if (cclp) {
-        cclpStart = startWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, cclp, cclpPathView(cclp));
+        cclpStart = startWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, cclp, cclpPathView(cclp), (plan) =>
+          this.walkForecast.judge(cclp, plan)
+        );
         if (cclpStart.kind === 'stop') this.clearAutoMove();
+        else if (cclpStart.kind === 'wait') this.holdWalkForMonster('wait');
+        else if (cclpStart.kind === 'danger') this.holdWalkForMonster('stop');
+        else if (cclpStart.kind === 'sent') this.walkWait.clear();
       } else {
-        const nextDir = this.autoMoveQueue[0];
-        // The world moved since the path was planned (a plate crossed can open a door that shielded a beam): stop rather than step in.
         const epoxy = this.epoxyEngine();
-        // A CC2 step that just ended has its effects pending until the next tick: the safety check must see them.
-        epoxy?.flushPendingStepEnd();
-        const walker = this.engine.getPlayer();
-        const stepSafe = epoxy && !walker.isSliding && walker.moveCooldown === 0
-          ? Pathfinder.isNextStepSafe(epoxy, nextDir, this.autoMoveQueue.length === 1)
-          : true;
-        if (!stepSafe) {
-          this.clearAutoMove();
-        }
-        const accepted = stepSafe && this.engine.attemptPlayerMove(nextDir);
-        autoStepStored = accepted && epoxy?.playsInActorOrder() === true;
-        if (accepted && !autoStepStored) {
-          this.advanceAutoMove();
-        } else if (!accepted && !this.engine.getPlayer().isSliding && this.engine.getPlayer().moveCooldown === 0) {
-          this.clearAutoMove();
+        const start = startEpoxyWalkStep({ moves: this.autoMoveQueue, points: this.autoMovePoints }, this.engine, epoxy, (plan) =>
+          this.walkForecast.judge(this.engine, plan)
+        );
+        if (start.kind === 'stop') this.clearAutoMove();
+        else if (start.kind === 'wait') this.holdWalkForMonster('wait');
+        else if (start.kind === 'danger') this.holdWalkForMonster('stop');
+        else if (start.kind === 'sent') {
+          this.walkWait.clear();
+          autoStepStored = start.stored;
+          if (!start.stored) this.advanceAutoMove();
         }
       }
     }
     this.engine.tick();
+    // The CCLP copy of the monster watch plays the tick that was just played, so a forecast never replays the history.
+    if (this.cclpEngine()) this.walkForecast.follow(this.engine);
     if (autoStepStored) {
       // The turn of the tick played the stored step: the queue follows what it did, as it followed the step when it was played at the input.
       if (this.epoxyEngine()?.getLastPlayerTurn()?.moved === true) {
@@ -865,6 +872,22 @@ class EpoxyApplication {
     this.renderer.incrementFrame();
     this.updateHUD();
     this.watchBlockPuzzles();
+  }
+
+  /**
+   * The monster watch held the walk back. wait: Chip stands still this tick and the step is asked again next tick, up to
+   * the limit of game.json timing; stop, or a wait that lasts longer: the walk ends and the player is told why.
+   */
+  private holdWalkForMonster(verdict: 'wait' | 'stop'): void {
+    if (verdict === 'wait') {
+      const held = this.walkWait.hold();
+      if (!held.giveUp) {
+        if (held.first) this.showTransientStatus(t('hud.messages.walk_monster_wait.label'));
+        return;
+      }
+    }
+    this.clearAutoMove();
+    this.showTransientStatus(t('hud.messages.walk_monster_stop.label'));
   }
 
   /** The step at the head of the click-to-move queue was taken: drops it from the queue and the drawn path. */
@@ -2166,6 +2189,7 @@ class EpoxyApplication {
   // ---------------------------------------------------------------------------
 
   private clearAutoMove(): void {
+    this.walkWait.clear();
     this.autoMoveQueue = [];
     this.autoMovePoints = [];
     this.renderer.setPlannedPath([]);
@@ -2184,6 +2208,9 @@ class EpoxyApplication {
   private loadPlayLevel(level: CompiledLevel): void {
     this.pendingSwap.cancel();
     this.engineSelector.forLevel(level).loadLevel(level);
+    this.forgetWalkAids();
+    // The private copy of the monster watch is built at the load, where a level takes its time anyway.
+    if (this.cclpEngine() && featuresFor(level).tapToPath) this.walkForecast.follow(this.engine);
     this.aimMode.set(false);
     this.clearHeldKeys();
     this.syncSokobanSkinControl(level.winRule);
@@ -2241,11 +2268,26 @@ class EpoxyApplication {
     return pathEngineOf(this.engine);
   }
 
-  /** Next goal to show, when the level's ruleset has the objective marker. */
-  private nextObjective(): GridPoint | null {
+  /**
+   * Next goal to show, when the level's ruleset has the objective marker: the first goal a tapped path reaches now, else the
+   * goal the search sees beyond what the path refuses (reachable false). The HUD asks every tick, so the answer is kept for
+   * the level object (the editor's test play reuses a level id), Chip's cell, the chips left, his keys and boots, and the
+   * second; load, restart, undo and replay forget it (forgetWalkAids).
+   */
+  private nextObjective(): MarkedObjective | null {
     const engine = this.pathEngine();
     if (!engine || !featuresFor(engine.getLevel()).objectiveMarker) return null;
-    return Pathfinder.findNextObjective(engine);
+    return this.objectiveMarker.get(engine, this.engine.getTick(), ConfigRegistry.getGame().timing.ticksPerSecond);
+  }
+
+  /**
+   * The game on screen was loaded again, undone or replayed: what the walk aids kept about it is no longer true. The
+   * monster watch sets its private copy to the game again, and the objective marker is asked again.
+   */
+  private forgetWalkAids(): void {
+    this.walkForecast.reset();
+    this.walkWait.clear();
+    this.objectiveMarker.forget();
   }
 
   /** Single entry point for every restart control. */
@@ -2262,6 +2304,7 @@ class EpoxyApplication {
   private undoMove(): void {
     this.stopAutoMoveAndReplay();
     if (this.engine.undo()) this.playtest.undone();
+    this.forgetWalkAids();
     this.updateHUD();
   }
 
@@ -2269,6 +2312,7 @@ class EpoxyApplication {
     if (!moves || moves.length === 0) return;
     this.playtest.replayStarting();
     this.stopAutoMoveAndReplay();
+    this.forgetWalkAids();
     this.loadPlayLevel(this.engine.getLevel());
     this.replayMoves = [...moves];
     this.replayIndex = 0;
@@ -2289,11 +2333,10 @@ class EpoxyApplication {
     if (active) {
       this.playtest.hintUsed();
       const target = this.nextObjective();
-      this.renderer.setObjectivePoint(target);
+      this.renderer.setObjectivePoint(target?.point ?? null);
       if (target) {
-        this.showTransientStatus(
-          t('hud.messages.objective_found.label', { x: target.x, y: target.y })
-        );
+        const key = target.reachable ? 'hud.messages.objective_found.label' : 'hud.messages.objective_unreachable.label';
+        this.showTransientStatus(t(key, { x: target.point.x, y: target.point.y }));
       }
     } else {
       this.renderer.setObjectivePoint(null);
@@ -4487,7 +4530,7 @@ class EpoxyApplication {
     this.updateStatusToast();
 
     if (this.renderer.isShowingMechanismLinks() && player.alive && !this.engine.isLevelCompleted()) {
-      this.renderer.setObjectivePoint(this.nextObjective());
+      this.renderer.setObjectivePoint(this.nextObjective()?.point ?? null);
     }
     this.updateOverlay();
   }

@@ -60,6 +60,8 @@ const THIEF_STEP_COST = 12;
 const SLIDE_STEP_COST = 4;
 /** Upper bound on expanded search states, as a guard against pathological door layouts. */
 const MAX_EXPANDED_STATES = 20000;
+/** Objective candidates the reachable objective tries a path to, best first, before it gives up. */
+const MAX_OBJECTIVE_PATH_TRIES = 8;
 
 interface AStarNode {
   x: number;
@@ -453,6 +455,25 @@ export class Pathfinder {
    * currently reachable by the player.
    */
   public static findNextObjective(engine: PathEngine): GridPoint | null {
+    return Pathfinder.objectiveCandidates(engine)[0] ?? null;
+  }
+
+  /**
+   * The next objective a tapped path can walk to now: the candidates of findNextObjective in the same order, each kept only
+   * when findPath reaches it. The search for the objective crosses what the path refuses (water, monsters, blocks, thieves,
+   * closed traps), so the first candidate alone is often out of reach. Null when none of the first candidates is.
+   */
+  public static findReachableObjective(engine: PathEngine): GridPoint | null {
+    let tries = 0;
+    for (const candidate of Pathfinder.objectiveCandidates(engine)) {
+      if (tries++ >= MAX_OBJECTIVE_PATH_TRIES) break;
+      if (Pathfinder.findPath(engine, candidate.x, candidate.y).moves.length > 0) return candidate;
+    }
+    return null;
+  }
+
+  /** Every objective the search finds, best first: each kind in priority order, each kind in search order, no cell twice. */
+  private static objectiveCandidates(engine: PathEngine): GridPoint[] {
     const player = engine.getPlayer();
     const terrain = engine.getTerrain();
     const items = engine.getItems();
@@ -460,7 +481,7 @@ export class Pathfinder {
     const width = terrain[0]?.length || 0;
 
     if (player.x < 0 || player.x >= width || player.y < 0 || player.y >= height) {
-      return null;
+      return [];
     }
 
     const objectiveLevel = engine.getLevel();
@@ -469,12 +490,12 @@ export class Pathfinder {
     const queue: GridPoint[] = [{ x: player.x, y: player.y }];
     visited[player.y][player.x] = true;
 
-    let exitCandidate: GridPoint | null = null;
-    let keyOrBootCandidate: GridPoint | null = null;
-    let unlockableDoorCandidate: GridPoint | null = null;
-    let buttonCandidate: GridPoint | null = null;
-    let chipCandidate: GridPoint | null = null;
-    let targetCandidate: GridPoint | null = null;
+    const exitCandidates: GridPoint[] = [];
+    const keyOrBootCandidates: GridPoint[] = [];
+    const unlockableDoorCandidates: GridPoint[] = [];
+    const buttonCandidates: GridPoint[] = [];
+    const chipCandidates: GridPoint[] = [];
+    const targetCandidates: GridPoint[] = [];
 
     // In a level won by covering targets, the objective is a target no block holds yet.
     const coversTargets = engine.getLevel().winRule === 'targets';
@@ -509,40 +530,33 @@ export class Pathfinder {
 
       if (
         coversTargets &&
-        !targetCandidate &&
         (curr.x !== player.x || curr.y !== player.y) &&
         terrain[curr.y][curr.x] === BLOCK_TARGET_TILE_ID &&
         !blockCells.has(`${curr.x},${curr.y}`)
       ) {
-        targetCandidate = curr;
+        targetCandidates.push(curr);
       }
 
       if (curr.x !== player.x || curr.y !== player.y) {
         if (tile.isLevelExit || (tile.requiresAllChips && engine.getChipsRemaining() === 0)) {
-          if (!exitCandidate) exitCandidate = curr;
+          exitCandidates.push(curr);
         }
         // A ward is optional gear, never the hint's next objective.
         if (itemDef && !itemDef.absorbsMonsterContact && (itemDef.collectible === 'key' || itemDef.collectible === 'boot')) {
-          if (!keyOrBootCandidate) keyOrBootCandidate = curr;
-        }
-        if (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall && !buttonCandidate) {
-          buttonCandidate = curr;
+          keyOrBootCandidates.push(curr);
         }
         const channelButton = channelOfButtonAction(tile.buttonAction);
-        if (channelButton && closedChannelWalls.has(channelButton) && !buttonCandidate) {
-          buttonCandidate = curr;
-        }
-        if (tile.buttonAction === 'toggle_flames' && hasLitFlameJet && !buttonCandidate) {
-          buttonCandidate = curr;
-        }
         if (
-          (tile.buttonAction === 'hold_trap' || tile.buttonAction === 'trigger_cloner') &&
-          !buttonCandidate
+          (tile.buttonAction === 'toggle_walls' && hasClosedToggleWall) ||
+          (channelButton && closedChannelWalls.has(channelButton)) ||
+          (tile.buttonAction === 'toggle_flames' && hasLitFlameJet) ||
+          tile.buttonAction === 'hold_trap' ||
+          tile.buttonAction === 'trigger_cloner'
         ) {
-          buttonCandidate = curr;
+          buttonCandidates.push(curr);
         }
-        if (itemDef?.collectible === 'chip' && !chipCandidate) {
-          chipCandidate = curr;
+        if (itemDef?.collectible === 'chip') {
+          chipCandidates.push(curr);
         }
       }
 
@@ -572,9 +586,7 @@ export class Pathfinder {
               ? engine.getRevealedTerrain(nx, ny)
               : hiddenUnder(objectiveLevel, terrain, nx, ny);
             if (hiddenId !== undefined && !ConfigRegistry.getTile(hiddenId).passableByPlayer) continue;
-            if (!unlockableDoorCandidate) {
-              unlockableDoorCandidate = { x: nx, y: ny };
-            }
+            unlockableDoorCandidates.push({ x: nx, y: ny });
             visited[ny][nx] = true;
             queue.push({ x: nx, y: ny });
           }
@@ -583,7 +595,7 @@ export class Pathfinder {
 
         if (nextTile.requiresAllChips) {
           if (engine.getChipsRemaining() === 0) {
-            if (!exitCandidate) exitCandidate = { x: nx, y: ny };
+            exitCandidates.push({ x: nx, y: ny });
             visited[ny][nx] = true;
             queue.push({ x: nx, y: ny });
           }
@@ -604,13 +616,16 @@ export class Pathfinder {
       }
     }
 
-    return (
-      targetCandidate ||
-      exitCandidate ||
-      keyOrBootCandidate ||
-      unlockableDoorCandidate ||
-      buttonCandidate ||
-      chipCandidate
-    );
+    const seen = new Set<string>();
+    const ordered: GridPoint[] = [];
+    for (const list of [targetCandidates, exitCandidates, keyOrBootCandidates, unlockableDoorCandidates, buttonCandidates, chipCandidates]) {
+      for (const point of list) {
+        const key = `${point.x},${point.y}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        ordered.push(point);
+      }
+    }
+    return ordered;
   }
 }
