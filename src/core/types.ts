@@ -62,6 +62,8 @@ export interface TimingConfig {
   walkLookaheadSteps?: number;
   /** Milliseconds one monster watch decision may take before the walk goes on without it. */
   walkForecastBudgetMs?: number;
+  /** Ticks the monster watch copy of a CCLP game plays per call while it catches up after an undo or a restart. */
+  walkCatchUpTicks?: number;
 }
 
 export interface UserSettings {

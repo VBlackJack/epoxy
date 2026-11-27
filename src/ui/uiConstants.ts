@@ -72,7 +72,8 @@ export const TIMING_DEFAULTS = {
   maxUndoSnapshots: 100,
   walkWaitSeconds: 5,
   walkLookaheadSteps: 2,
-  walkForecastBudgetMs: 15
+  walkForecastBudgetMs: 15,
+  walkCatchUpTicks: 40
 } as const;
 
 /** Fallback for the optional game.json "graphics" theme value. */

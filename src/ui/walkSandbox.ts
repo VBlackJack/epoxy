@@ -21,7 +21,9 @@ import { RuleModule } from '../core/lynx/ruleApi';
 import { Simulation } from '../core/lynx/Simulation';
 import { World } from '../core/lynx/model';
 import { CompiledLevel, Direction, PlayerState } from '../core/types';
+import { ConfigRegistry } from '../config/ConfigRegistry';
 import { applyTimedMove, collectDueMoves } from './replaySchedule';
+import { TIMING_DEFAULTS } from './uiConstants';
 
 /**
  * The private copies of the game a monster forecast plays on. A copy is never the game on screen: it follows it (the CCLP
@@ -41,6 +43,11 @@ export interface ForkEngine {
 export interface Sandbox {
   open(): ForkEngine | null;
   close(): void;
+}
+
+/** Ticks the CCLP copy plays catching up in one call (game.json timing): an undo late in a long level replays over several ticks. */
+export function walkCatchUpTicks(): number {
+  return ConfigRegistry.getGame().timing.walkCatchUpTicks ?? TIMING_DEFAULTS.walkCatchUpTicks;
 }
 
 const SILENT = { effect: (): void => undefined, step: (): void => undefined };
@@ -112,6 +119,7 @@ export class CclpSandbox implements Sandbox {
   private level: CompiledLevel | null = null;
   private moveIndex = 0;
   private mark: SimulationMark | null = null;
+  private rebuiltAfterMismatch = false;
   /** Counters for the measurement harness and the tests. */
   public rebuilds = 0;
   public mismatches = 0;
@@ -129,11 +137,17 @@ export class CclpSandbox implements Sandbox {
   /** The copy no longer follows the game on screen (an undo, a restart, a new level): the next follow or open loads it again. */
   public reset(): void {
     this.level = null;
+    this.rebuiltAfterMismatch = false;
   }
 
   /** The private engine, for the tests and the measurement harness. */
   public get copy(): CclpEngine {
     return this.shadow;
+  }
+
+  /** Whether the copy is at the tick of the game on screen. */
+  public caughtUp(): boolean {
+    return this.level !== null && this.shadow.getTick() >= this.live.getTick();
   }
 
   private load(): void {
@@ -143,18 +157,21 @@ export class CclpSandbox implements Sandbox {
     this.rebuilds++;
   }
 
-  /** Plays the copy forward to the tick of the game on screen: normally one tick per call. */
+  /**
+   * Plays the copy forward towards the tick of the game on screen: normally one tick per call, and never more than the
+   * catch-up cap of game.json timing, so an undo late in a long level cannot freeze a frame. The copy answers nothing
+   * until it has caught up (see open).
+   */
   public follow(): void {
     const until = this.live.getTick();
     if (this.level !== this.live.getLevel() || this.shadow.getTick() > until) this.load();
     if (this.shadow.getTick() >= until) return;
     const moves = this.live.getTimedMoveHistory();
     // The game on screen took moves back (an undo): the copy has played moves it no longer has.
-    if (this.moveIndex > moves.length) {
-      this.load();
-    }
+    if (this.moveIndex > moves.length) this.load();
     const shadow = this.shadow;
-    while (shadow.getTick() < until) {
+    const stop = Math.min(until, shadow.getTick() + walkCatchUpTicks());
+    while (shadow.getTick() < stop) {
       const { due, nextIndex } = collectDueMoves(moves, this.moveIndex, shadow.getTick());
       for (const move of due) applyTimedMove(shadow, move);
       this.moveIndex = nextIndex;
@@ -184,11 +201,16 @@ export class CclpSandbox implements Sandbox {
 
   public open(): ForkEngine | null {
     this.follow();
+    // Still catching up after an undo or a restart: no forecast, the walk goes on as it did without the watch.
+    if (!this.caughtUp()) return null;
     if (!this.matchesLive()) {
+      // One rebuild per load of the game on screen; a copy that still does not match is left alone until the next reset.
+      if (this.rebuiltAfterMismatch) return null;
       this.mismatches++;
+      this.rebuiltAfterMismatch = true;
       this.load();
       this.follow();
-      if (!this.matchesLive()) return null;
+      if (!this.caughtUp() || !this.matchesLive()) return null;
     }
     const sim = this.sim;
     if (sim === null) return null;

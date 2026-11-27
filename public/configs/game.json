@@ -703,7 +703,8 @@
     "lowTimeWarningSeconds": 10,
     "walkWaitSeconds": 5,
     "walkLookaheadSteps": 2,
-    "walkForecastBudgetMs": 15
+    "walkForecastBudgetMs": 15,
+    "walkCatchUpTicks": 40
   },
   "storage": {
     "saveSlotKey": "save_state",

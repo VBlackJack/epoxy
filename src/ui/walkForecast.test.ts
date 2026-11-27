@@ -372,6 +372,88 @@ describe('WalkForecaster on the CCLP engine', () => {
     expect(forecaster.stats().mismatches).toBe(1);
   });
 
+  it('after an undo late in a long level, the copy catches up at most the cap per call and gives no answer until then', () => {
+    const live = cclpEngine(EMPTY_ROW);
+    const sandbox = new CclpSandbox(live);
+    sandbox.follow();
+    const LATE = 400;
+    for (let t = 0; t < LATE; t++) {
+      live.tick();
+      sandbox.follow();
+    }
+    const cap = ConfigRegistry.getGame().timing.walkCatchUpTicks ?? 0;
+    expect(cap).toBe(40);
+    sandbox.reset();
+    expect(sandbox.caughtUp()).toBe(false);
+    expect(sandbox.open()).toBeNull();
+    sandbox.reset();
+    let calls = 0;
+    while (!sandbox.caughtUp()) {
+      const before = sandbox.copy.getTick();
+      sandbox.follow();
+      calls++;
+      expect(sandbox.copy.getTick() - before).toBeLessThanOrEqual(cap);
+      expect(calls).toBeLessThan(100);
+    }
+    expect(calls).toBe(LATE / cap);
+    expect(sandbox.open()).not.toBeNull();
+    sandbox.close();
+    expect(sandbox.matchesLive()).toBe(true);
+  });
+
+  it('a single follow call plays no more than the cap after a reset at a high tick', () => {
+    const live = cclpEngine(EMPTY_ROW);
+    const sandbox = new CclpSandbox(live);
+    sandbox.follow();
+    for (let t = 0; t < 300; t++) {
+      live.tick();
+      sandbox.follow();
+    }
+    sandbox.reset();
+    const spy = vi.spyOn(CclpEngine.prototype, 'tick');
+    sandbox.follow();
+    expect(spy.mock.calls.length).toBeLessThanOrEqual(40);
+  });
+
+  it('a copy that still differs after its one rebuild is left alone until the next reset', () => {
+    const live = cclpEngine(DEAD_END, { b: { entity: { type: BALL, dir: 'W' } } });
+    const sandbox = new CclpSandbox(live);
+    sandbox.follow();
+    expect(live.attemptPlayerMove('E')).toBe(true);
+    live.tick();
+    vi.spyOn(live, 'getTimedMoveHistory').mockReturnValue([]);
+    sandbox.follow();
+    expect(sandbox.open()).toBeNull();
+    expect(sandbox.open()).toBeNull();
+    expect(sandbox.open()).toBeNull();
+    expect(sandbox.mismatches).toBe(1);
+    expect(sandbox.rebuilds).toBe(2);
+  });
+
+  it('hand play (held key, two-key hold, two-key press) keeps the copy equal to the game on screen every tick', () => {
+    const live = cclpEngine(['########', '#@.....#', '#......#', '#......#', '#......#', '########']);
+    const sandbox = new CclpSandbox(live);
+    sandbox.follow();
+    const script: { keys: Direction[]; press?: Direction[] }[] = [
+      ...Array.from({ length: 10 }, () => ({ keys: ['E' as Direction] })),
+      ...Array.from({ length: 10 }, () => ({ keys: ['S' as Direction, 'E' as Direction] })),
+      { keys: [], press: ['E', 'S'] },
+      ...Array.from({ length: 8 }, () => ({ keys: [] as Direction[] })),
+      ...Array.from({ length: 10 }, () => ({ keys: ['W' as Direction, 'N' as Direction] }))
+    ];
+    for (const step of script) {
+      live.holdPlayerDirections(step.keys);
+      if (step.press) live.attemptPlayerMoveHeld(step.press);
+      live.tick();
+      sandbox.follow();
+      expect(sandbox.matchesLive()).toBe(true);
+    }
+    expect(live.getTimedMoveHistory().some((m) => m.alt !== undefined)).toBe(true);
+    expect(fullView(sandbox.copy)).toBe(fullView(live));
+    expect(sandbox.mismatches).toBe(0);
+    expect(sandbox.rebuilds).toBe(1);
+  });
+
   it('a decision that runs out of its time budget answers go', () => {
     const budget = ConfigRegistry.getGame().timing.walkForecastBudgetMs ?? 0;
     expect(budget).toBe(15);

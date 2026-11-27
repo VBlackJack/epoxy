@@ -847,7 +847,7 @@ class EpoxyApplication {
     }
     this.engine.tick();
     // The CCLP copy of the monster watch plays the tick that was just played, so a forecast never replays the history.
-    if (this.cclpEngine()) this.walkForecast.follow(this.engine);
+    if (this.cclpEngine() && featuresFor(this.engine.getLevel()).tapToPath) this.walkForecast.follow(this.engine);
     if (autoStepStored) {
       // The turn of the tick played the stored step: the queue follows what it did, as it followed the step when it was played at the input.
       if (this.epoxyEngine()?.getLastPlayerTurn()?.moved === true) {
