@@ -87,8 +87,10 @@ export function padKeys(pad: PadSnapshot, previousStick: readonly Direction[], c
 /**
  * The single direction the pad gives an engine that reads one key: the d-pad buttons and the stick axes past the press
  * throw (no release throw: what the pad has always done) as one key set, up before down before left before right.
+ * While a replay plays the pad gives no direction: the replay owns the engine, and a pad move would throw it out of sync.
  */
-export function singlePadDirection(pad: PadSnapshot, config: GamepadConfig): Direction | null {
+export function singlePadDirection(pad: PadSnapshot, config: GamepadConfig, replaying = false): Direction | null {
+  if (replaying) return null;
   const down = new Set<Direction>([...dpadKeys(pad), ...stickOf(pad, [], config)]);
   return SINGLE_KEY_PRIORITY.find((d) => down.has(d)) ?? null;
 }
