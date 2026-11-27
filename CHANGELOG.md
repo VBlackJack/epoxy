@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.45.0] - 2026-11-27
+
 ### Changed
 
 - Packs imported from a `.DAT` file before v2.44.0 now move to the Lynx rules (CCLP profile) on first load when Epoxy can prove the move exact against the bundled files: the bundled community sets (TW_INTRO, CCLP1 to CCLP5) when untouched, and plain Lynx imports of any set, which only gain the profile. Scores and completion are kept. Replays recorded on the old engine stay stored but no longer play, and the next win records a new one. Each pack is rewritten in one all-or-nothing step, and a pack saved meanwhile from another tab is left alone. A pack the player edited, or one Epoxy cannot prove exact, keeps its engine and a one-time notice says so (importing the `.DAT` again makes a new pack with no scores). The official `CHIPS.DAT` keeps the classic rules. The move runs once.
