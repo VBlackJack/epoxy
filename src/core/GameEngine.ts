@@ -245,10 +245,6 @@ export class GameEngine {
   private turnUndoRequests: number | undefined;
   /** CC2 engine, actor order: what the player's turn of the last tick did (see getLastPlayerTurn). */
   private lastPlayerTurn: { dir: Direction; moved: boolean } | undefined;
-  /** CC2 engine, actor order: the cells of the level's light switches, in cell order. Empty on any other level. */
-  private lightSwitchCells: number[] = [];
-  /** CC2 engine, actor order: the form of each light switch as the last tick ended (see settleBeforeActorPass). */
-  private lightSwitchBase = new Map<number, string>();
 
   private onWinCallback:
     | ((levelId: string, timeRemaining: number, steps: number, score: number, moves: Direction[]) => void)
@@ -333,7 +329,6 @@ export class GameEngine {
     this.playingStored = false;
     this.deferredUndo = undefined;
     this.lastPlayerTurn = undefined;
-    this.indexLightSwitches();
   }
 
   /**
@@ -1183,7 +1178,6 @@ export class GameEngine {
     // The state put back is one between ticks: no turn was played in it, and the snapshot kept for the stored input is gone with it.
     this.deferredUndo = undefined;
     this.lastPlayerTurn = undefined;
-    this.rebaseLightSwitches();
   }
 
   /**
@@ -1392,7 +1386,7 @@ export class GameEngine {
     this.w.cc2BrownHeld = undefined;
     // CC2 engine: the belt follows what the tick took from the player (a thief, a spent bribe); getToolBelt is a pure read.
     if (usesToolBelt(this.w)) syncToolBelt(this.w.player);
-    // CC2 engine, no actor order: the next tick's frames 0 and 1 run first, so the view, the mirror tick end and the light switches
+    // CC2 engine, no actor order: the next tick's frames 0 and 1 run first, so the view and the mirror tick end
     // below see what they moved.
     this.runEndOfTickPrePass();
     // No actor order: the frame wire phases belong to this tick end (the pre-pass ran them, or it had nothing to move), unless the
@@ -1401,7 +1395,6 @@ export class GameEngine {
     // CC2 engine: where the player appears to be as the next tick starts, before the input of that tick moves him.
     recordCc2PlayerView(this.w);
     this.endMirrorTick();
-    this.rebaseLightSwitches();
   }
 
   /**
@@ -1937,48 +1930,19 @@ export class GameEngine {
   /**
    * CC2 engine, actor order: before the pass of a tick with a stored move, the wires settle once, sampled as at rest, with the sinks
    * they fire waiting as those of a move settle do (Lexy runs the wire phases of its first frames before the decisions; AOL of the
-   * wave 9 plan). A light switch the player's step end flipped since the last tick reads as it was: Lexy's switch emits from the next
-   * wire phase, after the monsters decided.
+   * wave 9 plan). No light switch is hidden from this settle: while the frame wire phase is due (every tick after the first) the settle
+   * holds every source (see settleWorldSignals), so a light switch the player's step end flipped since the last tick is not read here.
+   * Lexy's switch emits from the next wire phase, after the monsters decided.
    */
   private settleBeforeActorPass(): void {
     const w = this.w;
     const stored = w.cc2PendingDecision;
     if (stored === undefined || stored.dirs.length === 0 || !w.player.alive) return;
-    const width = mapWidth(w);
-    const hidden: [number, string][] = [];
-    for (const cell of this.lightSwitchCells) {
-      const x = cell % width;
-      const y = Math.floor(cell / width);
-      const was = this.lightSwitchBase.get(cell);
-      if (was !== undefined && was !== w.terrain[y][x]) {
-        hidden.push([cell, w.terrain[y][x]]);
-        w.terrain[y][x] = was;
-      }
-    }
-    try {
-      const edges = w.signals !== undefined ? settleWorldSignals(w, false, SIGNAL_PHASE_TICK) : [];
-      setPoweredCells(this.ctx);
-      setHoldDoors(this.ctx);
-      // Sampled as a tick settle (the player has not moved), fired as a move settle (the sinks wait for the wire phase of the tick).
-      fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
-    } finally {
-      for (const [cell, id] of hidden) w.terrain[Math.floor(cell / width)][cell % width] = id;
-    }
-  }
-
-  /** CC2 engine, actor order: finds the light switches of the level (see settleBeforeActorPass). Only a level with a signal network has any to read. */
-  private indexLightSwitches(): void {
-    this.lightSwitchCells = [];
-    this.lightSwitchBase = new Map<number, string>();
-    if (this.w.cc2ActorOrder !== true || this.w.signals === undefined) return;
-    this.lightSwitchCells = [...this.w.signals.toggleCells].sort((a, b) => a - b);
-    this.rebaseLightSwitches();
-  }
-
-  /** CC2 engine, actor order: remembers the form of each light switch as the world stands between two ticks. */
-  private rebaseLightSwitches(): void {
-    const width = mapWidth(this.w);
-    for (const cell of this.lightSwitchCells) this.lightSwitchBase.set(cell, this.w.terrain[Math.floor(cell / width)][cell % width]);
+    const edges = w.signals !== undefined ? settleWorldSignals(w, false, SIGNAL_PHASE_TICK) : [];
+    setPoweredCells(this.ctx);
+    setHoldDoors(this.ctx);
+    // Sampled as a tick settle (the player has not moved), fired as a move settle (the sinks wait for the wire phase of the tick).
+    fireSignalSinks(this.ctx, edges, SIGNAL_PHASE_MOVE);
   }
 
   /**
