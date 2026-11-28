@@ -21,6 +21,7 @@
  */
 
 import type { Direction, TouchConfig } from '../core/types';
+import { joystickDiagonalConfigFrom, joystickKeys, sameKeys, type JoystickDiagonalConfig } from './touchDirections';
 import { TOUCH_DEFAULTS } from './uiConstants';
 
 export interface Point {
@@ -46,6 +47,8 @@ export interface JoystickOptions {
   /** A touch that moves at most this far and ends within the duration is a tap. */
   tapMaxDistancePx: number;
   tapMaxDurationMs: number;
+  /** The second key of a diagonal, on engines that read two held keys (JoystickCallbacks.readsKeyPairs). */
+  diagonal: JoystickDiagonalConfig;
 }
 
 export interface JoystickResolution {
@@ -69,7 +72,8 @@ export function joystickOptionsFromTouchConfig(touch?: Partial<TouchConfig>): Jo
       knobRadiusPx: merged.joystickKnobRadiusPx
     },
     tapMaxDistancePx: merged.tapMaxDistancePx,
-    tapMaxDurationMs: merged.tapMaxDurationMs
+    tapMaxDurationMs: merged.tapMaxDurationMs,
+    diagonal: joystickDiagonalConfigFrom(touch)
   };
 }
 
@@ -129,6 +133,14 @@ export interface JoystickCallbacks {
   onTap: (x: number, y: number) => void;
   /** The joystick went from idle to a direction (the moment for a haptic pulse). */
   onEngage: (dir: Direction) => void;
+  /**
+   * Asked at each touch down: true when the engine reads two held keys. The gesture then reports through onKeys (one key,
+   * or two for a diagonal) instead of onDirection, until the finger lifts. Absent or false, or with diagonals switched off in
+   * game.json: onDirection only, as ever.
+   */
+  readsKeyPairs?: () => boolean;
+  /** The keys held changed (N, E, S, W order); an empty list means released. Only for a gesture that reads pairs. */
+  onKeys?: (keys: Direction[]) => void;
 }
 
 /** Classes the controller puts on the elements it creates and on the zone, for the stylesheet. */
@@ -147,6 +159,8 @@ interface Gesture {
   origin: Point;
   maxTravel: number;
   engaged: boolean;
+  /** The gesture reports keys (onKeys), decided at touch down. */
+  pairs: boolean;
 }
 
 export class FloatingJoystick {
@@ -154,6 +168,7 @@ export class FloatingJoystick {
   private readonly knobEl: HTMLElement;
   private gesture: Gesture | null = null;
   private dir: Direction | null = null;
+  private keys: Direction[] = [];
   private enabled = true;
 
   constructor(
@@ -226,7 +241,8 @@ export class FloatingJoystick {
       start,
       origin: start,
       maxTravel: 0,
-      engaged: false
+      engaged: false,
+      pairs: this.options.diagonal.enabled && Boolean(this.callbacks.onKeys) && this.callbacks.readsKeyPairs?.() === true
     };
     try {
       this.zone.setPointerCapture?.(event.pointerId);
@@ -244,6 +260,10 @@ export class FloatingJoystick {
     const resolved = resolveJoystick(gesture.origin, this.dir, point, this.options.config);
     gesture.origin = resolved.origin;
     this.draw(resolved.origin, resolved.knob);
+    if (gesture.pairs) {
+      this.movePairs(resolved.dir, point.x - resolved.origin.x, point.y - resolved.origin.y);
+      return;
+    }
     if (resolved.dir === this.dir) return;
     const wasIdle = this.dir === null;
     this.dir = resolved.dir;
@@ -253,6 +273,20 @@ export class FloatingJoystick {
     }
     this.callbacks.onDirection(resolved.dir);
   };
+
+  /** A move of a gesture that reads pairs: the same engage rule, the keys reported when they change. */
+  private movePairs(dir: Direction | null, dx: number, dy: number): void {
+    const keys = joystickKeys(dir, dx, dy, this.keys, this.options.diagonal);
+    const wasIdle = this.dir === null;
+    this.dir = dir;
+    if (dir !== null && this.gesture) {
+      this.gesture.engaged = true;
+      if (wasIdle) this.callbacks.onEngage(dir);
+    }
+    if (sameKeys(keys, this.keys)) return;
+    this.keys = keys;
+    this.callbacks.onKeys?.([...keys]);
+  }
 
   private readonly onPointerUp = (event: PointerEvent): void => {
     const gesture = this.gesture;
@@ -285,6 +319,14 @@ export class FloatingJoystick {
       } catch {
         // Capture already released by the browser.
       }
+    }
+    if (gesture?.pairs) {
+      this.dir = null;
+      if (this.keys.length > 0) {
+        this.keys = [];
+        this.callbacks.onKeys?.([]);
+      }
+      return;
     }
     if (this.dir !== null) {
       this.dir = null;

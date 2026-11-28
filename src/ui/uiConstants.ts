@@ -45,18 +45,8 @@ export const EDITOR_DRAFT_MAX_CHARS = 1_000_000;
 /** Delay before an object URL handed to a download link is revoked. */
 export const OBJECT_URL_REVOKE_DELAY_MS = 1000;
 
-/** Fallbacks for the optional game.json "touch" section. */
-export const TOUCH_DEFAULTS = {
-  swipeDeadzonePx: 20,
-  tapMaxDistancePx: 14,
-  tapMaxDurationMs: 280,
-  hapticPulseMs: 10,
-  joystickDeadZonePx: 14,
-  joystickReleaseRadiusPx: 10,
-  joystickAxisSwitchRatio: 1.25,
-  joystickBaseFollowRadiusPx: 24,
-  joystickKnobRadiusPx: 48
-} as const;
+/** Fallbacks for the optional game.json "touch" section live with the other config defaults (src/config/constants.ts). */
+export { TOUCH_DEFAULTS } from '../config/constants';
 
 /**
  * Fraction of the swipe dead zone the anchor trails behind the finger, so a

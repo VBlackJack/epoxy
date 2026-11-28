@@ -32,6 +32,22 @@ export const GAMEPAD_DEFAULTS = {
   stickReleaseThreshold: 0.35
 } as const;
 
+/** Fallbacks for the optional game.json "touch" section. */
+export const TOUCH_DEFAULTS = {
+  swipeDeadzonePx: 20,
+  tapMaxDistancePx: 14,
+  tapMaxDurationMs: 280,
+  hapticPulseMs: 10,
+  joystickDeadZonePx: 14,
+  joystickReleaseRadiusPx: 10,
+  joystickAxisSwitchRatio: 1.25,
+  joystickBaseFollowRadiusPx: 24,
+  joystickKnobRadiusPx: 48,
+  joystickDiagonals: true,
+  joystickDiagonalPressRatio: 0.5,
+  joystickDiagonalReleaseRatio: 0.35
+} as const;
+
 export const CONFIG_ENDPOINTS = {
   GAME: `${ENV_CONFIG.CONFIG_BASE_URL}/game.json`,
   TILES: `${ENV_CONFIG.CONFIG_BASE_URL}/tiles.json`,
