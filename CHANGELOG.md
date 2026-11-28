@@ -5,6 +5,8 @@ versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.48.0] - 2026-11-28
+
 ### Fixed
 
 - On the engines that read one key (the classic rules and the other single-key engines), the gamepad no longer steers Chip while a replay plays, so a watched replay no longer goes out of sync; the B and START buttons still work.
